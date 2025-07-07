@@ -8,7 +8,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 
 export type RequestAgentQuoteInput = FreightQuoteFormData;

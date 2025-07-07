@@ -78,8 +78,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
     resolver: zodResolver(freightQuoteFormSchema),
     defaultValues: {
       customerId: '',
-      customerEmail: '',
-      customerPhone: '',
+      customerEmail: '', // This will be set programmatically
+      customerPhone: '', // This will be set programmatically
       modal: 'air',
       incoterm: 'FOB',
       origin: '',
@@ -214,9 +214,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
         toast({
             variant: "destructive",
             title: "Telefone não encontrado",
-            description: "Por favor, preencha o campo de telefone do cliente.",
+            description: "O cliente selecionado não possui um telefone para contato.",
         });
-        form.setFocus('customerPhone');
         return;
     }
     if (quoteContent?.whatsappMessage) {
@@ -239,7 +238,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid md:grid-cols-3 gap-4 items-start">
+                <div className="grid md:grid-cols-1 gap-4 items-start">
                    <FormField
                       control={form.control}
                       name="customerId"
@@ -279,8 +278,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                                                 key={partner.id}
                                                 onSelect={() => {
                                                     form.setValue("customerId", partner.id.toString());
-                                                    form.setValue("customerEmail", partner.email);
-                                                    form.setValue("customerPhone", partner.phone);
+                                                    const commercialContact = partner.contacts.find(c => c.department === 'Comercial') || partner.contacts[0];
+                                                    if (commercialContact) {
+                                                      form.setValue("customerEmail", commercialContact.email);
+                                                      form.setValue("customerPhone", commercialContact.phone);
+                                                    } else {
+                                                      form.setValue("customerEmail", '');
+                                                      form.setValue("customerPhone", '');
+                                                    }
                                                     setIsCustomerPopoverOpen(false);
                                                 }}
                                                 >
@@ -308,28 +313,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                         </FormItem>
                       )}
                     />
-                  <FormField
-                    control={form.control}
-                    name="customerEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>E-mail do Cliente</FormLabel>
-                        <FormControl><Input type="email" placeholder="E-mail será preenchido automaticamente" {...field} readOnly /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="customerPhone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>WhatsApp do Cliente</FormLabel>
-                        <FormControl><Input placeholder="Telefone será preenchido automaticamente" {...field} readOnly /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
 
               <Tabs 

@@ -52,10 +52,48 @@ const initialQuotesData: Quote[] = [
 ];
 
 const initialPartnersData: Partner[] = [
-    { id: 1, name: 'Nexus Imports', type: 'Cliente', email: 'contato@nexus.com', phone: '5511987654321' },
-    { id: 2, name: 'Maersk Line', type: 'Fornecedor', email: 'comercial.br@maersk.com', phone: '551332268500' },
-    { id: 3, name: 'Global Logistics Agents', type: 'Agente', email: 'ops@gla.com', phone: '13055551234' },
-    { id: 4, name: 'TechFront Solutions', type: 'Cliente', email: 'financeiro@techfront.com', phone: '554733445566' },
+    { 
+        id: 1, 
+        name: 'Nexus Imports', 
+        type: 'Cliente', 
+        cnpj: '12345678000199',
+        address: { street: 'Av. das Nações', number: '100', complement: 'Torre B, 5º Andar', district: 'Centro', city: 'São Paulo', state: 'SP', zip: '01234-000' },
+        contacts: [
+            { name: 'Ana Costa', email: 'ana.costa@nexus.com', phone: '5511987654321', department: 'Comercial' },
+            { name: 'Roberto Lima', email: 'roberto.lima@nexus.com', phone: '5511987654322', department: 'Operacional' }
+        ]
+    },
+    { 
+        id: 2, 
+        name: 'Maersk Line Brasil', 
+        type: 'Fornecedor',
+        cnpj: '98765432000100',
+        address: { street: 'Rua do Porto', number: '555', complement: '', district: 'Paquetá', city: 'Santos', state: 'SP', zip: '11010-151' },
+        contacts: [
+            { name: 'Carlos Pereira', email: 'comercial.br@maersk.com', phone: '551332268500', department: 'Comercial' }
+        ]
+    },
+    { 
+        id: 3, 
+        name: 'Global Logistics Agents', 
+        type: 'Agente', 
+        cnpj: '',
+        address: { street: 'Ocean Drive', number: '123', complement: 'Suite 200', district: 'South Beach', city: 'Miami', state: 'FL', zip: '33139' },
+        contacts: [
+            { name: 'John Smith', email: 'ops@gla.com', phone: '13055551234', department: 'Operacional' }
+        ]
+    },
+    { 
+        id: 4, 
+        name: 'TechFront Solutions', 
+        type: 'Cliente', 
+        cnpj: '11223344000155',
+        address: { street: 'Rua da Inovação', number: '404', complement: '', district: 'Centro', city: 'Florianópolis', state: 'SC', zip: '88010-000' },
+        contacts: [
+            { name: 'Sofia Mendes', email: 'sofia@techfront.com', phone: '5548999887766', department: 'Comercial' },
+            { name: 'Lucas Ferreira', email: 'financeiro@techfront.com', phone: '5548999887755', department: 'Financeiro' }
+        ]
+    },
 ];
 
 const initialFeesData: Fee[] = [

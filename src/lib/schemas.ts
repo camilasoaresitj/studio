@@ -20,8 +20,10 @@ export const lclDetailsSchema = z.object({
 
 export const freightQuoteFormSchema = z.object({
   customerId: z.string({ required_error: "Por favor, selecione um cliente."}).min(1, { message: "Por favor, selecione um cliente." }),
-  customerEmail: z.string().email({ message: "O e-mail do cliente é inválido." }),
-  customerPhone: z.string().min(10, { message: "O telefone do cliente é obrigatório (mínimo 10 dígitos)."}).optional(),
+  // Os campos abaixo são preenchidos programaticamente após a seleção do cliente
+  customerEmail: z.string().email({ message: "O e-mail do cliente é inválido." }).optional().or(z.literal('')),
+  customerPhone: z.string().min(10, { message: "O telefone do cliente é obrigatório (mínimo 10 dígitos)."}).optional().or(z.literal('')),
+  
   modal: z.enum(['air', 'ocean']),
   incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),

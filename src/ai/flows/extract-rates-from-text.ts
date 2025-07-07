@@ -48,15 +48,32 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 - The \`modal\` field must be either "Aéreo" or "Marítimo". Infer from context.
 - For all other non-mandatory fields (\`carrier\`, \`transitTime\`, \`container\`, \`validity\`, \`freeTime\`), use the exact string "N/A" if the information is not present.
 
-**Location Standardization Rules:**
-- You MUST normalize all location names to their full, official name, including the city and country.
-- Use the format "Nome do Local, XX" where XX is the 2-letter country code.
-- Examples of standardization:
-  - Input: "Santos", "SSZ" => Output: "Porto de Santos, BR"
-  - Input: "Rotterdam", "RTM" => Output: "Porto de Roterdã, NL"
-  - Input: "Guarulhos", "GRU Airport" => Output: "Aeroporto de Guarulhos, BR"
-  - Input: "Shanghai" => Output: "Porto de Xangai, CN"
-- **Special Brazil Rule:** If the text mentions "Brazil base ports", "BR base ports", or similar, interpret this as the single string: "Santos / Itapoa / Navegantes / Paranagua / Rio Grande, BR".
+**Location Standardization Rules (Based on Official Tables):**
+- You MUST act as an expert with access to official port and airport code tables (like IATA, UN/LOCODE, and Brazilian Receita Federal).
+- Your primary task is to normalize all location names to their full, official name, including the city and country.
+- The required output format is **"Nome do Local, XX"**, where XX is the 2-letter ISO country code.
+- Be very strict. If you see a code, convert it. If you see a city name, specify if it's a Port or Airport.
+- **Examples of Standardization:**
+  - **Brazilian Ports:**
+    - "Santos", "SSZ", "Port of Santos" -> "Porto de Santos, BR"
+    - "Itajaí", "ITJ" -> "Porto de Itajaí, BR"
+    - "Paranaguá", "PNG" -> "Porto de Paranaguá, BR"
+    - "Navegantes", "NVT" -> "Porto de Navegantes, BR"
+    - "Itapoá", "IPO" -> "Porto de Itapoá, BR"
+    - "Rio Grande", "RIG" -> "Porto de Rio Grande, BR"
+  - **Brazilian Airports:**
+    - "Guarulhos", "GRU", "Sao Paulo Intl" -> "Aeroporto de Guarulhos, BR"
+    - "Viracopos", "VCP", "Campinas" -> "Aeroporto de Viracopos, BR"
+  - **International Locations:**
+    - "Rotterdam", "RTM", "Port of Rotterdam" -> "Porto de Roterdã, NL"
+    - "Shanghai", "SHA", "Port of Shanghai" -> "Porto de Xangai, CN"
+    - "Hamburg", "HAM" -> "Porto de Hamburgo, DE"
+    - "Antwerp", "ANR" -> "Porto de Antuérpia, BE"
+    - "Qingdao" -> "Porto de Qingdao, CN"
+    - "Shenzhen", "SZX" -> "Porto de Shenzhen, CN"
+    - "Miami", "MIA" -> "Aeroporto de Miami, US"
+    - "JFK", "New York JFK" -> "Aeroporto JFK, US"
+- **Special Brazil Rule:** If the text mentions "Brazil base ports", "BR base ports", or similar, you must interpret this as the single string: "Santos / Itapoa / Navegantes / Paranagua / Rio Grande, BR". Do not try to split them into individual rates unless the text explicitly provides different rates for each.
 
 **Example of a valid final rate object:**
 \`\`\`json

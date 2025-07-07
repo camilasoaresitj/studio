@@ -206,8 +206,8 @@ export default function ComercialPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-5 max-w-4xl">
           <TabsTrigger value="quote">Cotação de Frete</TabsTrigger>
-          <TabsTrigger value="rates">Gestão de Tarifas</TabsTrigger>
           <TabsTrigger value="customer_quotes">Cotações</TabsTrigger>
+          <TabsTrigger value="rates">Gestão de Tarifas</TabsTrigger>
           <TabsTrigger value="crm">CRM Automático</TabsTrigger>
           <TabsTrigger value="partners">Parceiros</TabsTrigger>
         </TabsList>
@@ -221,6 +221,9 @@ export default function ComercialPage() {
             rates={rates}
             fees={fees}
           />
+        </TabsContent>
+        <TabsContent value="customer_quotes" className="mt-6">
+          <CustomerQuotesList quotes={quotes} />
         </TabsContent>
          <TabsContent value="rates" className="mt-6">
             <div className="space-y-8">
@@ -236,9 +239,6 @@ export default function ComercialPage() {
                   </CardContent>
               </Card>
             </div>
-        </TabsContent>
-        <TabsContent value="customer_quotes" className="mt-6">
-          <CustomerQuotesList quotes={quotes} />
         </TabsContent>
         <TabsContent value="crm" className="mt-6">
           <CrmForm />
@@ -258,5 +258,3 @@ export default function ComercialPage() {
     </div>
   );
 }
-
-    

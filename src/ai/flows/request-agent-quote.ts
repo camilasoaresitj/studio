@@ -74,8 +74,14 @@ const requestAgentQuoteFlow = ai.defineFlow(
         if (input.oceanShipmentType === 'FCL') {
             detailsParts.push('Containers:');
             input.oceanShipment.containers.forEach(c => {
-                const weightInfo = c.weight ? `, ${c.weight} kg each` : '';
-                detailsParts.push(`- ${c.quantity} x ${c.type}${weightInfo}`);
+                let details = `- ${c.quantity} x ${c.type}`;
+                if (c.weight) {
+                    details += `, ${c.weight} kg each`;
+                }
+                if (c.length && c.width && c.height) {
+                    details += ` (Cargo Dims: ${c.length}x${c.width}x${c.height} cm)`;
+                }
+                detailsParts.push(details);
             });
         } else { // LCL
             detailsParts.push('LCL Details:');

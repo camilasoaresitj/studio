@@ -12,7 +12,19 @@ export const oceanContainerSchema = z.object({
   type: z.string().min(1, "Selecione o tipo"),
   quantity: z.coerce.number().min(1, "Obrigatório"),
   weight: z.coerce.number().optional(),
+  length: z.coerce.number().optional(),
+  width: z.coerce.number().optional(),
+  height: z.coerce.number().optional(),
+}).superRefine((data, ctx) => {
+    const isSpecialContainer = data.type.includes('OT') || data.type.includes('FR');
+    if (isSpecialContainer) {
+        if (!data.length) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Obrigatório", path: ['length'] });
+        if (!data.width) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Obrigatório", path: ['width'] });
+        if (!data.height) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Obrigatório", path: ['height'] });
+        if (!data.weight) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Obrigatório", path: ['weight'] });
+    }
 });
+
 
 export const lclDetailsSchema = z.object({
     cbm: z.coerce.number().min(0.01, "CBM deve ser maior que 0."),

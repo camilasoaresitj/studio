@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, X, FileText } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
+import { runGetFreightRates } from '@/app/actions';
 
 const airPieceSchema = z.object({
   quantity: z.coerce.number().min(1, "Obrigatório"),
@@ -36,6 +37,11 @@ const oceanContainerSchema = z.object({
   quantity: z.coerce.number().min(1, "Obrigatório"),
 });
 
+const lclDetailsSchema = z.object({
+    cbm: z.coerce.number().min(0.01, "CBM deve ser maior que 0."),
+    weight: z.coerce.number().min(1, "Peso deve ser maior que 0."),
+});
+
 const formSchema = z.object({
   customerName: z.string().min(3, { message: "O nome do cliente é obrigatório (mínimo 3 caracteres)." }),
   modal: z.enum(['air', 'ocean']),
@@ -44,40 +50,52 @@ const formSchema = z.object({
   departureDate: z.date().optional(),
   
   airShipment: z.object({
-    pieces: z.array(airPieceSchema).min(1, "Adicione pelo menos uma peça."),
+    pieces: z.array(airPieceSchema),
     isStackable: z.boolean().default(false),
   }),
 
+  oceanShipmentType: z.enum(['FCL', 'LCL']),
   oceanShipment: z.object({
-    containers: z.array(oceanContainerSchema).min(1, "Adicione pelo menos um contêiner."),
+    containers: z.array(oceanContainerSchema),
   }),
-}).refine(data => {
-    if (data.modal === 'air') {
-        return data.airShipment.pieces.length > 0;
+  lclDetails: lclDetailsSchema,
+
+}).superRefine((data, ctx) => {
+    if (data.modal === 'air' && data.airShipment.pieces.length === 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Adicione pelo menos uma peça para cotação aérea.",
+            path: ['airShipment.pieces'],
+        });
     }
-    if (data.modal === 'ocean') {
-        return data.oceanShipment.containers.length > 0;
+    if (data.modal === 'ocean' && data.oceanShipmentType === 'FCL' && data.oceanShipment.containers.length === 0) {
+         ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Adicione pelo menos um contêiner para cotação FCL.",
+            path: ['oceanShipment.containers'],
+        });
     }
-    return true;
-}, {
-    message: "Detalhes da carga são obrigatórios.",
-    path: ['airShipment'] 
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-const mockResults = [
-  { id: 1, carrier: 'LATAM Cargo', transitTime: '1-2 dias', cost: 'USD 4.50 / kg', costValue: 4.50, carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'airline logo' },
-  { id: 2, carrier: 'Lufthansa Cargo', transitTime: '1-2 dias', cost: 'USD 3.80 / kg', costValue: 3.80, carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'airline logo' },
-  { id: 3, carrier: 'Maersk', transitTime: '25-30 dias', cost: 'USD 2,500 / TEU', costValue: 2500, carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'shipping company logo' },
-  { id: 4, carrier: 'CMA CGM', transitTime: '35-40 dias', cost: 'USD 2,200 / TEU', costValue: 2200, carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'shipping company logo' },
-];
+type FreightRate = {
+    id: string;
+    carrier: string;
+    transitTime: string;
+    cost: string;
+    costValue: number;
+    carrierLogo: string;
+    dataAiHint: string;
+};
+
 
 export function FreightQuoteForm() {
   const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
-  const [selectedRate, setSelectedRate] = useState<any | null>(null);
+  const [results, setResults] = useState<FreightRate[]>([]);
+  const [selectedRate, setSelectedRate] = useState<FreightRate | null>(null);
   const [markup, setMarkup] = useState(15);
+  const [oceanShipmentType, setOceanShipmentType] = useState<'FCL' | 'LCL'>('FCL');
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -91,8 +109,13 @@ export function FreightQuoteForm() {
         pieces: [{ quantity: 1, length: 100, width: 100, height: 100, weight: 500 }],
         isStackable: false,
       },
+      oceanShipmentType: 'FCL',
       oceanShipment: {
         containers: [{ type: "20'GP", quantity: 1 }],
+      },
+      lclDetails: {
+        cbm: 1,
+        weight: 1000,
       }
     },
   });
@@ -112,22 +135,25 @@ export function FreightQuoteForm() {
     setIsLoading(true);
     setResults([]);
     setSelectedRate(null);
-    console.log(values);
+    
+    const response = await runGetFreightRates(values);
 
-    // Simulate API call
-    setTimeout(() => {
-        const filteredResults = values.modal === 'air'
-            ? mockResults.filter(r => r.cost.includes('kg'))
-            : mockResults.filter(r => r.cost.includes('TEU'));
+    if (response.success) {
+        setResults(response.data);
+        toast({
+            variant: "default",
+            title: response.data.length > 0 ? "Cotações encontradas!" : "Nenhuma cotação encontrada",
+            description: response.data.length > 0 ? `Encontramos ${response.data.length} opções para você.` : "Tente alterar os parâmetros da sua busca.",
+        });
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Erro ao buscar cotações",
+            description: response.error,
+        });
+    }
 
-      setResults(filteredResults);
-      setIsLoading(false);
-      toast({
-        variant: "default",
-        title: "Cotações encontradas!",
-        description: `Encontramos ${filteredResults.length} opções para você.`,
-      });
-    }, 1500);
+    setIsLoading(false);
   }
 
   const handleSelectRate = (rate: any) => {
@@ -195,10 +221,10 @@ export function FreightQuoteForm() {
                 
                 <div className="grid md:grid-cols-2 gap-4 mt-6">
                     <FormField control={form.control} name="origin" render={({ field }) => (
-                        <FormItem><FormLabel>Cidade ou Porto de Origem</FormLabel><FormControl><Input placeholder="Ex: São Paulo, Brasil" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Origem (Porto/Aeroporto)</FormLabel><FormControl><Input placeholder="Ex: BRSSZ ou GRU" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="destination" render={({ field }) => (
-                        <FormItem><FormLabel>Cidade ou Porto de Destino</FormLabel><FormControl><Input placeholder="Ex: Miami, EUA" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Destino (Porto/Aeroporto)</FormLabel><FormControl><Input placeholder="Ex: NLRTM ou MIA" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
                 <FormField control={form.control} name="departureDate" render={({ field }) => (
@@ -260,34 +286,61 @@ export function FreightQuoteForm() {
                 </TabsContent>
                 <TabsContent value="ocean" className="m-0 space-y-4">
                     <h3 className="text-lg font-medium">Detalhes da Carga Marítima</h3>
-                    {oceanContainers.map((field, index) => (
-                        <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 border rounded-md items-end">
-                            <FormField control={form.control} name={`oceanShipment.containers.${index}.type`} render={({ field }) => (
-                                <FormItem><FormLabel>Tipo de Contêiner</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="20'GP">20' General Purpose</SelectItem>
-                                            <SelectItem value="40'GP">40' General Purpose</SelectItem>
-                                            <SelectItem value="40'HC">40' High Cube</SelectItem>
-                                            <SelectItem value="20'RF">20' Reefer</SelectItem>
-                                            <SelectItem value="40'RF">40' Reefer</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name={`oceanShipment.containers.${index}.quantity`} render={({ field }) => (
-                                <FormItem><FormLabel>Quantidade</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeOceanContainer(index)} disabled={oceanContainers.length <= 1}>
-                                <Trash2 className="h-4 w-4" />
+                     <Tabs 
+                        defaultValue="FCL" 
+                        className="w-full"
+                        onValueChange={(value) => {
+                           const newType = value as 'FCL' | 'LCL';
+                           setOceanShipmentType(newType);
+                           form.setValue('oceanShipmentType', newType);
+                        }}
+                        value={oceanShipmentType}
+                    >
+                        <TabsList>
+                            <TabsTrigger value="FCL">FCL (Contêiner)</TabsTrigger>
+                            <TabsTrigger value="LCL">LCL (Carga Solta)</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="FCL" className="mt-4 space-y-4">
+                             {oceanContainers.map((field, index) => (
+                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 border rounded-md items-end">
+                                    <FormField control={form.control} name={`oceanShipment.containers.${index}.type`} render={({ field }) => (
+                                        <FormItem><FormLabel>Tipo de Contêiner</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="20'GP">20' General Purpose</SelectItem>
+                                                    <SelectItem value="40'GP">40' General Purpose</SelectItem>
+                                                    <SelectItem value="40'HC">40' High Cube</SelectItem>
+                                                    <SelectItem value="20'RF">20' Reefer</SelectItem>
+                                                    <SelectItem value="40'RF">40' Reefer</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name={`oceanShipment.containers.${index}.quantity`} render={({ field }) => (
+                                        <FormItem><FormLabel>Quantidade</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                    <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeOceanContainer(index)} disabled={oceanContainers.length <= 1}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                             <Button type="button" variant="outline" size="sm" onClick={() => appendOceanContainer({ type: "20'GP", quantity: 1 })}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contêiner
                             </Button>
-                        </div>
-                    ))}
-                     <Button type="button" variant="outline" size="sm" onClick={() => appendOceanContainer({ type: "20'GP", quantity: 1 })}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contêiner
-                    </Button>
+                        </TabsContent>
+                        <TabsContent value="LCL" className="mt-4">
+                            <div className="grid md:grid-cols-2 gap-4 p-3 border rounded-md">
+                                <FormField control={form.control} name="lclDetails.cbm" render={({ field }) => (
+                                    <FormItem><FormLabel>Cubagem Total (CBM)</FormLabel><FormControl><Input type="number" placeholder="Ex: 2.5" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="lclDetails.weight" render={({ field }) => (
+                                    <FormItem><FormLabel>Peso Bruto Total (kg)</FormLabel><FormControl><Input type="number" placeholder="Ex: 1200" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            </div>
+                        </TabsContent>
+                    </Tabs>
                 </TabsContent>
               </Tabs>
               
@@ -301,7 +354,7 @@ export function FreightQuoteForm() {
 
       {isLoading && 
           <div className="text-center p-8 text-muted-foreground animate-pulse">
-              <Loader2 className="mx-auto h-12 w-12 mb-4" />
+              <Loader2 className="mx-auto h-12 w-12 mb-4 animate-spin" />
               Buscando as melhores tarifas...
           </div>
       }
@@ -328,7 +381,7 @@ export function FreightQuoteForm() {
           </div>
       )}
 
-      {!isLoading && !results.length && !selectedRate && (
+       {!isLoading && results.length === 0 && (
         <div className="mt-8">
             <Alert>
                 <Plane className="h-4 w-4" />

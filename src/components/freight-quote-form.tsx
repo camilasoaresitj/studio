@@ -19,11 +19,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, X, FileText, AlertTriangle } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
 import { runGetFreightRates } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 
 type FormData = FreightQuoteFormData;
 
@@ -116,9 +117,6 @@ export function FreightQuoteForm() {
         return;
     }
     setSelectedRate(rate);
-    setTimeout(() => {
-        document.getElementById('quote-preparation')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
   };
 
   const modal = form.watch('modal');
@@ -385,59 +383,53 @@ export function FreightQuoteForm() {
        )}
 
       {selectedRate && (
-        <Card id="quote-preparation" className="mt-8 animate-in fade-in-50 duration-500">
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle>Elaborar Cotação para: {form.getValues('customerName')}</CardTitle>
-                        <CardDescription>Adicione sua margem e finalize a cotação para o cliente.</CardDescription>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => setSelectedRate(null)}>
-                        <X className="h-4 w-4" />
-                    </Button>
-                </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="p-4 border rounded-lg bg-muted/50 flex justify-between items-center">
-                    <div>
-                        <p className="font-bold">{selectedRate.carrier}</p>
-                        <p className="text-sm text-muted-foreground">Custo base: {selectedRate.cost}</p>
-                    </div>
-                    <p className="text-lg font-bold">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue)}
-                    </p>
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-6 items-end">
-                    <div className="space-y-2">
-                        <Label htmlFor="markup">Margem de Lucro (%)</Label>
-                        <Input 
-                            id="markup"
-                            type="number" 
-                            value={markup}
-                            onChange={(e) => setMarkup(Number(e.target.value))}
-                            placeholder="Ex: 15"
-                        />
-                    </div>
-                    <div className="p-4 rounded-md border bg-card">
-                        <p className="text-sm text-muted-foreground">Preço Final para o Cliente</p>
-                        <p className="text-2xl font-bold text-primary">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue * (1 + markup / 100))}
-                        </p>
-                    </div>
-                </div>
-                
-                <Separator />
-
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline">Salvar como Rascunho</Button>
-                    <Button>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Gerar PDF da Cotação
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
+        <Dialog open={!!selectedRate} onOpenChange={(open) => !open && setSelectedRate(null)}>
+          <DialogContent className="sm:max-w-[625px]">
+            <DialogHeader>
+              <DialogTitle>Elaborar Cotação para: {form.getValues('customerName')}</DialogTitle>
+              <DialogDescription>
+                Adicione sua margem e finalize a cotação para o cliente.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-6">
+              <div className="p-4 border rounded-lg bg-muted/50 flex justify-between items-center">
+                  <div>
+                      <p className="font-bold">{selectedRate.carrier}</p>
+                      <p className="text-sm text-muted-foreground">Custo base: {selectedRate.cost}</p>
+                  </div>
+                  <p className="text-lg font-bold">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue)}
+                  </p>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-6 items-end">
+                  <div className="space-y-2">
+                      <Label htmlFor="markup">Margem de Lucro (%)</Label>
+                      <Input 
+                          id="markup"
+                          type="number" 
+                          value={markup}
+                          onChange={(e) => setMarkup(Number(e.target.value))}
+                          placeholder="Ex: 15"
+                      />
+                  </div>
+                  <div className="p-4 rounded-md border bg-card">
+                      <p className="text-sm text-muted-foreground">Preço Final para o Cliente</p>
+                      <p className="text-2xl font-bold text-primary">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue * (1 + markup / 100))}
+                      </p>
+                  </div>
+              </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline">Salvar como Rascunho</Button>
+                <Button>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Gerar PDF da Cotação
+                </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

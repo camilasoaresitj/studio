@@ -107,7 +107,7 @@ const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestion
                 </FormControl>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
+                <Command shouldFilter={false}>
                     <CommandList>
                         {filteredSuggestions.length === 0 ? (
                             <CommandEmpty>Nenhum porto encontrado.</CommandEmpty>

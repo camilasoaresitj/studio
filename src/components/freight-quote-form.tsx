@@ -19,8 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, X, FileText } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Label } from './ui/label';
 
 const airPieceSchema = z.object({
   quantity: z.coerce.number().min(1, "Obrigatório"),
@@ -36,6 +37,7 @@ const oceanContainerSchema = z.object({
 });
 
 const formSchema = z.object({
+  customerName: z.string().min(3, { message: "O nome do cliente é obrigatório (mínimo 3 caracteres)." }),
   modal: z.enum(['air', 'ocean']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
@@ -59,26 +61,29 @@ const formSchema = z.object({
     return true;
 }, {
     message: "Detalhes da carga são obrigatórios.",
-    path: ['airShipment'] // you can choose a path to display the error
+    path: ['airShipment'] 
 });
 
 type FormData = z.infer<typeof formSchema>;
 
 const mockResults = [
-  { id: 1, carrier: 'LATAM Cargo', transitTime: '1-2 dias', cost: 'USD 4.50 / kg', carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'airline logo' },
-  { id: 2, carrier: 'Lufthansa Cargo', transitTime: '1-2 dias', cost: 'USD 3.80 / kg', carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'airline logo' },
-  { id: 3, carrier: 'Maersk', transitTime: '25-30 dias', cost: 'USD 2,500 / TEU', carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'shipping company logo' },
-  { id: 4, carrier: 'CMA CGM', transitTime: '35-40 dias', cost: 'USD 2,200 / TEU', carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'shipping company logo' },
+  { id: 1, carrier: 'LATAM Cargo', transitTime: '1-2 dias', cost: 'USD 4.50 / kg', costValue: 4.50, carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'airline logo' },
+  { id: 2, carrier: 'Lufthansa Cargo', transitTime: '1-2 dias', cost: 'USD 3.80 / kg', costValue: 3.80, carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'airline logo' },
+  { id: 3, carrier: 'Maersk', transitTime: '25-30 dias', cost: 'USD 2,500 / TEU', costValue: 2500, carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'shipping company logo' },
+  { id: 4, carrier: 'CMA CGM', transitTime: '35-40 dias', cost: 'USD 2,200 / TEU', costValue: 2200, carrierLogo: 'https://placehold.co/120x40', dataAiHint: 'shipping company logo' },
 ];
 
 export function FreightQuoteForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
+  const [selectedRate, setSelectedRate] = useState<any | null>(null);
+  const [markup, setMarkup] = useState(15);
   const { toast } = useToast();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      customerName: '',
       modal: 'air',
       origin: '',
       destination: '',
@@ -106,6 +111,7 @@ export function FreightQuoteForm() {
   async function onSubmit(values: FormData) {
     setIsLoading(true);
     setResults([]);
+    setSelectedRate(null);
     console.log(values);
 
     // Simulate API call
@@ -124,6 +130,22 @@ export function FreightQuoteForm() {
     }, 1500);
   }
 
+  const handleSelectRate = (rate: any) => {
+    if (!form.getValues('customerName')) {
+        form.setFocus('customerName');
+        toast({
+            variant: 'destructive',
+            title: "Cliente não informado",
+            description: "Por favor, informe o nome do cliente antes de selecionar uma tarifa.",
+        });
+        return;
+    }
+    setSelectedRate(rate);
+    setTimeout(() => {
+        document.getElementById('quote-preparation')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
   const modal = form.watch('modal');
 
   return (
@@ -136,10 +158,34 @@ export function FreightQuoteForm() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+               <FormField
+                control={form.control}
+                name="customerName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Cliente</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Input placeholder="Digite o nome ou busque um cliente existente" {...field} />
+                      </FormControl>
+                      <Button type="button" variant="outline" className="shrink-0">
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Cadastrar
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <Tabs 
                 defaultValue="air" 
                 className="w-full"
-                onValueChange={(value) => form.setValue('modal', value as 'air' | 'ocean')}
+                onValueChange={(value) => {
+                    form.setValue('modal', value as 'air' | 'ocean');
+                    setSelectedRate(null);
+                    setResults([]);
+                }}
                 value={modal}
               >
                 <TabsList className="grid w-full grid-cols-2 max-w-sm">
@@ -276,20 +322,79 @@ export function FreightQuoteForm() {
                         <p className="text-xl font-bold text-primary">{result.cost}</p>
                         <p className="text-xs text-muted-foreground">Custo estimado</p>
                     </div>
-                    <Button className="w-full md:w-auto">Selecionar Tarifa</Button>
+                    <Button className="w-full md:w-auto" onClick={() => handleSelectRate(result)}>Selecionar Tarifa</Button>
                 </Card>
             ))}
           </div>
       )}
-       {!isLoading && results.length === 0 && (
-          <Alert>
-            <Plane className="h-4 w-4" />
-            <AlertTitle>Aguardando sua busca</AlertTitle>
-            <AlertDescription>
-              Preencha os dados da sua carga para encontrar as melhores opções de frete.
-            </AlertDescription>
-          </Alert>
+
+      {!isLoading && !results.length && !selectedRate && (
+        <div className="mt-8">
+            <Alert>
+                <Plane className="h-4 w-4" />
+                <AlertTitle>Aguardando sua busca</AlertTitle>
+                <AlertDescription>
+                Preencha os dados da sua carga para encontrar as melhores opções de frete.
+                </AlertDescription>
+            </Alert>
+        </div>
        )}
+
+      {selectedRate && (
+        <Card id="quote-preparation" className="mt-8 animate-in fade-in-50 duration-500">
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle>Elaborar Cotação para: {form.getValues('customerName')}</CardTitle>
+                        <CardDescription>Adicione sua margem e finalize a cotação para o cliente.</CardDescription>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedRate(null)}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="p-4 border rounded-lg bg-muted/50 flex justify-between items-center">
+                    <div>
+                        <p className="font-bold">{selectedRate.carrier}</p>
+                        <p className="text-sm text-muted-foreground">Custo base: {selectedRate.cost}</p>
+                    </div>
+                    <p className="text-lg font-bold">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue)}
+                    </p>
+                </div>
+                
+                <div className="grid md:grid-cols-2 gap-6 items-end">
+                    <div className="space-y-2">
+                        <Label htmlFor="markup">Margem de Lucro (%)</Label>
+                        <Input 
+                            id="markup"
+                            type="number" 
+                            value={markup}
+                            onChange={(e) => setMarkup(Number(e.target.value))}
+                            placeholder="Ex: 15"
+                        />
+                    </div>
+                    <div className="p-4 rounded-md border bg-card">
+                        <p className="text-sm text-muted-foreground">Preço Final para o Cliente</p>
+                        <p className="text-2xl font-bold text-primary">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue * (1 + markup / 100))}
+                        </p>
+                    </div>
+                </div>
+                
+                <Separator />
+
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline">Salvar como Rascunho</Button>
+                    <Button>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Gerar PDF da Cotação
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

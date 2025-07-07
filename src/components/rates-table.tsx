@@ -174,25 +174,24 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[15%]">Transportadora</TableHead>
-                                <TableHead className="w-[12%]">Origem</TableHead>
-                                <TableHead className="w-[12%]">Destino</TableHead>
+                                <TableHead className="w-[13%]">Origem</TableHead>
+                                <TableHead className="w-[13%]">Destino</TableHead>
                                 {maritimeContainerTypes.map(type => <TableHead key={type} className="w-[8%] text-center">{type}</TableHead>)}
-                                <TableHead className="w-[10%]">Free Time</TableHead>
-                                <TableHead className="w-[10%]">Validade</TableHead>
-                                <TableHead className="w-[11%]">Ação</TableHead>
+                                <TableHead className="w-[12%]">Free Time</TableHead>
+                                <TableHead className="w-[15%]">Validade</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {maritimeRates.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={maritimeContainerTypes.length + 6} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
+                                    <TableCell colSpan={maritimeContainerTypes.length + 5} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
                                 </TableRow>
                             ) : maritimeRates.map((item: any, index: number) => {
                                 const isExpired = isValidDateString(item.validity) && isBefore(parse(item.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
                                 <TableRow 
                                     key={index} 
-                                    className={isExpired ? 'opacity-50' : 'cursor-pointer'}
+                                    className={isExpired ? 'opacity-50' : 'cursor-pointer hover:bg-muted/80'}
                                     onClick={() => { if (!isExpired) handleSelectRate(item); }}
                                 >
                                     <TableCell className="font-medium truncate" title={item.carrier}>{item.carrier}</TableCell>
@@ -205,16 +204,6 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                     ))}
                                     <TableCell>{item.freeTime}</TableCell>
                                     <TableCell>{item.validity}</TableCell>
-                                    <TableCell>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        disabled={isExpired} 
-                                        onClick={(e) => { e.stopPropagation(); handleSelectRate(item); }}
-                                      >
-                                        Selecionar
-                                      </Button>
-                                    </TableCell>
                                 </TableRow>
                                 );
                             })}
@@ -236,27 +225,26 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                     <Table className="table-fixed w-full">
                         <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[16%]">Transportadora</TableHead>
-                            <TableHead className="w-[16%]">Origem</TableHead>
-                            <TableHead className="w-[16%]">Destino</TableHead>
-                            <TableHead className="w-[10%]">Tarifa</TableHead>
-                            <TableHead className="w-[10%]">Trânsito</TableHead>
+                            <TableHead className="w-[20%]">Transportadora</TableHead>
+                            <TableHead className="w-[18%]">Origem</TableHead>
+                            <TableHead className="w-[18%]">Destino</TableHead>
+                            <TableHead className="w-[12%]">Tarifa</TableHead>
+                            <TableHead className="w-[12%]">Trânsito</TableHead>
                             <TableHead className="w-[10%]">Free Time</TableHead>
                             <TableHead className="w-[10%]">Validade</TableHead>
-                            <TableHead className="w-[12%]">Ação</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                              {airRates.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
+                                    <TableCell colSpan={7} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
                                 </TableRow>
                              ) : airRates.map((rate, index) => {
                                 const isExpired = isValidDateString(rate.validity) && isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
                                 <TableRow 
                                     key={index} 
-                                    className={isExpired ? 'opacity-50' : 'cursor-pointer'}
+                                    className={isExpired ? 'opacity-50' : 'cursor-pointer hover:bg-muted/80'}
                                     onClick={() => { if (!isExpired) handleSelectRate(rate); }}
                                 >
                                     <TableCell className="font-medium truncate" title={rate.carrier}>{rate.carrier}</TableCell>
@@ -266,16 +254,6 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                     <TableCell className="truncate">{rate.transitTime}</TableCell>
                                     <TableCell className="truncate">{rate.freeTime}</TableCell>
                                     <TableCell>{rate.validity}</TableCell>
-                                    <TableCell>
-                                      <Button 
-                                          variant="outline" 
-                                          size="sm" 
-                                          disabled={isExpired}
-                                          onClick={(e) => { e.stopPropagation(); handleSelectRate(rate); }}
-                                      >
-                                        Selecionar
-                                      </Button>
-                                    </TableCell>
                                 </TableRow>
                                 );
                              })}

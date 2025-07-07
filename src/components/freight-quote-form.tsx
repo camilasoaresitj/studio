@@ -33,10 +33,15 @@ import { Badge } from './ui/badge';
 import type { Rate as LocalRate } from './rates-table';
 import type { Fee } from './fees-registry';
 import { QuoteCostSheet } from './quote-cost-sheet';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
 
 type FreightRate = {
     id: string;
     carrier: string;
+    origin: string;
+    destination: string;
     transitTime: string;
     cost: string;
     costValue: number;
@@ -120,6 +125,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     setActiveQuote(null);
     setResults([]);
     
+    // For local search, we'll check if any of the provided origins/destinations match.
+    const searchOrigins = values.origin.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    const searchDestinations = values.destination.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+
     const localResults: FreightRate[] = rates
       .filter(rate => {
           const modalMatch = values.modal === 'ocean' 
@@ -128,8 +137,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           
           if (!modalMatch) return false;
 
-          const originMatch = rate.origin.toUpperCase().includes(values.origin.toUpperCase());
-          const destinationMatch = rate.destination.toUpperCase().includes(values.destination.toUpperCase());
+          const originMatch = searchOrigins.some(o => rate.origin.toUpperCase().includes(o));
+          const destinationMatch = searchDestinations.some(d => rate.destination.toUpperCase().includes(d));
 
           return originMatch && destinationMatch;
       })
@@ -139,7 +148,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         return {
           id: `local-${rate.id}`,
           carrier: rate.carrier,
-          transitTime: rate.transitTime,
+          origin: rate.origin,
+          destination: rate.destination,
+          transitTime: `${rate.transitTime} dias`,
           cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(costValue),
           costValue: costValue,
           carrierLogo: 'https://placehold.co/120x40',
@@ -193,14 +204,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
  const calculateCharges = (rate: FreightRate | null) => {
     const values = form.getValues();
+    const originIsBR = (rate?.origin || values.origin).toUpperCase().includes('BR');
+    const destinationIsBR = (rate?.destination || values.destination).toUpperCase().includes('BR');
+    
     let direction: 'Importação' | 'Exportação' | 'Ambos' = 'Ambos';
-    const originIsBR = values.origin.toUpperCase().includes('BR');
-    const destinationIsBR = values.destination.toUpperCase().includes('BR');
-
-    if (originIsBR && !destinationIsBR) {
-      direction = 'Exportação';
-    } else if (!originIsBR && destinationIsBR) {
+    if (destinationIsBR && !originIsBR) {
       direction = 'Importação';
+    } else if (originIsBR && !destinationIsBR) {
+      direction = 'Exportação';
     }
     
     const chargeType = values.modal === 'ocean' ? values.oceanShipmentType : 'Aéreo';
@@ -286,7 +297,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     const newQuote: Quote = {
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
         customer: customer?.name || 'N/A',
-        destination: form.getValues('destination'),
+        destination: rate.destination, // Use specific destination from rate
         status: 'Rascunho',
         date: new Date().toLocaleDateString('pt-BR'),
         charges: initialCharges
@@ -311,7 +322,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       const newQuote: Quote = {
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
         customer: customer?.name || 'N/A',
-        destination: form.getValues('destination'),
+        destination: form.getValues('destination').split(',')[0].trim(), // Use first destination
         status: 'Rascunho',
         date: new Date().toLocaleDateString('pt-BR'),
         charges: initialCharges
@@ -376,9 +387,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         customerName: activeQuote.customer,
         rateDetails: {
             origin: form.getValues('origin'),
-            destination: form.getValues('destination'),
+            destination: activeQuote.destination,
             carrier: activeQuote.charges.find(c => c.name === 'Frete Internacional')?.supplier || 'N/A',
-            transitTime: rates.find(r => r.carrier === activeQuote.charges.find(c => c.name === 'Frete Internacional')?.supplier)?.transitTime || 'N/A',
+            transitTime: results.find(r => r.carrier === activeQuote.charges.find(c => c.name === 'Frete Internacional')?.supplier)?.transitTime || 'N/A',
             finalPrice: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue) // Example
         },
         approvalLink: `https://cargainteligente.com/approve/${activeQuote.id}`,
@@ -411,8 +422,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const handleGeneratePdf = async () => {
     const quoteElement = document.getElementById(`quote-sheet-${activeQuote?.id}`);
     if (quoteElement && activeQuote) {
-        const { default: jsPDF } = await import('jspdf');
-        const { default: html2canvas } = await import('html2canvas');
 
         const canvas = await html2canvas(quoteElement, { scale: 2 });
         const imgData = canvas.toDataURL('image/png');
@@ -563,10 +572,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                 
                 <div className="grid md:grid-cols-3 gap-4 mt-6">
                     <FormField control={form.control} name="origin" render={({ field }) => (
-                        <FormItem><FormLabel>Origem (Porto/Aeroporto, País)</FormLabel><FormControl><Input placeholder="Ex: Santos, BR" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Origem (Porto/Aeroporto, País)</FormLabel><FormControl><Input placeholder="Ex: Santos, BR, Itajai, BR" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="destination" render={({ field }) => (
-                        <FormItem><FormLabel>Destino (Porto/Aeroporto, País)</FormLabel><FormControl><Input placeholder="Ex: Rotterdam, NL" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Destino (Porto/Aeroporto, País)</FormLabel><FormControl><Input placeholder="Ex: Rotterdam, NL, Hamburg, DE" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField
                       control={form.control}
@@ -808,6 +817,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         <Image src={result.carrierLogo} alt={result.carrier} width={100} height={40} className="object-contain" data-ai-hint={result.dataAiHint} />
                         <div className="flex-grow">
                             <p className="font-bold text-lg">{result.carrier}</p>
+                            <p className="text-sm font-semibold">{result.origin} → {result.destination}</p>
                             <p className="text-sm text-muted-foreground">Tempo de trânsito: {result.transitTime}</p>
                         </div>
                     </div>

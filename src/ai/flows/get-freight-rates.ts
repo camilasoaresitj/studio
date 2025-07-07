@@ -16,6 +16,8 @@ export type GetFreightRatesInput = FreightQuoteFormData;
 const FreightRateSchema = z.object({
     id: z.string(), 
     carrier: z.string(),
+    origin: z.string(),
+    destination: z.string(),
     transitTime: z.string(),
     cost: z.string(),
     costValue: z.number(),
@@ -93,54 +95,79 @@ const getFreightRatesFlow = ai.defineFlow(
     if (!apiKey) {
       throw new Error('CargoFive API key is not configured. Please set CARGOFIVE_API_KEY in your .env file.');
     }
+    
+    const origins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
+    const destinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
 
-    const payload = buildCargoFivePayload(input);
+    if (origins.length === 0 || destinations.length === 0) {
+        return [];
+    }
+    
+    // Create all combinations of origin/destination pairs
+    const searchPairs = origins.flatMap(origin => 
+        destinations.map(destination => ({ origin, destination }))
+    );
 
-    try {
-      const response = await fetch('https://api.cargofive.com/v2/forwarding_rates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Api-Key': apiKey,
-        },
-        body: JSON.stringify(payload),
-      });
+    const ratePromises = searchPairs.map(async (pair) => {
+      const singleSearchInput = { ...input, origin: pair.origin, destination: pair.destination };
+      const payload = buildCargoFivePayload(singleSearchInput);
 
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('CargoFive API Error:', errorBody);
-        throw new Error(`Failed to fetch rates from CargoFive: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
+      try {
+        const response = await fetch('https://api.cargofive.com/v2/forwarding_rates', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': apiKey,
+          },
+          body: JSON.stringify(payload),
+        });
 
-      if (!data.forwarding_rates || data.forwarding_rates.length === 0) {
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`CargoFive API Error for ${pair.origin} -> ${pair.destination}:`, errorBody);
+          return []; // Don't throw, just return empty array for this pair
+        }
+        
+        const data = await response.json();
+
+        if (!data.forwarding_rates || data.forwarding_rates.length === 0) {
+          return [];
+        }
+
+        const formattedRates = data.forwarding_rates.map((rate: any) => {
+          const totalCost = rate.forwarding_charges.reduce((sum: number, charge: any) => sum + parseFloat(charge.amount), 0);
+          const currency = rate.forwarding_charges[0]?.currency || 'USD';
+          
+          return {
+            id: `${rate.id}-${pair.origin}-${pair.destination}`, // Ensure unique ID
+            carrier: rate.carrier_name,
+            origin: pair.origin,
+            destination: pair.destination,
+            transitTime: `${rate.transit_time_in_days || '?'} dias`,
+            cost: `${new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost)}`,
+            costValue: totalCost,
+            carrierLogo: 'https://placehold.co/120x40',
+            dataAiHint: input.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
+            source: 'CargoFive API',
+          };
+        });
+        return formattedRates;
+
+      } catch (error) {
+        console.error(`Error fetching rates for ${pair.origin} -> ${pair.destination}:`, error);
+        if (error instanceof Error) {
+            // Log but don't rethrow to allow other promises to complete
+            console.error(error.message);
+        }
         return [];
       }
+    });
 
-      const formattedRates = data.forwarding_rates.map((rate: any) => {
-        const totalCost = rate.forwarding_charges.reduce((sum: number, charge: any) => sum + parseFloat(charge.amount), 0);
-        const currency = rate.forwarding_charges[0]?.currency || 'USD';
-        
-        return {
-          id: rate.id,
-          carrier: rate.carrier_name,
-          transitTime: `${rate.transit_time_in_days || '?'} dias`,
-          cost: `${new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost)}`,
-          costValue: totalCost,
-          carrierLogo: 'https://placehold.co/120x40',
-          dataAiHint: input.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
-          source: 'CargoFive API',
-        };
-      });
-
-      return formattedRates;
-    } catch (error) {
-      console.error('Error in getFreightRatesFlow:', error);
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('An unknown error occurred while fetching freight rates.');
-    }
+    const allRatesArrays = await Promise.all(ratePromises);
+    const combinedRates = allRatesArrays.flat();
+    
+    return combinedRates;
   }
 );
+
+    

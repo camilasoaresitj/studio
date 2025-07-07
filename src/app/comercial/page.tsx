@@ -1,6 +1,5 @@
 import { CrmForm } from '@/components/crm-form';
-import { RatesTable } from '@/components/rates-table';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function ComercialPage() {
@@ -12,26 +11,16 @@ export default function ComercialPage() {
           Gerencie suas oportunidades, cotações e clientes.
         </p>
       </header>
-      <Tabs defaultValue="crm" className="w-full">
+      <Tabs defaultValue="quote" className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="quote">Cotação de Frete</TabsTrigger>
           <TabsTrigger value="crm">CRM Automático</TabsTrigger>
-          <TabsTrigger value="rates">Tarifas de Frete</TabsTrigger>
         </TabsList>
+        <TabsContent value="quote" className="mt-6">
+          <FreightQuoteForm />
+        </TabsContent>
         <TabsContent value="crm" className="mt-6">
           <CrmForm />
-        </TabsContent>
-        <TabsContent value="rates" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tabela de Tarifas</CardTitle>
-              <CardDescription>
-                Visualize abaixo as tarifas disponíveis para frete aéreo e marítimo.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RatesTable />
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

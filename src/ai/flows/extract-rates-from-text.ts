@@ -39,17 +39,15 @@ const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
   input: { schema: ExtractRatesFromTextInputSchema },
   output: { schema: ExtractRatesFromTextOutputSchema },
-  prompt: `You are an expert logistics AI. Your task is to extract all freight rates from the provided text and structure them into a JSON array.
+  prompt: `You are an expert logistics AI. Your task is to extract all freight rates from the provided text and structure them into a JSON array based on the output schema.
 
 **Key Instructions:**
-- Each distinct rate must be a separate object in the array.
+- Create a separate object for each distinct rate.
 - If a rate applies to multiple destinations (e.g., "SHA to SAN/RIO"), create a separate object for each destination.
-- If a rate applies to multiple containers (e.g., "20GP/40HC: 2500/4800"), create a separate object for each container type with its corresponding rate.
-- If the text mentions a general region like "brazil base ports", you MUST generate a separate rate entry for each of the main Brazilian ports: **Santos**, **Paranaguá**, **Itapoá**, and **Rio Grande**.
-- If a piece of information isn't available in the text, use "N/A".
-- If no rates can be extracted from the text, return an empty array \`[]\`.
+- If a rate has multiple prices for different containers (e.g., "20GP/40HC: 2500/4800"), create a separate object for each container.
+- If the text mentions "brazil base ports", you MUST generate separate rate entries for each of the main Brazilian ports: Santos, Paranaguá, Itapoá, and Rio Grande.
 
-**Text to analyze:**
+Text to analyze:
 {{{textInput}}}
 `,
 });

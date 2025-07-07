@@ -28,6 +28,7 @@ type Rate = {
   container: string;
   transitTime: string;
   validity: string;
+  freeTime: string;
 }
 
 interface RatesTableProps {
@@ -50,6 +51,7 @@ const groupMaritimeRates = (rates: Rate[]) => {
         modal: rate.modal,
         transitTime: rate.transitTime,
         validity: rate.validity,
+        freeTime: rate.freeTime,
         rates: {},
       });
     }
@@ -86,9 +88,9 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
 
   const isValidDate = (dateStr: string) => {
     try {
-      // Check if date is in dd/MM/yyyy format and is a valid date
+      if (typeof dateStr !== 'string' || dateStr.length !== 10) return false;
       const parsedDate = parse(dateStr, 'dd/MM/yyyy', new Date());
-      return !isNaN(parsedDate.getTime()) && dateStr.length === 10;
+      return !isNaN(parsedDate.getTime());
     } catch (e) {
       return false;
     }
@@ -108,7 +110,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
         return false;
       }
       return true;
-    })
+    });
   }, [filters, showExpired, today, ratesData]);
   
   const maritimeRates = useMemo(() => {
@@ -154,18 +156,19 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                     <Table className="table-fixed w-full">
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[18%]">Transportadora</TableHead>
-                                <TableHead className="w-[18%]">Origem</TableHead>
-                                <TableHead className="w-[18%]">Destino</TableHead>
+                                <TableHead className="w-[15%]">Transportadora</TableHead>
+                                <TableHead className="w-[15%]">Origem</TableHead>
+                                <TableHead className="w-[15%]">Destino</TableHead>
                                 {maritimeContainerTypes.map(type => <TableHead key={type} className="w-[8%] text-center">{type}</TableHead>)}
+                                <TableHead className="w-[10%]">Free Time</TableHead>
                                 <TableHead className="w-[10%]">Validade</TableHead>
-                                <TableHead className="w-[12%]">Ação</TableHead>
+                                <TableHead className="w-[11%]">Ação</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {maritimeRates.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={maritimeContainerTypes.length + 5} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
+                                    <TableCell colSpan={maritimeContainerTypes.length + 6} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
                                 </TableRow>
                             ) : maritimeRates.map((item: any, index: number) => {
                                 const isExpired = isValidDate(item.validity) && isBefore(parse(item.validity, 'dd/MM/yyyy', new Date()), today);
@@ -179,6 +182,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                         {item.rates[type] ? `$${new Intl.NumberFormat('en-US').format(Number(item.rates[type]))}` : '-'}
                                     </TableCell>
                                     ))}
+                                    <TableCell>{item.freeTime}</TableCell>
                                     <TableCell>{item.validity}</TableCell>
                                     <TableCell><Button variant="outline" size="sm" disabled={isExpired}>Selecionar</Button></TableCell>
                                 </TableRow>
@@ -202,19 +206,20 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                     <Table className="table-fixed w-full">
                         <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[18%]">Transportadora</TableHead>
-                            <TableHead className="w-[18%]">Origem</TableHead>
-                            <TableHead className="w-[18%]">Destino</TableHead>
+                            <TableHead className="w-[16%]">Transportadora</TableHead>
+                            <TableHead className="w-[16%]">Origem</TableHead>
+                            <TableHead className="w-[16%]">Destino</TableHead>
                             <TableHead className="w-[10%]">Tarifa</TableHead>
-                            <TableHead className="w-[12%]">Tempo de Trânsito</TableHead>
-                            <TableHead className="w-[12%]">Validade</TableHead>
-                             <TableHead className="w-[12%]">Ação</TableHead>
+                            <TableHead className="w-[10%]">Trânsito</TableHead>
+                            <TableHead className="w-[10%]">Free Time</TableHead>
+                            <TableHead className="w-[10%]">Validade</TableHead>
+                            <TableHead className="w-[12%]">Ação</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                              {airRates.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
+                                    <TableCell colSpan={8} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
                                 </TableRow>
                              ) : airRates.map((rate, index) => {
                                 const isExpired = isValidDate(rate.validity) && isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
@@ -225,6 +230,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                     <TableCell className="truncate" title={rate.destination}>{rate.destination}</TableCell>
                                     <TableCell className="font-semibold text-primary">{rate.rate}</TableCell>
                                     <TableCell className="truncate">{rate.transitTime}</TableCell>
+                                    <TableCell className="truncate">{rate.freeTime}</TableCell>
                                     <TableCell>{rate.validity}</TableCell>
                                     <TableCell><Button variant="outline" size="sm" disabled={isExpired}>Selecionar</Button></TableCell>
                                 </TableRow>

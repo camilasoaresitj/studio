@@ -23,7 +23,8 @@ const ParsedRateSchema = z.object({
   rate: z.string().describe('The rate or cost, including currency and unit (e.g., "USD 2,500", "4.50/kg"). Do not include container type here.'),
   transitTime: z.string().describe('The estimated transit time (e.g., "25-30 dias").'),
   container: z.string().describe('The container type (e.g., "20\'GP", "40\'HC"), if applicable. Should be "N/A" for air freight or LCL rates.'),
-  validity: z.string().describe('The expiration date of the rate (e.g., "31/12/2024").')
+  validity: z.string().describe('The expiration date of the rate (e.g., "31/12/2024").'),
+  freeTime: z.string().describe('The free time for container usage at destination (e.g., "14 dias", "21 days"). Should be "N/A" if not specified.'),
 });
 
 const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
@@ -49,6 +50,7 @@ The text contains one or more freight rates. Identify the following details for 
 - Transit Time
 - Container (The container type if specified, like "20'GP" or "40'HC". If it's air freight or not specified, use "N/A".)
 - Validity (The expiration date of the rate, e.g., "31/12/2024".)
+- Free Time (The free time for container usage at the destination, e.g., "14 dias", "7 days". If not specified, use "N/A".)
 
 Important rules:
 - If the origin or destination is a general region like "brazil base ports", you MUST create a separate rate entry for each of the main Brazilian ports: Santos, Paranaguá, Itapoá, and Rio Grande, applying the same rate to all of them.

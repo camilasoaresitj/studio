@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableHeader,
@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
-import { MoreHorizontal, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { QuoteCostSheet } from './quote-cost-sheet';
 
@@ -41,10 +41,19 @@ export type Quote = {
 interface CustomerQuotesListProps {
   quotes: Quote[];
   onQuoteUpdate: (updatedQuote: Quote) => void;
+  quoteToOpen: Quote | null;
+  onDialogClose: () => void;
 }
 
-export function CustomerQuotesList({ quotes, onQuoteUpdate }: CustomerQuotesListProps) {
+export function CustomerQuotesList({ quotes, onQuoteUpdate, quoteToOpen, onDialogClose }: CustomerQuotesListProps) {
     const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+
+    useEffect(() => {
+        if (quoteToOpen) {
+            setSelectedQuote(quoteToOpen);
+        }
+    }, [quoteToOpen]);
+
 
     const getStatusVariant = (status: Quote['status']): 'default' | 'secondary' | 'destructive' | 'outline' => {
         switch (status) {
@@ -75,6 +84,12 @@ export function CustomerQuotesList({ quotes, onQuoteUpdate }: CustomerQuotesList
         onQuoteUpdate(updatedQuote);
         setSelectedQuote(updatedQuote); 
     };
+    
+    const handleDialogClose = () => {
+        setSelectedQuote(null);
+        onDialogClose();
+    };
+
 
   return (
     <>
@@ -100,7 +115,7 @@ export function CustomerQuotesList({ quotes, onQuoteUpdate }: CustomerQuotesList
                     <TableBody>
                     {quotes.map((quote) => (
                         <TableRow key={quote.id} onClick={() => setSelectedQuote(quote)} className="cursor-pointer">
-                            <TableCell className="font-medium text-primary">{quote.id}</TableCell>
+                            <TableCell className="font-medium text-primary">{quote.id.replace('-DRAFT', '')}</TableCell>
                             <TableCell>{quote.customer}</TableCell>
                             <TableCell>{quote.destination}</TableCell>
                             <TableCell>
@@ -110,7 +125,7 @@ export function CustomerQuotesList({ quotes, onQuoteUpdate }: CustomerQuotesList
                             <TableCell className="text-right font-semibold">{calculateTotalValue(quote.charges)}</TableCell>
                             <TableCell className="text-center">
                                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedQuote(quote); }}>
-                                    <MoreHorizontal className="h-4 w-4" />
+                                    <FileText className="h-4 w-4" />
                                 </Button>
                             </TableCell>
                         </TableRow>
@@ -120,12 +135,12 @@ export function CustomerQuotesList({ quotes, onQuoteUpdate }: CustomerQuotesList
             </div>
         </CardContent>
     </Card>
-    <Dialog open={!!selectedQuote} onOpenChange={(open) => !open && setSelectedQuote(null)}>
+    <Dialog open={!!selectedQuote} onOpenChange={(open) => !open && handleDialogClose()}>
         <DialogContent className="max-w-6xl h-[90vh]">
             <DialogHeader>
-                <DialogTitle>Detalhes da Cotação: {selectedQuote?.id}</DialogTitle>
+                <DialogTitle>Detalhes da Cotação: {selectedQuote?.id.replace('-DRAFT', '')}</DialogTitle>
                 <DialogDescription>
-                    Gerencie os custos, receitas e lucro desta cotação.
+                    Gerencie os custos, receitas e lucro desta cotação. Status: <Badge variant={getStatusVariant(selectedQuote?.status ?? 'Rascunho')} className="text-xs">{selectedQuote?.status}</Badge>
                 </DialogDescription>
             </DialogHeader>
             {selectedQuote && <QuoteCostSheet quote={selectedQuote} onUpdate={handleUpdateQuote} />}

@@ -171,7 +171,7 @@ export default function ComercialPage() {
   const [fees, setFees] = useState(initialFeesData);
   const [activeTab, setActiveTab] = useState('quote');
   const [quoteFormData, setQuoteFormData] = useState<Partial<FreightQuoteFormData> | null>(null);
-  const [manualQuote, setManualQuote] = useState<Quote | null>(null);
+  const [quoteToEdit, setQuoteToEdit] = useState<Quote | null>(null);
 
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
     const newRates = importedRates.map((rate, index) => ({
@@ -189,7 +189,7 @@ export default function ComercialPage() {
         date: new Date().toLocaleDateString('pt-BR'),
     };
     setQuotes(prevQuotes => [newQuote, ...prevQuotes]);
-    setManualQuote(null);
+    setQuoteToEdit(null);
   };
 
   const handlePartnerAdded = (newPartner: Partner) => {
@@ -226,12 +226,12 @@ export default function ComercialPage() {
   
   const handleQuoteUpdated = (updatedQuote: Quote) => {
     setQuotes(prevQuotes => prevQuotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
-    if (manualQuote && manualQuote.id === updatedQuote.id) {
-        setManualQuote(updatedQuote);
+    if (quoteToEdit && quoteToEdit.id === updatedQuote.id) {
+        setQuoteToEdit(updatedQuote);
     }
   };
 
-  const handleStartManualQuote = (formData: FreightQuoteFormData) => {
+  const handleStartManualQuote = (formData: FreightQuoteFormData, charges: QuoteCharge[] = []) => {
     const customer = partners.find(p => p.id.toString() === formData.customerId);
     if (!customer) return;
 
@@ -241,9 +241,11 @@ export default function ComercialPage() {
         destination: formData.destination,
         status: 'Rascunho',
         date: new Date().toLocaleDateString('pt-BR'),
-        charges: [],
+        charges: charges,
     };
-    setManualQuote(newQuote);
+    setQuotes(prevQuotes => [newQuote, ...prevQuotes]);
+    setQuoteToEdit(newQuote);
+    setActiveTab('customer_quotes');
   };
 
 
@@ -273,12 +275,16 @@ export default function ComercialPage() {
             rates={rates}
             fees={fees}
             onStartManualQuote={handleStartManualQuote}
-            manualQuote={manualQuote}
             onQuoteUpdate={handleQuoteUpdated}
           />
         </TabsContent>
         <TabsContent value="customer_quotes" className="mt-6">
-          <CustomerQuotesList quotes={quotes} onQuoteUpdate={handleQuoteUpdated} />
+          <CustomerQuotesList
+            quotes={quotes}
+            onQuoteUpdate={handleQuoteUpdated}
+            quoteToOpen={quoteToEdit}
+            onDialogClose={() => setQuoteToEdit(null)}
+          />
         </TabsContent>
          <TabsContent value="rates" className="mt-6">
             <div className="space-y-8">

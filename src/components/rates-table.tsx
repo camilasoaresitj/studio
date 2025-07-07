@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plane, Ship } from 'lucide-react';
-import { parse, isBefore } from 'date-fns';
+import { parse, isBefore, isValid } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 
 type Rate = {
@@ -35,7 +35,7 @@ interface RatesTableProps {
   rates: Rate[];
 }
 
-const maritimeContainerTypes = ["20'GP", "40'GP", "40'HC"];
+const maritimeContainerTypes = ["20'GP", "40'GP", "40'HC", "40'NOR"];
 
 const groupMaritimeRates = (rates: Rate[]) => {
   const groups = new Map();
@@ -59,13 +59,24 @@ const groupMaritimeRates = (rates: Rate[]) => {
     group.rates[rate.container] = rate.rate;
 
     try {
-      const currentValidity = parse(group.validity, 'dd/MM/yyyy', new Date());
-      const rateValidity = parse(rate.validity, 'dd/MM/yyyy', new Date());
-      if (isBefore(currentValidity, rateValidity)) {
-        group.validity = rate.validity;
-      }
+        const currentDateStr = group.validity;
+        const newDateStr = rate.validity;
+
+        const isCurrentDateValid = typeof currentDateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(currentDateStr);
+        const isNewDateValid = typeof newDateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(newDateStr);
+
+        if (isCurrentDateValid && isNewDateValid) {
+            const currentValidity = parse(currentDateStr, 'dd/MM/yyyy', new Date());
+            const rateValidity = parse(newDateStr, 'dd/MM/yyyy', new Date());
+
+            if (isValid(currentValidity) && isValid(rateValidity) && isBefore(currentValidity, rateValidity)) {
+                group.validity = newDateStr;
+            }
+        } else if (isNewDateValid) {
+            group.validity = newDateStr;
+        }
     } catch (e) {
-      // Ignore invalid date formats for now
+      console.error("Error parsing date in groupMaritimeRates:", e);
     }
   });
   return Array.from(groups.values());
@@ -86,22 +97,28 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
     return d;
   }, []);
 
-  const isValidDate = (dateStr: string) => {
-    try {
-      if (typeof dateStr !== 'string' || dateStr.length !== 10) return false;
-      const parsedDate = parse(dateStr, 'dd/MM/yyyy', new Date());
-      return !isNaN(parsedDate.getTime());
-    } catch (e) {
-      return false;
-    }
+  const isValidDateString = (dateStr: string) => {
+    return typeof dateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateStr);
   }
+
+  const handleSelectRate = (rate: any) => {
+    // This is a placeholder for the quote generation logic
+    console.log('Selected Rate:', rate);
+    alert(`Tarifa selecionada:\nTransportadora: ${rate.carrier}\nOrigem: ${rate.origin}\nDestino: ${rate.destination}`);
+  };
 
   const commonFilteredRates = useMemo(() => {
      return ratesData.filter(rate => {
       if (!showExpired) {
-        if (!rate.validity || !isValidDate(rate.validity)) return true; // Keep if no/invalid validity
-        const isExpired = isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
-        if (isExpired) return false;
+        if (!rate.validity || !isValidDateString(rate.validity)) return true;
+        try {
+          const rateDate = parse(rate.validity, 'dd/MM/yyyy', new Date());
+          if (isBefore(rateDate, today)) {
+            return false;
+          }
+        } catch (e) {
+            return true;
+        }
       }
       if (filters.origin && !rate.origin.toLowerCase().includes(filters.origin.toLowerCase())) {
         return false;
@@ -149,7 +166,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" /> Tarifas Marítimas (FCL)</CardTitle>
-                <CardDescription>Tarifas agrupadas por rota e transportadora para fácil comparação de contêineres.</CardDescription>
+                <CardDescription>Tarifas agrupadas por rota e transportadora. Clique na linha para selecionar.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="border rounded-lg">
@@ -157,8 +174,8 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[15%]">Transportadora</TableHead>
-                                <TableHead className="w-[15%]">Origem</TableHead>
-                                <TableHead className="w-[15%]">Destino</TableHead>
+                                <TableHead className="w-[12%]">Origem</TableHead>
+                                <TableHead className="w-[12%]">Destino</TableHead>
                                 {maritimeContainerTypes.map(type => <TableHead key={type} className="w-[8%] text-center">{type}</TableHead>)}
                                 <TableHead className="w-[10%]">Free Time</TableHead>
                                 <TableHead className="w-[10%]">Validade</TableHead>
@@ -171,9 +188,13 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                     <TableCell colSpan={maritimeContainerTypes.length + 6} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
                                 </TableRow>
                             ) : maritimeRates.map((item: any, index: number) => {
-                                const isExpired = isValidDate(item.validity) && isBefore(parse(item.validity, 'dd/MM/yyyy', new Date()), today);
+                                const isExpired = isValidDateString(item.validity) && isBefore(parse(item.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
-                                <TableRow key={index} className={isExpired ? 'opacity-50' : ''}>
+                                <TableRow 
+                                    key={index} 
+                                    className={isExpired ? 'opacity-50' : 'cursor-pointer'}
+                                    onClick={() => { if (!isExpired) handleSelectRate(item); }}
+                                >
                                     <TableCell className="font-medium truncate" title={item.carrier}>{item.carrier}</TableCell>
                                     <TableCell className="truncate" title={item.origin}>{item.origin}</TableCell>
                                     <TableCell className="truncate" title={item.destination}>{item.destination}</TableCell>
@@ -184,7 +205,16 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                     ))}
                                     <TableCell>{item.freeTime}</TableCell>
                                     <TableCell>{item.validity}</TableCell>
-                                    <TableCell><Button variant="outline" size="sm" disabled={isExpired}>Selecionar</Button></TableCell>
+                                    <TableCell>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        disabled={isExpired} 
+                                        onClick={(e) => { e.stopPropagation(); handleSelectRate(item); }}
+                                      >
+                                        Selecionar
+                                      </Button>
+                                    </TableCell>
                                 </TableRow>
                                 );
                             })}
@@ -199,7 +229,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Plane className="h-5 w-5 text-primary" /> Tarifas Aéreas</CardTitle>
-                <CardDescription>Tarifas de frete aéreo disponíveis.</CardDescription>
+                <CardDescription>Tarifas de frete aéreo disponíveis. Clique na linha para selecionar.</CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="border rounded-lg">
@@ -222,9 +252,13 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                     <TableCell colSpan={8} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
                                 </TableRow>
                              ) : airRates.map((rate, index) => {
-                                const isExpired = isValidDate(rate.validity) && isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
+                                const isExpired = isValidDateString(rate.validity) && isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
-                                <TableRow key={index} className={isExpired ? 'opacity-50' : ''}>
+                                <TableRow 
+                                    key={index} 
+                                    className={isExpired ? 'opacity-50' : 'cursor-pointer'}
+                                    onClick={() => { if (!isExpired) handleSelectRate(rate); }}
+                                >
                                     <TableCell className="font-medium truncate" title={rate.carrier}>{rate.carrier}</TableCell>
                                     <TableCell className="truncate" title={rate.origin}>{rate.origin}</TableCell>
                                     <TableCell className="truncate" title={rate.destination}>{rate.destination}</TableCell>
@@ -232,7 +266,16 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                     <TableCell className="truncate">{rate.transitTime}</TableCell>
                                     <TableCell className="truncate">{rate.freeTime}</TableCell>
                                     <TableCell>{rate.validity}</TableCell>
-                                    <TableCell><Button variant="outline" size="sm" disabled={isExpired}>Selecionar</Button></TableCell>
+                                    <TableCell>
+                                      <Button 
+                                          variant="outline" 
+                                          size="sm" 
+                                          disabled={isExpired}
+                                          onClick={(e) => { e.stopPropagation(); handleSelectRate(rate); }}
+                                      >
+                                        Selecionar
+                                      </Button>
+                                    </TableCell>
                                 </TableRow>
                                 );
                              })}

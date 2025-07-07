@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import Image from 'next/image';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -67,6 +67,7 @@ interface FreightQuoteFormProps {
 const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestions: string[], placeholder: string }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -75,13 +76,14 @@ const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestion
         const parts = value.split(',');
         const currentPart = parts[parts.length - 1].trim().toLowerCase();
 
-        if (currentPart.length >= 3) {
+        if (currentPart.length >= 2) {
             const newFiltered = suggestions.filter(s =>
                 s.toLowerCase().includes(currentPart)
             );
             setFilteredSuggestions(newFiltered);
             setIsOpen(newFiltered.length > 0);
         } else {
+            setFilteredSuggestions([]);
             setIsOpen(false);
         }
     };
@@ -92,26 +94,29 @@ const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestion
         const finalParts = parts.filter(p => p.length > 0);
         field.onChange(finalParts.join(', '));
         setIsOpen(false);
+        inputRef.current?.focus();
     };
 
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-                <FormControl>
-                    <Input
-                        placeholder={placeholder}
-                        {...field}
-                        onChange={handleInputChange}
-                        autoComplete="off"
-                    />
-                </FormControl>
+                <Input
+                    ref={inputRef}
+                    placeholder={placeholder}
+                    {...field}
+                    onChange={handleInputChange}
+                    autoComplete="off"
+                />
             </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <PopoverContent 
+                className="p-0"
+                style={{ width: inputRef.current?.offsetWidth }}
+                align="start"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+            >
                 <Command shouldFilter={false}>
                     <CommandList>
-                        {filteredSuggestions.length === 0 ? (
-                            <CommandEmpty>Nenhum porto encontrado.</CommandEmpty>
-                        ) : (
+                        {filteredSuggestions.length > 0 ? (
                             <CommandGroup>
                                 {filteredSuggestions.map((s) => (
                                     <CommandItem
@@ -123,6 +128,8 @@ const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestion
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
+                        ) : (
+                             <CommandEmpty>Nenhum porto encontrado.</CommandEmpty>
                         )}
                     </CommandList>
                 </Command>
@@ -514,10 +521,11 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const watchedContainers = form.watch('oceanShipment.containers');
 
   const allPortsAndAirports = useMemo(() => {
-    const locations = new Set([
-      ...rates.map((rate) => rate.origin),
-      ...rates.map((rate) => rate.destination),
-    ]);
+    const locations = new Set<string>();
+    rates.forEach(rate => {
+        if (rate.origin) locations.add(rate.origin);
+        if (rate.destination) locations.add(rate.destination);
+    });
     return Array.from(locations).sort();
   }, [rates]);
 
@@ -658,22 +666,26 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                 <div className="grid md:grid-cols-3 gap-4 mt-6">
                     <FormField control={form.control} name="origin" render={({ field }) => (
                         <FormItem><FormLabel>Origem (Porto/Aeroporto, País)</FormLabel>
-                          <PortInput
-                              field={field}
-                              suggestions={allPortsAndAirports}
-                              placeholder="Ex: Santos, BR, Itajai, BR"
-                          />
+                          <FormControl>
+                            <PortInput
+                                field={field}
+                                suggestions={allPortsAndAirports}
+                                placeholder="Ex: Santos, BR, Itajai, BR"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                     )} />
                     <FormField control={form.control} name="destination" render={({ field }) => (
                         <FormItem><FormLabel>Destino (Porto/Aeroporto, País)</FormLabel>
-                            <PortInput
-                              field={field}
-                              suggestions={allPortsAndAirports}
-                              placeholder="Ex: Rotterdam, NL"
-                            />
-                            <FormMessage />
+                           <FormControl>
+                             <PortInput
+                                field={field}
+                                suggestions={allPortsAndAirports}
+                                placeholder="Ex: Rotterdam, NL"
+                             />
+                           </FormControl>
+                           <FormMessage />
                         </FormItem>
                     )} />
                     <FormField

@@ -19,12 +19,12 @@ const ParsedRateSchema = z.object({
   origin: z.string().describe('The origin location (city, port, or airport).'),
   destination: z.string().describe('The destination location (city, port, or airport).'),
   carrier: z.string().describe('The name of the shipping carrier or airline.'),
-  modal: z.enum(['Aéreo', 'Marítimo']).describe('The transport modal.'),
-  rate: z.string().describe('The rate or cost, including currency and unit (e.g., "USD 2,500", "4.50/kg"). Do not include container type here.'),
-  transitTime: z.string().describe('The estimated transit time (e.g., "25-30 dias").'),
-  container: z.string().describe('The container type (e.g., "20\'GP", "40\'HC"), if applicable. Should be "N/A" for air freight or LCL rates.'),
-  validity: z.string().describe('The expiration date of the rate (e.g., "31/12/2024").'),
-  freeTime: z.string().describe('The free time for container usage at destination (e.g., "14 dias", "21 days"). Should be "N/A" if not specified.'),
+  modal: z.enum(['Aéreo', 'Marítimo']).describe("The transport modal. Must be 'Aéreo' or 'Marítimo'."),
+  rate: z.string().describe('The rate or cost for a SINGLE container type, including currency (e.g., "USD 2500").'),
+  transitTime: z.string().describe('The estimated transit time (e.g., "25-30 dias"). Use "N/A" if not specified.'),
+  container: z.string().describe('The container type (e.g., "20\'GP", "40\'HC"). Use "N/A" for air freight.'),
+  validity: z.string().describe('The expiration date of the rate (e.g., "31/12/2024"). Use "N/A" if not specified.'),
+  freeTime: z.string().describe('The free time for container usage at destination (e.g., "14 dias", "21 days"). Use "N/A" if not specified.'),
 });
 
 const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
@@ -39,79 +39,15 @@ const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
   input: { schema: ExtractRatesFromTextInputSchema },
   output: { schema: ExtractRatesFromTextOutputSchema },
-  prompt: `You are an AI logistics assistant specialized in parsing and structuring freight rate data from unstructured text like emails and copied tables. Your task is to extract the information and return it as a structured array of JSON objects.
+  prompt: `You are an expert logistics AI. Your task is to extract all freight rates from the provided text and structure them into a JSON array.
 
-**Extraction Rules:**
-
-1.  **Identify Individual Rates:** Parse the text to find all distinct freight rates. A single line might contain multiple rates (e.g., for different containers or destinations). You must create a separate JSON object for each combination.
-2.  **Extract Key Fields:** For each rate, extract the following information:
-    *   \`origin\`: The origin location (port or airport).
-    *   \`destination\`: The destination location (port or airport).
-    *   \`carrier\`: The shipping line or airline.
-    *   \`modal\`: Must be either 'Aéreo' or 'Marítimo'. Determine from context.
-    *   \`rate\`: The cost, including currency. **Do not include container type here.**
-    *   \`transitTime\`: Estimated transit time. If not found, use "N/A".
-    *   \`container\`: The specific container type (e.g., "20'GP", "40'HC"). For air freight, use "N/A".
-    *   \`validity\`: The rate's expiration date.
-    *   \`freeTime\`: The free time at destination. If not found, use "N/A".
-3.  **Handle "Base Ports":** If the text mentions a general region like "brazil base ports", you MUST generate a separate rate entry for each of the main Brazilian ports: **Santos**, **Paranaguá**, **Itapoá**, and **Rio Grande**. Apply the same rate and details to all of them.
-4.  **Output Format:** If no rates can be extracted, return an empty array \`[]\`.
-
-**Example:**
-
-**Input Text:** \`PIL rate: From SHA to SAN/RIO, 20GP/40HC: 2500/4800 USD. Valid thru 31/Jul. 14 days free time.\`
-
-**Example JSON Output:**
-[
-  {
-    "origin": "SHA",
-    "destination": "SAN",
-    "carrier": "PIL",
-    "modal": "Marítimo",
-    "rate": "2500 USD",
-    "transitTime": "N/A",
-    "container": "20'GP",
-    "validity": "31/Jul",
-    "freeTime": "14 days"
-  },
-  {
-    "origin": "SHA",
-    "destination": "SAN",
-    "carrier": "PIL",
-    "modal": "Marítimo",
-    "rate": "4800 USD",
-    "transitTime": "N/A",
-    "container": "40'HC",
-    "validity": "31/Jul",
-    "freeTime": "14 days"
-  },
-  {
-    "origin": "SHA",
-    "destination": "RIO",
-    "carrier": "PIL",
-    "modal": "Marítimo",
-    "rate": "2500 USD",
-    "transitTime": "N/A",
-    "container": "20'GP",
-    "validity": "31/Jul",
-    "freeTime": "14 days"
-  },
-  {
-    "origin": "SHA",
-    "destination": "RIO",
-    "carrier": "PIL",
-    "modal": "Marítimo",
-    "rate": "4800 USD",
-    "transitTime": "N/A",
-    "container": "40'HC",
-    "validity": "31/Jul",
-    "freeTime": "14 days"
-  }
-]
-
----
-
-Now, carefully analyze the following text and extract the rates.
+**Key Instructions:**
+- Each distinct rate must be a separate object in the array.
+- If a rate applies to multiple destinations (e.g., "SHA to SAN/RIO"), create a separate object for each destination.
+- If a rate applies to multiple containers (e.g., "20GP/40HC: 2500/4800"), create a separate object for each container type with its corresponding rate.
+- If the text mentions a general region like "brazil base ports", you MUST generate a separate rate entry for each of the main Brazilian ports: **Santos**, **Paranaguá**, **Itapoá**, and **Rio Grande**.
+- If a piece of information isn't available in the text, use "N/A".
+- If no rates can be extracted from the text, return an empty array \`[]\`.
 
 **Text to analyze:**
 {{{textInput}}}
@@ -128,8 +64,13 @@ const extractRatesFromTextFlow = ai.defineFlow(
   async (input) => {
     const { output } = await extractRatesFromTextPrompt(input);
 
-    // If the model can't produce a valid output, it will be null.
-    // Return an empty array for a clean user experience.
-    return output || [];
+    if (output === null) {
+      // This provides a more specific error when the model fails to generate valid JSON.
+      throw new Error("A IA não conseguiu gerar uma resposta estruturada válida. O texto pode ser muito complexo ou ambíguo.");
+    }
+
+    // If the model correctly determines there are no rates, it will return an empty array.
+    // The frontend handles the "no rates found" message.
+    return output;
   }
 );

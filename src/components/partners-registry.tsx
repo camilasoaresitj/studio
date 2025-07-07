@@ -216,14 +216,14 @@ export function PartnersRegistry({ partners, onPartnerAdded }: PartnersRegistryP
                     <FormField control={form.control} name="paymentTerm" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Prazo de Pagamento (dias)</FormLabel>
-                            <FormControl><Input type="number" placeholder="Ex: 30" {...field} /></FormControl>
+                            <FormControl><Input type="number" placeholder="Ex: 30" {...field} value={field.value ?? ''} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )} />
                     <FormField control={form.control} name="exchangeRateAgio" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Ágio sobre o Câmbio (%)</FormLabel>
-                            <FormControl><Input type="number" step="0.1" placeholder="Ex: 2.5" {...field} /></FormControl>
+                            <FormControl><Input type="number" step="0.1" placeholder="Ex: 2.5" {...field} value={field.value ?? ''} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )} />

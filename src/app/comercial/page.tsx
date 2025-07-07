@@ -11,8 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
 import { PartnersRegistry, Partner } from '@/components/partners-registry';
 import { FeesRegistry, Fee } from '@/components/fees-registry';
+import type { Rate } from '@/components/rates-table';
+import type { FreightQuoteFormData } from '@/lib/schemas';
 
-const initialRatesData = [
+const initialRatesData: Rate[] = [
   // Maersk
   { id: 1, origin: 'Porto de Santos, BR', destination: 'Porto de Roterdã, NL', carrier: 'Maersk Line', modal: 'Marítimo', rate: '2500', container: "20'GP", transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias' },
   { id: 2, origin: 'Porto de Santos, BR', destination: 'Porto de Roterdã, NL', carrier: 'Maersk Line', modal: 'Marítimo', rate: '4100', container: "40'GP", transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias' },
@@ -91,16 +93,39 @@ const initialPartnersData: Partner[] = [
         address: { street: 'Rua da Inovação', number: '404', complement: '', district: 'Centro', city: 'Florianópolis', state: 'SC', zip: '88010-000' },
         contacts: [
             { name: 'Sofia Mendes', email: 'sofia@techfront.com', phone: '5548999887766', department: 'Comercial' },
-            { name: 'Lucas Ferreira', email: 'financeiro@techfront.com', phone: '5548999887755', department: 'Financeiro' }
+            { name: 'Lucas Ferreira', email: 'financeiro@techfront.com', phone: '5548999887755', department: 'Financeiro' },
+            { name: 'Carla Dias', email: 'impo@techfront.com', phone: '5548999887744', department: 'Importação' },
         ]
     },
 ];
 
 const initialFeesData: Fee[] = [
-    { id: 1, name: 'Taxa de Despacho', value: 'R$ 550,00', type: 'Fixo' },
-    { id: 2, name: 'Armazenagem (por dia)', value: 'R$ 150,00', type: 'Fixo' },
-    { id: 3, name: 'Seguro Internacional', value: '0.3%', type: 'Percentual' },
+    // Importação Marítima FCL
+    { id: 1, name: 'THC', value: '1350', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 2, name: 'BL Fee', value: '600', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 3, name: 'ISPS', value: '35', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 4, name: 'Desconsolidação', value: '150', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+
+    // Importação Marítima LCL
+    { id: 5, name: 'THC', value: '50', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
+    { id: 6, name: 'Desova', value: '50', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
+    { id: 7, name: 'BL Fee', value: '200', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL' },
+
+    // Exportação Marítima FCL
+    { id: 8, name: 'THC', value: '1350', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 9, name: 'BL Fee', value: '600', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 10, name: 'Lacre', value: '20', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 11, name: 'VGM', value: '20', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+
+    // Importação Aérea
+    { id: 12, name: 'Desconsolidação', value: '80', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Importação' },
+    { id: 13, name: 'Collect Fee', value: '3', type: 'Percentual', unit: 'Sobre o Frete', modal: 'Aéreo', direction: 'Importação', minValue: 15 },
+
+    // Serviços Opcionais
+    { id: 14, name: 'Despacho Aduaneiro', value: '1000', type: 'Opcional', unit: 'Por Processo', modal: 'Ambos', direction: 'Ambos' },
+    { id: 15, name: 'Seguro Internacional', value: '0.3', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos' },
 ];
+
 
 export default function ComercialPage() {
   const [rates, setRates] = useState(initialRatesData);
@@ -108,6 +133,7 @@ export default function ComercialPage() {
   const [partners, setPartners] = useState(initialPartnersData);
   const [fees, setFees] = useState(initialFeesData);
   const [activeTab, setActiveTab] = useState('quote');
+  const [quoteFormData, setQuoteFormData] = useState<Partial<FreightQuoteFormData> | null>(null);
 
 
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
@@ -123,8 +149,36 @@ export default function ComercialPage() {
   };
 
   const handlePartnerAdded = (newPartner: Partner) => {
-    setPartners(prevPartners => [...prevPartners, newPartner]);
+    const newPartnerWithId = { ...newPartner, id: partners.length + 1 };
+    setPartners(prevPartners => [...prevPartners, newPartnerWithId]);
   };
+  
+  const handleFeeSaved = (feeToSave: Fee) => {
+      setFees(prevFees => {
+          const index = prevFees.findIndex(f => f.id === feeToSave.id);
+          if (index > -1) {
+              const newFees = [...prevFees];
+              newFees[index] = feeToSave;
+              return newFees;
+          } else {
+              return [...prevFees, { ...feeToSave, id: prevFees.length + 1 }];
+          }
+      });
+  };
+
+  const startQuoteFromRate = (rate: Rate, containerType?: string) => {
+    const formData: Partial<FreightQuoteFormData> = {
+      origin: rate.origin,
+      destination: rate.destination,
+      modal: rate.modal === 'Marítimo' ? 'ocean' : 'air',
+      oceanShipmentType: 'FCL',
+      oceanShipment: {
+        containers: containerType ? [{ type: containerType, quantity: 1 }] : [],
+      }
+    };
+    setQuoteFormData(formData);
+    setActiveTab('quote');
+  }
 
   return (
     <div className="p-4 md:p-8">
@@ -141,17 +195,22 @@ export default function ComercialPage() {
           <TabsTrigger value="customer_quotes">Cotações</TabsTrigger>
           <TabsTrigger value="import">Importar Tarifas</TabsTrigger>
           <TabsTrigger value="crm">CRM Automático</TabsTrigger>
-          <TabsTrigger value="cadastros">Cadastros</TabsTrigger>
+          <TabsTrigger value="partners">Parceiros</TabsTrigger>
+          <TabsTrigger value="fees">Taxas</TabsTrigger>
         </TabsList>
         <TabsContent value="quote" className="mt-6">
           <FreightQuoteForm 
+            key={JSON.stringify(quoteFormData)}
+            initialData={quoteFormData}
             onQuoteCreated={handleQuoteCreated} 
             partners={partners.filter(p => p.type === 'Cliente')}
-            onRegisterCustomer={() => setActiveTab('cadastros')}
+            onRegisterCustomer={() => setActiveTab('partners')}
+            rates={rates}
+            fees={fees}
           />
         </TabsContent>
          <TabsContent value="rates" className="mt-6">
-          <RatesTable rates={rates} />
+          <RatesTable rates={rates} onSelectRate={startQuoteFromRate} />
         </TabsContent>
         <TabsContent value="customer_quotes" className="mt-6">
           <CustomerQuotesList quotes={quotes} />
@@ -162,15 +221,25 @@ export default function ComercialPage() {
         <TabsContent value="crm" className="mt-6">
           <CrmForm />
         </TabsContent>
-        <TabsContent value="cadastros" className="mt-6">
+        <TabsContent value="partners" className="mt-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Cadastros Gerais</CardTitle>
-                    <CardDescription>Gerencie seus clientes, fornecedores, agentes e taxas padrão.</CardDescription>
+                    <CardTitle>Cadastro de Parceiros</CardTitle>
+                    <CardDescription>Gerencie seus clientes, fornecedores e agentes.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <PartnersRegistry partners={partners} onPartnerAdded={handlePartnerAdded} />
-                    <FeesRegistry fees={fees} />
+                </CardContent>
+            </Card>
+        </TabsContent>
+         <TabsContent value="fees" className="mt-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Cadastro de Taxas</CardTitle>
+                    <CardDescription>Gerencie as taxas padrão para cotações de importação e exportação.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <FeesRegistry fees={fees} onSave={handleFeeSaved} />
                 </CardContent>
             </Card>
         </TabsContent>

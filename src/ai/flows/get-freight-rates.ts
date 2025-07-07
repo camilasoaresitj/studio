@@ -20,7 +20,8 @@ const FreightRateSchema = z.object({
     cost: z.string(),
     costValue: z.number(),
     carrierLogo: z.string(),
-    dataAiHint: z.string()
+    dataAiHint: z.string(),
+    source: z.string(),
 });
 
 const GetFreightRatesOutputSchema = z.array(FreightRateSchema);
@@ -129,6 +130,7 @@ const getFreightRatesFlow = ai.defineFlow(
           costValue: totalCost,
           carrierLogo: 'https://placehold.co/120x40',
           dataAiHint: input.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
+          source: 'CargoFive API',
         };
       });
 

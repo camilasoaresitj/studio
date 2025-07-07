@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import Image from 'next/image';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
 import { runGetFreightRates } from '@/app/actions';
@@ -30,8 +30,11 @@ import type { SendQuoteOutput } from '@/ai/flows/send-quote';
 import type { Quote } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import { Checkbox } from './ui/checkbox';
+import { Badge } from './ui/badge';
+import type { Rate as LocalRate } from './rates-table';
+import type { Fee } from './fees-registry';
 
-type FormData = FreightQuoteFormData;
 
 type FreightRate = {
     id: string;
@@ -41,12 +44,23 @@ type FreightRate = {
     costValue: number;
     carrierLogo: string;
     dataAiHint: string;
+    source: string;
 };
+
+type QuoteCharge = {
+    name: string;
+    value: number;
+    currency: 'USD' | 'BRL';
+    details: string;
+}
 
 interface FreightQuoteFormProps {
   onQuoteCreated: (quote: Quote) => void;
   partners: Partner[];
   onRegisterCustomer: () => void;
+  rates: LocalRate[];
+  fees: Fee[];
+  initialData?: Partial<FreightQuoteFormData> | null;
 }
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -63,22 +77,23 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
-export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer }: FreightQuoteFormProps) {
+export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees, initialData }: FreightQuoteFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<FreightRate[]>([]);
   const [selectedRate, setSelectedRate] = useState<FreightRate | null>(null);
-  const [markup, setMarkup] = useState(15);
-  const [oceanShipmentType, setOceanShipmentType] = useState<'FCL' | 'LCL'>('FCL');
+  const [quoteCharges, setQuoteCharges] = useState<QuoteCharge[]>([]);
+  const [totalBRL, setTotalBRL] = useState(0);
+  const [totalUSD, setTotalUSD] = useState(0);
   const [isSending, setIsSending] = useState(false);
   const [quoteContent, setQuoteContent] = useState<SendQuoteOutput | null>(null);
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<FormData>({
+  const form = useForm<FreightQuoteFormData>({
     resolver: zodResolver(freightQuoteFormSchema),
     defaultValues: {
       customerId: '',
-      modal: 'air',
+      modal: 'ocean',
       incoterm: 'FOB',
       origin: '',
       destination: '',
@@ -94,9 +109,22 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
       lclDetails: {
         cbm: 1,
         weight: 1000,
+      },
+      optionalServices: {
+        customsClearance: false,
+        insurance: false,
+        delivery: false,
+        cargoValue: 0,
+        deliveryCost: 0,
       }
     },
   });
+  
+  useEffect(() => {
+      if (initialData) {
+          form.reset(initialData);
+      }
+  }, [initialData, form]);
 
   const { fields: airPieces, append: appendAirPiece, remove: removeAirPiece } = useFieldArray({
     control: form.control,
@@ -115,40 +143,128 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
     setSelectedRate(null);
     setQuoteContent(null);
     
-    // This is a workaround to remove customerPhone and customerEmail from the values passed to the AI flow
-    // if they are empty strings, as the schema expects them to be optional but not empty.
-    const submissionValues = { ...values };
+    const localResults: FreightRate[] = rates
+      .filter(rate => {
+          const modalMatch = values.modal === 'ocean' 
+              ? rate.modal.toLowerCase().startsWith('marítimo')
+              : rate.modal.toLowerCase().startsWith('aéreo');
+          
+          if (!modalMatch) return false;
+
+          const originMatch = rate.origin.toUpperCase().includes(values.origin.toUpperCase());
+          const destinationMatch = rate.destination.toUpperCase().includes(values.destination.toUpperCase());
+
+          return originMatch && destinationMatch;
+      })
+      .map((rate): FreightRate => {
+        const costValue = parseFloat(rate.rate.replace(/[^0-9.]/g, '')) || 0;
+        const currency = rate.rate.includes('R$') ? 'BRL' : 'USD';
+        return {
+          id: `local-${rate.id}`,
+          carrier: rate.carrier,
+          transitTime: rate.transitTime,
+          cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(costValue),
+          costValue: costValue,
+          carrierLogo: 'https://placehold.co/120x40',
+          dataAiHint: values.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
+          source: 'Tabela'
+        };
+      });
+      
     const customer = partners.find(p => p.id.toString() === values.customerId);
     const primaryContact = customer?.contacts?.find(c => c.department === 'Comercial') || customer?.contacts?.[0];
 
-    // We pass these values to the action, but they are not part of the form state itself
     const finalValues = {
-        ...submissionValues,
+        ...values,
         customerEmail: primaryContact?.email,
         customerPhone: primaryContact?.phone
     };
 
     const response = await runGetFreightRates(finalValues);
+    let apiResults: FreightRate[] = [];
 
     if (response.success) {
-        setResults(response.data);
-        toast({
-            variant: "default",
-            title: response.data.length > 0 ? "Cotações encontradas!" : "Nenhuma cotação encontrada",
-            description: response.data.length > 0 ? `Encontramos ${response.data.length} opções para você.` : "Tente alterar os parâmetros da sua busca.",
-        });
+        apiResults = response.data as FreightRate[];
     } else {
         toast({
             variant: "destructive",
-            title: "Erro ao buscar cotações",
+            title: "Erro ao buscar na API CargoFive",
             description: response.error,
+        });
+    }
+
+    const allResults = [...localResults, ...apiResults].sort((a, b) => a.costValue - b.costValue);
+    
+    setResults(allResults);
+
+    if (allResults.length > 0) {
+        toast({
+            variant: "default",
+            title: "Cotações encontradas!",
+            description: `Encontramos ${allResults.length} opções para você.`,
+        });
+    } else {
+        toast({
+            variant: "default",
+            title: "Nenhuma cotação encontrada",
+            description: "Nenhuma tarifa encontrada na API ou na sua tabela local. Tente alterar os parâmetros da sua busca.",
         });
     }
 
     setIsLoading(false);
   }
 
-  const handleSelectRate = (rate: any) => {
+  const calculateCharges = (rate: FreightRate) => {
+    const values = form.getValues();
+    const direction = values.origin.toUpperCase().startsWith('BR') ? 'Exportação' : 'Importação';
+    const chargeType = values.modal === 'ocean' ? values.oceanShipmentType : undefined;
+    
+    const relevantFees = fees.filter(fee => {
+        const modalMatch = fee.modal === 'Ambos' || fee.modal === (values.modal === 'ocean' ? 'Marítimo' : 'Aéreo');
+        const directionMatch = fee.direction === 'Ambos' || fee.direction === direction;
+        const chargeTypeMatch = !fee.chargeType || fee.chargeType === chargeType;
+        return modalMatch && directionMatch && chargeTypeMatch;
+    });
+
+    const charges: QuoteCharge[] = [];
+    
+    // Add base freight
+    charges.push({ name: 'Frete Internacional', value: rate.costValue, currency: 'USD', details: `Transportadora: ${rate.carrier}` });
+
+    // Add standard fees
+    relevantFees.forEach(fee => {
+        if (fee.type === 'Fixo') {
+             charges.push({ name: fee.name, value: parseFloat(fee.value), currency: 'BRL', details: fee.unit });
+        }
+    });
+
+    // Add optional services
+    if (values.optionalServices.customsClearance) {
+        const fee = fees.find(f => f.name === 'Despacho Aduaneiro');
+        if (fee) charges.push({ name: fee.name, value: parseFloat(fee.value), currency: 'BRL', details: fee.unit });
+    }
+    if (values.optionalServices.insurance && values.optionalServices.cargoValue > 0) {
+        const fee = fees.find(f => f.name === 'Seguro Internacional');
+        if (fee) {
+            const insuranceCost = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
+            charges.push({ name: fee.name, value: insuranceCost, currency: 'BRL', details: `${fee.value}% sobre ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(values.optionalServices.cargoValue)}` });
+        }
+    }
+    if (values.optionalServices.delivery && values.optionalServices.deliveryCost > 0) {
+        charges.push({ name: 'Entrega', value: values.optionalServices.deliveryCost, currency: 'BRL', details: 'Serviço rodoviário' });
+    }
+
+    setQuoteCharges(charges);
+    
+    const usdTotal = charges.filter(c => c.currency === 'USD').reduce((acc, c) => acc + c.value, 0);
+    const brlTotal = charges.filter(c => c.currency === 'BRL').reduce((acc, c) => acc + c.value, 0);
+
+    setTotalUSD(usdTotal);
+    setTotalBRL(brlTotal);
+    setSelectedRate(rate);
+  };
+
+  const handleSelectRate = (rate: FreightRate) => {
     const customerId = form.getValues('customerId');
     if (!customerId) {
         toast({
@@ -159,7 +275,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
         return;
     }
     setQuoteContent(null);
-    setSelectedRate(rate);
+    calculateCharges(rate);
   };
 
   const handleSendQuote = async () => {
@@ -167,7 +283,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
     setIsSending(true);
     setQuoteContent(null);
 
-    const finalPrice = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue * (1 + markup / 100));
+    const finalPrice = `USD ${totalUSD.toFixed(2)} + BRL ${totalBRL.toFixed(2)}`;
     
     const customerId = form.getValues('customerId');
     const customer = partners.find(p => p.id.toString() === customerId);
@@ -190,7 +306,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
     const rejectionLink = `${window.location.origin}/comercial?action=reject&quoteId=COT-${Math.floor(Math.random() * 10000)}`;
 
     const response = await runSendQuote({
-        customerName: customer.name,
+        customerName: commercialContact.name,
         rateDetails: {
             origin: form.getValues('origin'),
             destination: form.getValues('destination'),
@@ -252,6 +368,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
 
   const modal = form.watch('modal');
   const incoterm = form.watch('incoterm');
+  const optionalServices = form.watch('optionalServices');
 
   return (
     <div className="space-y-8">
@@ -333,7 +450,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                 </div>
 
               <Tabs 
-                defaultValue="air" 
+                defaultValue="ocean" 
                 className="w-full"
                 onValueChange={(value) => {
                     form.setValue('modal', value as 'air' | 'ocean');
@@ -468,10 +585,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                         className="w-full"
                         onValueChange={(value) => {
                            const newType = value as 'FCL' | 'LCL';
-                           setOceanShipmentType(newType);
                            form.setValue('oceanShipmentType', newType);
                         }}
-                        value={oceanShipmentType}
+                        value={form.getValues('oceanShipmentType')}
                     >
                         <TabsList>
                             <TabsTrigger value="FCL">FCL (Contêiner)</TabsTrigger>
@@ -490,6 +606,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                                                     <SelectItem value="40'HC">40' High Cube</SelectItem>
                                                     <SelectItem value="20'RF">20' Reefer</SelectItem>
                                                     <SelectItem value="40'RF">40' Reefer</SelectItem>
+                                                    <SelectItem value="40'NOR">40' Non-Operating Reefer</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
@@ -521,6 +638,83 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                 </TabsContent>
               </Tabs>
               
+              <Separator className="my-6" />
+                <div>
+                    <h3 className="text-lg font-medium mb-4">Serviços Opcionais</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
+                        <FormField
+                            control={form.control}
+                            name="optionalServices.customsClearance"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                                <FormControl>
+                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                <FormLabel>Despacho Aduaneiro</FormLabel>
+                                </div>
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="optionalServices.insurance"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                    <FormControl>
+                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none w-full">
+                                    <FormLabel>Seguro Internacional</FormLabel>
+                                    {optionalServices.insurance && (
+                                        <FormField
+                                            control={form.control}
+                                            name="optionalServices.cargoValue"
+                                            render={({ field }) => (
+                                                <FormItem className="mt-2">
+                                                <FormControl>
+                                                    <Input type="number" placeholder="Valor da Carga (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/>
+                                                </FormControl>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                    </div>
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="optionalServices.delivery"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                    <FormControl>
+                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none w-full">
+                                    <FormLabel>Entrega</FormLabel>
+                                     {optionalServices.delivery && (
+                                        <FormField
+                                            control={form.control}
+                                            name="optionalServices.deliveryCost"
+                                            render={({ field }) => (
+                                                <FormItem className="mt-2">
+                                                <FormControl>
+                                                    <Input type="number" placeholder="Custo Entrega (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/>
+                                                </FormControl>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                    </div>
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                </div>
+              
               <Button type="submit" disabled={isLoading} className="w-full text-base py-6">
                 {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando...</> : <><Search className="mr-2 h-4 w-4" /> Buscar Cotações</>}
               </Button>
@@ -550,7 +744,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                     </div>
                     <div className="text-left md:text-right w-full md:w-auto">
                         <p className="text-xl font-bold text-primary">{result.cost}</p>
-                        <p className="text-xs text-muted-foreground">Custo estimado</p>
+                         <div className="flex items-center justify-start md:justify-end gap-2 mt-1">
+                            <p className="text-xs text-muted-foreground">Custo estimado</p>
+                            <Badge variant={result.source === 'CargoFive API' ? 'default' : 'secondary'}>{result.source}</Badge>
+                        </div>
                     </div>
                     <Button className="w-full md:w-auto" onClick={() => handleSelectRate(result)}>Selecionar Tarifa</Button>
                 </Card>
@@ -584,42 +781,50 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
 
       {selectedRate && (
         <Dialog open={!!selectedRate} onOpenChange={(open) => !open && setSelectedRate(null)}>
-          <DialogContent className="sm:max-w-[625px]">
+          <DialogContent className="sm:max-w-[725px]">
             <DialogHeader>
               <DialogTitle>Elaborar Cotação para: {partners.find(p=>p.id.toString() === form.getValues('customerId'))?.name}</DialogTitle>
               <DialogDescription>
-                Adicione sua margem e finalize a cotação para o cliente.
+                Confira o resumo de custos e finalize a cotação para o cliente.
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4 space-y-6">
-              <div className="p-4 border rounded-lg bg-muted/50 flex justify-between items-center">
-                  <div>
-                      <p className="font-bold">{selectedRate.carrier}</p>
-                      <p className="text-sm text-muted-foreground">Custo base: {selectedRate.cost}</p>
-                  </div>
-                  <p className="text-lg font-bold">
-                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue)}
-                  </p>
-              </div>
-              
-              <div className="grid md:grid-cols-2 gap-6 items-end">
-                  <div className="space-y-2">
-                      <Label htmlFor="markup">Margem de Lucro (%)</Label>
-                      <Input 
-                          id="markup"
-                          type="number" 
-                          value={markup}
-                          onChange={(e) => setMarkup(Number(e.target.value))}
-                          placeholder="Ex: 15"
-                      />
-                  </div>
-                  <div className="p-4 rounded-md border bg-card">
-                      <p className="text-sm text-muted-foreground">Preço Final para o Cliente</p>
-                      <p className="text-2xl font-bold text-primary">
-                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue * (1 + markup / 100))}
-                      </p>
-                  </div>
-              </div>
+            <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-4">
+              <Card>
+                <CardHeader>
+                    <CardTitle>Resumo de Custos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-2">
+                        {quoteCharges.map((charge, index) => (
+                            <div key={index} className="flex justify-between items-center text-sm">
+                                <div className='flex items-center gap-2'>
+                                    <span>{charge.name}</span>
+                                    <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <Info className='h-3 w-3 text-muted-foreground' />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{charge.details}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    </TooltipProvider>
+
+                                </div>
+                                <span className='font-mono font-medium'>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: charge.currency }).format(charge.value)}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <Separator className="my-4" />
+                    <div className="flex justify-between font-bold text-lg">
+                        <span>Total</span>
+                        <div className='text-right'>
+                            {totalUSD > 0 && <div>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalUSD)}</div>}
+                            {totalBRL > 0 && <div>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalBRL)}</div>}
+                        </div>
+                    </div>
+                </CardContent>
+              </Card>
             </div>
             <DialogFooter className="sm:justify-between gap-2">
                 <Button variant="outline" onClick={() => setSelectedRate(null)}>Cancelar</Button>

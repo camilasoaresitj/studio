@@ -16,11 +16,11 @@ const ExtractRatesFromTextInputSchema = z.object({
 export type ExtractRatesFromTextInput = z.infer<typeof ExtractRatesFromTextInputSchema>;
 
 const ParsedRateSchema = z.object({
-  origin: z.string().describe('The origin location (city, port, or airport).'),
-  destination: z.string().describe('The destination location (city, port, or airport).'),
+  origin: z.string().describe('The origin location (city, port, or airport). This is a mandatory field.'),
+  destination: z.string().describe('The destination location (city, port, or airport). This is a mandatory field.'),
   carrier: z.string().describe('The name of the shipping carrier or airline.'),
   modal: z.enum(['Aéreo', 'Marítimo']).describe("The transport modal. Must be 'Aéreo' or 'Marítimo'."),
-  rate: z.string().describe('The rate or cost for a SINGLE container type, including currency (e.g., "USD 2500").'),
+  rate: z.string().describe('The rate or cost for a SINGLE container type, including currency (e.g., "USD 2500"). This is a mandatory field.'),
   transitTime: z.string().describe('The estimated transit time (e.g., "25-30 dias"). Use "N/A" if not specified.'),
   container: z.string().describe('The container type (e.g., "20\'GP", "40\'HC"). Use "N/A" for air freight.'),
   validity: z.string().describe('The expiration date of the rate (e.g., "31/12/2024"). Use "N/A" if not specified.'),
@@ -39,13 +39,16 @@ const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
   input: { schema: ExtractRatesFromTextInputSchema },
   output: { schema: ExtractRatesFromTextOutputSchema },
-  prompt: `You are an expert logistics AI. Your task is to extract all freight rates from the provided text and structure them into a JSON array based on the output schema.
+  prompt: `You are an expert logistics AI. Your task is to meticulously extract freight rates from the provided text and structure them into a JSON array based on the defined schema.
 
-**Key Instructions:**
-- Create a separate object for each distinct rate.
-- If a rate applies to multiple destinations (e.g., "SHA to SAN/RIO"), create a separate object for each destination.
-- If a rate has multiple prices for different containers (e.g., "20GP/40HC: 2500/4800"), create a separate object for each container.
-- If the text mentions "brazil base ports", you MUST generate separate rate entries for each of the main Brazilian ports: Santos, Paranaguá, Itapoá, and Rio Grande.
+**CRITICAL RULES:**
+1.  **YOU MUST NOT** generate a rate object unless you can find a specific **origin**, **destination**, and **rate value** in the text for that rate. If any of these three are missing, you must ignore that line/rate completely.
+2.  If a rate applies to multiple destinations (e.g., "SHA to SAN/RIO"), create a separate object for each destination.
+3.  If a rate has multiple prices for different containers (e.g., "20GP/40HC: 2500/4800"), create a separate object for each container.
+4.  If the text mentions "brazil base ports" or "brazilian ports", you MUST generate separate rate entries for each of the main Brazilian ports: Santos, Paranaguá, Itapoá, and Rio Grande.
+
+**FIELD-SPECIFIC INSTRUCTIONS:**
+- For fields \`transitTime\`, \`validity\`, \`freeTime\`, and \`container\`: If you cannot find a value for a valid rate, use the string "N/A".
 
 Text to analyze:
 {{{textInput}}}
@@ -60,15 +63,20 @@ const extractRatesFromTextFlow = ai.defineFlow(
     outputSchema: ExtractRatesFromTextOutputSchema,
   },
   async (input) => {
-    const { output } = await extractRatesFromTextPrompt(input);
-
-    if (output === null) {
-      // This provides a more specific error when the model fails to generate valid JSON.
-      throw new Error("A IA não conseguiu gerar uma resposta estruturada válida. O texto pode ser muito complexo ou ambíguo.");
+    try {
+      const { output } = await extractRatesFromTextPrompt(input);
+      if (output === null) {
+        throw new Error("A IA não conseguiu gerar uma resposta estruturada válida. O texto pode ser muito complexo ou ambíguo.");
+      }
+      return output;
+    } catch (error) {
+       console.error("Error in extractRatesFromTextFlow:", error);
+       // Re-throw a more user-friendly error message for schema validation failures.
+       if (error instanceof Error && (error.message.includes('Schema validation failed') || error.message.includes('INVALID_ARGUMENT'))) {
+           throw new Error("A IA retornou dados inconsistentes ou incompletos. Verifique se todas as tarifas no texto possuem origem, destino e valor claramente definidos.");
+       }
+       // Re-throw original error or a generic one if it's not a schema validation error
+       throw error instanceof Error ? error : new Error("Ocorreu um erro desconhecido durante a extração.");
     }
-
-    // If the model correctly determines there are no rates, it will return an empty array.
-    // The frontend handles the "no rates found" message.
-    return output;
   }
 );

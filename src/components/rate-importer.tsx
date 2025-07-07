@@ -178,7 +178,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Ocorreu um erro na extração</AlertTitle>
             <AlertDescription>
-              A IA não conseguiu processar o texto fornecido. Tente ajustar o texto ou cole um trecho mais claro. (Detalhes: {error})
+              {error}
             </AlertDescription>
         </Alert>
       )}

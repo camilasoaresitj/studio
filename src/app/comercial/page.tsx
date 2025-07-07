@@ -101,29 +101,43 @@ const initialPartnersData: Partner[] = [
 
 const initialFeesData: Fee[] = [
     // Importação Marítima FCL
-    { id: 1, name: 'THC', value: '1350', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-    { id: 2, name: 'BL Fee', value: '600', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-    { id: 3, name: 'ISPS', value: '35', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-    { id: 4, name: 'Desconsolidação', value: '150', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-
+    { id: 1, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 2, name: 'BL Fee', value: '600', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 3, name: 'ISPS', value: '35', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 4, name: 'Desconsolidação', value: '150', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 20, name: 'IMPORT FEE (DEV CTNR)', value: '35', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL'},
+    { id: 21, name: 'LOGISTIC FEE', value: '55', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL'},
+    { id: 22, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL'},
+    
     // Importação Marítima LCL
-    { id: 5, name: 'THC', value: '50', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
-    { id: 6, name: 'Desova', value: '50', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
-    { id: 7, name: 'BL Fee', value: '200', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL' },
+    { id: 5, name: 'THC', value: '50', currency: 'BRL', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
+    { id: 6, name: 'Desova', value: '50', currency: 'BRL', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
+    { id: 7, name: 'BL Fee', value: '200', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL' },
+    { id: 23, name: 'Desconsolidação', value: '100', currency: 'USD', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
+    { id: 24, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
+    { id: 25, name: 'ISPS', value: '10', currency: 'USD', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
 
     // Exportação Marítima FCL
-    { id: 8, name: 'THC', value: '1350', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-    { id: 9, name: 'BL Fee', value: '600', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-    { id: 10, name: 'Lacre', value: '20', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-    { id: 11, name: 'VGM', value: '20', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-
+    { id: 8, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 9, name: 'BL Fee', value: '600', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 10, name: 'Lacre', value: '20', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 11, name: 'VGM', value: '20', currency: 'USD', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 26, name: 'ISPS', value: '35', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    
     // Importação Aérea
-    { id: 12, name: 'Desconsolidação', value: '80', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Importação' },
-    { id: 13, name: 'Collect Fee', value: '3', type: 'Percentual', unit: 'Sobre o Frete', modal: 'Aéreo', direction: 'Importação', minValue: 15 },
+    { id: 12, name: 'Desconsolidação', value: '80', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Importação' },
+    { id: 13, name: 'Collect Fee', value: '3', currency: 'USD', type: 'Percentual', unit: 'Sobre o Frete', modal: 'Aéreo', direction: 'Importação', minValue: 15 },
+    { id: 27, name: 'DELIVERY', value: '45', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Importação' },
+
+    // Exportação Aérea
+    { id: 28, name: 'AWB FEE', value: '50', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Exportação' },
+    { id: 29, name: 'HANDLING FEE', value: '50', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Exportação' },
+    { id: 30, name: 'ARMAZENAGEM', value: '0.07', currency: 'USD', type: 'Por KG', unit: '/KG', modal: 'Aéreo', direction: 'Exportação', minValue: 10},
+    { id: 31, name: 'CUSTOMS CLEARANCE', value: '50', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Exportação' },
 
     // Serviços Opcionais
-    { id: 14, name: 'Despacho Aduaneiro', value: '1000', type: 'Opcional', unit: 'Por Processo', modal: 'Ambos', direction: 'Ambos' },
-    { id: 15, name: 'Seguro Internacional', value: '0.3', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos' },
+    { id: 14, name: 'Despacho Aduaneiro', value: '1000', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Ambos', direction: 'Ambos' },
+    { id: 15, name: 'Seguro Internacional', value: '0.3', currency: 'BRL', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos' },
 ];
 
 

@@ -25,6 +25,7 @@ import { Label } from './ui/label';
 import { runGetFreightRates } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { runSendQuote } from '@/app/actions';
 import type { SendQuoteOutput } from '@/ai/flows/send-quote';
 import type { Quote } from './customer-quotes-list';
@@ -137,7 +138,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   });
 
 
-  async function onSubmit(values: FormData) {
+  async function onSubmit(values: FreightQuoteFormData) {
     setIsLoading(true);
     setResults([]);
     setSelectedRate(null);
@@ -214,48 +215,92 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     setIsLoading(false);
   }
 
-  const calculateCharges = (rate: FreightRate) => {
+ const calculateCharges = (rate: FreightRate) => {
     const values = form.getValues();
-    const direction = values.origin.toUpperCase().startsWith('BR') ? 'Exportação' : 'Importação';
-    const chargeType = values.modal === 'ocean' ? values.oceanShipmentType : undefined;
-    
-    const relevantFees = fees.filter(fee => {
-        const modalMatch = fee.modal === 'Ambos' || fee.modal === (values.modal === 'ocean' ? 'Marítimo' : 'Aéreo');
-        const directionMatch = fee.direction === 'Ambos' || fee.direction === direction;
-        const chargeTypeMatch = !fee.chargeType || fee.chargeType === chargeType;
-        return modalMatch && directionMatch && chargeTypeMatch;
-    });
+    const direction = values.origin.toUpperCase().includes('BR') ? 'Exportação' : 'Importação';
+    const chargeType = values.modal === 'ocean' ? values.oceanShipmentType : 'Aéreo';
 
     const charges: QuoteCharge[] = [];
-    
-    // Add base freight
-    charges.push({ name: 'Frete Internacional', value: rate.costValue, currency: 'USD', details: `Transportadora: ${rate.carrier}` });
 
-    // Add standard fees
-    relevantFees.forEach(fee => {
-        if (fee.type === 'Fixo') {
-             charges.push({ name: fee.name, value: parseFloat(fee.value), currency: 'BRL', details: fee.unit });
-        }
+    // 1. Add base freight cost
+    charges.push({
+      name: 'Frete Internacional',
+      value: rate.costValue,
+      currency: rate.cost.includes('R$') ? 'BRL' : 'USD',
+      details: `Transportadora: ${rate.carrier}`,
     });
 
-    // Add optional services
+    // 2. Filter relevant fees
+    const relevantFees = fees.filter(fee => {
+      const modalMatch = fee.modal === 'Ambos' || fee.modal === (values.modal === 'ocean' ? 'Marítimo' : 'Aéreo');
+      const directionMatch = fee.direction === 'Ambos' || fee.direction === direction;
+      const chargeTypeMatch = !fee.chargeType || fee.chargeType === chargeType;
+      return modalMatch && directionMatch && chargeTypeMatch;
+    });
+
+    // 3. Process standard fees (non-optional)
+    relevantFees.forEach(fee => {
+      if (fee.type === 'Opcional') return;
+
+      let value = parseFloat(fee.value);
+      let details = fee.unit;
+      let calculatedValue = value;
+
+      switch (fee.type) {
+        case 'Por CBM/Ton':
+          if (chargeType === 'LCL') {
+            const cbm = values.lclDetails.cbm;
+            const weightTon = values.lclDetails.weight / 1000;
+            const chargeable = Math.max(cbm, weightTon);
+            calculatedValue = chargeable * value;
+            details = `${chargeable.toFixed(2)} W/M`;
+          }
+          break;
+        case 'Percentual':
+          const freightCost = charges.find(c => c.name === 'Frete Internacional')?.value || 0;
+          calculatedValue = freightCost * (value / 100);
+          details = `${value}% sobre o frete`;
+          break;
+        case 'Por KG':
+            if(chargeType === 'Aéreo') {
+                const totalWeight = values.airShipment.pieces.reduce((acc, p) => acc + (p.quantity * p.weight), 0);
+                calculatedValue = totalWeight * value;
+                details = `${totalWeight} kg`;
+            }
+            break;
+      }
+      
+      if (fee.minValue && calculatedValue < fee.minValue) {
+        calculatedValue = fee.minValue;
+      }
+
+      if (chargeType === 'FCL' && fee.unit === 'Por Contêiner') {
+        const containerCount = values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0);
+        calculatedValue *= containerCount;
+        details = `${containerCount}x ${details}`;
+      }
+
+      charges.push({ name: fee.name, value: calculatedValue, currency: fee.currency, details });
+    });
+
+    // 4. Process optional services
     if (values.optionalServices.customsClearance) {
-        const fee = fees.find(f => f.name === 'Despacho Aduaneiro');
-        if (fee) charges.push({ name: fee.name, value: parseFloat(fee.value), currency: 'BRL', details: fee.unit });
+      const fee = fees.find(f => f.name === 'Despacho Aduaneiro');
+      if (fee) charges.push({ name: fee.name, value: parseFloat(fee.value), currency: fee.currency, details: fee.unit });
     }
     if (values.optionalServices.insurance && values.optionalServices.cargoValue > 0) {
-        const fee = fees.find(f => f.name === 'Seguro Internacional');
-        if (fee) {
-            const insuranceCost = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
-            charges.push({ name: fee.name, value: insuranceCost, currency: 'BRL', details: `${fee.value}% sobre ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(values.optionalServices.cargoValue)}` });
-        }
+      const fee = fees.find(f => f.name === 'Seguro Internacional');
+      if (fee) {
+        const insuranceCost = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
+        charges.push({ name: fee.name, value: insuranceCost, currency: 'BRL', details: `${fee.value}% sobre ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(values.optionalServices.cargoValue)}` });
+      }
     }
     if (values.optionalServices.delivery && values.optionalServices.deliveryCost > 0) {
-        charges.push({ name: 'Entrega', value: values.optionalServices.deliveryCost, currency: 'BRL', details: 'Serviço rodoviário' });
+      charges.push({ name: 'Entrega', value: values.optionalServices.deliveryCost, currency: 'BRL', details: 'Serviço rodoviário' });
     }
 
     setQuoteCharges(charges);
-    
+
     const usdTotal = charges.filter(c => c.currency === 'USD').reduce((acc, c) => acc + c.value, 0);
     const brlTotal = charges.filter(c => c.currency === 'BRL').reduce((acc, c) => acc + c.value, 0);
 

@@ -49,6 +49,9 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 - For all other non-mandatory fields (\`carrier\`, \`transitTime\`, \`container\`, \`validity\`, \`freeTime\`), use the exact string "N/A" if the information is not present.
 - If no valid rates can be extracted, return an empty array: \`[]\`.
 
+**Port Names Clarification:**
+- If the text mentions "Brazil base ports", "BR base ports", or similar general terms, you MUST interpret this as a single string listing the main ports: "Santos / Itapoa / Navegantes / Paranagua / Rio Grande, BR". Use this full string in the 'origin' or 'destination' field.
+
 **Example of a valid rate object:**
 \`\`\`json
 {

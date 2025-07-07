@@ -152,7 +152,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
       return commonFilteredRates.filter(r => r.modal === 'Aéreo');
   }, [commonFilteredRates]);
 
-  const handleMaritimeGroupChange = (group: any, field: 'freeTime' | 'transitTime' | 'validity', value: string) => {
+  const handleMaritimeGroupChange = (group: any, field: 'freeTime', value: string) => {
       setEditableRates(prevRates => 
           prevRates.map(rate => {
               if (rate.modal === 'Marítimo' && rate.origin === group.origin && rate.destination === group.destination && rate.carrier === group.carrier) {
@@ -163,43 +163,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
       );
   };
 
-  const handleMaritimeRateChange = (group: any, containerType: string, value: string) => {
-      setEditableRates(prevRates => {
-          const newRates = [...prevRates];
-          const rateIndex = newRates.findIndex(rate =>
-              rate.modal === 'Marítimo' &&
-              rate.origin === group.origin &&
-              rate.destination === group.destination &&
-              rate.carrier === group.carrier &&
-              rate.container === containerType
-          );
-
-          if (rateIndex > -1) {
-              if (value === '') {
-                  newRates.splice(rateIndex, 1);
-              } else {
-                  newRates[rateIndex] = { ...newRates[rateIndex], rate: value };
-              }
-          } else if (value !== '') {
-              const newRate: Rate = {
-                  id: Math.random(),
-                  origin: group.origin,
-                  destination: group.destination,
-                  carrier: group.carrier,
-                  modal: 'Marítimo',
-                  rate: value,
-                  container: containerType,
-                  transitTime: group.transitTime,
-                  validity: group.validity,
-                  freeTime: group.freeTime,
-              };
-              newRates.push(newRate);
-          }
-          return newRates;
-      });
-  };
-
-  const handleAirRateChange = (rateId: number, field: keyof Rate, value: string) => {
+  const handleAirRateChange = (rateId: number, field: 'freeTime', value: string) => {
       setEditableRates(prevRates => 
           prevRates.map(rate => {
               if (rate.id === rateId) {
@@ -233,7 +197,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
             </div>
             <Button onClick={handleSave}>
                 <Save className="mr-2 h-4 w-4" />
-                Salvar Tarifas
+                Salvar Alterações
             </Button>
           </div>
         </CardContent>
@@ -243,7 +207,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" /> Tarifas Marítimas (FCL)</CardTitle>
-                <CardDescription>Edite as tarifas nos campos e clique no ícone (✔) para iniciar uma cotação com a tarifa desejada.</CardDescription>
+                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite o Free Time e salve as alterações.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="border rounded-lg">
@@ -254,6 +218,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
                                 <TableHead className="w-[13%]">Origem</TableHead>
                                 <TableHead className="w-[13%]">Destino</TableHead>
                                 {maritimeContainerTypes.map(type => <TableHead key={type} className="w-[10%] text-center">{type}</TableHead>)}
+                                <TableHead className="w-[10%]">Trânsito</TableHead>
                                 <TableHead className="w-[12%]">Free Time</TableHead>
                                 <TableHead className="w-[15%]">Validade</TableHead>
                             </TableRow>
@@ -273,13 +238,9 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
                                     {maritimeContainerTypes.map(type => (
                                         <TableCell key={type} className="text-center p-2">
                                             <div className="flex items-center justify-center gap-1">
-                                                <Input
-                                                    value={item.rates[type] || ''}
-                                                    onChange={(e) => handleMaritimeRateChange(item, type, e.target.value)}
-                                                    className="h-8 text-center font-semibold text-primary"
-                                                    placeholder="-"
-                                                    disabled={isExpired}
-                                                />
+                                                 <span className="font-semibold text-primary h-8 flex items-center justify-center min-w-[50px]">
+                                                    {item.rates[type] || '-'}
+                                                </span>
                                                 {item.rates[type] && (
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => !isExpired && onSelectRate(item, type)} disabled={isExpired}>
                                                         <CheckCircle className="h-5 w-5 text-green-600" />
@@ -288,6 +249,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
                                             </div>
                                         </TableCell>
                                     ))}
+                                    <TableCell className="truncate p-2">{item.transitTime}</TableCell>
                                     <TableCell className="p-2">
                                         <Input
                                             value={item.freeTime}
@@ -296,14 +258,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
                                             disabled={isExpired}
                                         />
                                     </TableCell>
-                                    <TableCell className="p-2">
-                                        <Input
-                                            value={item.validity}
-                                            onChange={(e) => handleMaritimeGroupChange(item, 'validity', e.target.value)}
-                                            className="h-8"
-                                            disabled={isExpired}
-                                        />
-                                    </TableCell>
+                                    <TableCell className="truncate p-2">{item.validity}</TableCell>
                                 </TableRow>
                                 );
                             })}
@@ -318,7 +273,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Plane className="h-5 w-5 text-primary" /> Tarifas Aéreas</CardTitle>
-                <CardDescription>Edite as tarifas nos campos e clique no ícone (✔) para iniciar uma cotação.</CardDescription>
+                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite o Free Time e salve as alterações.</CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="border rounded-lg">
@@ -330,6 +285,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
                             <TableHead className="w-[15%]">Destino</TableHead>
                             <TableHead className="w-[12%]">Tarifa</TableHead>
                             <TableHead className="w-[12%]">Trânsito</TableHead>
+                            <TableHead className="w-[12%]">Free Time</TableHead>
                             <TableHead className="w-[10%]">Validade</TableHead>
                             <TableHead className="w-[10%] text-center">Ações</TableHead>
                         </TableRow>
@@ -337,7 +293,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
                         <TableBody>
                              {airRates.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
+                                    <TableCell colSpan={8} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
                                 </TableRow>
                              ) : airRates.map((rate, index) => {
                                 const isExpired = isValidDateString(rate.validity) && isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
@@ -346,30 +302,17 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
                                     <TableCell className="font-medium truncate p-2" title={rate.carrier}>{rate.carrier}</TableCell>
                                     <TableCell className="truncate p-2" title={rate.origin}>{rate.origin}</TableCell>
                                     <TableCell className="truncate p-2" title={rate.destination}>{rate.destination}</TableCell>
-                                    <TableCell className="p-2">
+                                    <TableCell className="font-semibold text-primary p-2">{rate.rate}</TableCell>
+                                    <TableCell className="truncate p-2">{rate.transitTime}</TableCell>
+                                     <TableCell className="p-2">
                                         <Input 
-                                            value={rate.rate} 
-                                            onChange={(e) => handleAirRateChange(rate.id, 'rate', e.target.value)} 
-                                            className="h-8 font-semibold text-primary"
-                                            disabled={isExpired}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="p-2">
-                                        <Input 
-                                            value={rate.transitTime} 
-                                            onChange={(e) => handleAirRateChange(rate.id, 'transitTime', e.target.value)} 
+                                            value={rate.freeTime} 
+                                            onChange={(e) => handleAirRateChange(rate.id, 'freeTime', e.target.value)} 
                                             className="h-8"
                                             disabled={isExpired}
                                         />
                                     </TableCell>
-                                    <TableCell className="p-2">
-                                        <Input 
-                                            value={rate.validity} 
-                                            onChange={(e) => handleAirRateChange(rate.id, 'validity', e.target.value)} 
-                                            className="h-8"
-                                            disabled={isExpired}
-                                        />
-                                    </TableCell>
+                                    <TableCell className="truncate p-2">{rate.validity}</TableCell>
                                     <TableCell className="text-center p-2">
                                         <Button variant="ghost" size="icon" onClick={() => onSelectRate(rate)} disabled={isExpired}>
                                             <CheckCircle className="h-5 w-5 text-green-600" />

@@ -165,7 +165,7 @@ const initialFeesData: Fee[] = [
 
 
 export default function ComercialPage() {
-  const [rates, setRates] = useState(initialRatesData);
+  const [rates, setRates] = useState<Rate[]>(initialRatesData);
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotesData);
   const [partners, setPartners] = useState(initialPartnersData);
   const [fees, setFees] = useState(initialFeesData);
@@ -179,6 +179,10 @@ export default function ComercialPage() {
       id: rates.length + index + 1, // Simple ID generation
     }));
     setRates(prevRates => [...prevRates, ...newRates]);
+  };
+
+  const handleRatesChange = (updatedRates: Rate[]) => {
+    setRates(updatedRates);
   };
   
   const handleQuoteCreated = (newQuoteData: Omit<Quote, 'id' | 'status' | 'date'>) => {
@@ -210,16 +214,31 @@ export default function ComercialPage() {
       });
   };
 
-  const startQuoteFromRate = (rate: Rate, containerType?: string) => {
+  const startQuoteFromRate = (rate: any, containerType?: string) => {
+    const isGroup = !!rate.rates;
+
     const formData: Partial<FreightQuoteFormData> = {
       origin: rate.origin,
       destination: rate.destination,
       modal: rate.modal === 'Marítimo' ? 'ocean' : 'air',
       oceanShipmentType: 'FCL',
-      oceanShipment: {
-        containers: containerType ? [{ type: containerType, quantity: 1 }] : [],
-      }
     };
+    
+    if (isGroup && containerType) {
+        formData.oceanShipment = {
+            containers: [{ type: containerType, quantity: 1, weight: undefined }],
+        };
+    } else if (!isGroup) {
+        if(rate.modal === 'Marítimo') {
+            formData.oceanShipment = {
+                containers: rate.container ? [{ type: rate.container, quantity: 1, weight: undefined }] : [],
+            };
+        }
+    } else {
+        formData.oceanShipment = {
+            containers: [],
+        }
+    }
     setQuoteFormData(formData);
     setActiveTab('quote');
   }
@@ -289,7 +308,11 @@ export default function ComercialPage() {
          <TabsContent value="rates" className="mt-6">
             <div className="space-y-8">
               <RateImporter onRatesImported={handleRatesImported} />
-              <RatesTable rates={rates} onSelectRate={startQuoteFromRate} />
+              <RatesTable 
+                rates={rates} 
+                onSelectRate={startQuoteFromRate} 
+                onRatesChange={handleRatesChange}
+              />
               <Card>
                   <CardHeader>
                       <CardTitle>Cadastro de Taxas Padrão</CardTitle>

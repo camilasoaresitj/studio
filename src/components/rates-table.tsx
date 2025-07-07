@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableHeader,
@@ -14,12 +15,12 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plane, Ship, Save } from 'lucide-react';
+import { Plane, Ship, Save, CheckCircle } from 'lucide-react';
 import { parse, isBefore, isValid } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { useToast } from '@/hooks/use-toast';
 
-type Rate = {
+export type Rate = {
   id: number;
   origin: string;
   destination: string;
@@ -34,6 +35,8 @@ type Rate = {
 
 interface RatesTableProps {
   rates: Rate[];
+  onRatesChange: (rates: Rate[]) => void;
+  onSelectRate: (rate: any, containerType?: string) => void;
 }
 
 const maritimeContainerTypes = ["20'GP", "40'GP", "40'HC", "40'NOR"];
@@ -83,21 +86,26 @@ const groupMaritimeRates = (rates: Rate[]) => {
   return Array.from(groups.values());
 };
 
-export function RatesTable({ rates: ratesData }: RatesTableProps) {
+export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }: RatesTableProps) {
   const [filters, setFilters] = useState({ origin: '', destination: '' });
   const [modalFilter, setModalFilter] = useState('Marítimo');
   const [showExpired, setShowExpired] = useState(false);
+  const [editableRates, setEditableRates] = useState<Rate[]>(initialRates);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setEditableRates(initialRates);
+  }, [initialRates]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const handleSave = () => {
+    onRatesChange(editableRates);
     toast({
       title: 'Tarifas Salvas!',
       description: 'As suas alterações na tabela de tarifas foram salvas com sucesso.',
-      variant: 'default',
       className: 'bg-success text-success-foreground',
     });
   };
@@ -112,16 +120,8 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
     return typeof dateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateStr);
   }
 
-  const handleSelectRate = (rate: any) => {
-    console.log('Selected Rate:', rate);
-    toast({
-        title: "Tarifa Selecionada!",
-        description: `Você selecionou a tarifa de ${rate.carrier} de ${rate.origin} para ${rate.destination}.`
-    });
-  };
-
   const commonFilteredRates = useMemo(() => {
-     return ratesData.filter(rate => {
+     return editableRates.filter(rate => {
       if (!showExpired) {
         if (!rate.validity || !isValidDateString(rate.validity)) return true;
         try {
@@ -141,7 +141,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
       }
       return true;
     });
-  }, [filters, showExpired, today, ratesData]);
+  }, [filters, showExpired, today, editableRates]);
   
   const maritimeRates = useMemo(() => {
       const filtered = commonFilteredRates.filter(r => r.modal === 'Marítimo');
@@ -151,6 +151,64 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
   const airRates = useMemo(() => {
       return commonFilteredRates.filter(r => r.modal === 'Aéreo');
   }, [commonFilteredRates]);
+
+  const handleMaritimeGroupChange = (group: any, field: 'freeTime' | 'transitTime' | 'validity', value: string) => {
+      setEditableRates(prevRates => 
+          prevRates.map(rate => {
+              if (rate.modal === 'Marítimo' && rate.origin === group.origin && rate.destination === group.destination && rate.carrier === group.carrier) {
+                  return { ...rate, [field]: value };
+              }
+              return rate;
+          })
+      );
+  };
+
+  const handleMaritimeRateChange = (group: any, containerType: string, value: string) => {
+      setEditableRates(prevRates => {
+          const newRates = [...prevRates];
+          const rateIndex = newRates.findIndex(rate =>
+              rate.modal === 'Marítimo' &&
+              rate.origin === group.origin &&
+              rate.destination === group.destination &&
+              rate.carrier === group.carrier &&
+              rate.container === containerType
+          );
+
+          if (rateIndex > -1) {
+              if (value === '') {
+                  newRates.splice(rateIndex, 1);
+              } else {
+                  newRates[rateIndex] = { ...newRates[rateIndex], rate: value };
+              }
+          } else if (value !== '') {
+              const newRate: Rate = {
+                  id: Math.random(),
+                  origin: group.origin,
+                  destination: group.destination,
+                  carrier: group.carrier,
+                  modal: 'Marítimo',
+                  rate: value,
+                  container: containerType,
+                  transitTime: group.transitTime,
+                  validity: group.validity,
+                  freeTime: group.freeTime,
+              };
+              newRates.push(newRate);
+          }
+          return newRates;
+      });
+  };
+
+  const handleAirRateChange = (rateId: number, field: keyof Rate, value: string) => {
+      setEditableRates(prevRates => 
+          prevRates.map(rate => {
+              if (rate.id === rateId) {
+                  return { ...rate, [field]: value };
+              }
+              return rate;
+          })
+      );
+  };
 
   return (
     <div className="space-y-6">
@@ -185,7 +243,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" /> Tarifas Marítimas (FCL)</CardTitle>
-                <CardDescription>Tarifas agrupadas por rota e transportadora. Clique na linha para selecionar.</CardDescription>
+                <CardDescription>Edite as tarifas nos campos e clique no ícone (✔) para iniciar uma cotação com a tarifa desejada.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="border rounded-lg">
@@ -195,7 +253,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                 <TableHead className="w-[15%]">Transportadora</TableHead>
                                 <TableHead className="w-[13%]">Origem</TableHead>
                                 <TableHead className="w-[13%]">Destino</TableHead>
-                                {maritimeContainerTypes.map(type => <TableHead key={type} className="w-[8%] text-center">{type}</TableHead>)}
+                                {maritimeContainerTypes.map(type => <TableHead key={type} className="w-[10%] text-center">{type}</TableHead>)}
                                 <TableHead className="w-[12%]">Free Time</TableHead>
                                 <TableHead className="w-[15%]">Validade</TableHead>
                             </TableRow>
@@ -208,21 +266,44 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                             ) : maritimeRates.map((item: any, index: number) => {
                                 const isExpired = isValidDateString(item.validity) && isBefore(parse(item.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
-                                <TableRow 
-                                    key={index} 
-                                    className={isExpired ? 'opacity-50' : 'cursor-pointer hover:bg-muted/80'}
-                                    onClick={() => { if (!isExpired) handleSelectRate(item); }}
-                                >
+                                <TableRow key={index} className={isExpired ? 'bg-muted/30' : ''}>
                                     <TableCell className="font-medium truncate" title={item.carrier}>{item.carrier}</TableCell>
                                     <TableCell className="truncate" title={item.origin}>{item.origin}</TableCell>
                                     <TableCell className="truncate" title={item.destination}>{item.destination}</TableCell>
                                     {maritimeContainerTypes.map(type => (
-                                    <TableCell key={type} className="font-semibold text-primary text-center">
-                                        {item.rates[type] || '-'}
-                                    </TableCell>
+                                        <TableCell key={type} className="text-center p-2">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <Input
+                                                    value={item.rates[type] || ''}
+                                                    onChange={(e) => handleMaritimeRateChange(item, type, e.target.value)}
+                                                    className="h-8 text-center font-semibold text-primary"
+                                                    placeholder="-"
+                                                    disabled={isExpired}
+                                                />
+                                                {item.rates[type] && (
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => !isExpired && onSelectRate(item, type)} disabled={isExpired}>
+                                                        <CheckCircle className="h-5 w-5 text-green-600" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                     ))}
-                                    <TableCell>{item.freeTime}</TableCell>
-                                    <TableCell>{item.validity}</TableCell>
+                                    <TableCell className="p-2">
+                                        <Input
+                                            value={item.freeTime}
+                                            onChange={(e) => handleMaritimeGroupChange(item, 'freeTime', e.target.value)}
+                                            className="h-8"
+                                            disabled={isExpired}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                        <Input
+                                            value={item.validity}
+                                            onChange={(e) => handleMaritimeGroupChange(item, 'validity', e.target.value)}
+                                            className="h-8"
+                                            disabled={isExpired}
+                                        />
+                                    </TableCell>
                                 </TableRow>
                                 );
                             })}
@@ -237,7 +318,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Plane className="h-5 w-5 text-primary" /> Tarifas Aéreas</CardTitle>
-                <CardDescription>Tarifas de frete aéreo disponíveis. Clique na linha para selecionar.</CardDescription>
+                <CardDescription>Edite as tarifas nos campos e clique no ícone (✔) para iniciar uma cotação.</CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="border rounded-lg">
@@ -245,12 +326,12 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                         <TableHeader>
                         <TableRow>
                             <TableHead className="w-[20%]">Transportadora</TableHead>
-                            <TableHead className="w-[18%]">Origem</TableHead>
-                            <TableHead className="w-[18%]">Destino</TableHead>
+                            <TableHead className="w-[15%]">Origem</TableHead>
+                            <TableHead className="w-[15%]">Destino</TableHead>
                             <TableHead className="w-[12%]">Tarifa</TableHead>
                             <TableHead className="w-[12%]">Trânsito</TableHead>
-                            <TableHead className="w-[10%]">Free Time</TableHead>
                             <TableHead className="w-[10%]">Validade</TableHead>
+                            <TableHead className="w-[10%] text-center">Ações</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -261,18 +342,39 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                              ) : airRates.map((rate, index) => {
                                 const isExpired = isValidDateString(rate.validity) && isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
-                                <TableRow 
-                                    key={index} 
-                                    className={isExpired ? 'opacity-50' : 'cursor-pointer hover:bg-muted/80'}
-                                    onClick={() => { if (!isExpired) handleSelectRate(rate); }}
-                                >
-                                    <TableCell className="font-medium truncate" title={rate.carrier}>{rate.carrier}</TableCell>
-                                    <TableCell className="truncate" title={rate.origin}>{rate.origin}</TableCell>
-                                    <TableCell className="truncate" title={rate.destination}>{rate.destination}</TableCell>
-                                    <TableCell className="font-semibold text-primary">{rate.rate}</TableCell>
-                                    <TableCell className="truncate">{rate.transitTime}</TableCell>
-                                    <TableCell className="truncate">{rate.freeTime}</TableCell>
-                                    <TableCell>{rate.validity}</TableCell>
+                                <TableRow key={rate.id} className={isExpired ? 'bg-muted/30' : ''}>
+                                    <TableCell className="font-medium truncate p-2" title={rate.carrier}>{rate.carrier}</TableCell>
+                                    <TableCell className="truncate p-2" title={rate.origin}>{rate.origin}</TableCell>
+                                    <TableCell className="truncate p-2" title={rate.destination}>{rate.destination}</TableCell>
+                                    <TableCell className="p-2">
+                                        <Input 
+                                            value={rate.rate} 
+                                            onChange={(e) => handleAirRateChange(rate.id, 'rate', e.target.value)} 
+                                            className="h-8 font-semibold text-primary"
+                                            disabled={isExpired}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                        <Input 
+                                            value={rate.transitTime} 
+                                            onChange={(e) => handleAirRateChange(rate.id, 'transitTime', e.target.value)} 
+                                            className="h-8"
+                                            disabled={isExpired}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                        <Input 
+                                            value={rate.validity} 
+                                            onChange={(e) => handleAirRateChange(rate.id, 'validity', e.target.value)} 
+                                            className="h-8"
+                                            disabled={isExpired}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="text-center p-2">
+                                        <Button variant="ghost" size="icon" onClick={() => onSelectRate(rate)} disabled={isExpired}>
+                                            <CheckCircle className="h-5 w-5 text-green-600" />
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                                 );
                              })}

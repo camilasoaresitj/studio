@@ -32,6 +32,7 @@ const LclDetailsSchema = z.object({
 export const GetFreightRatesInputSchema = z.object({
   customerName: z.string().min(3),
   modal: z.enum(['air', 'ocean']),
+  incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
   origin: z.string().min(3),
   destination: z.string().min(3),
   departureDate: z.date().optional(),
@@ -70,6 +71,7 @@ export async function getFreightRates(input: GetFreightRatesInput): Promise<GetF
 function buildCargoFivePayload(input: GetFreightRatesInput) {
     const shipment: any = {
         mode_of_transport: input.modal,
+        incoterm: input.incoterm,
     };
 
     if (input.modal === 'ocean') {

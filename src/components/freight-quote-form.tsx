@@ -45,6 +45,7 @@ const lclDetailsSchema = z.object({
 const formSchema = z.object({
   customerName: z.string().min(3, { message: "O nome do cliente é obrigatório (mínimo 3 caracteres)." }),
   modal: z.enum(['air', 'ocean']),
+  incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
   departureDate: z.date().optional(),
@@ -103,6 +104,7 @@ export function FreightQuoteForm() {
     defaultValues: {
       customerName: '',
       modal: 'air',
+      incoterm: 'FOB',
       origin: '',
       destination: '',
       airShipment: {
@@ -219,13 +221,43 @@ export function FreightQuoteForm() {
                   <TabsTrigger value="ocean"><Ship className="mr-2 h-4 w-4" />Marítimo</TabsTrigger>
                 </TabsList>
                 
-                <div className="grid md:grid-cols-2 gap-4 mt-6">
+                <div className="grid md:grid-cols-3 gap-4 mt-6">
                     <FormField control={form.control} name="origin" render={({ field }) => (
                         <FormItem><FormLabel>Origem (Porto/Aeroporto)</FormLabel><FormControl><Input placeholder="Ex: BRSSZ ou GRU" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="destination" render={({ field }) => (
                         <FormItem><FormLabel>Destino (Porto/Aeroporto)</FormLabel><FormControl><Input placeholder="Ex: NLRTM ou MIA" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
+                    <FormField
+                      control={form.control}
+                      name="incoterm"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Incoterm</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="EXW">EXW</SelectItem>
+                              <SelectItem value="FCA">FCA</SelectItem>
+                              <SelectItem value="FAS">FAS</SelectItem>
+                              <SelectItem value="FOB">FOB</SelectItem>
+                              <SelectItem value="CFR">CFR</SelectItem>
+                              <SelectItem value="CIF">CIF</SelectItem>
+                              <SelectItem value="CPT">CPT</SelectItem>
+                              <SelectItem value="CIP">CIP</SelectItem>
+                              <SelectItem value="DAP">DAP</SelectItem>
+                              <SelectItem value="DPU">DPU</SelectItem>
+                              <SelectItem value="DDP">DDP</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                 </div>
                 <FormField control={form.control} name="departureDate" render={({ field }) => (
                     <FormItem className="flex flex-col mt-4"><FormLabel>Data de Embarque (Opcional)</FormLabel>

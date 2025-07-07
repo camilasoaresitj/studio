@@ -1,1 +1,5 @@
-// Flows will be imported for their side effects in this file.
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/create-crm-entry-from-email.ts';
+import '@/ai/flows/monitor-email-for-tasks.ts';

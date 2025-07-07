@@ -19,16 +19,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
 import { runGetFreightRates } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { runSendQuote } from '@/app/actions';
+import { runSendQuote, runRequestAgentQuote } from '@/app/actions';
 import type { SendQuoteOutput } from '@/ai/flows/send-quote';
-import type { Quote } from './customer-quotes-list';
+import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Checkbox } from './ui/checkbox';
@@ -48,13 +48,6 @@ type FreightRate = {
     source: string;
 };
 
-type QuoteCharge = {
-    name: string;
-    value: number;
-    currency: 'USD' | 'BRL';
-    details: string;
-}
-
 interface FreightQuoteFormProps {
   onQuoteCreated: (quote: Quote) => void;
   partners: Partner[];
@@ -62,6 +55,9 @@ interface FreightQuoteFormProps {
   rates: LocalRate[];
   fees: Fee[];
   initialData?: Partial<FreightQuoteFormData> | null;
+  manualQuote: Quote | null;
+  onQuoteUpdate: (quote: Quote) => void;
+  onStartManualQuote: (formData: FreightQuoteFormData) => void;
 }
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -78,8 +74,9 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
-export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees, initialData }: FreightQuoteFormProps) {
+export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees, initialData, onStartManualQuote, manualQuote }: FreightQuoteFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isRequestingAgentQuote, setIsRequestingAgentQuote] = useState(false);
   const [results, setResults] = useState<FreightRate[]>([]);
   const [selectedRate, setSelectedRate] = useState<FreightRate | null>(null);
   const [quoteCharges, setQuoteCharges] = useState<QuoteCharge[]>([]);
@@ -115,6 +112,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         customsClearance: false,
         insurance: false,
         delivery: false,
+        trading: false,
         cargoValue: 0,
         deliveryCost: 0,
       }
@@ -139,6 +137,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
 
   async function onSubmit(values: FreightQuoteFormData) {
+    if (manualQuote) {
+        toast({
+            variant: "destructive",
+            title: "Ação não permitida",
+            description: "Finalize ou cancele a cotação manual antes de buscar novas tarifas.",
+        });
+        return;
+    }
     setIsLoading(true);
     setResults([]);
     setSelectedRate(null);
@@ -222,91 +228,39 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
     const charges: QuoteCharge[] = [];
 
-    // 1. Add base freight cost
     charges.push({
+      id: `freight-${rate.id}`,
       name: 'Frete Internacional',
-      value: rate.costValue,
-      currency: rate.cost.includes('R$') ? 'BRL' : 'USD',
-      details: `Transportadora: ${rate.carrier}`,
+      type: 'Por Lote',
+      cost: rate.costValue,
+      costCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
+      sale: rate.costValue, // Start with sale = cost
+      saleCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
+      supplier: rate.carrier,
     });
-
-    // 2. Filter relevant fees
+    
     const relevantFees = fees.filter(fee => {
+      if (fee.type === 'Opcional') return false;
       const modalMatch = fee.modal === 'Ambos' || fee.modal === (values.modal === 'ocean' ? 'Marítimo' : 'Aéreo');
       const directionMatch = fee.direction === 'Ambos' || fee.direction === direction;
       const chargeTypeMatch = !fee.chargeType || fee.chargeType === chargeType;
       return modalMatch && directionMatch && chargeTypeMatch;
     });
 
-    // 3. Process standard fees (non-optional)
     relevantFees.forEach(fee => {
-      if (fee.type === 'Opcional') return;
-
-      let value = parseFloat(fee.value);
-      let details = fee.unit;
-      let calculatedValue = value;
-
-      switch (fee.type) {
-        case 'Por CBM/Ton':
-          if (chargeType === 'LCL') {
-            const cbm = values.lclDetails.cbm;
-            const weightTon = values.lclDetails.weight / 1000;
-            const chargeable = Math.max(cbm, weightTon);
-            calculatedValue = chargeable * value;
-            details = `${chargeable.toFixed(2)} W/M`;
-          }
-          break;
-        case 'Percentual':
-          const freightCost = charges.find(c => c.name === 'Frete Internacional')?.value || 0;
-          calculatedValue = freightCost * (value / 100);
-          details = `${value}% sobre o frete`;
-          break;
-        case 'Por KG':
-            if(chargeType === 'Aéreo') {
-                const totalWeight = values.airShipment.pieces.reduce((acc, p) => acc + (p.quantity * p.weight), 0);
-                calculatedValue = totalWeight * value;
-                details = `${totalWeight} kg`;
-            }
-            break;
-      }
-      
-      if (fee.minValue && calculatedValue < fee.minValue) {
-        calculatedValue = fee.minValue;
-      }
-
-      if (chargeType === 'FCL' && fee.unit === 'Por Contêiner') {
-        const containerCount = values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0);
-        calculatedValue *= containerCount;
-        details = `${containerCount}x ${details}`;
-      }
-
-      charges.push({ name: fee.name, value: calculatedValue, currency: fee.currency, details });
+      charges.push({
+        id: `fee-${fee.id}`,
+        name: fee.name,
+        type: fee.unit,
+        cost: parseFloat(fee.value) || 0,
+        costCurrency: fee.currency,
+        sale: parseFloat(fee.value) || 0,
+        saleCurrency: fee.currency,
+        supplier: 'CargaInteligente', // Default supplier
+      });
     });
 
-    // 4. Process optional services
-    if (values.optionalServices.customsClearance) {
-      const fee = fees.find(f => f.name === 'Despacho Aduaneiro');
-      if (fee) charges.push({ name: fee.name, value: parseFloat(fee.value), currency: fee.currency, details: fee.unit });
-    }
-    if (values.optionalServices.insurance && values.optionalServices.cargoValue > 0) {
-      const fee = fees.find(f => f.name === 'Seguro Internacional');
-      if (fee) {
-        const insuranceCost = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
-        charges.push({ name: fee.name, value: insuranceCost, currency: 'BRL', details: `${fee.value}% sobre ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(values.optionalServices.cargoValue)}` });
-      }
-    }
-    if (values.optionalServices.delivery && values.optionalServices.deliveryCost > 0) {
-      charges.push({ name: 'Entrega', value: values.optionalServices.deliveryCost, currency: 'BRL', details: 'Serviço rodoviário' });
-    }
-
-    setQuoteCharges(charges);
-
-    const usdTotal = charges.filter(c => c.currency === 'USD').reduce((acc, c) => acc + c.value, 0);
-    const brlTotal = charges.filter(c => c.currency === 'BRL').reduce((acc, c) => acc + c.value, 0);
-
-    setTotalUSD(usdTotal);
-    setTotalBRL(brlTotal);
-    setSelectedRate(rate);
+    return charges;
   };
 
   const handleSelectRate = (rate: FreightRate) => {
@@ -320,7 +274,19 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         return;
     }
     setQuoteContent(null);
-    calculateCharges(rate);
+    const initialCharges = calculateCharges(rate);
+    const customer = partners.find(p => p.id.toString() === customerId);
+
+     const newQuote: Quote = {
+        id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}-DRAFT`,
+        customer: customer?.name || 'Não selecionado',
+        destination: form.getValues('destination'),
+        status: 'Rascunho',
+        date: new Date().toLocaleDateString('pt-BR'),
+        charges: initialCharges,
+    };
+    onStartManualQuote(form.getValues());
+    onQuoteUpdate(newQuote)
   };
 
   const handleSendQuote = async () => {
@@ -363,17 +329,13 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         rejectionLink
     });
 
-    if (response.success) {
+    if (response.success && manualQuote) {
         setQuoteContent(response.data);
-        const newQuote: Quote = {
-            id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
-            customer: customer.name,
-            destination: form.getValues('destination'),
+        onQuoteCreated({
+            ...manualQuote,
             status: 'Enviada',
-            date: new Date().toLocaleDateString('pt-BR'),
-            value: finalPrice,
-        };
-        onQuoteCreated(newQuote);
+            id: manualQuote.id.replace('-DRAFT', '')
+        });
         toast({
             title: 'Cotação enviada ao cliente!',
             description: `A cotação foi enviada para ${commercialContact.email} e está pronta para ser compartilhada no WhatsApp.`,
@@ -383,10 +345,40 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         toast({
             variant: "destructive",
             title: "Erro ao gerar cotação",
-            description: response.error,
+            description: response.error || 'Não foi possível enviar a cotação, verifique se há uma cotação em rascunho.',
         });
     }
     setIsSending(false);
+  };
+
+  const handleRequestAgentQuote = async () => {
+    const isValid = await form.trigger();
+    if (!isValid) {
+        toast({
+            variant: "destructive",
+            title: "Formulário incompleto",
+            description: "Por favor, preencha todos os campos obrigatórios antes de cotar com um agente.",
+        });
+        return;
+    }
+    setIsRequestingAgentQuote(true);
+    const values = form.getValues();
+    const response = await runRequestAgentQuote(values, partners);
+
+    if (response.success) {
+        toast({
+            title: "Solicitação enviada!",
+            description: `E-mail de cotação enviado para ${response.agentsContacted.length} agente(s).`,
+            className: 'bg-success text-success-foreground'
+        });
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Erro ao solicitar cotação",
+            description: response.error,
+        });
+    }
+    setIsRequestingAgentQuote(false);
   };
   
   const handleSendWhatsApp = () => {
@@ -410,10 +402,43 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     }
   };
 
+  const handleInternalStartManualQuote = () => {
+      const isValid = form.trigger();
+      if (!isValid) {
+          toast({
+            variant: "destructive",
+            title: "Formulário incompleto",
+            description: "Por favor, selecione um cliente e preencha origem/destino antes de iniciar uma cotação manual.",
+        });
+        return;
+      }
+      onStartManualQuote(form.getValues());
+  }
+
 
   const modal = form.watch('modal');
   const incoterm = form.watch('incoterm');
   const optionalServices = form.watch('optionalServices');
+
+  if (manualQuote) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Cotação Manual em Andamento</CardTitle>
+                <CardDescription>Você está editando a cotação <span className="font-bold text-primary">{manualQuote.id}</span> para o cliente <span className="font-bold">{manualQuote.customer}</span>.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Alert>
+                    <FileText className="h-4 w-4" />
+                    <AlertTitle>Modo de Edição</AlertTitle>
+                    <AlertDescription>
+                        A planilha de custos está aberta na aba "Cotações". Ajuste os valores e finalize o envio por lá.
+                    </AlertDescription>
+                </Alert>
+            </CardContent>
+        </Card>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -511,10 +536,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                 
                 <div className="grid md:grid-cols-3 gap-4 mt-6">
                     <FormField control={form.control} name="origin" render={({ field }) => (
-                        <FormItem><FormLabel>Origem (Porto/Aeroporto)</FormLabel><FormControl><Input placeholder="Ex: BRSSZ ou GRU" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Origem (Cidade, País)</FormLabel><FormControl><Input placeholder="Ex: Santos, BR" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="destination" render={({ field }) => (
-                        <FormItem><FormLabel>Destino (Porto/Aeroporto)</FormLabel><FormControl><Input placeholder="Ex: NLRTM ou MIA" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Destino (Cidade, País)</FormLabel><FormControl><Input placeholder="Ex: Rotterdam, NL" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField
                       control={form.control}
@@ -686,83 +711,52 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
               <Separator className="my-6" />
                 <div>
                     <h3 className="text-lg font-medium mb-4">Serviços Opcionais</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
-                        <FormField
-                            control={form.control}
-                            name="optionalServices.customsClearance"
-                            render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                                <FormControl>
-                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                </FormControl>
-                                <div className="space-y-1 leading-none">
-                                <FormLabel>Despacho Aduaneiro</FormLabel>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <FormField control={form.control} name="optionalServices.customsClearance" render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Despacho</FormLabel></div></FormItem>
+                        )} />
+                         <FormField control={form.control} name="optionalServices.trading" render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Trading</FormLabel></div></FormItem>
+                        )} />
+                        <FormField control={form.control} name="optionalServices.insurance" render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <div className="space-y-1 leading-none w-full"><FormLabel>Seguro</FormLabel>
+                                {optionalServices.insurance && (
+                                    <FormField control={form.control} name="optionalServices.cargoValue" render={({ field }) => (
+                                        <FormItem className="mt-2"><FormControl><Input type="number" placeholder="Valor Carga (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                )}
                                 </div>
                             </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="optionalServices.insurance"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                                    <FormControl>
-                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none w-full">
-                                    <FormLabel>Seguro Internacional</FormLabel>
-                                    {optionalServices.insurance && (
-                                        <FormField
-                                            control={form.control}
-                                            name="optionalServices.cargoValue"
-                                            render={({ field }) => (
-                                                <FormItem className="mt-2">
-                                                <FormControl>
-                                                    <Input type="number" placeholder="Valor da Carga (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/>
-                                                </FormControl>
-                                                <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    )}
-                                    </div>
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="optionalServices.delivery"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                                    <FormControl>
-                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none w-full">
-                                    <FormLabel>Entrega</FormLabel>
-                                     {optionalServices.delivery && (
-                                        <FormField
-                                            control={form.control}
-                                            name="optionalServices.deliveryCost"
-                                            render={({ field }) => (
-                                                <FormItem className="mt-2">
-                                                <FormControl>
-                                                    <Input type="number" placeholder="Custo Entrega (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/>
-                                                </FormControl>
-                                                <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    )}
-                                    </div>
-                                </FormItem>
-                            )}
-                        />
+                        )} />
+                        <FormField control={form.control} name="optionalServices.delivery" render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <div className="space-y-1 leading-none w-full"><FormLabel>Entrega</FormLabel>
+                                    {optionalServices.delivery && (
+                                    <FormField control={form.control} name="optionalServices.deliveryCost" render={({ field }) => (
+                                        <FormItem className="mt-2"><FormControl><Input type="number" placeholder="Custo (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                )}
+                                </div>
+                            </FormItem>
+                        )} />
                     </div>
                 </div>
               
-              <Button type="submit" disabled={isLoading} className="w-full text-base py-6">
-                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando...</> : <><Search className="mr-2 h-4 w-4" /> Buscar Cotações</>}
-              </Button>
+                <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                    <Button type="submit" disabled={isLoading} className="flex-1 text-base py-6">
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando...</> : <><Search className="mr-2 h-4 w-4" /> Buscar Tarifas</>}
+                    </Button>
+                    <div className="flex gap-2">
+                        <Button type="button" variant="secondary" onClick={handleInternalStartManualQuote} className="flex-1 py-6">
+                            <FileText className="mr-2 h-4 w-4" /> Cotação Manual
+                        </Button>
+                        <Button type="button" variant="secondary" onClick={handleRequestAgentQuote} disabled={isRequestingAgentQuote} className="flex-1 py-6">
+                            {isRequestingAgentQuote ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                            Cotar com Agente
+                        </Button>
+                    </div>
+                </div>
             </form>
           </Form>
         </CardContent>
@@ -806,7 +800,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Nenhuma tarifa encontrada</AlertTitle>
                   <AlertDescription>
-                  Não encontramos nenhuma tarifa para os critérios informados. Por favor, verifique os dados ou tente novamente mais tarde.
+                  Não encontramos nenhuma tarifa para os critérios informados. Por favor, verifique os dados ou tente novamente.
                   </AlertDescription>
               </Alert>
           </div>

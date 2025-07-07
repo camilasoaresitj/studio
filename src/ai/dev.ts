@@ -6,3 +6,4 @@ import '@/ai/flows/monitor-email-for-tasks.ts';
 import '@/ai/flows/get-freight-rates.ts';
 import '@/ai/flows/extract-rates-from-text.ts';
 import '@/ai/flows/send-quote.ts';
+import '@/ai/flows/request-agent-quote.ts';

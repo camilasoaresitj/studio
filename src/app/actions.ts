@@ -5,7 +5,8 @@ import { monitorEmailForTasks, MonitorEmailForTasksOutput } from '@/ai/flows/mon
 import { getFreightRates, GetFreightRatesInput, GetFreightRatesOutput } from '@/ai/flows/get-freight-rates';
 import { extractRatesFromText, ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
 import { sendQuote, SendQuoteInput, SendQuoteOutput } from '@/ai/flows/send-quote';
-
+import { requestAgentQuote, RequestAgentQuoteInput, RequestAgentQuoteOutput } from '@/ai/flows/request-agent-quote';
+import type { Partner } from '@/components/partners-registry';
 
 export async function runCreateCrmEntry(emailContent: string): Promise<{ success: true; data: CreateCrmEntryFromEmailOutput } | { success: false; error: string }> {
   try {
@@ -68,6 +69,44 @@ export async function runSendQuote(
   } catch (e) {
     console.error(e);
     const error = e instanceof Error ? e.message : 'An unknown error occurred while generating the quote.';
+    return { success: false, error };
+  }
+}
+
+export async function runRequestAgentQuote(
+  input: RequestAgentQuoteInput,
+  partners: Partner[]
+): Promise<{ success: true; data: RequestAgentQuoteOutput; agentsContacted: string[] } | { success: false; error: string }> {
+  try {
+    const isImportToBrazil = input.destination.toUpperCase().includes('BR') && !input.origin.toUpperCase().includes('BR');
+
+    if (!isImportToBrazil) {
+      return { success: false, error: "A cotação com agentes está habilitada apenas para embarques de importação para o Brasil." };
+    }
+
+    const agents = partners.filter(p => p.type === 'Agente');
+    if (agents.length === 0) {
+        return { success: false, error: "Nenhum parceiro do tipo 'Agente' cadastrado no sistema." };
+    }
+    
+    const agentContacts = agents.flatMap(a => a.contacts.map(c => c.email)).filter(Boolean);
+     if (agentContacts.length === 0) {
+        return { success: false, error: "Nenhum e-mail de contato encontrado para os agentes cadastrados." };
+    }
+
+    const result = await requestAgentQuote(input);
+
+    console.log(`SIMULATING EMAILING AGENTS. TO: ${agentContacts.join(', ')}`);
+    console.log(`SUBJECT: ${result.emailSubject}`);
+    console.log('--- BODY ---');
+    console.log(result.emailBody);
+    console.log('--- END BODY ---');
+
+    return { success: true, data: result, agentsContacted: agentContacts };
+
+  } catch (e) {
+    console.error(e);
+    const error = e instanceof Error ? e.message : 'An unknown error occurred.';
     return { success: false, error };
   }
 }

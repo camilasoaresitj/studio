@@ -20,6 +20,8 @@ export const lclDetailsSchema = z.object({
 
 export const freightQuoteFormSchema = z.object({
   customerName: z.string().min(3, { message: "O nome do cliente é obrigatório (mínimo 3 caracteres)." }),
+  customerEmail: z.string().email({ message: "O e-mail do cliente é inválido." }),
+  customerPhone: z.string().min(10, { message: "O telefone do cliente é obrigatório (mínimo 10 dígitos)."}).optional(),
   modal: z.enum(['air', 'ocean']),
   incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),

@@ -5,7 +5,7 @@ import { CrmForm } from '@/components/crm-form';
 import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { RateImporter } from '@/components/rate-importer';
 import { RatesTable } from '@/components/rates-table';
-import { CustomerQuotesList } from '@/components/customer-quotes-list';
+import { CustomerQuotesList, Quote } from '@/components/customer-quotes-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
 
@@ -40,8 +40,17 @@ const initialRatesData = [
   { id: 19, origin: 'Porto de Itapoá, BR', destination: 'Porto de Antuérpia, BE', carrier: 'ONE', modal: 'Marítimo', rate: '4600', container: "40'HC", transitTime: '22-26 dias', validity: '31/10/2024', freeTime: '21 dias' },
 ];
 
+const initialQuotesData: Quote[] = [
+  { id: 'COT-00125', customer: 'Nexus Imports', destination: 'Roterdã, NL', status: 'Enviada', date: '15/07/2024', value: 'R$ 15.250,00' },
+  { id: 'COT-00124', customer: 'TechFront Solutions', destination: 'Miami, US', status: 'Aprovada', date: '14/07/2024', value: 'R$ 8.900,00' },
+  { id: 'COT-00123', customer: 'Global Foods Ltda', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', value: 'R$ 22.100,00' },
+  { id: 'COT-00122', customer: 'Nexus Imports', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', value: 'R$ 18.400,00' },
+  { id: 'COT-00121', customer: 'AutoParts Express', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', value: 'R$ 5.600,00' },
+];
+
 export default function ComercialPage() {
   const [rates, setRates] = useState(initialRatesData);
+  const [quotes, setQuotes] = useState(initialQuotesData);
 
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
     const newRates = importedRates.map((rate, index) => ({
@@ -51,6 +60,10 @@ export default function ComercialPage() {
     setRates(prevRates => [...prevRates, ...newRates]);
   };
   
+  const handleQuoteCreated = (newQuote: Quote) => {
+    setQuotes(prevQuotes => [newQuote, ...prevQuotes]);
+  };
+
   return (
     <div className="p-4 md:p-8">
       <header className="mb-8">
@@ -68,13 +81,13 @@ export default function ComercialPage() {
           <TabsTrigger value="crm">CRM Automático</TabsTrigger>
         </TabsList>
         <TabsContent value="quote" className="mt-6">
-          <FreightQuoteForm />
+          <FreightQuoteForm onQuoteCreated={handleQuoteCreated} />
         </TabsContent>
          <TabsContent value="rates" className="mt-6">
           <RatesTable rates={rates} />
         </TabsContent>
         <TabsContent value="customer_quotes" className="mt-6">
-          <CustomerQuotesList />
+          <CustomerQuotesList quotes={quotes} />
         </TabsContent>
         <TabsContent value="import" className="mt-6">
           <RateImporter onRatesImported={handleRatesImported} />

@@ -13,16 +13,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Button } from './ui/button';
 import { MoreHorizontal, FileText } from 'lucide-react';
 
-const quotesData = [
-  { id: 'COT-00125', customer: 'Nexus Imports', destination: 'Roterdã, NL', status: 'Enviada', date: '15/07/2024', value: 'R$ 15.250,00' },
-  { id: 'COT-00124', customer: 'TechFront Solutions', destination: 'Miami, US', status: 'Aprovada', date: '14/07/2024', value: 'R$ 8.900,00' },
-  { id: 'COT-00123', customer: 'Global Foods Ltda', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', value: 'R$ 22.100,00' },
-  { id: 'COT-00122', customer: 'Nexus Imports', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', value: 'R$ 18.400,00' },
-  { id: 'COT-00121', customer: 'AutoParts Express', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', value: 'R$ 5.600,00' },
-];
+export type Quote = {
+  id: string;
+  customer: string;
+  destination: string;
+  status: 'Enviada' | 'Aprovada' | 'Perdida' | 'Rascunho';
+  date: string;
+  value: string;
+};
 
-export function CustomerQuotesList() {
-    const getStatusVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+
+interface CustomerQuotesListProps {
+  quotes: Quote[];
+}
+
+export function CustomerQuotesList({ quotes }: CustomerQuotesListProps) {
+    const getStatusVariant = (status: Quote['status']): 'default' | 'secondary' | 'destructive' | 'outline' => {
         switch (status) {
             case 'Aprovada': return 'default';
             case 'Enviada': return 'secondary';
@@ -53,7 +59,7 @@ export function CustomerQuotesList() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {quotesData.map((quote) => (
+                    {quotes.map((quote) => (
                         <TableRow key={quote.id}>
                         <TableCell className="font-medium text-primary">{quote.id}</TableCell>
                         <TableCell>{quote.customer}</TableCell>

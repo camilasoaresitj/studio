@@ -8,7 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 // Based on the form schema in freight-quote-form.tsx
 const AirPieceSchema = z.object({
@@ -29,7 +29,7 @@ const LclDetailsSchema = z.object({
   weight: z.coerce.number().min(1),
 });
 
-export const GetFreightRatesInputSchema = z.object({
+const GetFreightRatesInputSchema = z.object({
   customerName: z.string().min(3),
   modal: z.enum(['air', 'ocean']),
   incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
@@ -60,7 +60,7 @@ const FreightRateSchema = z.object({
     dataAiHint: z.string()
 });
 
-export const GetFreightRatesOutputSchema = z.array(FreightRateSchema);
+const GetFreightRatesOutputSchema = z.array(FreightRateSchema);
 export type GetFreightRatesOutput = z.infer<typeof GetFreightRatesOutputSchema>;
 
 

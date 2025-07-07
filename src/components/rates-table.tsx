@@ -18,23 +18,29 @@ import { Plane, Ship } from 'lucide-react';
 import { parse, isBefore } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 
-const ratesData = [
-  { id: 1, origin: 'Porto de Santos, BR', destination: 'Porto de Roterdã, NL', carrier: 'Maersk Line', modal: 'Marítimo', rate: '2500', container: '20\'GP', transitTime: '25-30 dias', validity: '31/12/2024' },
-  { id: 2, origin: 'Porto de Santos, BR', destination: 'Porto de Roterdã, NL', carrier: 'Maersk Line', modal: 'Marítimo', rate: '4100', container: '40\'GP', transitTime: '25-30 dias', validity: '31/12/2024' },
-  { id: 3, origin: 'Porto de Santos, BR', destination: 'Porto de Roterdã, NL', carrier: 'Maersk Line', modal: 'Marítimo', rate: '4500', container: '40\'HC', transitTime: '25-30 dias', validity: '31/12/2024' },
-  { id: 4, origin: 'Aeroporto de Guarulhos, BR', destination: 'Aeroporto JFK, US', carrier: 'LATAM Cargo', modal: 'Aéreo', rate: '4.50 / kg', container: 'N/A', transitTime: '1-2 dias', validity: '30/11/2024' },
-  { id: 5, origin: 'Porto de Paranaguá, BR', destination: 'Porto de Xangai, CN', carrier: 'CMA CGM', modal: 'Marítimo', rate: '3800', container: '40\'HC', transitTime: '35-40 dias', validity: '31/12/2024' },
-  { id: 6, origin: 'Porto de Itajaí, BR', destination: 'Porto de Hamburgo, DE', carrier: 'Hapag-Lloyd', modal: 'Marítimo', rate: '2650', container: '20\'GP', transitTime: '28-32 dias', validity: '30/11/2024' },
-  { id: 7, origin: 'Porto de Itajaí, BR', destination: 'Porto de Hamburgo, DE', carrier: 'Hapag-Lloyd', modal: 'Marítimo', rate: '4300', container: '40\'HC', transitTime: '28-32 dias', validity: '30/11/2024' },
-  { id: 8, origin: 'Porto de Santos, BR', destination: 'Porto de Roterdã, NL', carrier: 'MSC', modal: 'Marítimo', rate: '2400', container: '20\'GP', transitTime: '26-31 dias', validity: '31/05/2024' },
-  { id: 9, origin: 'Aeroporto de Viracopos, BR', destination: 'Aeroporto de Frankfurt, DE', carrier: 'Lufthansa Cargo', modal: 'Aéreo', rate: '3.80 / kg', container: 'N/A', transitTime: '1-2 dias', validity: '15/12/2024' },
-];
+type Rate = {
+  id: number;
+  origin: string;
+  destination: string;
+  carrier: string;
+  modal: string;
+  rate: string;
+  container: string;
+  transitTime: string;
+  validity: string;
+}
+
+interface RatesTableProps {
+  rates: Rate[];
+}
 
 const maritimeContainerTypes = ["20'GP", "40'GP", "40'HC"];
 
-const groupMaritimeRates = (rates: typeof ratesData) => {
+const groupMaritimeRates = (rates: Rate[]) => {
   const groups = new Map();
   rates.forEach(rate => {
+    if (rate.modal !== 'Marítimo') return;
+
     const groupKey = `${rate.origin}|${rate.destination}|${rate.carrier}`;
     if (!groups.has(groupKey)) {
       groups.set(groupKey, {
@@ -50,16 +56,20 @@ const groupMaritimeRates = (rates: typeof ratesData) => {
     const group = groups.get(groupKey);
     group.rates[rate.container] = rate.rate;
 
-    const currentValidity = parse(group.validity, 'dd/MM/yyyy', new Date());
-    const rateValidity = parse(rate.validity, 'dd/MM/yyyy', new Date());
-    if (isBefore(currentValidity, rateValidity)) {
-      group.validity = rate.validity;
+    try {
+      const currentValidity = parse(group.validity, 'dd/MM/yyyy', new Date());
+      const rateValidity = parse(rate.validity, 'dd/MM/yyyy', new Date());
+      if (isBefore(currentValidity, rateValidity)) {
+        group.validity = rate.validity;
+      }
+    } catch (e) {
+      // Ignore invalid date formats for now
     }
   });
   return Array.from(groups.values());
 };
 
-export function RatesTable() {
+export function RatesTable({ rates: ratesData }: RatesTableProps) {
   const [filters, setFilters] = useState({ origin: '', destination: '' });
   const [modalFilter, setModalFilter] = useState('Marítimo');
   const [showExpired, setShowExpired] = useState(false);
@@ -74,11 +84,21 @@ export function RatesTable() {
     return d;
   }, []);
 
+  const isValidDate = (dateStr: string) => {
+    try {
+      parse(dateStr, 'dd/MM/yyyy', new Date()).toISOString();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   const commonFilteredRates = useMemo(() => {
      return ratesData.filter(rate => {
-      const isValid = isBefore(today, parse(rate.validity, 'dd/MM/yyyy', new Date()));
-      if (!showExpired && !isValid) {
-        return false;
+      if (!showExpired) {
+        if (!rate.validity || !isValidDate(rate.validity)) return true; // Keep if no/invalid validity
+        const isValid = !isBefore(today, parse(rate.validity, 'dd/MM/yyyy', new Date()));
+        if (!isValid) return false;
       }
       if (filters.origin && !rate.origin.toLowerCase().includes(filters.origin.toLowerCase())) {
         return false;
@@ -88,7 +108,7 @@ export function RatesTable() {
       }
       return true;
     });
-  }, [filters, showExpired, today]);
+  }, [filters, showExpired, today, ratesData]);
   
   const maritimeRates = useMemo(() => {
       const filtered = commonFilteredRates.filter(r => r.modal === 'Marítimo');
@@ -146,8 +166,8 @@ export function RatesTable() {
                                 <TableRow>
                                     <TableCell colSpan={maritimeContainerTypes.length + 5} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
                                 </TableRow>
-                            ) : maritimeRates.map((item, index) => {
-                                const isExpired = !isBefore(today, parse(item.validity, 'dd/MM/yyyy', new Date()));
+                            ) : maritimeRates.map((item: any, index: number) => {
+                                const isExpired = isValidDate(item.validity) && isBefore(today, parse(item.validity, 'dd/MM/yyyy', new Date()));
                                 return (
                                 <TableRow key={index} className={isExpired ? 'opacity-50' : ''}>
                                     <TableCell className="font-medium">{item.carrier}</TableCell>
@@ -196,7 +216,7 @@ export function RatesTable() {
                                     <TableCell colSpan={7} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
                                 </TableRow>
                              ) : airRates.map((rate, index) => {
-                                const isExpired = !isBefore(today, parse(rate.validity, 'dd/MM/yyyy', new Date()));
+                                const isExpired = isValidDate(rate.validity) && isBefore(today, parse(rate.validity, 'dd/MM/yyyy', new Date()));
                                 return (
                                 <TableRow key={index} className={isExpired ? 'opacity-50' : ''}>
                                     <TableCell className="font-medium">{rate.carrier}</TableCell>

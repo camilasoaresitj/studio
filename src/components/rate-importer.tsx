@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { runExtractRatesFromText } from '@/app/actions';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
-import { Loader2, Wand2, AlertTriangle, TableIcon, Plane, Ship } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, TableIcon, Plane, Ship, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
@@ -22,7 +22,11 @@ const formSchema = z.object({
   }),
 });
 
-export function RateImporter() {
+interface RateImporterProps {
+  onRatesImported: (newRates: ExtractRatesFromTextOutput) => void;
+}
+
+export function RateImporter({ onRatesImported }: RateImporterProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<ExtractRatesFromTextOutput>([]);
   const { toast } = useToast();
@@ -38,20 +42,33 @@ export function RateImporter() {
     setIsLoading(true);
     setResults([]);
     const response = await runExtractRatesFromText(values.textInput);
-    if (response.success) {
+    if (response.success && response.data.length > 0) {
       setResults(response.data);
       toast({
         title: 'Extração concluída!',
         description: `A IA encontrou ${response.data.length} tarifas no texto fornecido.`,
       });
     } else {
+      setResults([]);
       toast({
         variant: 'destructive',
-        title: 'Erro ao processar o texto',
-        description: response.error,
+        title: 'Nenhuma tarifa encontrada',
+        description: response.error || 'A IA não conseguiu extrair nenhuma tarifa válida do texto.',
       });
     }
     setIsLoading(false);
+  }
+
+  const handleConfirmImport = () => {
+    onRatesImported(results);
+    toast({
+      variant: 'default',
+      className: 'bg-success text-success-foreground',
+      title: 'Tarifas importadas!',
+      description: `${results.length} novas tarifas foram adicionadas à sua tabela.`,
+    })
+    setResults([]);
+    form.reset();
   }
 
   return (
@@ -72,7 +89,7 @@ export function RateImporter() {
                     <FormLabel>Conteúdo da Tabela de Tarifas</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Ex: Carrier: Maersk | Origin: Santos | Destination: Rotterdam | Rate: $2500..."
+                        placeholder="Ex: Carrier: Maersk | Origin: Santos | Destination: Rotterdam | 20'GP: $2500 | Validity: 31/12/2024"
                         className="min-h-[250px] font-mono text-xs"
                         {...field}
                       />
@@ -109,8 +126,8 @@ export function RateImporter() {
       {!isLoading && results.length > 0 && (
           <Card className="animate-in fade-in-50 duration-500">
             <CardHeader>
-                <CardTitle>Tarifas Extraídas</CardTitle>
-                <CardDescription>Abaixo estão as tarifas que a IA conseguiu extrair do texto.</CardDescription>
+                <CardTitle>Tarifas Extraídas para Confirmação</CardTitle>
+                <CardDescription>Confira as tarifas que a IA extraiu. Clique em "Confirmar e Adicionar" para salvá-las na sua Tabela de Tarifas.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="border rounded-lg">
@@ -122,7 +139,8 @@ export function RateImporter() {
                             <TableHead>Destino</TableHead>
                             <TableHead>Transportadora</TableHead>
                             <TableHead>Tarifa</TableHead>
-                            <TableHead>Tempo de Trânsito</TableHead>
+                            <TableHead>Contêiner</TableHead>
+                            <TableHead>Validade</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -138,11 +156,18 @@ export function RateImporter() {
                             <TableCell>{rate.destination}</TableCell>
                             <TableCell className="font-medium">{rate.carrier}</TableCell>
                             <TableCell className="font-semibold text-primary">{rate.rate}</TableCell>
-                            <TableCell>{rate.transitTime}</TableCell>
+                            <TableCell>{rate.container}</TableCell>
+                            <TableCell>{rate.validity}</TableCell>
                             </TableRow>
                         ))}
                         </TableBody>
                     </Table>
+                </div>
+                 <div className="flex justify-end mt-4">
+                    <Button onClick={handleConfirmImport}>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Confirmar e Adicionar à Tabela
+                    </Button>
                 </div>
             </CardContent>
           </Card>

@@ -513,14 +513,12 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const optionalServices = form.watch('optionalServices');
   const watchedContainers = form.watch('oceanShipment.containers');
 
-  const allOrigins = useMemo(() => {
-    const origins = new Set(rates.map(rate => rate.origin));
-    return Array.from(origins).sort();
-  }, [rates]);
-
-  const allDestinations = useMemo(() => {
-    const destinations = new Set(rates.map(rate => rate.destination));
-    return Array.from(destinations).sort();
+  const allPortsAndAirports = useMemo(() => {
+    const locations = new Set([
+      ...rates.map((rate) => rate.origin),
+      ...rates.map((rate) => rate.destination),
+    ]);
+    return Array.from(locations).sort();
   }, [rates]);
 
   
@@ -662,7 +660,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         <FormItem><FormLabel>Origem (Porto/Aeroporto, País)</FormLabel>
                           <PortInput
                               field={field}
-                              suggestions={allOrigins}
+                              suggestions={allPortsAndAirports}
                               placeholder="Ex: Santos, BR, Itajai, BR"
                           />
                           <FormMessage />
@@ -672,7 +670,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         <FormItem><FormLabel>Destino (Porto/Aeroporto, País)</FormLabel>
                             <PortInput
                               field={field}
-                              suggestions={allDestinations}
+                              suggestions={allPortsAndAirports}
                               placeholder="Ex: Rotterdam, NL"
                             />
                             <FormMessage />

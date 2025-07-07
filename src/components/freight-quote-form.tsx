@@ -75,6 +75,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       incoterm: 'FOB',
       origin: '',
       destination: '',
+      commodity: '',
       collectionAddress: '',
       airShipment: {
         pieces: [{ quantity: 1, length: 100, width: 100, height: 100, weight: 500 }],
@@ -82,7 +83,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       },
       oceanShipmentType: 'FCL',
       oceanShipment: {
-        containers: [{ type: "20'GP", quantity: 1 }],
+        containers: [{ type: "20'GP", quantity: 1, weight: undefined }],
       },
       lclDetails: {
         cbm: 1,
@@ -470,7 +471,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid md:grid-cols-1 gap-4 items-start">
+                <div className="grid md:grid-cols-2 gap-4 items-start">
                    <FormField
                       control={form.control}
                       name="customerId"
@@ -537,6 +538,13 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         </FormItem>
                       )}
                     />
+                    <FormField control={form.control} name="commodity" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Tipo de Mercadoria (Opcional)</FormLabel>
+                            <FormControl><Input placeholder="Ex: Eletrônicos" {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
                 </div>
 
               <Tabs 
@@ -684,7 +692,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         </TabsList>
                         <TabsContent value="FCL" className="mt-4 space-y-4">
                              {oceanContainers.map((field, index) => (
-                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 border rounded-md items-end">
+                                <div key={field.id} className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 border rounded-md items-end">
                                     <FormField control={form.control} name={`oceanShipment.containers.${index}.type`} render={({ field }) => (
                                         <FormItem><FormLabel>Tipo de Contêiner</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -704,12 +712,15 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                                     <FormField control={form.control} name={`oceanShipment.containers.${index}.quantity`} render={({ field }) => (
                                         <FormItem><FormLabel>Quantidade</FormLabel><FormControl><Input type="number" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
                                     )} />
+                                    <FormField control={form.control} name={`oceanShipment.containers.${index}.weight`} render={({ field }) => (
+                                        <FormItem><FormLabel>Peso (kg)</FormLabel><FormControl><Input type="number" placeholder="22000" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/></FormControl><FormMessage /></FormItem>
+                                    )} />
                                     <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeOceanContainer(index)} disabled={oceanContainers.length <= 1}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             ))}
-                             <Button type="button" variant="outline" size="sm" onClick={() => appendOceanContainer({ type: "20'GP", quantity: 1 })}>
+                             <Button type="button" variant="outline" size="sm" onClick={() => appendOceanContainer({ type: "20'GP", quantity: 1, weight: undefined })}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contêiner
                             </Button>
                         </TabsContent>

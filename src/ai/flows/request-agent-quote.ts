@@ -48,6 +48,9 @@ Generate the following:
 - **Origin:** {{{origin}}}
 - **Destination:** {{{destination}}}
 - **Incoterm:** {{{incoterm}}}
+{{#if commodity}}
+- **Commodity:** {{{commodity}}}
+{{/if}}
 {{#if departureDate}}
 - **Cargo Ready Date:** {{{departureDate}}}
 {{/if}}
@@ -71,7 +74,8 @@ const requestAgentQuoteFlow = ai.defineFlow(
         if (input.oceanShipmentType === 'FCL') {
             detailsParts.push('Containers:');
             input.oceanShipment.containers.forEach(c => {
-                detailsParts.push(`- ${c.quantity} x ${c.type}`);
+                const weightInfo = c.weight ? `, ${c.weight} kg each` : '';
+                detailsParts.push(`- ${c.quantity} x ${c.type}${weightInfo}`);
             });
         } else { // LCL
             detailsParts.push('LCL Details:');

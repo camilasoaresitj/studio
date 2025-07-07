@@ -11,6 +11,7 @@ export const airPieceSchema = z.object({
 export const oceanContainerSchema = z.object({
   type: z.string().min(1, "Selecione o tipo"),
   quantity: z.coerce.number().min(1, "Obrigatório"),
+  weight: z.coerce.number().optional(),
 });
 
 export const lclDetailsSchema = z.object({
@@ -27,6 +28,7 @@ export const baseFreightQuoteFormSchema = z.object({
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
   departureDate: z.date().optional(),
   collectionAddress: z.string().optional(),
+  commodity: z.string().optional(),
   
   airShipment: z.object({
     pieces: z.array(airPieceSchema),

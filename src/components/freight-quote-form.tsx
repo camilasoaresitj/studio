@@ -33,8 +33,6 @@ import { Badge } from './ui/badge';
 import type { Rate as LocalRate } from './rates-table';
 import type { Fee } from './fees-registry';
 import { QuoteCostSheet } from './quote-cost-sheet';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 type FreightRate = {
     id: string;
@@ -410,17 +408,19 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       setIsSending(false);
   }
 
-  const handleGeneratePdf = () => {
+  const handleGeneratePdf = async () => {
     const quoteElement = document.getElementById(`quote-sheet-${activeQuote?.id}`);
-    if (quoteElement) {
-        html2canvas(quoteElement, { scale: 2 }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`cotacao-${activeQuote?.id}.pdf`);
-        });
+    if (quoteElement && activeQuote) {
+        const { default: jsPDF } = await import('jspdf');
+        const { default: html2canvas } = await import('html2canvas');
+
+        const canvas = await html2canvas(quoteElement, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`cotacao-${activeQuote.id}.pdf`);
     }
   };
 

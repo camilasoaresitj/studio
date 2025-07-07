@@ -9,6 +9,8 @@ import { CustomerQuotesList, Quote } from '@/components/customer-quotes-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
+import { PartnersRegistry, Partner } from '@/components/partners-registry';
+import { FeesRegistry, Fee } from '@/components/fees-registry';
 
 const initialRatesData = [
   // Maersk
@@ -49,9 +51,24 @@ const initialQuotesData: Quote[] = [
   { id: 'COT-00121', customer: 'AutoParts Express', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', value: 'R$ 5.600,00' },
 ];
 
+const initialPartnersData: Partner[] = [
+    { id: 1, name: 'Nexus Imports', type: 'Cliente', email: 'contato@nexus.com', phone: '+55 11 98765-4321' },
+    { id: 2, name: 'Maersk Line', type: 'Fornecedor', email: 'comercial.br@maersk.com', phone: '+55 13 3226-8500' },
+    { id: 3, name: 'Global Logistics Agents', type: 'Agente', email: 'ops@gla.com', phone: '+1 305 555 1234' },
+    { id: 4, name: 'TechFront Solutions', type: 'Cliente', email: 'financeiro@techfront.com', phone: '+55 47 3344-5566' },
+];
+
+const initialFeesData: Fee[] = [
+    { id: 1, name: 'Taxa de Despacho', value: 'R$ 550,00', type: 'Fixo' },
+    { id: 2, name: 'Armazenagem (por dia)', value: 'R$ 150,00', type: 'Fixo' },
+    { id: 3, name: 'Seguro Internacional', value: '0.3%', type: 'Percentual' },
+];
+
 export default function ComercialPage() {
   const [rates, setRates] = useState(initialRatesData);
   const [quotes, setQuotes] = useState(initialQuotesData);
+  const [partners, setPartners] = useState(initialPartnersData);
+  const [fees, setFees] = useState(initialFeesData);
 
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
     const newRates = importedRates.map((rate, index) => ({
@@ -63,6 +80,10 @@ export default function ComercialPage() {
   
   const handleQuoteCreated = (newQuote: Quote) => {
     setQuotes(prevQuotes => [newQuote, ...prevQuotes]);
+  };
+
+  const handlePartnerAdded = (newPartner: Partner) => {
+    setPartners(prevPartners => [...prevPartners, newPartner]);
   };
 
   return (
@@ -101,29 +122,11 @@ export default function ComercialPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Cadastros Gerais</CardTitle>
-                    <CardDescription>Gerencie seus clientes, fornecedores, agentes e taxas.</CardDescription>
+                    <CardDescription>Gerencie seus clientes, fornecedores, agentes e taxas padrão.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Tabs defaultValue="clientes" className="w-full">
-                        <TabsList className="grid w-full grid-cols-4 max-w-xl">
-                            <TabsTrigger value="clientes">Clientes</TabsTrigger>
-                            <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
-                            <TabsTrigger value="agentes">Agentes</TabsTrigger>
-                            <TabsTrigger value="taxas">Taxas</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="clientes" className="mt-4 p-4 border rounded-md">
-                            <p>Área para gerenciar clientes. Em desenvolvimento.</p>
-                        </TabsContent>
-                        <TabsContent value="fornecedores" className="mt-4 p-4 border rounded-md">
-                            <p>Área para gerenciar fornecedores. Em desenvolvimento.</p>
-                        </TabsContent>
-                        <TabsContent value="agentes" className="mt-4 p-4 border rounded-md">
-                            <p>Área para gerenciar agentes internacionais. Em desenvolvimento.</p>
-                        </TabsContent>
-                        <TabsContent value="taxas" className="mt-4 p-4 border rounded-md">
-                            <p>Área para gerenciar taxas. Em desenvolvimento.</p>
-                        </TabsContent>
-                    </Tabs>
+                    <PartnersRegistry partners={partners} onPartnerAdded={handlePartnerAdded} />
+                    <FeesRegistry fees={fees} />
                 </CardContent>
             </Card>
         </TabsContent>

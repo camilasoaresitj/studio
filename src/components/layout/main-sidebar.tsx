@@ -13,19 +13,19 @@ import {
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
-  ReceiptText,
-  MapPin,
-  Users,
-  ClipboardCheck,
+  Briefcase,
+  Truck,
+  Landmark,
+  Clock,
   Ship,
 } from 'lucide-react';
 
 const menuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/rates', label: 'Tarifas', icon: ReceiptText },
-  { href: '/tracking', label: 'Rastreamento', icon: MapPin },
-  { href: '/crm', label: 'CRM Automático', icon: Users },
-  { href: '/tasks', label: 'Automação de Tarefas', icon: ClipboardCheck },
+  { href: '/comercial', label: 'Comercial', icon: Briefcase },
+  { href: '/operacional', label: 'Operacional', icon: Truck },
+  { href: '/financeiro', label: 'Financeiro', icon: Landmark },
+  { href: '/demurrage', label: 'Demurrage', icon: Clock },
 ];
 
 export function MainSidebar() {
@@ -45,7 +45,7 @@ export function MainSidebar() {
             <SidebarMenuItem key={item.href}>
               <Link href={item.href} legacyBehavior passHref>
                 <SidebarMenuButton
-                  isActive={pathname === item.href}
+                  isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
                   tooltip={item.label}
                 >
                   <item.icon className="h-5 w-5" />

@@ -89,12 +89,18 @@ const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestion
     };
 
     const handleSelectSuggestion = (suggestion: string) => {
-        const parts = (field.value || '').split(',').map((p: string) => p.trim());
-        parts[parts.length - 1] = suggestion;
-        const finalParts = parts.filter(p => p.length > 0);
-        field.onChange(finalParts.join(', '));
+        const parts = (field.value || '').split(',').map((p: string) => p.trim()).filter(p => p);
+        if (parts.length > 0) {
+            parts[parts.length - 1] = suggestion;
+        } else {
+            parts.push(suggestion);
+        }
+        
+        const newValue = parts.join(', ') + ', ';
+        field.onChange(newValue);
+        
         setIsOpen(false);
-        inputRef.current?.focus();
+        setTimeout(() => inputRef.current?.focus(), 0);
     };
 
     return (
@@ -105,34 +111,37 @@ const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestion
                     placeholder={placeholder}
                     {...field}
                     onChange={handleInputChange}
+                    onKeyDown={(e) => {
+                        if(e.key === 'Escape') {
+                            setIsOpen(false);
+                        }
+                    }}
                     autoComplete="off"
                 />
             </PopoverTrigger>
             <PopoverContent 
-                className="p-0"
+                className="p-1"
                 style={{ width: inputRef.current?.offsetWidth }}
                 align="start"
                 onOpenAutoFocus={(e) => e.preventDefault()}
             >
-                <Command shouldFilter={false}>
-                    <CommandList>
-                        {filteredSuggestions.length > 0 ? (
-                            <CommandGroup>
-                                {filteredSuggestions.map((s) => (
-                                    <CommandItem
-                                        key={s}
-                                        value={s}
-                                        onSelect={() => handleSelectSuggestion(s)}
-                                    >
-                                        {s}
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        ) : (
-                             <CommandEmpty>Nenhum porto encontrado.</CommandEmpty>
-                        )}
-                    </CommandList>
-                </Command>
+                <div className="max-h-60 overflow-y-auto">
+                    {filteredSuggestions.length > 0 ? (
+                        filteredSuggestions.map((suggestion, index) => (
+                            <div
+                                key={`${suggestion}-${index}`}
+                                onClick={() => handleSelectSuggestion(suggestion)}
+                                className="cursor-pointer rounded-sm px-3 py-2 text-sm hover:bg-accent"
+                            >
+                                {suggestion}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                            Nenhum porto encontrado.
+                        </div>
+                    )}
+                </div>
             </PopoverContent>
         </Popover>
     );
@@ -227,7 +236,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           carrier: rate.carrier,
           origin: rate.origin,
           destination: rate.destination,
-          transitTime: `${rate.transitTime} dias`,
+          transitTime: `${rate.transitTime}`,
           cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(costValue),
           costValue: costValue,
           carrierLogo: 'https://placehold.co/120x40',
@@ -994,3 +1003,5 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     </div>
   );
 }
+
+    

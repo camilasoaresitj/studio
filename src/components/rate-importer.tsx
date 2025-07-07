@@ -29,6 +29,7 @@ interface RateImporterProps {
 export function RateImporter({ onRatesImported }: RateImporterProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<ExtractRatesFromTextOutput>([]);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -41,6 +42,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setResults([]);
+    setError(null);
     const response = await runExtractRatesFromText(values.textInput);
     if (response.success && response.data.length > 0) {
       setResults(response.data);
@@ -50,11 +52,8 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
       });
     } else {
       setResults([]);
-      toast({
-        variant: 'destructive',
-        title: 'Nenhuma tarifa encontrada',
-        description: response.error || 'A IA não conseguiu extrair nenhuma tarifa válida do texto.',
-      });
+      const errorMessage = response.error || 'A IA não conseguiu extrair nenhuma tarifa válida do texto.';
+      setError(errorMessage);
     }
     setIsLoading(false);
   }
@@ -68,6 +67,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
       description: `${results.length} novas tarifas foram adicionadas à sua tabela.`,
     })
     setResults([]);
+    setError(null);
     form.reset();
   }
 
@@ -89,7 +89,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                     <FormLabel>Conteúdo da Tabela de Tarifas</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="OOCL rate update, valid until Dec/31. From Qingdao/Shenzhen to Brazil base ports: USD6300/40'HQ. 25days free time at destination."
+                        placeholder="For big volume per lot, xxxMT per lot, G.M. with COSCO for USD6400/40'/42'HC case by case. Valid from July.06 to July.14. Always free time at destination. ..."
                         className="min-h-[250px] font-mono text-xs"
                         {...field}
                       />
@@ -173,17 +173,27 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
           </Card>
       )}
 
-      {!isLoading && results.length === 0 && form.formState.isSubmitted && (
+      {!isLoading && error && (
          <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Nenhuma tarifa encontrada</AlertTitle>
+            <AlertTitle>Ocorreu um erro na extração</AlertTitle>
             <AlertDescription>
-            A IA não conseguiu extrair nenhuma tarifa do texto fornecido. Tente ajustar o texto ou cole um trecho mais claro.
+              A IA não conseguiu processar o texto fornecido. Tente ajustar o texto ou cole um trecho mais claro. (Detalhes: {error})
             </AlertDescription>
         </Alert>
       )}
 
-      {!isLoading && !form.formState.isSubmitted && (
+      {!isLoading && !error && results.length === 0 && form.formState.isSubmitted && (
+         <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Nenhuma tarifa encontrada</AlertTitle>
+            <AlertDescription>
+            A IA não conseguiu extrair nenhuma tarifa válida do texto fornecido.
+            </AlertDescription>
+        </Alert>
+      )}
+
+      {!isLoading && !form.formState.isSubmitted && !error && (
          <Alert>
             <TableIcon className="h-4 w-4" />
             <AlertTitle>Aguardando dados</AlertTitle>

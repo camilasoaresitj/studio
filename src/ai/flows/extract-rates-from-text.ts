@@ -16,8 +16,8 @@ const ExtractRatesFromTextInputSchema = z.object({
 export type ExtractRatesFromTextInput = z.infer<typeof ExtractRatesFromTextInputSchema>;
 
 const ParsedRateSchema = z.object({
-  origin: z.string().describe('The origin location (e.g., "Porto de Santos, BR"). Mandatory.'),
-  destination: z.string().describe('The destination location (e.g., "Porto de Roterdã, NL"). Mandatory.'),
+  origin: z.string().describe('The standardized origin location (e.g., "Porto de Santos, BR"). Mandatory.'),
+  destination: z.string().describe('The standardized destination location (e.g., "Porto de Roterdã, NL"). Mandatory.'),
   carrier: z.string().describe('The carrier name (e.g., "Maersk"). Use "N/A" if not found.'),
   modal: z.string().describe("The transport modal. Must be exactly 'Aéreo' or 'Marítimo'."),
   rate: z.string().describe('The rate for a single container, including currency (e.g., "USD 2500"). Mandatory.'),
@@ -41,18 +41,24 @@ const extractRatesFromTextPrompt = ai.definePrompt({
   output: { schema: ExtractRatesFromTextOutputSchema },
   prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the text below and return a valid JSON array of rate objects.
 
-**Rules:**
+**Extraction Rules:**
 - Each object in the array represents ONE rate for ONE container type.
 - The fields \`origin\`, \`destination\`, and \`rate\` are **MANDATORY**. If you cannot find all three for a given rate, DO NOT create an object for it.
 - If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), you MUST create separate objects for 20'GP, 40'GP, and 40'HC respectively.
 - The \`modal\` field must be either "Aéreo" or "Marítimo". Infer from context.
 - For all other non-mandatory fields (\`carrier\`, \`transitTime\`, \`container\`, \`validity\`, \`freeTime\`), use the exact string "N/A" if the information is not present.
-- If no valid rates can be extracted, return an empty array: \`[]\`.
 
-**Port Names Clarification:**
-- If the text mentions "Brazil base ports", "BR base ports", or similar general terms, you MUST interpret this as a single string listing the main ports: "Santos / Itapoa / Navegantes / Paranagua / Rio Grande, BR". Use this full string in the 'origin' or 'destination' field.
+**Location Standardization Rules:**
+- You MUST normalize all location names to their full, official name, including the city and country.
+- Use the format "Nome do Local, XX" where XX is the 2-letter country code.
+- Examples of standardization:
+  - Input: "Santos", "SSZ" => Output: "Porto de Santos, BR"
+  - Input: "Rotterdam", "RTM" => Output: "Porto de Roterdã, NL"
+  - Input: "Guarulhos", "GRU Airport" => Output: "Aeroporto de Guarulhos, BR"
+  - Input: "Shanghai" => Output: "Porto de Xangai, CN"
+- **Special Brazil Rule:** If the text mentions "Brazil base ports", "BR base ports", or similar, interpret this as the single string: "Santos / Itapoa / Navegantes / Paranagua / Rio Grande, BR".
 
-**Example of a valid rate object:**
+**Example of a valid final rate object:**
 \`\`\`json
 {
   "origin": "Porto de Santos, BR",
@@ -66,6 +72,8 @@ const extractRatesFromTextPrompt = ai.definePrompt({
   "freeTime": "14 dias"
 }
 \`\`\`
+
+If no valid rates can be extracted, return an empty array: \`[]\`.
 
 Analyze the following text and extract the rates:
 {{{textInput}}}

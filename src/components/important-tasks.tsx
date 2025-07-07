@@ -15,12 +15,12 @@ export function ImportantTasks() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-4">
                 <CardTitle className='text-base font-medium'>Tarefas Importantes</CardTitle>
-                <Link href="/tasks" legacyBehavior>
-                    <Button variant="ghost" size="sm" className='-mr-2 text-primary hover:text-primary'>
+                <Button asChild variant="ghost" size="sm" className='-mr-2 text-primary hover:text-primary'>
+                    <Link href="/tasks">
                         Ver todas
                         <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                </Link>
+                    </Link>
+                </Button>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">

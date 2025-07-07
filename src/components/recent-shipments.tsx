@@ -28,11 +28,11 @@ export function RecentShipments() {
           <CardTitle>Embarques Recentes</CardTitle>
           <CardDescription>Acompanhe os embarques mais recentes.</CardDescription>
         </div>
-        <Link href="/tracking" legacyBehavior>
-            <Button size="sm">
-                Ver todos <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-        </Link>
+        <Button asChild size="sm">
+          <Link href="/tracking">
+              Ver todos <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
       </CardHeader>
       <CardContent>
         <Table>

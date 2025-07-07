@@ -23,7 +23,7 @@ export async function requestAgentQuote(input: RequestAgentQuoteInput): Promise<
   return requestAgentQuoteFlow(input);
 }
 
-const PromptInputSchema = schemas.freightQuoteFormSchema.extend({
+const PromptInputSchema = schemas.baseFreightQuoteFormSchema.extend({
     shipmentDetails: z.string().describe('A pre-formatted string containing the specific details of the cargo.'),
     departureDate: z.string().optional().describe('The formatted departure date.'),
 });
@@ -60,7 +60,7 @@ Generate the following:
 const requestAgentQuoteFlow = ai.defineFlow(
   {
     name: 'requestAgentQuoteFlow',
-    inputSchema: schemas.freightQuoteFormSchema,
+    inputSchema: schemas.baseFreightQuoteFormSchema,
     outputSchema: RequestAgentQuoteOutputSchema,
   },
   async (input) => {

@@ -18,9 +18,9 @@ export const lclDetailsSchema = z.object({
     weight: z.coerce.number().min(1, "Peso deve ser maior que 0."),
 });
 
-export const freightQuoteFormSchema = z.object({
+// Base schema that can be extended. It's a plain ZodObject.
+export const baseFreightQuoteFormSchema = z.object({
   customerId: z.string({ required_error: "Por favor, selecione um cliente."}).min(1, { message: "Por favor, selecione um cliente." }),
-  
   modal: z.enum(['air', 'ocean']),
   incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
@@ -39,7 +39,19 @@ export const freightQuoteFormSchema = z.object({
   }),
   lclDetails: lclDetailsSchema,
 
-}).superRefine((data, ctx) => {
+  optionalServices: z.object({
+    customsClearance: z.boolean(),
+    insurance: z.boolean(),
+    delivery: z.boolean(),
+    trading: z.boolean(),
+    cargoValue: z.number(),
+    deliveryCost: z.number(),
+  }),
+});
+
+
+// Refined schema with superRefine for client-side form validation. This returns a ZodEffects object.
+export const freightQuoteFormSchema = baseFreightQuoteFormSchema.superRefine((data, ctx) => {
     if (data.incoterm === 'EXW' && (!data.collectionAddress || data.collectionAddress.trim().length < 5)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -65,7 +77,6 @@ export const freightQuoteFormSchema = z.object({
 });
 
 export type FreightQuoteFormData = z.infer<typeof freightQuoteFormSchema> & {
-    // Esses campos são adicionados programaticamente antes de enviar para a ação, não fazem parte do formulário.
     customerEmail?: string;
     customerPhone?: string;
 };

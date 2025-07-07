@@ -44,8 +44,9 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 **CRITICAL RULES:**
 1.  **YOU MUST NOT** generate a rate object unless you can find a specific **origin**, **destination**, and **rate value** in the text for that rate. If any of these three are missing, you must ignore that line/rate completely.
 2.  If a rate applies to multiple destinations (e.g., "SHA to SAN/RIO"), create a separate object for each destination.
-3.  If a rate has multiple prices for different containers (e.g., "20GP/40HC: 2500/4800"), create a separate object for each container.
-4.  If the text mentions "brazil base ports" or "brazilian ports", you MUST generate separate rate entries for each of the main Brazilian ports: Santos, Paranaguá, Itapoá, and Rio Grande.
+3.  **IMPORTANT**: If you encounter a rate with three values separated by slashes (e.g., \`USD 6013/6226/6226\`), you MUST interpret this as rates for three different container types in the following order: **20'GP**, **40'GP**, and **40'HC**. Create a separate JSON object for each of these rates.
+4.  If a rate has multiple prices for different containers explicitly named (e.g., "20GP/40HC: 2500/4800"), create a separate object for each container.
+5.  If the text mentions "brazil base ports" or "brazilian ports", you MUST generate separate rate entries for each of the main Brazilian ports: Santos, Paranaguá, Itapoá, and Rio Grande.
 
 **FIELD-SPECIFIC INSTRUCTIONS:**
 - For fields \`transitTime\`, \`validity\`, \`freeTime\`, and \`container\`: If you cannot find a value for a valid rate, use the string "N/A".

@@ -23,62 +23,9 @@ import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Sea
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
 import { runGetFreightRates } from '@/app/actions';
+import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 
-const airPieceSchema = z.object({
-  quantity: z.coerce.number().min(1, "Obrigatório"),
-  length: z.coerce.number().min(1, "Obrigatório"),
-  width: z.coerce.number().min(1, "Obrigatório"),
-  height: z.coerce.number().min(1, "Obrigatório"),
-  weight: z.coerce.number().min(0.1, "Obrigatório"),
-});
-
-const oceanContainerSchema = z.object({
-  type: z.string().min(1, "Selecione o tipo"),
-  quantity: z.coerce.number().min(1, "Obrigatório"),
-});
-
-const lclDetailsSchema = z.object({
-    cbm: z.coerce.number().min(0.01, "CBM deve ser maior que 0."),
-    weight: z.coerce.number().min(1, "Peso deve ser maior que 0."),
-});
-
-const formSchema = z.object({
-  customerName: z.string().min(3, { message: "O nome do cliente é obrigatório (mínimo 3 caracteres)." }),
-  modal: z.enum(['air', 'ocean']),
-  incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
-  origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
-  destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
-  departureDate: z.date().optional(),
-  
-  airShipment: z.object({
-    pieces: z.array(airPieceSchema),
-    isStackable: z.boolean().default(false),
-  }),
-
-  oceanShipmentType: z.enum(['FCL', 'LCL']),
-  oceanShipment: z.object({
-    containers: z.array(oceanContainerSchema),
-  }),
-  lclDetails: lclDetailsSchema,
-
-}).superRefine((data, ctx) => {
-    if (data.modal === 'air' && data.airShipment.pieces.length === 0) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Adicione pelo menos uma peça para cotação aérea.",
-            path: ['airShipment.pieces'],
-        });
-    }
-    if (data.modal === 'ocean' && data.oceanShipmentType === 'FCL' && data.oceanShipment.containers.length === 0) {
-         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Adicione pelo menos um contêiner para cotação FCL.",
-            path: ['oceanShipment.containers'],
-        });
-    }
-});
-
-type FormData = z.infer<typeof formSchema>;
+type FormData = FreightQuoteFormData;
 
 type FreightRate = {
     id: string;
@@ -100,7 +47,7 @@ export function FreightQuoteForm() {
   const { toast } = useToast();
 
   const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(freightQuoteFormSchema),
     defaultValues: {
       customerName: '',
       modal: 'air',
@@ -413,7 +360,19 @@ export function FreightQuoteForm() {
           </div>
       )}
 
-       {!isLoading && results.length === 0 && (
+       {!isLoading && results.length === 0 && form.formState.isSubmitted && (
+          <div className="mt-8">
+              <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Nenhuma tarifa encontrada</AlertTitle>
+                  <AlertDescription>
+                  Não encontramos nenhuma tarifa para os critérios informados. Por favor, verifique os dados ou tente novamente mais tarde.
+                  </AlertDescription>
+              </Alert>
+          </div>
+       )}
+       
+       {!isLoading && !form.formState.isSubmitted && (
         <div className="mt-8">
             <Alert>
                 <Plane className="h-4 w-4" />

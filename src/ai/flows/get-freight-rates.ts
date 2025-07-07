@@ -9,46 +9,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 
-// Based on the form schema in freight-quote-form.tsx
-const AirPieceSchema = z.object({
-  quantity: z.coerce.number().min(1),
-  length: z.coerce.number().min(1),
-  width: z.coerce.number().min(1),
-  height: z.coerce.number().min(1),
-  weight: z.coerce.number().min(0.1),
-});
-
-const OceanContainerSchema = z.object({
-  type: z.string().min(1),
-  quantity: z.coerce.number().min(1),
-});
-
-const LclDetailsSchema = z.object({
-  cbm: z.coerce.number().min(0.01),
-  weight: z.coerce.number().min(1),
-});
-
-const GetFreightRatesInputSchema = z.object({
-  customerName: z.string().min(3),
-  modal: z.enum(['air', 'ocean']),
-  incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
-  origin: z.string().min(3),
-  destination: z.string().min(3),
-  departureDate: z.date().optional(),
-  
-  airShipment: z.object({
-    pieces: z.array(AirPieceSchema).min(1),
-    isStackable: z.boolean().default(false),
-  }),
-
-  oceanShipmentType: z.enum(['FCL', 'LCL']),
-  oceanShipment: z.object({
-    containers: z.array(OceanContainerSchema),
-  }),
-  lclDetails: LclDetailsSchema,
-});
-export type GetFreightRatesInput = z.infer<typeof GetFreightRatesInputSchema>;
+export type GetFreightRatesInput = FreightQuoteFormData;
 
 const FreightRateSchema = z.object({
     id: z.string(), 
@@ -121,7 +84,7 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
 const getFreightRatesFlow = ai.defineFlow(
   {
     name: 'getFreightRatesFlow',
-    inputSchema: GetFreightRatesInputSchema,
+    inputSchema: freightQuoteFormSchema,
     outputSchema: GetFreightRatesOutputSchema,
   },
   async (input) => {

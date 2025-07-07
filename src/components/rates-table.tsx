@@ -170,7 +170,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
             </CardHeader>
             <CardContent>
                 <div className="border rounded-lg">
-                    <Table className="table-fixed w-full">
+                    <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[15%]">Transportadora</TableHead>
@@ -199,7 +199,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                     <TableCell className="truncate" title={item.destination}>{item.destination}</TableCell>
                                     {maritimeContainerTypes.map(type => (
                                     <TableCell key={type} className="font-semibold text-primary text-center">
-                                        {item.rates[type] ? `$${new Intl.NumberFormat('en-US').format(Number(item.rates[type]))}` : '-'}
+                                        {item.rates[type] || '-'}
                                     </TableCell>
                                     ))}
                                     <TableCell>{item.freeTime}</TableCell>
@@ -222,7 +222,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
             </CardHeader>
             <CardContent>
                  <div className="border rounded-lg">
-                    <Table className="table-fixed w-full">
+                    <Table>
                         <TableHeader>
                         <TableRow>
                             <TableHead className="w-[20%]">Transportadora</TableHead>

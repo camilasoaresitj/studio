@@ -1,6 +1,10 @@
+
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -10,7 +14,21 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table';
-import { PlusCircle } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PlusCircle, Edit } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
 
 export type Fee = {
     id: number;
@@ -25,6 +43,20 @@ export type Fee = {
     minValue?: number;
 };
 
+const feeSchema = z.object({
+  id: z.number().optional(),
+  name: z.string().min(1, 'Nome é obrigatório'),
+  value: z.string().min(1, 'Valor é obrigatório'),
+  currency: z.enum(['BRL', 'USD']),
+  type: z.enum(['Fixo', 'Percentual', 'Por CBM/Ton', 'Opcional', 'Por KG']),
+  unit: z.string().min(1, 'Unidade é obrigatória'),
+  modal: z.enum(['Marítimo', 'Aéreo', 'Ambos']),
+  direction: z.enum(['Importação', 'Exportação', 'Ambos']),
+  chargeType: z.enum(['FCL', 'LCL', 'Aéreo', '']).optional(),
+  minValue: z.coerce.number().optional(),
+});
+
+type FeeFormData = z.infer<typeof feeSchema>;
 
 interface FeesRegistryProps {
     fees: Fee[];
@@ -32,11 +64,56 @@ interface FeesRegistryProps {
 }
 
 export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingFee, setEditingFee] = useState<Fee | null>(null);
+  const { toast } = useToast();
+
+  const form = useForm<FeeFormData>({
+    resolver: zodResolver(feeSchema),
+  });
+
+  const handleOpenDialog = (fee: Fee | null) => {
+    setEditingFee(fee);
+    form.reset(fee ? {
+        ...fee,
+        chargeType: fee.chargeType || '',
+        value: String(fee.value),
+        minValue: fee.minValue || undefined
+    } : {
+        name: '',
+        value: '',
+        currency: 'BRL',
+        type: 'Fixo',
+        unit: 'Por Contêiner',
+        modal: 'Marítimo',
+        direction: 'Importação',
+        chargeType: 'FCL',
+        minValue: undefined,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const onSubmit = (data: FeeFormData) => {
+    onSave({
+      ...data,
+      id: editingFee?.id ?? 0,
+      chargeType: data.chargeType === '' ? undefined : data.chargeType as Fee['chargeType'],
+    });
+    setIsDialogOpen(false);
+    setEditingFee(null);
+    toast({
+      title: `Taxa ${editingFee ? 'atualizada' : 'adicionada'}!`,
+      description: `A taxa "${data.name}" foi salva com sucesso.`,
+      className: 'bg-success text-success-foreground'
+    });
+  };
+
   return (
     <div className="mt-8">
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold">Taxas Padrão</h3>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => handleOpenDialog(null)}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Adicionar Taxa
             </Button>
@@ -50,6 +127,7 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                         <TableHead>Tipo</TableHead>
                         <TableHead>Modal</TableHead>
                         <TableHead>Direção</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -60,11 +138,123 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                             <TableCell>{fee.type}</TableCell>
                             <TableCell>{fee.modal}</TableCell>
                             <TableCell>{fee.direction}</TableCell>
+                            <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(fee)}>
+                                    <Edit className="h-4 w-4" />
+                                </Button>
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
         </div>
+        
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{editingFee ? 'Editar Taxa' : 'Adicionar Nova Taxa'}</DialogTitle>
+              <DialogDescription>
+                Preencha os dados da taxa padrão para cotações.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                    <FormItem><FormLabel>Nome da Taxa</FormLabel><FormControl><Input placeholder="Ex: THC" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="value" render={({ field }) => (
+                        <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="text" placeholder="Ex: 1350 ou 0.3" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="currency" render={({ field }) => (
+                        <FormItem><FormLabel>Moeda</FormLabel>
+                             <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                  <SelectItem value="BRL">BRL</SelectItem>
+                                  <SelectItem value="USD">USD</SelectItem>
+                              </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
+                    )} />
+                </div>
+                
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="type" render={({ field }) => (
+                        <FormItem><FormLabel>Tipo de Cálculo</FormLabel>
+                             <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                  <SelectItem value="Fixo">Fixo</SelectItem>
+                                  <SelectItem value="Percentual">Percentual</SelectItem>
+                                  <SelectItem value="Por CBM/Ton">Por CBM/Ton</SelectItem>
+                                  <SelectItem value="Por KG">Por KG</SelectItem>
+                                  <SelectItem value="Opcional">Opcional</SelectItem>
+                              </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="unit" render={({ field }) => (
+                        <FormItem><FormLabel>Unidade</FormLabel><FormControl><Input placeholder="Ex: Por Contêiner" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                </div>
+                <FormField control={form.control} name="minValue" render={({ field }) => (
+                    <FormItem><FormLabel>Valor Mínimo (Opcional)</FormLabel><FormControl><Input type="number" placeholder="Ex: 50" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="modal" render={({ field }) => (
+                        <FormItem><FormLabel>Modal</FormLabel>
+                             <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                  <SelectItem value="Marítimo">Marítimo</SelectItem>
+                                  <SelectItem value="Aéreo">Aéreo</SelectItem>
+                                  <SelectItem value="Ambos">Ambos</SelectItem>
+                              </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="direction" render={({ field }) => (
+                        <FormItem><FormLabel>Direção</FormLabel>
+                             <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                  <SelectItem value="Importação">Importação</SelectItem>
+                                  <SelectItem value="Exportação">Exportação</SelectItem>
+                                  <SelectItem value="Ambos">Ambos</SelectItem>
+                              </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
+                    )} />
+                </div>
+
+                <FormField control={form.control} name="chargeType" render={({ field }) => (
+                    <FormItem><FormLabel>Tipo de Carga (Opcional)</FormLabel>
+                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                              <SelectItem value="">Nenhum</SelectItem>
+                              <SelectItem value="FCL">FCL</SelectItem>
+                              <SelectItem value="LCL">LCL</SelectItem>
+                              <SelectItem value="Aéreo">Aéreo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                    <FormMessage /></FormItem>
+                )} />
+                
+                <DialogFooter className="pt-4">
+                    <DialogClose asChild>
+                        <Button type="button" variant="outline">Cancelar</Button>
+                    </DialogClose>
+                    <Button type="submit">Salvar Taxa</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+    

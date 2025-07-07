@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -203,13 +204,12 @@ export default function ComercialPage() {
         </p>
       </header>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6 max-w-4xl">
+        <TabsList className="grid w-full grid-cols-5 max-w-4xl">
           <TabsTrigger value="quote">Cotação de Frete</TabsTrigger>
           <TabsTrigger value="rates">Gestão de Tarifas</TabsTrigger>
           <TabsTrigger value="customer_quotes">Cotações</TabsTrigger>
           <TabsTrigger value="crm">CRM Automático</TabsTrigger>
           <TabsTrigger value="partners">Parceiros</TabsTrigger>
-          <TabsTrigger value="fees">Taxas</TabsTrigger>
         </TabsList>
         <TabsContent value="quote" className="mt-6">
           <FreightQuoteForm 
@@ -226,6 +226,15 @@ export default function ComercialPage() {
             <div className="space-y-8">
               <RateImporter onRatesImported={handleRatesImported} />
               <RatesTable rates={rates} onSelectRate={startQuoteFromRate} />
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Cadastro de Taxas Padrão</CardTitle>
+                      <CardDescription>Gerencie as taxas padrão para cotações de importação e exportação.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <FeesRegistry fees={fees} onSave={handleFeeSaved} />
+                  </CardContent>
+              </Card>
             </div>
         </TabsContent>
         <TabsContent value="customer_quotes" className="mt-6">
@@ -245,18 +254,9 @@ export default function ComercialPage() {
                 </CardContent>
             </Card>
         </TabsContent>
-         <TabsContent value="fees" className="mt-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Cadastro de Taxas</CardTitle>
-                    <CardDescription>Gerencie as taxas padrão para cotações de importação e exportação.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                   <FeesRegistry fees={fees} onSave={handleFeeSaved} />
-                </CardContent>
-            </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
 }
+
+    

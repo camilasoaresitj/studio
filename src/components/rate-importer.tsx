@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import * as XLSX from 'xlsx';
+
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { runExtractRatesFromText } from '@/app/actions';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
-import { Loader2, Wand2, AlertTriangle, TableIcon, Plane, Ship } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, TableIcon, Plane, Ship, Upload } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
@@ -31,6 +33,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
   const [results, setResults] = useState<ExtractRatesFromTextOutput>([]);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -61,12 +64,57 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
     setIsLoading(false);
   }
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const textData = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t' });
+        
+        form.setValue('textInput', textData);
+        toast({
+          title: 'Arquivo carregado!',
+          description: 'O conteúdo do arquivo foi carregado. Clique em "Extrair" para analisar.',
+        });
+      } catch (err) {
+        console.error("Error reading file:", err);
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao ler arquivo',
+          description: 'Ocorreu um erro ao processar o arquivo. Verifique se o formato é válido (XLSX, XLS, CSV).',
+        });
+      }
+    };
+    reader.onerror = () => {
+        toast({
+            variant: 'destructive',
+            title: 'Erro de leitura',
+            description: 'Não foi possível ler o arquivo selecionado.',
+        });
+    }
+    reader.readAsArrayBuffer(file);
+
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="space-y-8">
       <Card>
         <CardHeader>
           <CardTitle>Importador de Tarifas com IA</CardTitle>
-          <CardDescription>Cole o conteúdo de um e-mail ou uma tabela de tarifas abaixo. A IA irá extrair e salvar os dados na sua tabela automaticamente.</CardDescription>
+          <CardDescription>Cole o conteúdo de um e-mail, uma tabela ou importe um arquivo. A IA irá extrair e salvar os dados na sua tabela automaticamente.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -88,19 +136,32 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analisando...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="mr-2 h-4 w-4" />
-                    Extrair e Salvar Tarifas
-                  </>
-                )}
-              </Button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".xlsx, .xls, .csv"
+              />
+              <div className="flex flex-col sm:flex-row-reverse gap-2">
+                <Button type="submit" disabled={isLoading} className="w-full">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analisando...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="mr-2 h-4 w-4" />
+                      Extrair e Salvar Tarifas
+                    </>
+                  )}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleImportClick} className="w-full sm:w-auto">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Importar de Arquivo
+                </Button>
+              </div>
             </form>
           </Form>
         </CardContent>

@@ -20,15 +20,13 @@ export const lclDetailsSchema = z.object({
 
 export const freightQuoteFormSchema = z.object({
   customerId: z.string({ required_error: "Por favor, selecione um cliente."}).min(1, { message: "Por favor, selecione um cliente." }),
-  // Os campos abaixo são preenchidos programaticamente após a seleção do cliente
-  customerEmail: z.string().email({ message: "O e-mail do cliente é inválido." }).optional().or(z.literal('')),
-  customerPhone: z.string().min(10, { message: "O telefone do cliente é obrigatório (mínimo 10 dígitos)."}).optional().or(z.literal('')),
   
   modal: z.enum(['air', 'ocean']),
   incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
   departureDate: z.date().optional(),
+  collectionAddress: z.string().optional(),
   
   airShipment: z.object({
     pieces: z.array(airPieceSchema),
@@ -42,6 +40,14 @@ export const freightQuoteFormSchema = z.object({
   lclDetails: lclDetailsSchema,
 
 }).superRefine((data, ctx) => {
+    if (data.incoterm === 'EXW' && (!data.collectionAddress || data.collectionAddress.trim().length < 5)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "O local de coleta é obrigatório para o incoterm EXW (mínimo 5 caracteres).",
+            path: ['collectionAddress'],
+        });
+    }
+
     if (data.modal === 'air' && data.airShipment.pieces.length === 0) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -58,4 +64,8 @@ export const freightQuoteFormSchema = z.object({
     }
 });
 
-export type FreightQuoteFormData = z.infer<typeof freightQuoteFormSchema>;
+export type FreightQuoteFormData = z.infer<typeof freightQuoteFormSchema> & {
+    // Esses campos são adicionados programaticamente antes de enviar para a ação, não fazem parte do formulário.
+    customerEmail?: string;
+    customerPhone?: string;
+};

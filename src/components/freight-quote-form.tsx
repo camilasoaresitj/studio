@@ -78,12 +78,11 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
     resolver: zodResolver(freightQuoteFormSchema),
     defaultValues: {
       customerId: '',
-      customerEmail: '', // This will be set programmatically
-      customerPhone: '', // This will be set programmatically
       modal: 'air',
       incoterm: 'FOB',
       origin: '',
       destination: '',
+      collectionAddress: '',
       airShipment: {
         pieces: [{ quantity: 1, length: 100, width: 100, height: 100, weight: 500 }],
         isStackable: false,
@@ -116,7 +115,20 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
     setSelectedRate(null);
     setQuoteContent(null);
     
-    const response = await runGetFreightRates(values);
+    // This is a workaround to remove customerPhone and customerEmail from the values passed to the AI flow
+    // if they are empty strings, as the schema expects them to be optional but not empty.
+    const submissionValues = { ...values };
+    const customer = partners.find(p => p.id.toString() === values.customerId);
+    const primaryContact = customer?.contacts?.find(c => c.department === 'Comercial') || customer?.contacts?.[0];
+
+    // We pass these values to the action, but they are not part of the form state itself
+    const finalValues = {
+        ...submissionValues,
+        customerEmail: primaryContact?.email,
+        customerPhone: primaryContact?.phone
+    };
+
+    const response = await runGetFreightRates(finalValues);
 
     if (response.success) {
         setResults(response.data);
@@ -165,6 +177,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
         setIsSending(false);
         return;
     }
+    
+    const commercialContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
+    if (!commercialContact) {
+        toast({ variant: 'destructive', title: 'Contato não encontrado', description: 'O cliente precisa de pelo menos um contato cadastrado.' });
+        setIsSending(false);
+        return;
+    }
+
 
     const approvalLink = `${window.location.origin}/operacional?action=approve&quoteId=COT-${Math.floor(Math.random() * 10000)}`;
     const rejectionLink = `${window.location.origin}/comercial?action=reject&quoteId=COT-${Math.floor(Math.random() * 10000)}`;
@@ -195,7 +215,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
         onQuoteCreated(newQuote);
         toast({
             title: 'Cotação enviada ao cliente!',
-            description: `A cotação foi enviada para ${form.getValues('customerEmail')} e está pronta para ser compartilhada no WhatsApp.`,
+            description: `A cotação foi enviada para ${commercialContact.email} e está pronta para ser compartilhada no WhatsApp.`,
             className: 'bg-success text-success-foreground',
         });
     } else {
@@ -209,7 +229,11 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
   };
   
   const handleSendWhatsApp = () => {
-    const phone = form.getValues('customerPhone');
+    const customerId = form.getValues('customerId');
+    const customer = partners.find(p => p.id.toString() === customerId);
+    const contact = customer?.contacts.find(c => c.department === 'Comercial') || customer?.contacts[0];
+    const phone = contact?.phone;
+    
     if (!phone) {
         toast({
             variant: "destructive",
@@ -227,6 +251,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
 
 
   const modal = form.watch('modal');
+  const incoterm = form.watch('incoterm');
 
   return (
     <div className="space-y-8">
@@ -278,14 +303,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                                                 key={partner.id}
                                                 onSelect={() => {
                                                     form.setValue("customerId", partner.id.toString());
-                                                    const commercialContact = partner.contacts.find(c => c.department === 'Comercial') || partner.contacts[0];
-                                                    if (commercialContact) {
-                                                      form.setValue("customerEmail", commercialContact.email);
-                                                      form.setValue("customerPhone", commercialContact.phone);
-                                                    } else {
-                                                      form.setValue("customerEmail", '');
-                                                      form.setValue("customerPhone", '');
-                                                    }
                                                     setIsCustomerPopoverOpen(false);
                                                 }}
                                                 >
@@ -368,6 +385,25 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                       )}
                     />
                 </div>
+
+                {incoterm === 'EXW' && (
+                  <div className="mt-4 animate-in fade-in-50 duration-300">
+                    <FormField
+                      control={form.control}
+                      name="collectionAddress"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Local de Coleta</FormLabel>
+                              <FormControl>
+                                  <Input placeholder="Informe o endereço completo para coleta" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+                
                 <FormField control={form.control} name="departureDate" render={({ field }) => (
                     <FormItem className="flex flex-col mt-4"><FormLabel>Data de Embarque (Opcional)</FormLabel>
                         <Popover>
@@ -394,19 +430,19 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                     {airPieces.map((field, index) => (
                         <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3 border rounded-md items-end">
                             <FormField control={form.control} name={`airShipment.pieces.${index}.quantity`} render={({ field }) => (
-                                <FormItem className="col-span-2 md:col-span-1"><FormLabel>Qtde</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem className="col-span-2 md:col-span-1"><FormLabel>Qtde</FormLabel><FormControl><Input type="number" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name={`airShipment.pieces.${index}.length`} render={({ field }) => (
-                                <FormItem><FormLabel>Compr. (cm)</FormLabel><FormControl><Input type="number" placeholder="120" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Compr. (cm)</FormLabel><FormControl><Input type="number" placeholder="120" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name={`airShipment.pieces.${index}.width`} render={({ field }) => (
-                                <FormItem><FormLabel>Larg. (cm)</FormLabel><FormControl><Input type="number" placeholder="80" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Larg. (cm)</FormLabel><FormControl><Input type="number" placeholder="80" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name={`airShipment.pieces.${index}.height`} render={({ field }) => (
-                                <FormItem><FormLabel>Alt. (cm)</FormLabel><FormControl><Input type="number" placeholder="100" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Alt. (cm)</FormLabel><FormControl><Input type="number" placeholder="100" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name={`airShipment.pieces.${index}.weight`} render={({ field }) => (
-                                <FormItem><FormLabel>Peso (kg)</FormLabel><FormControl><Input type="number" placeholder="500" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Peso (kg)</FormLabel><FormControl><Input type="number" placeholder="500" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
                             )} />
                             <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeAirPiece(index)} disabled={airPieces.length <= 1}>
                                 <Trash2 className="h-4 w-4" />
@@ -460,7 +496,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                                         </FormItem>
                                     )} />
                                     <FormField control={form.control} name={`oceanShipment.containers.${index}.quantity`} render={({ field }) => (
-                                        <FormItem><FormLabel>Quantidade</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Quantidade</FormLabel><FormControl><Input type="number" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                     <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeOceanContainer(index)} disabled={oceanContainers.length <= 1}>
                                         <Trash2 className="h-4 w-4" />
@@ -474,10 +510,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer 
                         <TabsContent value="LCL" className="mt-4">
                             <div className="grid md:grid-cols-2 gap-4 p-3 border rounded-md">
                                 <FormField control={form.control} name="lclDetails.cbm" render={({ field }) => (
-                                    <FormItem><FormLabel>Cubagem Total (CBM)</FormLabel><FormControl><Input type="number" placeholder="Ex: 2.5" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Cubagem Total (CBM)</FormLabel><FormControl><Input type="number" placeholder="Ex: 2.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField control={form.control} name="lclDetails.weight" render={({ field }) => (
-                                    <FormItem><FormLabel>Peso Bruto Total (kg)</FormLabel><FormControl><Input type="number" placeholder="Ex: 1200" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Peso Bruto Total (kg)</FormLabel><FormControl><Input type="number" placeholder="Ex: 1200" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
                                 )} />
                             </div>
                         </TabsContent>

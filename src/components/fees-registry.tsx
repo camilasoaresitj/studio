@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -66,6 +66,8 @@ interface FeesRegistryProps {
 export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFee, setEditingFee] = useState<Fee | null>(null);
+  const [modalFilter, setModalFilter] = useState('Todos');
+  const [directionFilter, setDirectionFilter] = useState('Todos');
   const { toast } = useToast();
 
   const form = useForm<FeeFormData>({
@@ -108,6 +110,14 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
     });
   };
 
+  const filteredFees = useMemo(() => {
+    return fees.filter(fee => {
+        const modalMatch = modalFilter === 'Todos' || fee.modal === modalFilter || fee.modal === 'Ambos';
+        const directionMatch = directionFilter === 'Todos' || fee.direction === directionFilter || fee.direction === 'Ambos';
+        return modalMatch && directionMatch;
+    });
+  }, [fees, modalFilter, directionFilter]);
+
   return (
     <div className="mt-8">
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -118,6 +128,30 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                 Adicionar Taxa
             </Button>
         </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <Select value={modalFilter} onValueChange={setModalFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Filtrar por modal" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Todos">Todos os Modais</SelectItem>
+                    <SelectItem value="Marítimo">Marítimo</SelectItem>
+                    <SelectItem value="Aéreo">Aéreo</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select value={directionFilter} onValueChange={setDirectionFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Filtrar por direção" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Todos">Todas as Direções</SelectItem>
+                    <SelectItem value="Importação">Importação</SelectItem>
+                    <SelectItem value="Exportação">Exportação</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+
         <div className="border rounded-lg">
             <Table>
                 <TableHeader>
@@ -131,20 +165,28 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {fees.map((fee) => (
-                        <TableRow key={fee.id}>
-                            <TableCell className="font-medium">{fee.name}</TableCell>
-                            <TableCell>{fee.currency} {fee.value}</TableCell>
-                            <TableCell>{fee.type}</TableCell>
-                            <TableCell>{fee.modal}</TableCell>
-                            <TableCell>{fee.direction}</TableCell>
-                            <TableCell className="text-right">
-                                <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(fee)}>
-                                    <Edit className="h-4 w-4" />
-                                </Button>
+                    {filteredFees.length > 0 ? (
+                        filteredFees.map((fee) => (
+                            <TableRow key={fee.id}>
+                                <TableCell className="font-medium">{fee.name}</TableCell>
+                                <TableCell>{fee.currency} {fee.value}</TableCell>
+                                <TableCell>{fee.type}</TableCell>
+                                <TableCell>{fee.modal}</TableCell>
+                                <TableCell>{fee.direction}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(fee)}>
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                                Nenhuma taxa encontrada com os filtros selecionados.
                             </TableCell>
                         </TableRow>
-                    ))}
+                    )}
                 </TableBody>
             </Table>
         </div>
@@ -256,5 +298,3 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
     </div>
   );
 }
-
-    

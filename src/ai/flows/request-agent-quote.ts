@@ -9,9 +9,9 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
+import * as schemas from '@/lib/schemas';
 
-export type RequestAgentQuoteInput = FreightQuoteFormData;
+export type RequestAgentQuoteInput = schemas.FreightQuoteFormData;
 
 const RequestAgentQuoteOutputSchema = z.object({
   emailSubject: z.string().describe("The subject line for the quote request email in English."),
@@ -23,7 +23,7 @@ export async function requestAgentQuote(input: RequestAgentQuoteInput): Promise<
   return requestAgentQuoteFlow(input);
 }
 
-const PromptInputSchema = freightQuoteFormSchema.extend({
+const PromptInputSchema = schemas.freightQuoteFormSchema.extend({
     shipmentDetails: z.string().describe('A pre-formatted string containing the specific details of the cargo.'),
     departureDate: z.string().optional().describe('The formatted departure date.'),
 });
@@ -60,7 +60,7 @@ Generate the following:
 const requestAgentQuoteFlow = ai.defineFlow(
   {
     name: 'requestAgentQuoteFlow',
-    inputSchema: freightQuoteFormSchema,
+    inputSchema: schemas.freightQuoteFormSchema,
     outputSchema: RequestAgentQuoteOutputSchema,
   },
   async (input) => {

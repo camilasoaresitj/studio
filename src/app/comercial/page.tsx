@@ -6,8 +6,7 @@ import { CrmForm } from '@/components/crm-form';
 import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { RateImporter } from '@/components/rate-importer';
 import { RatesTable } from '@/components/rates-table';
-import { CustomerQuotesList } from '@/components/customer-quotes-list';
-import type { Quote, QuoteCharge } from '@/components/customer-quotes-list';
+import { CustomerQuotesList, Quote, QuoteCharge } from '@/components/customer-quotes-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
@@ -75,6 +74,8 @@ const initialPartnersData: Partner[] = [
         name: 'Nexus Imports', 
         type: 'Cliente', 
         cnpj: '12345678000199',
+        paymentTerm: 30,
+        exchangeRateAgio: 2.0,
         address: { street: 'Av. das Nações', number: '100', complement: 'Torre B, 5º Andar', district: 'Centro', city: 'São Paulo', state: 'SP', zip: '01234-000' },
         contacts: [
             { name: 'Ana Costa', email: 'ana.costa@nexus.com', phone: '5511987654321', department: 'Comercial' },
@@ -86,6 +87,8 @@ const initialPartnersData: Partner[] = [
         name: 'Maersk Line Brasil', 
         type: 'Fornecedor',
         cnpj: '98765432000100',
+        paymentTerm: 15,
+        exchangeRateAgio: 0,
         address: { street: 'Rua do Porto', number: '555', complement: '', district: 'Paquetá', city: 'Santos', state: 'SP', zip: '11010-151' },
         contacts: [
             { name: 'Carlos Pereira', email: 'comercial.br@maersk.com', phone: '551332268500', department: 'Comercial' }
@@ -96,6 +99,8 @@ const initialPartnersData: Partner[] = [
         name: 'Global Logistics Agents', 
         type: 'Agente', 
         cnpj: '',
+        paymentTerm: 45,
+        exchangeRateAgio: 0,
         address: { street: 'Ocean Drive', number: '123', complement: 'Suite 200', district: 'South Beach', city: 'Miami', state: 'FL', zip: '33139' },
         contacts: [
             { name: 'John Smith', email: 'ops@gla.com', phone: '13055551234', department: 'Operacional' }
@@ -106,6 +111,8 @@ const initialPartnersData: Partner[] = [
         name: 'TechFront Solutions', 
         type: 'Cliente', 
         cnpj: '11223344000155',
+        paymentTerm: 21,
+        exchangeRateAgio: 2.5,
         address: { street: 'Rua da Inovação', number: '404', complement: '', district: 'Centro', city: 'Florianópolis', state: 'SC', zip: '88010-000' },
         contacts: [
             { name: 'Sofia Mendes', email: 'sofia@techfront.com', phone: '5548999887766', department: 'Comercial' },
@@ -164,7 +171,7 @@ export default function ComercialPage() {
   const [fees, setFees] = useState(initialFeesData);
   const [activeTab, setActiveTab] = useState('quote');
   const [quoteFormData, setQuoteFormData] = useState<Partial<FreightQuoteFormData> | null>(null);
-
+  const [manualQuote, setManualQuote] = useState<Quote | null>(null);
 
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
     const newRates = importedRates.map((rate, index) => ({
@@ -174,7 +181,7 @@ export default function ComercialPage() {
     setRates(prevRates => [...prevRates, ...newRates]);
   };
   
-  const handleQuoteCreated = (newQuoteData: Omit<Quote, 'id' | 'status' | 'date'> & { charges: QuoteCharge[] }) => {
+  const handleQuoteCreated = (newQuoteData: Omit<Quote, 'id' | 'status' | 'date'>) => {
     const newQuote: Quote = {
         ...newQuoteData,
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
@@ -182,6 +189,7 @@ export default function ComercialPage() {
         date: new Date().toLocaleDateString('pt-BR'),
     };
     setQuotes(prevQuotes => [newQuote, ...prevQuotes]);
+    setManualQuote(null);
   };
 
   const handlePartnerAdded = (newPartner: Partner) => {
@@ -218,6 +226,24 @@ export default function ComercialPage() {
   
   const handleQuoteUpdated = (updatedQuote: Quote) => {
     setQuotes(prevQuotes => prevQuotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
+    if (manualQuote && manualQuote.id === updatedQuote.id) {
+        setManualQuote(updatedQuote);
+    }
+  };
+
+  const handleStartManualQuote = (formData: FreightQuoteFormData) => {
+    const customer = partners.find(p => p.id.toString() === formData.customerId);
+    if (!customer) return;
+
+    const newQuote: Quote = {
+        id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}-DRAFT`,
+        customer: customer.name,
+        destination: formData.destination,
+        status: 'Rascunho',
+        date: new Date().toLocaleDateString('pt-BR'),
+        charges: [],
+    };
+    setManualQuote(newQuote);
   };
 
 
@@ -246,6 +272,9 @@ export default function ComercialPage() {
             onRegisterCustomer={() => setActiveTab('partners')}
             rates={rates}
             fees={fees}
+            onStartManualQuote={handleStartManualQuote}
+            manualQuote={manualQuote}
+            onQuoteUpdate={handleQuoteUpdated}
           />
         </TabsContent>
         <TabsContent value="customer_quotes" className="mt-6">

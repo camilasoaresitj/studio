@@ -35,13 +35,15 @@ const contactSchema = z.object({
   name: z.string().min(1, 'Nome do contato é obrigatório'),
   email: z.string().email('E-mail inválido'),
   phone: z.string().min(10, 'Telefone inválido'),
-  department: z.enum(['Comercial', 'Operacional', 'Financeiro']),
+  department: z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação']),
 });
 
 const partnerSchema = z.object({
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
   type: z.enum(['Cliente', 'Fornecedor', 'Agente']),
   cnpj: z.string().optional(),
+  paymentTerm: z.coerce.number().optional(),
+  exchangeRateAgio: z.coerce.number().optional(),
   address: z.object({
     street: z.string().optional(),
     number: z.string().optional(),
@@ -73,6 +75,8 @@ export function PartnersRegistry({ partners, onPartnerAdded }: PartnersRegistryP
       name: '',
       type: 'Cliente',
       cnpj: '',
+      paymentTerm: undefined,
+      exchangeRateAgio: undefined,
       address: {
         street: '',
         number: '',
@@ -159,7 +163,7 @@ export function PartnersRegistry({ partners, onPartnerAdded }: PartnersRegistryP
               Adicionar Parceiro
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>Adicionar Novo Parceiro</DialogTitle>
               <DialogDescription>
@@ -205,6 +209,26 @@ export function PartnersRegistry({ partners, onPartnerAdded }: PartnersRegistryP
                       <FormMessage />
                     </FormItem>
                   )} />
+
+                <Separator className="my-4" />
+                <h4 className="text-md font-semibold">Informações Financeiras</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="paymentTerm" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Prazo de Pagamento (dias)</FormLabel>
+                            <FormControl><Input type="number" placeholder="Ex: 30" {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="exchangeRateAgio" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Ágio sobre o Câmbio (%)</FormLabel>
+                            <FormControl><Input type="number" step="0.1" placeholder="Ex: 2.5" {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                </div>
+
                   <Separator className="my-4" />
                   <h4 className="text-md font-semibold">Endereço</h4>
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -267,6 +291,8 @@ export function PartnersRegistry({ partners, onPartnerAdded }: PartnersRegistryP
                                   <SelectItem value="Comercial">Comercial</SelectItem>
                                   <SelectItem value="Operacional">Operacional</SelectItem>
                                   <SelectItem value="Financeiro">Financeiro</SelectItem>
+                                  <SelectItem value="Importação">Importação</SelectItem>
+                                  <SelectItem value="Exportação">Exportação</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />

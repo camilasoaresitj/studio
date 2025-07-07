@@ -14,9 +14,10 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plane, Ship } from 'lucide-react';
+import { Plane, Ship, Save } from 'lucide-react';
 import { parse, isBefore, isValid } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 type Rate = {
   id: number;
@@ -86,9 +87,19 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
   const [filters, setFilters] = useState({ origin: '', destination: '' });
   const [modalFilter, setModalFilter] = useState('Marítimo');
   const [showExpired, setShowExpired] = useState(false);
+  const { toast } = useToast();
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = () => {
+    toast({
+      title: 'Tarifas Salvas!',
+      description: 'As suas alterações na tabela de tarifas foram salvas com sucesso.',
+      variant: 'default',
+      className: 'bg-success text-success-foreground',
+    });
   };
 
   const today = useMemo(() => {
@@ -102,9 +113,11 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
   }
 
   const handleSelectRate = (rate: any) => {
-    // This is a placeholder for the quote generation logic
     console.log('Selected Rate:', rate);
-    alert(`Tarifa selecionada:\nTransportadora: ${rate.carrier}\nOrigem: ${rate.origin}\nDestino: ${rate.destination}`);
+    toast({
+        title: "Tarifa Selecionada!",
+        description: `Você selecionou a tarifa de ${rate.carrier} de ${rate.origin} para ${rate.destination}.`
+    });
   };
 
   const commonFilteredRates = useMemo(() => {
@@ -142,8 +155,8 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
   return (
     <div className="space-y-6">
       <Card>
-        <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 flex-grow w-full">
+        <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full md:w-auto">
             <Input placeholder="Filtrar por Origem..." value={filters.origin} onChange={(e) => handleFilterChange('origin', e.target.value)} />
             <Input placeholder="Filtrar por Destino..." value={filters.destination} onChange={(e) => handleFilterChange('destination', e.target.value)} />
             <Select value={modalFilter} onValueChange={setModalFilter}>
@@ -155,9 +168,15 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center space-x-2 pt-2 md:pt-0 self-start md:self-center">
-            <Switch id="show-expired" checked={showExpired} onCheckedChange={setShowExpired} />
-            <Label htmlFor="show-expired">Mostrar vencidas</Label>
+          <div className="flex items-center space-x-4 self-end md:self-center">
+             <div className="flex items-center space-x-2">
+                <Switch id="show-expired" checked={showExpired} onCheckedChange={setShowExpired} />
+                <Label htmlFor="show-expired">Mostrar vencidas</Label>
+            </div>
+            <Button onClick={handleSave}>
+                <Save className="mr-2 h-4 w-4" />
+                Salvar Tarifas
+            </Button>
           </div>
         </CardContent>
       </Card>

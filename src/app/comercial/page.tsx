@@ -52,10 +52,10 @@ const initialQuotesData: Quote[] = [
 ];
 
 const initialPartnersData: Partner[] = [
-    { id: 1, name: 'Nexus Imports', type: 'Cliente', email: 'contato@nexus.com', phone: '+55 11 98765-4321' },
-    { id: 2, name: 'Maersk Line', type: 'Fornecedor', email: 'comercial.br@maersk.com', phone: '+55 13 3226-8500' },
-    { id: 3, name: 'Global Logistics Agents', type: 'Agente', email: 'ops@gla.com', phone: '+1 305 555 1234' },
-    { id: 4, name: 'TechFront Solutions', type: 'Cliente', email: 'financeiro@techfront.com', phone: '+55 47 3344-5566' },
+    { id: 1, name: 'Nexus Imports', type: 'Cliente', email: 'contato@nexus.com', phone: '5511987654321' },
+    { id: 2, name: 'Maersk Line', type: 'Fornecedor', email: 'comercial.br@maersk.com', phone: '551332268500' },
+    { id: 3, name: 'Global Logistics Agents', type: 'Agente', email: 'ops@gla.com', phone: '13055551234' },
+    { id: 4, name: 'TechFront Solutions', type: 'Cliente', email: 'financeiro@techfront.com', phone: '554733445566' },
 ];
 
 const initialFeesData: Fee[] = [
@@ -69,6 +69,8 @@ export default function ComercialPage() {
   const [quotes, setQuotes] = useState(initialQuotesData);
   const [partners, setPartners] = useState(initialPartnersData);
   const [fees, setFees] = useState(initialFeesData);
+  const [activeTab, setActiveTab] = useState('quote');
+
 
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
     const newRates = importedRates.map((rate, index) => ({
@@ -94,7 +96,7 @@ export default function ComercialPage() {
           Gerencie suas oportunidades, cotações e clientes.
         </p>
       </header>
-      <Tabs defaultValue="quote" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-6 max-w-4xl">
           <TabsTrigger value="quote">Cotação de Frete</TabsTrigger>
           <TabsTrigger value="rates">Tabela de Tarifas</TabsTrigger>
@@ -104,7 +106,11 @@ export default function ComercialPage() {
           <TabsTrigger value="cadastros">Cadastros</TabsTrigger>
         </TabsList>
         <TabsContent value="quote" className="mt-6">
-          <FreightQuoteForm onQuoteCreated={handleQuoteCreated} />
+          <FreightQuoteForm 
+            onQuoteCreated={handleQuoteCreated} 
+            partners={partners.filter(p => p.type === 'Cliente')}
+            onRegisterCustomer={() => setActiveTab('cadastros')}
+          />
         </TabsContent>
          <TabsContent value="rates" className="mt-6">
           <RatesTable rates={rates} />

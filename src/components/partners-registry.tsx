@@ -40,7 +40,7 @@ interface PartnersRegistryProps {
 
 export function PartnersRegistry({ partners, onPartnerAdded }: PartnersRegistryProps) {
   const [open, setOpen] = useState(false);
-  const [newPartner, setNewPartner] = useState({
+  const [newPartner, setNewPartner] = useState<Omit<Partner, 'id'>>({
     name: '',
     type: 'Cliente' as Partner['type'],
     email: '',

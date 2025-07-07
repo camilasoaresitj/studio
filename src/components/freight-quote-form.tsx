@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
 import { runGetFreightRates } from '@/app/actions';
@@ -28,6 +28,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { runSendQuote } from '@/app/actions';
 import type { SendQuoteOutput } from '@/ai/flows/send-quote';
 import type { Quote } from './customer-quotes-list';
+import type { Partner } from './partners-registry';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 
 type FormData = FreightQuoteFormData;
 
@@ -43,6 +45,8 @@ type FreightRate = {
 
 interface FreightQuoteFormProps {
   onQuoteCreated: (quote: Quote) => void;
+  partners: Partner[];
+  onRegisterCustomer: () => void;
 }
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -59,7 +63,7 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
-export function FreightQuoteForm({ onQuoteCreated }: FreightQuoteFormProps) {
+export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer }: FreightQuoteFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<FreightRate[]>([]);
   const [selectedRate, setSelectedRate] = useState<FreightRate | null>(null);
@@ -67,12 +71,13 @@ export function FreightQuoteForm({ onQuoteCreated }: FreightQuoteFormProps) {
   const [oceanShipmentType, setOceanShipmentType] = useState<'FCL' | 'LCL'>('FCL');
   const [isSending, setIsSending] = useState(false);
   const [quoteContent, setQuoteContent] = useState<SendQuoteOutput | null>(null);
+  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<FormData>({
     resolver: zodResolver(freightQuoteFormSchema),
     defaultValues: {
-      customerName: '',
+      customerId: '',
       customerEmail: '',
       customerPhone: '',
       modal: 'air',
@@ -132,13 +137,12 @@ export function FreightQuoteForm({ onQuoteCreated }: FreightQuoteFormProps) {
   }
 
   const handleSelectRate = (rate: any) => {
-    const { customerName, customerEmail } = form.getValues();
-    if (!customerName || !customerEmail) {
-        form.setFocus(customerName ? 'customerEmail' : 'customerName');
+    const customerId = form.getValues('customerId');
+    if (!customerId) {
         toast({
             variant: 'destructive',
             title: "Dados do cliente incompletos",
-            description: "Por favor, informe o nome e o e-mail do cliente antes de selecionar uma tarifa.",
+            description: "Por favor, selecione um cliente da lista antes de selecionar uma tarifa.",
         });
         return;
     }
@@ -153,12 +157,20 @@ export function FreightQuoteForm({ onQuoteCreated }: FreightQuoteFormProps) {
 
     const finalPrice = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(selectedRate.costValue * (1 + markup / 100));
     
-    // Simulate approval/rejection links
+    const customerId = form.getValues('customerId');
+    const customer = partners.find(p => p.id.toString() === customerId);
+
+    if (!customer) {
+        toast({ variant: 'destructive', title: 'Cliente não encontrado', description: 'Ocorreu um erro ao buscar os dados do cliente.' });
+        setIsSending(false);
+        return;
+    }
+
     const approvalLink = `${window.location.origin}/operacional?action=approve&quoteId=COT-${Math.floor(Math.random() * 10000)}`;
     const rejectionLink = `${window.location.origin}/comercial?action=reject&quoteId=COT-${Math.floor(Math.random() * 10000)}`;
 
     const response = await runSendQuote({
-        customerName: form.getValues('customerName'),
+        customerName: customer.name,
         rateDetails: {
             origin: form.getValues('origin'),
             destination: form.getValues('destination'),
@@ -174,7 +186,7 @@ export function FreightQuoteForm({ onQuoteCreated }: FreightQuoteFormProps) {
         setQuoteContent(response.data);
         const newQuote: Quote = {
             id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
-            customer: form.getValues('customerName'),
+            customer: customer.name,
             destination: form.getValues('destination'),
             status: 'Enviada',
             date: new Date().toLocaleDateString('pt-BR'),
@@ -227,25 +239,82 @@ export function FreightQuoteForm({ onQuoteCreated }: FreightQuoteFormProps) {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="customerName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome do Cliente</FormLabel>
-                        <FormControl><Input placeholder="Ex: Nexus Imports" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="grid md:grid-cols-3 gap-4 items-start">
+                   <FormField
+                      control={form.control}
+                      name="customerId"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Nome do Cliente</FormLabel>
+                           <div className="flex gap-2">
+                                <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className={cn(
+                                        "w-full justify-between font-normal",
+                                        !field.value && "text-muted-foreground"
+                                        )}
+                                    >
+                                        {field.value
+                                        ? partners.find(
+                                            (partner) => partner.id.toString() === field.value
+                                            )?.name
+                                        : "Selecione um cliente"}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command>
+                                    <CommandInput placeholder="Buscar cliente..." />
+                                    <CommandList>
+                                        <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                                        <CommandGroup>
+                                        {partners.map((partner) => (
+                                            <CommandItem
+                                                value={partner.name}
+                                                key={partner.id}
+                                                onSelect={() => {
+                                                    form.setValue("customerId", partner.id.toString());
+                                                    form.setValue("customerEmail", partner.email);
+                                                    form.setValue("customerPhone", partner.phone);
+                                                    setIsCustomerPopoverOpen(false);
+                                                }}
+                                                >
+                                            <Check
+                                                className={cn(
+                                                "mr-2 h-4 w-4",
+                                                partner.id.toString() === field.value
+                                                    ? "opacity-100"
+                                                    : "opacity-0"
+                                                )}
+                                            />
+                                            {partner.name}
+                                            </CommandItem>
+                                        ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                                </Popover>
+                                <Button type="button" variant="outline" size="icon" onClick={onRegisterCustomer} title="Cadastrar novo cliente">
+                                    <UserPlus className="h-4 w-4" />
+                                </Button>
+                           </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   <FormField
                     control={form.control}
                     name="customerEmail"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>E-mail do Cliente</FormLabel>
-                        <FormControl><Input type="email" placeholder="contato@nexus.com" {...field} /></FormControl>
+                        <FormControl><Input type="email" placeholder="E-mail será preenchido automaticamente" {...field} readOnly /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -255,8 +324,8 @@ export function FreightQuoteForm({ onQuoteCreated }: FreightQuoteFormProps) {
                     name="customerPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>WhatsApp do Cliente (com DDI)</FormLabel>
-                        <FormControl><Input placeholder="5511987654321" {...field} /></FormControl>
+                        <FormLabel>WhatsApp do Cliente</FormLabel>
+                        <FormControl><Input placeholder="Telefone será preenchido automaticamente" {...field} readOnly /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -498,7 +567,7 @@ export function FreightQuoteForm({ onQuoteCreated }: FreightQuoteFormProps) {
         <Dialog open={!!selectedRate} onOpenChange={(open) => !open && setSelectedRate(null)}>
           <DialogContent className="sm:max-w-[625px]">
             <DialogHeader>
-              <DialogTitle>Elaborar Cotação para: {form.getValues('customerName')}</DialogTitle>
+              <DialogTitle>Elaborar Cotação para: {partners.find(p=>p.id.toString() === form.getValues('customerId'))?.name}</DialogTitle>
               <DialogDescription>
                 Adicione sua margem e finalize a cotação para o cliente.
               </DialogDescription>

@@ -39,23 +39,17 @@ const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
   input: { schema: ExtractRatesFromTextInputSchema },
   output: { schema: ExtractRatesFromTextOutputSchema },
-  prompt: `You are an expert logistics AI. Your task is to meticulously extract freight rates from the provided text and structure them into a JSON array based on the defined schema.
+  prompt: `You are an expert logistics AI. Your primary task is to extract freight rates from the provided text and structure them into a JSON array, strictly following the defined schema.
 
-**CRITICAL RULES:**
-1.  **MANDATORY FIELDS**: You MUST NOT generate a rate object unless you can find a specific **origin**, **destination**, and **rate value** in the text. If any of these three are missing, you must ignore that line/rate completely. An object must always have a non-empty value for 'origin', 'destination', and 'rate'.
-2.  **SINGLE RATE PER OBJECT**: Each object in the output array must correspond to a SINGLE rate for a SINGLE container type.
-3.  **MULTIPLE DESTINATIONS**: If a rate applies to multiple destinations (e.g., "SHA to SAN/RIO"), create a separate JSON object for each destination.
-4.  **SLASH-SEPARATED RATES**: If you encounter a rate with three values separated by slashes (e.g., \`USD 6013/6226/6226\`), you MUST interpret this as rates for three different container types in the order: **20'GP**, **40'GP**, and **40'HC**. Create a separate JSON object for each of these rates.
-5.  **EXPLICIT CONTAINER RATES**: If a rate has multiple prices for different containers explicitly named (e.g., "20GP/40HC: 2500/4800"), create a separate object for each container.
-6.  **BRAZILIAN PORTS**: If the text mentions "brazil base ports" or "brazilian ports", you MUST generate separate rate entries for each of the main Brazilian ports: Santos, Paranaguá, Itapoá, and Rio Grande.
+**Core Instructions:**
+1.  **Mandatory Fields**: Generate a rate object **only if** you can find a specific **origin**, **destination**, and **rate value**. If any of these three are missing for a potential rate, ignore it completely.
+2.  **String Values**: Ensure **all** values in the output JSON are **strings**. For example, a rate of 2500 must be represented as \`"rate": "2500"\`, not \`"rate": 2500\`.
+3.  **One Rate Per Object**: Each JSON object must represent a single rate for a single container type.
+4.  **Slash-Separated Rates**: If a rate appears like \`USD 6013/6226/6226\`, you MUST create three separate JSON objects for **20'GP**, **40'GP**, and **40'HC** containers respectively.
+5.  **Modal Type**: The \`modal\` field must be either 'Aéreo' or 'Marítimo'. Infer this from the context (e.g., port names mean 'Marítimo'). If ambiguous, default to 'Marítimo'.
+6.  **"N/A" for Missing Info**: For any non-mandatory field where information is not present (like \`carrier\`, \`transitTime\`, \`validity\`, \`freeTime\`, or \`container\` for air freight), use the string "N/A".
 
-**FIELD-SPECIFIC INSTRUCTIONS:**
-- \`modal\`: You must determine if the modal is 'Aéreo' or 'Marítimo'. Infer from context: port names imply 'Marítimo', airport codes imply 'Aéreo'. If it's truly ambiguous, default to 'Marítimo'. This field cannot be "N/A".
-- \`carrier\`: If the carrier name is not specified, use the string "N/A".
-- \`container\`: For 'Marítimo', specify the container type (e.g., "20'GP"). For 'Aéreo', use "N/A". If not specified for a valid maritime rate, use "N/A".
-- \`transitTime\`, \`validity\`, \`freeTime\`: If not specified, use the string "N/A".
-
-**Final Check:** Before outputting the JSON, review every object to ensure it strictly follows the schema. Every field must be a string, and 'origin', 'destination', and 'rate' must not be empty or "N/A". If an object is invalid, discard it. Produce an empty array if no valid rates are found.
+Produce an empty array \`[]\` if no valid rates can be extracted from the text.
 
 Text to analyze:
 {{{textInput}}}

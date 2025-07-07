@@ -20,10 +20,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
-import { runGetFreightRates, runRequestAgentQuote } from '@/app/actions';
+import { runGetFreightRates, runRequestAgentQuote, runSendQuote } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
@@ -32,7 +32,9 @@ import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import type { Rate as LocalRate } from './rates-table';
 import type { Fee } from './fees-registry';
-
+import { QuoteCostSheet } from './quote-cost-sheet';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 type FreightRate = {
     id: string;
@@ -59,8 +61,10 @@ interface FreightQuoteFormProps {
 export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees, initialData, onQuoteUpdate, onStartManualQuote }: FreightQuoteFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isRequestingAgentQuote, setIsRequestingAgentQuote] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [results, setResults] = useState<FreightRate[]>([]);
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
+  const [activeQuote, setActiveQuote] = useState<Quote | null>(null);
   const { toast } = useToast();
 
   const form = useForm<FreightQuoteFormData>({
@@ -114,6 +118,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
   async function onSubmit(values: FreightQuoteFormData) {
     setIsLoading(true);
+    setActiveQuote(null);
     setResults([]);
     
     const localResults: FreightRate[] = rates
@@ -187,40 +192,77 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     setIsLoading(false);
   }
 
- const calculateCharges = (rate: FreightRate) => {
+ const calculateCharges = (rate: FreightRate | null) => {
     const values = form.getValues();
-    const direction = values.origin.toUpperCase().includes('BR') ? 'Exportação' : 'Importação';
+    let direction: 'Importação' | 'Exportação' | 'Ambos' = 'Ambos';
+    const originIsBR = values.origin.toUpperCase().includes('BR');
+    const destinationIsBR = values.destination.toUpperCase().includes('BR');
+
+    if (originIsBR && !destinationIsBR) {
+      direction = 'Exportação';
+    } else if (!originIsBR && destinationIsBR) {
+      direction = 'Importação';
+    }
+    
     const chargeType = values.modal === 'ocean' ? values.oceanShipmentType : 'Aéreo';
 
     const charges: QuoteCharge[] = [];
 
-    charges.push({
-      id: `freight-${rate.id}`,
-      name: 'Frete Internacional',
-      type: 'Por Lote',
-      cost: rate.costValue,
-      costCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
-      sale: rate.costValue,
-      saleCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
-      supplier: rate.carrier,
-    });
+    if (rate) {
+        charges.push({
+          id: `freight-${rate.id}`,
+          name: 'Frete Internacional',
+          type: 'Por Lote',
+          cost: rate.costValue,
+          costCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
+          sale: rate.costValue,
+          saleCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
+          supplier: rate.carrier,
+        });
+    }
     
     const relevantFees = fees.filter(fee => {
-      if (fee.type === 'Opcional') return false;
       const modalMatch = fee.modal === 'Ambos' || fee.modal === (values.modal === 'ocean' ? 'Marítimo' : 'Aéreo');
       const directionMatch = fee.direction === 'Ambos' || fee.direction === direction;
       const chargeTypeMatch = !fee.chargeType || fee.chargeType === chargeType;
-      return modalMatch && directionMatch && chargeTypeMatch;
+      
+      const isOptionalSelected = 
+        (fee.name.toLowerCase().includes('despacho') && values.optionalServices.customsClearance) ||
+        (fee.name.toLowerCase().includes('seguro') && values.optionalServices.insurance) ||
+        (fee.name.toLowerCase().includes('trading') && values.optionalServices.trading);
+
+      return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected)
     });
 
     relevantFees.forEach(fee => {
+      let feeValue = parseFloat(fee.value) || 0;
+      let feeType = fee.unit;
+
+      if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
+          const { cbm, weight } = values.lclDetails;
+          const chargeableWeight = Math.max(cbm, weight / 1000);
+          feeValue = (parseFloat(fee.value) || 0) * chargeableWeight;
+          if (fee.minValue && feeValue < fee.minValue) {
+            feeValue = fee.minValue;
+          }
+          feeType = `${chargeableWeight.toFixed(2)} W/M`;
+      } else if (values.modal === 'ocean' && values.oceanShipmentType === 'FCL' && fee.unit.toLowerCase().includes('contêiner')) {
+          const totalContainers = values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0);
+          feeValue = (parseFloat(fee.value) || 0) * totalContainers;
+          feeType = `${totalContainers} x ${fee.unit}`;
+      } else if (values.optionalServices.insurance && fee.name.toLowerCase().includes('seguro')) {
+          feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
+          feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
+      }
+
+
       charges.push({
         id: `fee-${fee.id}`,
         name: fee.name,
-        type: fee.unit,
-        cost: parseFloat(fee.value) || 0,
+        type: feeType,
+        cost: feeValue,
         costCurrency: fee.currency,
-        sale: parseFloat(fee.value) || 0,
+        sale: feeValue,
         saleCurrency: fee.currency,
         supplier: 'CargaInteligente',
       });
@@ -240,8 +282,44 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         return;
     }
     const initialCharges = calculateCharges(rate);
-    onStartManualQuote(form.getValues(), initialCharges);
+    const customer = partners.find(p => p.id.toString() === customerId);
+
+    const newQuote: Quote = {
+        id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
+        customer: customer?.name || 'N/A',
+        destination: form.getValues('destination'),
+        status: 'Rascunho',
+        date: new Date().toLocaleDateString('pt-BR'),
+        charges: initialCharges
+    };
+    setActiveQuote(newQuote);
+    onQuoteCreated(newQuote);
   };
+  
+  const handleStartManualQuote = () => {
+      const isValid = form.trigger(['customerId', 'origin', 'destination']);
+      if (!isValid) {
+          toast({
+            variant: "destructive",
+            title: "Formulário incompleto",
+            description: "Por favor, selecione um cliente e preencha origem/destino antes de iniciar uma cotação manual.",
+        });
+        return;
+      }
+      const initialCharges = calculateCharges(null);
+      const customer = partners.find(p => p.id.toString() === form.getValues('customerId'));
+      
+      const newQuote: Quote = {
+        id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
+        customer: customer?.name || 'N/A',
+        destination: form.getValues('destination'),
+        status: 'Rascunho',
+        date: new Date().toLocaleDateString('pt-BR'),
+        charges: initialCharges
+    };
+    setActiveQuote(newQuote);
+    onQuoteCreated(newQuote);
+  }
 
   const handleRequestAgentQuote = async () => {
     const isValid = await form.trigger();
@@ -272,24 +350,115 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     }
     setIsRequestingAgentQuote(false);
   };
-  
-  const handleInternalStartManualQuote = () => {
-      const isValid = form.trigger();
-      if (!isValid) {
-          toast({
-            variant: "destructive",
-            title: "Formulário incompleto",
-            description: "Por favor, selecione um cliente e preencha origem/destino antes de iniciar uma cotação manual.",
-        });
-        return;
-      }
-      onStartManualQuote(form.getValues(), []);
+
+  const handleUpdateQuote = (updatedQuote: Quote) => {
+    setActiveQuote(updatedQuote);
+    onQuoteUpdate(updatedQuote);
   }
 
+  const handleSendQuote = async (channel: 'email' | 'whatsapp') => {
+      if (!activeQuote) return;
+
+      setIsSending(true);
+      const customer = partners.find(p => p.name === activeQuote.customer);
+      if (!customer) {
+          toast({ variant: 'destructive', title: 'Cliente não encontrado!' });
+          setIsSending(false);
+          return;
+      }
+
+      const totalValue = activeQuote.charges.reduce((acc, charge) => {
+          // Simplistic sum, assumes currencies are aligned or converted elsewhere.
+          // For a real app, you'd handle multi-currency totals properly.
+          return acc + charge.sale;
+      }, 0);
+
+      const response = await runSendQuote({
+        customerName: activeQuote.customer,
+        rateDetails: {
+            origin: form.getValues('origin'),
+            destination: form.getValues('destination'),
+            carrier: activeQuote.charges.find(c => c.name === 'Frete Internacional')?.supplier || 'N/A',
+            transitTime: rates.find(r => r.carrier === activeQuote.charges.find(c => c.name === 'Frete Internacional')?.supplier)?.transitTime || 'N/A',
+            finalPrice: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue) // Example
+        },
+        approvalLink: `https://cargainteligente.com/approve/${activeQuote.id}`,
+        rejectionLink: `https://cargainteligente.com/reject/${activeQuote.id}`,
+      });
+
+      if (response.success) {
+        if (channel === 'email') {
+            const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
+            const recipient = primaryContact.email;
+            console.log("SIMULATING EMAIL TO:", recipient);
+            console.log("SUBJECT:", response.data.emailSubject);
+            console.log("BODY:", response.data.emailBody);
+            window.open(`mailto:${recipient}?subject=${encodeURIComponent(response.data.emailSubject)}&body=${encodeURIComponent(response.data.emailBody)}`);
+            toast({ title: 'E-mail de cotação gerado!', description: `Pronto para enviar para ${recipient}.` });
+        } else { // WhatsApp
+            const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
+            const phone = primaryContact.phone.replace(/\D/g, '');
+            const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(response.data.whatsappMessage)}`;
+            window.open(whatsappUrl, '_blank');
+            toast({ title: 'Mensagem de WhatsApp gerada!', description: 'Pronto para enviar.' });
+        }
+      } else {
+        toast({ variant: 'destructive', title: 'Erro ao gerar comunicação', description: response.error });
+      }
+
+      setIsSending(false);
+  }
+
+  const handleGeneratePdf = () => {
+    const quoteElement = document.getElementById(`quote-sheet-${activeQuote?.id}`);
+    if (quoteElement) {
+        html2canvas(quoteElement, { scale: 2 }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`cotacao-${activeQuote?.id}.pdf`);
+        });
+    }
+  };
 
   const modal = form.watch('modal');
   const incoterm = form.watch('incoterm');
   const optionalServices = form.watch('optionalServices');
+  
+  if (activeQuote) {
+    return (
+        <Card className="animate-in fade-in-50 duration-500">
+             <CardHeader>
+                <CardTitle>Editor de Cotação - {activeQuote.id}</CardTitle>
+                <CardDescription>
+                    Ajuste os custos e valores de venda. Quando estiver pronto, envie para o cliente ou salve em PDF.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div id={`quote-sheet-${activeQuote.id}`}>
+                    <QuoteCostSheet quote={activeQuote} onUpdate={handleUpdateQuote} />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 mt-6 justify-end">
+                    <Button variant="outline" onClick={() => setActiveQuote(null)}>
+                        <Edit className="mr-2 h-4 w-4" /> Voltar ao Formulário
+                    </Button>
+                     <Button variant="secondary" onClick={handleGeneratePdf}>
+                        <FileDown className="mr-2 h-4 w-4" /> Gerar PDF
+                    </Button>
+                    <Button onClick={() => handleSendQuote('whatsapp')} disabled={isSending}>
+                        <MessageCircle className="mr-2 h-4 w-4" /> Enviar por WhatsApp
+                    </Button>
+                    <Button onClick={() => handleSendQuote('email')} disabled={isSending}>
+                        {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                        Enviar ao Cliente
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -386,10 +555,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                 
                 <div className="grid md:grid-cols-3 gap-4 mt-6">
                     <FormField control={form.control} name="origin" render={({ field }) => (
-                        <FormItem><FormLabel>Origem (Cidade, País)</FormLabel><FormControl><Input placeholder="Ex: Santos, BR" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Origem (Porto/Aeroporto, País)</FormLabel><FormControl><Input placeholder="Ex: Santos, BR" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="destination" render={({ field }) => (
-                        <FormItem><FormLabel>Destino (Cidade, País)</FormLabel><FormControl><Input placeholder="Ex: Rotterdam, NL" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Destino (Porto/Aeroporto, País)</FormLabel><FormControl><Input placeholder="Ex: Rotterdam, NL" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField
                       control={form.control}
@@ -598,7 +767,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando...</> : <><Search className="mr-2 h-4 w-4" /> Buscar Tarifas</>}
                     </Button>
                     <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={handleInternalStartManualQuote} className="flex-1 py-6">
+                        <Button type="button" variant="secondary" onClick={handleStartManualQuote} className="flex-1 py-6">
                             <FileText className="mr-2 h-4 w-4" /> Cotação Manual
                         </Button>
                         <Button type="button" variant="secondary" onClick={handleRequestAgentQuote} disabled={isRequestingAgentQuote} className="flex-1 py-6">
@@ -670,3 +839,5 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     </div>
   );
 }
+
+    

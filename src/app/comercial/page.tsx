@@ -6,7 +6,8 @@ import { CrmForm } from '@/components/crm-form';
 import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { RateImporter } from '@/components/rate-importer';
 import { RatesTable } from '@/components/rates-table';
-import { CustomerQuotesList, Quote } from '@/components/customer-quotes-list';
+import { CustomerQuotesList } from '@/components/customer-quotes-list';
+import type { Quote, QuoteCharge } from '@/components/customer-quotes-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
@@ -47,11 +48,25 @@ const initialRatesData: Rate[] = [
 ];
 
 const initialQuotesData: Quote[] = [
-  { id: 'COT-00125', customer: 'Nexus Imports', destination: 'Roterdã, NL', status: 'Enviada', date: '15/07/2024', value: 'R$ 15.250,00' },
-  { id: 'COT-00124', customer: 'TechFront Solutions', destination: 'Miami, US', status: 'Aprovada', date: '14/07/2024', value: 'R$ 8.900,00' },
-  { id: 'COT-00123', customer: 'Global Foods Ltda', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', value: 'R$ 22.100,00' },
-  { id: 'COT-00122', customer: 'Nexus Imports', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', value: 'R$ 18.400,00' },
-  { id: 'COT-00121', customer: 'AutoParts Express', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', value: 'R$ 5.600,00' },
+  { 
+    id: 'COT-00125', customer: 'Nexus Imports', destination: 'Roterdã, NL', status: 'Enviada', date: '15/07/2024', 
+    charges: [
+        { id: 'charge-1', name: 'Frete Marítimo', type: 'Por Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line' },
+        { id: 'charge-2', name: 'THC', type: 'Por Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã' },
+        { id: 'charge-3', name: 'BL Fee', type: 'Por BL', cost: 500, costCurrency: 'BRL', sale: 600, saleCurrency: 'BRL', supplier: 'CargaInteligente' },
+        { id: 'charge-4', name: 'Despacho Aduaneiro', type: 'Por Processo', cost: 800, costCurrency: 'BRL', sale: 1000, saleCurrency: 'BRL', supplier: 'CargaInteligente' },
+    ]
+  },
+  { 
+    id: 'COT-00124', customer: 'TechFront Solutions', destination: 'Miami, US', status: 'Aprovada', date: '14/07/2024',
+    charges: [
+        { id: 'charge-5', name: 'Frete Aéreo', type: 'Por KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo' },
+        { id: 'charge-6', name: 'Handling Fee', type: 'Por AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA' },
+    ]
+  },
+  { id: 'COT-00123', customer: 'Global Foods Ltda', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', charges: [] },
+  { id: 'COT-00122', customer: 'Nexus Imports', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', charges: [] },
+  { id: 'COT-00121', customer: 'AutoParts Express', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', charges: [] },
 ];
 
 const initialPartnersData: Partner[] = [
@@ -144,7 +159,7 @@ const initialFeesData: Fee[] = [
 
 export default function ComercialPage() {
   const [rates, setRates] = useState(initialRatesData);
-  const [quotes, setQuotes] = useState(initialQuotesData);
+  const [quotes, setQuotes] = useState<Quote[]>(initialQuotesData);
   const [partners, setPartners] = useState(initialPartnersData);
   const [fees, setFees] = useState(initialFeesData);
   const [activeTab, setActiveTab] = useState('quote');
@@ -159,7 +174,13 @@ export default function ComercialPage() {
     setRates(prevRates => [...prevRates, ...newRates]);
   };
   
-  const handleQuoteCreated = (newQuote: Quote) => {
+  const handleQuoteCreated = (newQuoteData: Omit<Quote, 'id' | 'status' | 'date'> & { charges: QuoteCharge[] }) => {
+    const newQuote: Quote = {
+        ...newQuoteData,
+        id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
+        status: 'Enviada',
+        date: new Date().toLocaleDateString('pt-BR'),
+    };
     setQuotes(prevQuotes => [newQuote, ...prevQuotes]);
   };
 
@@ -194,6 +215,11 @@ export default function ComercialPage() {
     setQuoteFormData(formData);
     setActiveTab('quote');
   }
+  
+  const handleQuoteUpdated = (updatedQuote: Quote) => {
+    setQuotes(prevQuotes => prevQuotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
+  };
+
 
   return (
     <div className="p-4 md:p-8">
@@ -223,7 +249,7 @@ export default function ComercialPage() {
           />
         </TabsContent>
         <TabsContent value="customer_quotes" className="mt-6">
-          <CustomerQuotesList quotes={quotes} />
+          <CustomerQuotesList quotes={quotes} onQuoteUpdate={handleQuoteUpdated} />
         </TabsContent>
          <TabsContent value="rates" className="mt-6">
             <div className="space-y-8">

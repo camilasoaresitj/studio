@@ -18,7 +18,7 @@ const RateDetailsSchema = z.object({
     finalPrice: z.string(),
 });
 
-export const SendQuoteInputSchema = z.object({
+const SendQuoteInputSchema = z.object({
   customerName: z.string().describe('The name of the customer receiving the quote.'),
   rateDetails: RateDetailsSchema.describe('The details of the selected freight rate.'),
   approvalLink: z.string().url().describe('The URL the customer will use to approve the quote.'),
@@ -26,7 +26,7 @@ export const SendQuoteInputSchema = z.object({
 });
 export type SendQuoteInput = z.infer<typeof SendQuoteInputSchema>;
 
-export const SendQuoteOutputSchema = z.object({
+const SendQuoteOutputSchema = z.object({
   emailSubject: z.string().describe("The subject line for the quote email."),
   emailBody: z.string().describe("The HTML content for the body of the quote email. It MUST include the approval and rejection links as styled buttons."),
   whatsappMessage: z.string().describe("A concise and friendly WhatsApp message with the quote summary and the approval link. The message should NOT be URL-encoded yet."),

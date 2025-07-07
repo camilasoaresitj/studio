@@ -7,6 +7,7 @@ import { RateImporter } from '@/components/rate-importer';
 import { RatesTable } from '@/components/rates-table';
 import { CustomerQuotesList, Quote } from '@/components/customer-quotes-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
 
 const initialRatesData = [
@@ -73,12 +74,13 @@ export default function ComercialPage() {
         </p>
       </header>
       <Tabs defaultValue="quote" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+        <TabsList className="grid w-full grid-cols-6 max-w-4xl">
           <TabsTrigger value="quote">Cotação de Frete</TabsTrigger>
           <TabsTrigger value="rates">Tabela de Tarifas</TabsTrigger>
           <TabsTrigger value="customer_quotes">Cotações</TabsTrigger>
           <TabsTrigger value="import">Importar Tarifas</TabsTrigger>
           <TabsTrigger value="crm">CRM Automático</TabsTrigger>
+          <TabsTrigger value="cadastros">Cadastros</TabsTrigger>
         </TabsList>
         <TabsContent value="quote" className="mt-6">
           <FreightQuoteForm onQuoteCreated={handleQuoteCreated} />
@@ -94,6 +96,36 @@ export default function ComercialPage() {
         </TabsContent>
         <TabsContent value="crm" className="mt-6">
           <CrmForm />
+        </TabsContent>
+        <TabsContent value="cadastros" className="mt-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Cadastros Gerais</CardTitle>
+                    <CardDescription>Gerencie seus clientes, fornecedores, agentes e taxas.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Tabs defaultValue="clientes" className="w-full">
+                        <TabsList className="grid w-full grid-cols-4 max-w-xl">
+                            <TabsTrigger value="clientes">Clientes</TabsTrigger>
+                            <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
+                            <TabsTrigger value="agentes">Agentes</TabsTrigger>
+                            <TabsTrigger value="taxas">Taxas</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="clientes" className="mt-4 p-4 border rounded-md">
+                            <p>Área para gerenciar clientes. Em desenvolvimento.</p>
+                        </TabsContent>
+                        <TabsContent value="fornecedores" className="mt-4 p-4 border rounded-md">
+                            <p>Área para gerenciar fornecedores. Em desenvolvimento.</p>
+                        </TabsContent>
+                        <TabsContent value="agentes" className="mt-4 p-4 border rounded-md">
+                            <p>Área para gerenciar agentes internacionais. Em desenvolvimento.</p>
+                        </TabsContent>
+                        <TabsContent value="taxas" className="mt-4 p-4 border rounded-md">
+                            <p>Área para gerenciar taxas. Em desenvolvimento.</p>
+                        </TabsContent>
+                    </Tabs>
+                </CardContent>
+            </Card>
         </TabsContent>
       </Tabs>
     </div>

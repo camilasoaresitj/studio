@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { runExtractRatesFromText } from '@/app/actions';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
-import { Loader2, Wand2, AlertTriangle, TableIcon, Plane, Ship, CheckCircle } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, TableIcon, Plane, Ship } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
@@ -46,29 +46,19 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
     const response = await runExtractRatesFromText(values.textInput);
     if (response.success && response.data.length > 0) {
       setResults(response.data);
+      onRatesImported(response.data);
       toast({
-        title: 'Extração concluída!',
-        description: `A IA encontrou ${response.data.length} tarifas no texto fornecido.`,
+        variant: 'default',
+        className: 'bg-success text-success-foreground',
+        title: 'Tarifas importadas!',
+        description: `${response.data.length} novas tarifas foram adicionadas à sua tabela.`,
       });
     } else {
       setResults([]);
-      const errorMessage = response.error || 'A IA não conseguiu extrair nenhuma tarifa válida do texto.';
+      const errorMessage = response.error || 'A IA não conseguiu extrair nenhuma tarifa válida do texto. Tente ajustar o texto ou cole um trecho mais claro.';
       setError(errorMessage);
     }
     setIsLoading(false);
-  }
-
-  const handleConfirmImport = () => {
-    onRatesImported(results);
-    toast({
-      variant: 'default',
-      className: 'bg-success text-success-foreground',
-      title: 'Tarifas importadas!',
-      description: `${results.length} novas tarifas foram adicionadas à sua tabela.`,
-    })
-    setResults([]);
-    setError(null);
-    form.reset();
   }
 
   return (
@@ -76,7 +66,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
       <Card>
         <CardHeader>
           <CardTitle>Importador de Tarifas com IA</CardTitle>
-          <CardDescription>Cole o conteúdo de um e-mail ou uma tabela de tarifas abaixo. A IA irá extrair e organizar os dados para você.</CardDescription>
+          <CardDescription>Cole o conteúdo de um e-mail ou uma tabela de tarifas abaixo. A IA irá extrair e salvar os dados na sua tabela automaticamente.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -107,7 +97,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                 ) : (
                   <>
                     <Wand2 className="mr-2 h-4 w-4" />
-                    Extrair Tarifas do Texto
+                    Extrair e Salvar Tarifas
                   </>
                 )}
               </Button>
@@ -126,8 +116,8 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
       {!isLoading && results.length > 0 && (
           <Card className="animate-in fade-in-50 duration-500">
             <CardHeader>
-                <CardTitle>Tarifas Extraídas para Confirmação</CardTitle>
-                <CardDescription>Confira as tarifas que a IA extraiu. Clique em "Confirmar e Adicionar" para salvá-las na sua Tabela de Tarifas.</CardDescription>
+                <CardTitle>Última Importação Realizada</CardTitle>
+                <CardDescription>As {results.length} tarifas abaixo foram adicionadas com sucesso à sua Tabela de Tarifas.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="border rounded-lg">
@@ -162,12 +152,6 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                         ))}
                         </TableBody>
                     </Table>
-                </div>
-                 <div className="flex justify-end mt-4">
-                    <Button onClick={handleConfirmImport}>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Confirmar e Adicionar à Tabela
-                    </Button>
                 </div>
             </CardContent>
           </Card>

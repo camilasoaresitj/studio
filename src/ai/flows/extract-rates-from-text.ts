@@ -39,25 +39,83 @@ const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
   input: { schema: ExtractRatesFromTextInputSchema },
   output: { schema: ExtractRatesFromTextOutputSchema },
-  prompt: `You are an expert logistics data entry assistant. Your task is to analyze the provided text, which could be from an email, a spreadsheet, or a document, and extract freight rate information into a structured JSON format.
+  prompt: `You are an AI logistics assistant specialized in parsing and structuring freight rate data from unstructured text like emails and copied tables. Your task is to extract the information and return it as a structured array of JSON objects.
 
-The text contains one or more freight rates. Identify the following details for each rate:
-- Origin
-- Destination
-- Carrier
-- Modal (determine if it's 'Aéreo' or 'Marítimo' based on context like port/airport codes, carrier names, or units like TEU/kg)
-- Rate (the cost, including currency but not the container type. e.g., "2500", "4.50 / kg")
-- Transit Time
-- Container (The container type if specified, like "20'GP" or "40'HC". If it's air freight or not specified, use "N/A".)
-- Validity (The expiration date of the rate, e.g., "31/12/2024".)
-- Free Time (The free time for container usage at the destination, e.g., "14 dias", "7 days". If not specified, use "N/A".)
+**Extraction Rules:**
 
-Important rules:
-- If the origin or destination is a general region like "brazil base ports", you MUST create a separate rate entry for each of the main Brazilian ports: Santos, Paranaguá, Itapoá, and Rio Grande, applying the same rate to all of them.
+1.  **Identify Individual Rates:** Parse the text to find all distinct freight rates. A single line might contain multiple rates (e.g., for different containers or destinations). You must create a separate JSON object for each combination.
+2.  **Extract Key Fields:** For each rate, extract the following information:
+    *   \`origin\`: The origin location (port or airport).
+    *   \`destination\`: The destination location (port or airport).
+    *   \`carrier\`: The shipping line or airline.
+    *   \`modal\`: Must be either 'Aéreo' or 'Marítimo'. Determine from context.
+    *   \`rate\`: The cost, including currency. **Do not include container type here.**
+    *   \`transitTime\`: Estimated transit time. If not found, use "N/A".
+    *   \`container\`: The specific container type (e.g., "20'GP", "40'HC"). For air freight, use "N/A".
+    *   \`validity\`: The rate's expiration date.
+    *   \`freeTime\`: The free time at destination. If not found, use "N/A".
+3.  **Handle "Base Ports":** If the text mentions a general region like "brazil base ports", you MUST generate a separate rate entry for each of the main Brazilian ports: **Santos**, **Paranaguá**, **Itapoá**, and **Rio Grande**. Apply the same rate and details to all of them.
+4.  **Output Format:** The final output must be a valid JSON array. Each element in the array must be an object conforming to the specified schema. If no rates can be extracted, return an empty array \`[]\`.
 
-Carefully parse the following text and return an array of JSON objects, with each object representing a single freight rate. If a piece of information is not available for a specific rate, return "N/A".
+**Example:**
 
-Text to analyze:
+**Input Text:** \`PIL rate: From SHA to SAN/RIO, 20GP/40HC: 2500/4800 USD. Valid thru 31/Jul. 14 days free time.\`
+
+**Example JSON Output:**
+\`\`\`json
+[
+  {
+    "origin": "SHA",
+    "destination": "SAN",
+    "carrier": "PIL",
+    "modal": "Marítimo",
+    "rate": "2500 USD",
+    "transitTime": "N/A",
+    "container": "20'GP",
+    "validity": "31/Jul",
+    "freeTime": "14 days"
+  },
+  {
+    "origin": "SHA",
+    "destination": "SAN",
+    "carrier": "PIL",
+    "modal": "Marítimo",
+    "rate": "4800 USD",
+    "transitTime": "N/A",
+    "container": "40'HC",
+    "validity": "31/Jul",
+    "freeTime": "14 days"
+  },
+  {
+    "origin": "SHA",
+    "destination": "RIO",
+    "carrier": "PIL",
+    "modal": "Marítimo",
+    "rate": "2500 USD",
+    "transitTime": "N/A",
+    "container": "20'GP",
+    "validity": "31/Jul",
+    "freeTime": "14 days"
+  },
+  {
+    "origin": "SHA",
+    "destination": "RIO",
+    "carrier": "PIL",
+    "modal": "Marítimo",
+    "rate": "4800 USD",
+    "transitTime": "N/A",
+    "container": "40'HC",
+    "validity": "31/Jul",
+    "freeTime": "14 days"
+  }
+]
+\`\`\`
+
+---
+
+Now, carefully analyze the following text and extract the rates. Return ONLY the JSON array.
+
+**Text to analyze:**
 {{{textInput}}}
 `,
 });

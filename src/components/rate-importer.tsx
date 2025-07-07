@@ -89,7 +89,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                     <FormLabel>Conteúdo da Tabela de Tarifas</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Ex: Carrier: Maersk | Origin: Santos | Destination: Rotterdam | 20'GP: $2500 | Validity: 31/12/2024"
+                        placeholder="OOCL rate update, valid until Dec/31. From Qingdao/Shenzhen to Brazil base ports: USD6300/40'HQ. 25days free time at destination."
                         className="min-h-[250px] font-mono text-xs"
                         {...field}
                       />

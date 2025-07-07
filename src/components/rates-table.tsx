@@ -15,8 +15,9 @@ const ratesData = [
     destination: 'Porto de Roterdã, NL',
     carrier: 'Maersk Line',
     modal: 'Marítimo',
-    rate: 'USD 2,500 / TEU',
+    rate: 'USD 2,500 / 20\'GP',
     transitTime: '25-30 dias',
+    validity: '31/12/2024',
   },
   {
     origin: 'Aeroporto de Guarulhos, BR',
@@ -25,14 +26,16 @@ const ratesData = [
     modal: 'Aéreo',
     rate: 'USD 4.50 / kg',
     transitTime: '1-2 dias',
+    validity: '30/11/2024',
   },
   {
     origin: 'Porto de Paranaguá, BR',
     destination: 'Porto de Xangai, CN',
     carrier: 'CMA CGM',
     modal: 'Marítimo',
-    rate: 'USD 2,200 / TEU',
+    rate: 'USD 3,800 / 40\'HC',
     transitTime: '35-40 dias',
+    validity: '31/12/2024',
   },
   {
     origin: 'Aeroporto de Viracopos, BR',
@@ -41,14 +44,16 @@ const ratesData = [
     modal: 'Aéreo',
     rate: 'USD 3.80 / kg',
     transitTime: '1-2 dias',
+    validity: '15/12/2024',
   },
   {
     origin: 'Porto de Itajaí, BR',
     destination: 'Porto de Hamburgo, DE',
     carrier: 'Hapag-Lloyd',
     modal: 'Marítimo',
-    rate: 'USD 2,650 / TEU',
+    rate: 'USD 2,650 / 20\'GP',
     transitTime: '28-32 dias',
+    validity: '30/11/2024',
   },
   {
     origin: 'Aeroporto do Galeão, BR',
@@ -57,6 +62,7 @@ const ratesData = [
     modal: 'Aéreo',
     rate: 'USD 4.20 / kg',
     transitTime: '2-3 dias',
+    validity: '31/12/2024',
   },
 ];
 
@@ -72,6 +78,7 @@ export function RatesTable() {
             <TableHead>Transportadora</TableHead>
             <TableHead>Tarifa</TableHead>
             <TableHead>Tempo de Trânsito</TableHead>
+            <TableHead>Validade</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -88,6 +95,7 @@ export function RatesTable() {
               <TableCell className="font-medium">{rate.carrier}</TableCell>
               <TableCell className="font-semibold text-primary">{rate.rate}</TableCell>
               <TableCell>{rate.transitTime}</TableCell>
+              <TableCell>{rate.validity}</TableCell>
             </TableRow>
           ))}
         </TableBody>

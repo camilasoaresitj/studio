@@ -1,6 +1,7 @@
 import { CrmForm } from '@/components/crm-form';
 import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { RateImporter } from '@/components/rate-importer';
+import { RatesTable } from '@/components/rates-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function ComercialPage() {
@@ -13,13 +14,17 @@ export default function ComercialPage() {
         </p>
       </header>
       <Tabs defaultValue="quote" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
           <TabsTrigger value="quote">Cotação de Frete</TabsTrigger>
+          <TabsTrigger value="rates">Tabela de Tarifas</TabsTrigger>
           <TabsTrigger value="import">Importar Tarifas</TabsTrigger>
           <TabsTrigger value="crm">CRM Automático</TabsTrigger>
         </TabsList>
         <TabsContent value="quote" className="mt-6">
           <FreightQuoteForm />
+        </TabsContent>
+         <TabsContent value="rates" className="mt-6">
+          <RatesTable />
         </TabsContent>
         <TabsContent value="import" className="mt-6">
           <RateImporter />

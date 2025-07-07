@@ -75,7 +75,35 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const textData = XLSX.utils.sheet_to_csv(worksheet, { FS: '\t' });
+        
+        const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" });
+
+        if (jsonData.length === 0) {
+          form.setValue('textInput', '');
+          toast({
+            variant: 'destructive',
+            title: 'Arquivo Vazio',
+            description: 'A planilha selecionada está vazia ou não pôde ser lida.',
+          });
+          return;
+        }
+
+        const colWidths: number[] = [];
+        jsonData.forEach(row => {
+          row.forEach((cell, i) => {
+            const cellStr = String(cell ?? '').trim();
+            if (!colWidths[i] || cellStr.length > colWidths[i]) {
+              colWidths[i] = cellStr.length;
+            }
+          });
+        });
+
+        const textData = jsonData.map(row => 
+          row.map((cell, i) => {
+            const cellStr = String(cell ?? '').trim();
+            return cellStr.padEnd((colWidths[i] || 0) + 2, ' ');
+          }).join('')
+        ).join('\n');
         
         form.setValue('textInput', textData);
         toast({

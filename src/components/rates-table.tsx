@@ -108,7 +108,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
         return false;
       }
       return true;
-    });
+    })
   }, [filters, showExpired, today, ratesData]);
   
   const maritimeRates = useMemo(() => {
@@ -176,7 +176,7 @@ export function RatesTable({ rates: ratesData }: RatesTableProps) {
                                     <TableCell className="truncate" title={item.destination}>{item.destination}</TableCell>
                                     {maritimeContainerTypes.map(type => (
                                     <TableCell key={type} className="font-semibold text-primary text-center">
-                                        {item.rates[type] ? `$${new Intl.NumberFormat('en-US').format(item.rates[type])}` : '-'}
+                                        {item.rates[type] ? `$${new Intl.NumberFormat('en-US').format(Number(item.rates[type]))}` : '-'}
                                     </TableCell>
                                     ))}
                                     <TableCell>{item.validity}</TableCell>

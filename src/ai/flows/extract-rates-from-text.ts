@@ -50,6 +50,9 @@ The text contains one or more freight rates. Identify the following details for 
 - Container (The container type if specified, like "20'GP" or "40'HC". If it's air freight or not specified, use "N/A".)
 - Validity (The expiration date of the rate, e.g., "31/12/2024".)
 
+Important rules:
+- If the origin or destination is a general region like "brazil base ports", you MUST create a separate rate entry for each of the main Brazilian ports: Santos, Paranaguá, Itapoá, and Rio Grande, applying the same rate to all of them.
+
 Carefully parse the following text and return an array of JSON objects, with each object representing a single freight rate. If a piece of information is not available for a specific rate, return "N/A".
 
 Text to analyze:

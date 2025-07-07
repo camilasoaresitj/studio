@@ -38,6 +38,7 @@ export async function extractRatesFromText(input: ExtractRatesFromTextInput): Pr
 const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
   input: { schema: ExtractRatesFromTextInputSchema },
+  output: { schema: ExtractRatesFromTextOutputSchema },
   prompt: `You are an AI logistics assistant specialized in parsing and structuring freight rate data from unstructured text like emails and copied tables. Your task is to extract the information and return it as a structured array of JSON objects.
 
 **Extraction Rules:**
@@ -54,14 +55,13 @@ const extractRatesFromTextPrompt = ai.definePrompt({
     *   \`validity\`: The rate's expiration date.
     *   \`freeTime\`: The free time at destination. If not found, use "N/A".
 3.  **Handle "Base Ports":** If the text mentions a general region like "brazil base ports", you MUST generate a separate rate entry for each of the main Brazilian ports: **Santos**, **Paranaguá**, **Itapoá**, and **Rio Grande**. Apply the same rate and details to all of them.
-4.  **Output Format:** The final output must be a valid JSON array. Each element in the array must be an object. If no rates can be extracted, return an empty array \`[]\`. Wrap your response in a JSON markdown block.
+4.  **Output Format:** If no rates can be extracted, return an empty array \`[]\`.
 
 **Example:**
 
 **Input Text:** \`PIL rate: From SHA to SAN/RIO, 20GP/40HC: 2500/4800 USD. Valid thru 31/Jul. 14 days free time.\`
 
 **Example JSON Output:**
-\`\`\`json
 [
   {
     "origin": "SHA",
@@ -108,11 +108,10 @@ const extractRatesFromTextPrompt = ai.definePrompt({
     "freeTime": "14 days"
   }
 ]
-\`\`\`
 
 ---
 
-Now, carefully analyze the following text and extract the rates. Return ONLY a JSON markdown block with the array.
+Now, carefully analyze the following text and extract the rates.
 
 **Text to analyze:**
 {{{textInput}}}
@@ -127,26 +126,10 @@ const extractRatesFromTextFlow = ai.defineFlow(
     outputSchema: ExtractRatesFromTextOutputSchema,
   },
   async (input) => {
-    const response = await extractRatesFromTextPrompt(input);
-    const rawText = response.text;
+    const { output } = await extractRatesFromTextPrompt(input);
 
-    const jsonRegex = /```json\n([\s\S]*?)\n```/;
-    const match = rawText.match(jsonRegex);
-    
-    let jsonString: string;
-
-    if (match && match[1]) {
-      jsonString = match[1];
-    } else {
-      jsonString = rawText;
-    }
-
-    try {
-      const parsed = JSON.parse(jsonString);
-      return ExtractRatesFromTextOutputSchema.parse(parsed);
-    } catch (e) {
-      console.error("Failed to parse or validate extracted JSON:", e, "Raw text was:", rawText);
-      throw new Error("A IA retornou uma resposta em um formato inválido. Não foi possível extrair os dados.");
-    }
+    // If the model can't produce a valid output, it will be null.
+    // Return an empty array for a clean user experience.
+    return output || [];
   }
 );

@@ -52,7 +52,7 @@ const feeSchema = z.object({
   unit: z.string().min(1, 'Unidade é obrigatória'),
   modal: z.enum(['Marítimo', 'Aéreo', 'Ambos']),
   direction: z.enum(['Importação', 'Exportação', 'Ambos']),
-  chargeType: z.enum(['FCL', 'LCL', 'Aéreo', '']).optional(),
+  chargeType: z.enum(['FCL', 'LCL', 'Aéreo', 'NONE']).optional(),
   minValue: z.coerce.number().optional(),
 });
 
@@ -78,7 +78,7 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
     setEditingFee(fee);
     form.reset(fee ? {
         ...fee,
-        chargeType: fee.chargeType || '',
+        chargeType: fee.chargeType || 'NONE',
         value: String(fee.value),
         minValue: fee.minValue || undefined
     } : {
@@ -99,7 +99,7 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
     onSave({
       ...data,
       id: editingFee?.id ?? 0,
-      chargeType: data.chargeType === '' ? undefined : data.chargeType as Fee['chargeType'],
+      chargeType: data.chargeType === 'NONE' ? undefined : data.chargeType as Fee['chargeType'],
     });
     setIsDialogOpen(false);
     setEditingFee(null);
@@ -273,10 +273,10 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
 
                 <FormField control={form.control} name="chargeType" render={({ field }) => (
                     <FormItem><FormLabel>Tipo de Carga (Opcional)</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <Select onValueChange={field.onChange} value={field.value || 'NONE'}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger></FormControl>
                           <SelectContent>
-                              <SelectItem value="">Nenhum</SelectItem>
+                              <SelectItem value="NONE">Nenhum</SelectItem>
                               <SelectItem value="FCL">FCL</SelectItem>
                               <SelectItem value="LCL">LCL</SelectItem>
                               <SelectItem value="Aéreo">Aéreo</SelectItem>

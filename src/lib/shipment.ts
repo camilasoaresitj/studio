@@ -2,7 +2,7 @@
 'use client';
 
 import type { Partner } from '@/components/partners-registry';
-import { addDays, parse } from 'date-fns';
+import { addDays } from 'date-fns';
 
 const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments';
 
@@ -39,8 +39,16 @@ export type ShipmentCreationData = {
 export type Milestone = {
   name: string;
   status: 'pending' | 'in_progress' | 'completed';
-  dueDate: Date; // Changed to Date object for easier manipulation
+  dueDate: Date;
   completedDate: Date | null;
+};
+
+export type ContainerDetail = {
+  id: string;
+  number: string;
+  seal: string;
+  tare: string;
+  grossWeight: string;
 };
 
 export type Shipment = {
@@ -53,6 +61,16 @@ export type Shipment = {
   charges: QuoteCharge[];
   details: QuoteDetails;
   milestones: Milestone[];
+  // New detailed operational fields
+  vesselName?: string;
+  voyageNumber?: string;
+  masterBillNumber?: string;
+  houseBillNumber?: string;
+  etd?: Date;
+  eta?: Date;
+  transshipmentPort?: string;
+  transshipmentVessel?: string;
+  containers?: ContainerDetail[];
 };
 
 // --- Milestone Templates & Due Date Calculation ---
@@ -65,7 +83,6 @@ const MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Chegada no Porto/Aeroporto': 6,
   'Embarque': 8,
   'Desembaraço de Exportação': 7,
-  // Due dates for arrival and beyond depend on transit time
   'Chegada no Porto/Aeroporto de Destino': 0, // Placeholder
   'Chegada no Destino': 0, // Placeholder
   'Desembaraço Aduaneiro': 2, // Days after arrival
@@ -80,7 +97,8 @@ function generateMilestones(isImport: boolean, transitTimeStr: string, creationD
         : ['Confirmação de Booking', 'Coleta da Carga (se aplicável)', 'Chegada no Porto/Aeroporto', 'Desembaraço de Exportação', 'Embarque', 'Chegada no Destino', 'Confirmação de Entrega'];
 
     const transitTime = parseInt(transitTimeStr.split('-').pop() || '30', 10);
-    const arrivalDate = addDays(creationDate, MILESTONE_DUE_DAYS['Embarque'] + transitTime);
+    const departureDate = addDays(creationDate, MILESTONE_DUE_DAYS['Embarque']);
+    const arrivalDate = addDays(departureDate, transitTime);
 
     return baseMilestones.map(name => {
         let dueDate: Date;
@@ -103,6 +121,11 @@ function generateMilestones(isImport: boolean, transitTimeStr: string, creationD
 
 
 // --- LocalStorage Interaction ---
+function getInitialShipments(): Shipment[] {
+    // This function provides initial data if localStorage is empty.
+    // The structure is more detailed to support the new features.
+    return []; // Start with an empty list by default. A real app would fetch from a DB.
+}
 
 /**
  * Retrieves all shipments from localStorage, parsing dates correctly.
@@ -113,11 +136,17 @@ export function getShipments(): Shipment[] {
   }
   try {
     const storedShipments = localStorage.getItem(SHIPMENTS_STORAGE_KEY);
-    if (!storedShipments) return [];
+    if (!storedShipments) {
+        const initialData = getInitialShipments();
+        saveShipments(initialData);
+        return initialData;
+    };
     
     const parsed = JSON.parse(storedShipments) as any[];
     return parsed.map(shipment => ({
         ...shipment,
+        etd: shipment.etd ? new Date(shipment.etd) : undefined,
+        eta: shipment.eta ? new Date(shipment.eta) : undefined,
         milestones: shipment.milestones.map((m: any) => ({
             ...m,
             dueDate: new Date(m.dueDate),
@@ -151,11 +180,16 @@ function saveShipments(shipments: Shipment[]): void {
  */
 export function createShipment(quote: ShipmentCreationData, overseasPartner: Partner, agent?: Partner): Shipment {
   const isImport = quote.destination.toUpperCase().includes('BR');
-  const milestones = generateMilestones(isImport, quote.details.transitTime, new Date());
+  const creationDate = new Date();
+  const milestones = generateMilestones(isImport, quote.details.transitTime, creationDate);
   
   if (milestones.length > 0) {
       milestones[0].status = 'in_progress';
   }
+
+  const transitTime = parseInt(quote.details.transitTime.split('-').pop() || '30', 10);
+  const etd = addDays(creationDate, MILESTONE_DUE_DAYS['Embarque']);
+  const eta = addDays(etd, transitTime);
   
   const newShipment: Shipment = {
     id: quote.id.replace('-DRAFT', ''),
@@ -167,6 +201,22 @@ export function createShipment(quote: ShipmentCreationData, overseasPartner: Par
     charges: quote.charges,
     details: quote.details,
     milestones,
+    // Initialize new fields
+    etd,
+    eta,
+    vesselName: '',
+    voyageNumber: '',
+    masterBillNumber: `MSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+    houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+    containers: quote.details.cargo.includes('GP') || quote.details.cargo.includes('HC') ? [{
+      id: `cont-1`,
+      number: 'ABCD1234567',
+      seal: 'S12345',
+      tare: '2200 kg',
+      grossWeight: '15000 kg',
+    }] : [],
+    transshipmentPort: '',
+    transshipmentVessel: '',
   };
 
   const shipments = getShipments();
@@ -190,7 +240,6 @@ export function updateShipment(updatedShipment: Shipment): Shipment[] {
   const shipmentIndex = shipments.findIndex(s => s.id === updatedShipment.id);
 
   if (shipmentIndex === -1) {
-    // If it doesn't exist, add it. This can happen if the component state is out of sync.
     const newShipments = [updatedShipment, ...shipments];
     saveShipments(newShipments);
     return newShipments;
@@ -200,5 +249,3 @@ export function updateShipment(updatedShipment: Shipment): Shipment[] {
   saveShipments(shipments);
   return shipments;
 }
-
-    

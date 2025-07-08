@@ -5,7 +5,7 @@ import { useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, isPast } from 'date-fns';
+import { format, isPast, isValid } from 'date-fns';
 import {
   Sheet,
   SheetContent,
@@ -56,7 +56,7 @@ interface ShipmentDetailsSheetProps {
 }
 
 const MilestoneIcon = ({ status, dueDate }: { status: Milestone['status'], dueDate: Date }) => {
-    const isOverdue = isPast(dueDate) && status !== 'completed';
+    const isOverdue = isValid(dueDate) && isPast(dueDate) && status !== 'completed';
 
     if (isOverdue) {
         return <AlertTriangle className="h-5 w-5 text-destructive" />;
@@ -194,7 +194,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <Popover>
                                         <PopoverTrigger asChild><FormControl>
                                             <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                {field.value ? format(field.value, "dd/MM/yyyy") : (<span>Select date</span>)}
+                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Select date</span>)}
                                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                             </Button>
                                         </FormControl></PopoverTrigger>
@@ -207,7 +207,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <Popover>
                                         <PopoverTrigger asChild><FormControl>
                                             <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                {field.value ? format(field.value, "dd/MM/yyyy") : (<span>Select date</span>)}
+                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Select date</span>)}
                                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                             </Button>
                                         </FormControl></PopoverTrigger>
@@ -240,8 +240,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <MilestoneIcon status={milestone.status} dueDate={milestone.dueDate} />
                                         <div className="flex-grow">
                                             <p className="font-semibold">{milestone.name}</p>
-                                            <p className={cn("text-xs", isPast(milestone.dueDate) && milestone.status !== 'completed' ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-                                                Vencimento: {format(milestone.dueDate, 'dd/MM/yyyy')}
+                                            <p className={cn("text-xs", isValid(milestone.dueDate) && isPast(milestone.dueDate) && milestone.status !== 'completed' ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                                                Vencimento: {isValid(milestone.dueDate) ? format(milestone.dueDate, 'dd/MM/yyyy') : 'Data inválida'}
                                             </p>
                                         </div>
                                         <Badge variant={

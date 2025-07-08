@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -47,6 +47,15 @@ const shipmentDetailsSchema = z.object({
   etd: z.date().optional(),
   eta: z.date().optional(),
   containers: z.array(containerDetailSchema).optional(),
+  commodityDescription: z.string().optional(),
+  ncm: z.string().optional(),
+  netWeight: z.string().optional(),
+  packageQuantity: z.string().optional(),
+  freeTimeDemurrage: z.string().optional(),
+  transshipmentPort: z.string().optional(),
+  transshipmentVessel: z.string().optional(),
+  etdTransshipment: z.date().optional(),
+  etaTransshipment: z.date().optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -100,6 +109,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
         eta: shipment.eta && isValid(new Date(shipment.eta)) ? new Date(shipment.eta) : undefined,
         containers: shipment.containers || [],
+        commodityDescription: shipment.commodityDescription || '',
+        ncm: shipment.ncm || '',
+        netWeight: shipment.netWeight || '',
+        packageQuantity: shipment.packageQuantity || shipment.details.cargo,
+        freeTimeDemurrage: shipment.freeTimeDemurrage || shipment.details.freeTime,
+        transshipmentPort: shipment.transshipmentPort || '',
+        transshipmentVessel: shipment.transshipmentVessel || '',
+        etdTransshipment: shipment.etdTransshipment && isValid(new Date(shipment.etdTransshipment)) ? new Date(shipment.etdTransshipment) : undefined,
+        etaTransshipment: shipment.etaTransshipment && isValid(new Date(shipment.etaTransshipment)) ? new Date(shipment.etaTransshipment) : undefined,
       });
     }
   }, [shipment, form]);
@@ -176,24 +194,28 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <Card>
                               <CardHeader className="pb-2"><CardTitle className="text-base">Cliente</CardTitle></CardHeader>
-                              <CardContent className="text-sm">
+                              <CardContent className="text-sm space-y-1">
                                   <p className="font-semibold">{shipment.customer}</p>
                               </CardContent>
                           </Card>
                           <Card>
-                              <CardHeader className="pb-2"><CardTitle className="text-base">{shipment.destination.includes('BR') ? 'Exportador' : 'Importador'}</CardTitle></CardHeader>
-                              <CardContent className="text-sm">
+                              <CardHeader className="pb-2"><CardTitle className="text-base">{shipment.destination.toUpperCase().includes('BR') ? 'Exportador (Shipper)' : 'Importador (Cnee)'}</CardTitle></CardHeader>
+                              <CardContent className="text-sm space-y-1">
                                   <p className="font-semibold">{overseasPartner?.name}</p>
-                                  <p className="text-muted-foreground">{overseasPartner?.address?.city}, {overseasPartner?.address?.country}</p>
+                                  <p className="text-muted-foreground">{overseasPartner?.address?.street}, {overseasPartner?.address?.number}</p>
+                                  <p className="text-muted-foreground">{overseasPartner?.address?.city}, {overseasPartner?.address?.state} - {overseasPartner?.address?.zip}</p>
+                                  {overseasPartner?.cnpj && <p className="text-muted-foreground">CNPJ: {overseasPartner.cnpj}</p>}
                               </CardContent>
                           </Card>
                           <Card>
                               <CardHeader className="pb-2"><CardTitle className="text-base">Agente</CardTitle></CardHeader>
-                              <CardContent className="text-sm">
+                              <CardContent className="text-sm space-y-1">
                                   {agent ? (
                                       <>
                                           <p className="font-semibold">{agent.name}</p>
+                                          <p className="text-muted-foreground">{agent.address.street}, {agent.address.number}</p>
                                           <p className="text-muted-foreground">{agent.address.city}, {agent.address.country}</p>
+                                          {agent.cnpj && <p className="text-muted-foreground">CNPJ: {agent.cnpj}</p>}
                                       </>
                                   ) : (
                                       <p className="text-muted-foreground">Embarque Direto</p>
@@ -205,7 +227,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                       {/* Voyage Details */}
                       <Card>
                         <CardHeader><CardTitle className="text-lg">Dados da Viagem/Voo</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <FormField control={form.control} name="vesselName" render={({ field }) => (
                                 <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="MSC LEO" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
@@ -227,6 +249,38 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             )}/>
                              <FormField control={form.control} name="eta" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild><FormControl>
+                                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl></PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                                    </Popover>
+                                <FormMessage /></FormItem>
+                            )}/>
+                             <FormField control={form.control} name="transshipmentPort" render={({ field }) => (
+                                <FormItem><FormLabel>Porto/Aeroporto de Transbordo</FormLabel><FormControl><Input placeholder="Ex: Antuérpia" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="transshipmentVessel" render={({ field }) => (
+                                <FormItem><FormLabel>Navio/Voo de Conexão</FormLabel><FormControl><Input placeholder="Ex: MAERSK HONAM / AA905" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                             <FormField control={form.control} name="etdTransshipment" render={({ field }) => (
+                                <FormItem className="flex flex-col"><FormLabel>ETD Transbordo</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild><FormControl>
+                                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl></PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                                    </Popover>
+                                <FormMessage /></FormItem>
+                            )}/>
+                              <FormField control={form.control} name="etaTransshipment" render={({ field }) => (
+                                <FormItem className="flex flex-col"><FormLabel>ETA Transbordo</FormLabel>
                                     <Popover>
                                         <PopoverTrigger asChild><FormControl>
                                             <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
@@ -290,14 +344,51 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                       {milestone.status !== 'in_progress' && <div className="w-36"/>}
                                   </div>
                               ))}
+                               {shipment.etdTransshipment && isValid(new Date(shipment.etdTransshipment)) && (
+                                  <div className="flex items-center gap-4 p-3 rounded-lg border bg-blue-50 dark:bg-blue-900/20">
+                                      <Ship className="h-5 w-5 text-blue-600" />
+                                      <div className="flex-grow"><p className="font-semibold">Previsão de Saída do Transbordo</p></div>
+                                      <p className="text-sm text-muted-foreground font-medium">{format(new Date(shipment.etdTransshipment), 'dd/MM/yyyy')}</p>
+                                  </div>
+                              )}
+                               {shipment.etaTransshipment && isValid(new Date(shipment.etaTransshipment)) && (
+                                  <div className="flex items-center gap-4 p-3 rounded-lg border bg-blue-50 dark:bg-blue-900/20">
+                                      <Anchor className="h-5 w-5 text-blue-600" />
+                                      <div className="flex-grow"><p className="font-semibold">Previsão de Chegada no Transbordo</p></div>
+                                      <p className="text-sm text-muted-foreground font-medium">{format(new Date(shipment.etaTransshipment), 'dd/MM/yyyy')}</p>
+                                  </div>
+                              )}
                           </CardContent>
                       </Card>
 
                       {/* Cargo Details */}
                       <Card>
+                        <CardHeader><CardTitle className="text-lg">Detalhes da Mercadoria</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                            <FormField control={form.control} name="commodityDescription" render={({ field }) => (
+                                <FormItem><FormLabel className="flex items-center gap-2"><CaseSensitive />Descrição da Mercadoria</FormLabel><FormControl><Input placeholder="Peças automotivas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <FormField control={form.control} name="ncm" render={({ field }) => (
+                                    <FormItem><FormLabel className="flex items-center gap-2">NCM</FormLabel><FormControl><Input placeholder="8708.99.90" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="packageQuantity" render={({ field }) => (
+                                    <FormItem><FormLabel className="flex items-center gap-2"><Package /> Quantidade de Volumes</FormLabel><FormControl><Input placeholder="10 caixas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="netWeight" render={({ field }) => (
+                                    <FormItem><FormLabel className="flex items-center gap-2"><Weight/> Peso Líquido</FormLabel><FormControl><Input placeholder="1200 KG" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                            </div>
+                            <FormField control={form.control} name="freeTimeDemurrage" render={({ field }) => (
+                                <FormItem><FormLabel className="flex items-center gap-2"><Clock /> Free Time Demurrage / Detention</FormLabel><FormControl><Input placeholder="14 dias" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card>
                         <CardHeader>
                           <div className="flex justify-between items-center">
-                            <CardTitle className="text-lg">Detalhes da Carga</CardTitle>
+                            <CardTitle className="text-lg">Contêineres</CardTitle>
                              <Button type="button" size="sm" variant="outline" onClick={() => append({ id: `new-${fields.length}`, number: '', seal: '', tare: '', grossWeight: '' })}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
                             </Button>
@@ -316,7 +407,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {fields.length > 0 ? fields.map((field, index) => (
+                                        {fields && fields.length > 0 ? fields.map((field, index) => (
                                             <TableRow key={field.id}>
                                                 <TableCell><FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                 <TableCell><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => (<Input {...field}/>)}/></TableCell>

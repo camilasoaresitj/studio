@@ -61,16 +61,24 @@ export type Shipment = {
   charges: QuoteCharge[];
   details: QuoteDetails;
   milestones: Milestone[];
-  // New detailed operational fields
+  // Existing operational fields
   vesselName?: string;
   voyageNumber?: string;
   masterBillNumber?: string;
   houseBillNumber?: string;
   etd?: Date;
   eta?: Date;
+  containers?: ContainerDetail[];
+  // New fields from user request
+  commodityDescription?: string;
+  ncm?: string;
+  netWeight?: string;
+  packageQuantity?: string;
+  freeTimeDemurrage?: string;
   transshipmentPort?: string;
   transshipmentVessel?: string;
-  containers?: ContainerDetail[];
+  etdTransshipment?: Date;
+  etaTransshipment?: Date;
 };
 
 // --- Milestone Templates & Due Date Calculation ---
@@ -147,6 +155,8 @@ export function getShipments(): Shipment[] {
         ...shipment,
         etd: shipment.etd ? new Date(shipment.etd) : undefined,
         eta: shipment.eta ? new Date(shipment.eta) : undefined,
+        etdTransshipment: shipment.etdTransshipment ? new Date(shipment.etdTransshipment) : undefined,
+        etaTransshipment: shipment.etaTransshipment ? new Date(shipment.etaTransshipment) : undefined,
         milestones: shipment.milestones?.map((m: any) => ({
             ...m,
             dueDate: new Date(m.dueDate),
@@ -201,7 +211,7 @@ export function createShipment(quote: ShipmentCreationData, overseasPartner: Par
     charges: quote.charges,
     details: quote.details,
     milestones,
-    // Initialize new fields
+    // Initialize operational fields
     etd,
     eta,
     vesselName: '',
@@ -215,8 +225,16 @@ export function createShipment(quote: ShipmentCreationData, overseasPartner: Par
       tare: 'TBC',
       grossWeight: 'TBC',
     }] : [],
+    // Initialize new fields
+    commodityDescription: '',
+    ncm: '',
+    netWeight: '',
+    packageQuantity: quote.details.cargo,
+    freeTimeDemurrage: quote.details.freeTime,
     transshipmentPort: '',
     transshipmentVessel: '',
+    etdTransshipment: undefined,
+    etaTransshipment: undefined,
   };
 
   const shipments = getShipments();

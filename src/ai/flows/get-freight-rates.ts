@@ -11,6 +11,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import * as hapag from '@/services/hapag-lloyd-service';
+import * as maersk from '@/services/maersk-service';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
 
@@ -102,6 +103,17 @@ const getFreightRatesFlow = ai.defineFlow(
             // Don't block the entire flow if Hapag fails
         }
     }
+
+    // --- Maersk API Call (Simulated) ---
+    let maerskRates: GetFreightRatesOutput = [];
+    if (input.modal === 'ocean' && input.oceanShipmentType === 'FCL') {
+        try {
+            maerskRates = await maersk.getRates(input);
+        } catch (error) {
+            console.error("Error fetching rates from Maersk service:", error);
+            // Don't block the entire flow if Maersk fails
+        }
+    }
     
     // --- CargoFive API Call ---
     const apiKey = process.env.CARGOFIVE_API_KEY;
@@ -113,7 +125,7 @@ const getFreightRatesFlow = ai.defineFlow(
     const destinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
 
     if (origins.length === 0 || destinations.length === 0) {
-        return hapagRates; // Return Hapag rates if any, even if no other origins/destinations
+        return [...hapagRates, ...maerskRates]; // Return carrier rates if any
     }
     
     // Create all combinations of origin/destination pairs
@@ -179,6 +191,6 @@ const getFreightRatesFlow = ai.defineFlow(
     const allRatesArrays = await Promise.all(ratePromises);
     const combinedRates = allRatesArrays.flat();
     
-    return [...hapagRates, ...combinedRates];
+    return [...hapagRates, ...maerskRates, ...combinedRates];
   }
 );

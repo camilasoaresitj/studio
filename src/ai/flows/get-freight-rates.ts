@@ -10,6 +10,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
+import * as hapag from '@/services/hapag-lloyd-service';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
 
@@ -91,6 +92,18 @@ const getFreightRatesFlow = ai.defineFlow(
     outputSchema: GetFreightRatesOutputSchema,
   },
   async (input) => {
+    // --- Hapag-Lloyd API Call (Simulated) ---
+    let hapagRates: GetFreightRatesOutput = [];
+    if (input.modal === 'ocean' && input.oceanShipmentType === 'FCL') {
+        try {
+            hapagRates = await hapag.getRates(input);
+        } catch (error) {
+            console.error("Error fetching rates from Hapag-Lloyd service:", error);
+            // Don't block the entire flow if Hapag fails
+        }
+    }
+    
+    // --- CargoFive API Call ---
     const apiKey = process.env.CARGOFIVE_API_KEY;
     if (!apiKey) {
       throw new Error('CargoFive API key is not configured. Please set CARGOFIVE_API_KEY in your .env file.');
@@ -100,7 +113,7 @@ const getFreightRatesFlow = ai.defineFlow(
     const destinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
 
     if (origins.length === 0 || destinations.length === 0) {
-        return [];
+        return hapagRates; // Return Hapag rates if any, even if no other origins/destinations
     }
     
     // Create all combinations of origin/destination pairs
@@ -166,8 +179,6 @@ const getFreightRatesFlow = ai.defineFlow(
     const allRatesArrays = await Promise.all(ratePromises);
     const combinedRates = allRatesArrays.flat();
     
-    return combinedRates;
+    return [...hapagRates, ...combinedRates];
   }
 );
-
-    

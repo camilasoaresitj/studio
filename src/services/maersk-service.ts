@@ -22,31 +22,26 @@ export async function getRates(input: FreightQuoteFormData): Promise<GetFreightR
 
   console.log(`Simulating API call to Maersk for ${input.origin} -> ${input.destination}`);
 
-  // This is a mocked response template.
-  const mockRateTemplates = [
-    {
-      "productId": "MAEU-PROD-001",
-      "freightPrice": 3100.00,
-      "currency": "USD",
-      "containerType": "40'HC",
-      "transitTime": "26 days"
-    },
-    {
-      "productId": "MAEU-PROD-002",
-      "freightPrice": 2250.00,
-      "currency": "USD",
-      "containerType": "20'GP",
-      "transitTime": "26 days"
-    },
-    {
-      "productId": "MAEU-PROD-004",
-      "freightPrice": 3250.00,
-      "currency": "USD",
-      "containerType": "40'GP",
-      "transitTime": "26 days"
-    }
-  ];
+  // Base prices for simulation
+  const basePrices: { [key: string]: number } = {
+    "20'GP": 2250,
+    "40'GP": 3250,
+    "40'HC": 3100,
+    "40'RF": 4800,
+    "40'NOR": 3600,
+    "20'OT": 3000,
+    "40'OT": 3950,
+    "20'FR": 3300,
+    "40'FR": 4250,
+  };
 
+  // Simulated local charges from the carrier, included in the total cost
+  const localCharges = [
+    { name: 'ISPS', amount: 15, currency: 'USD' },
+    { name: 'BL Fee', amount: 75, currency: 'USD' },
+    { name: 'Seal Fee', amount: 20, currency: 'USD' },
+  ];
+  
   // Simulate a network delay
   await new Promise(resolve => setTimeout(resolve, 600));
 
@@ -55,26 +50,35 @@ export async function getRates(input: FreightQuoteFormData): Promise<GetFreightR
 
   const allRates: GetFreightRatesOutput = [];
   
-  // Generate rates for each origin/destination pair and requested container type
   requestedOrigins.forEach(origin => {
     requestedDestinations.forEach(destination => {
-        mockRateTemplates.forEach(template => {
-            const isContainerRequested = input.oceanShipment.containers.some(c => c.type === template.containerType);
-            if (isContainerRequested) {
-                allRates.push({
-                    id: `${template.productId}-${origin}-${destination}`,
-                    carrier: 'Maersk',
-                    origin: origin,
-                    destination: destination,
-                    transitTime: `${template.transitTime.replace(' days', '')} dias`,
-                    cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: template.currency }).format(template.freightPrice),
-                    costValue: template.freightPrice,
-                    carrierLogo: 'https://placehold.co/120x40',
-                    dataAiHint: 'maersk logo',
-                    source: 'Maersk API',
-                });
-            }
+      // Iterate over each container type in the user's request
+      input.oceanShipment.containers.forEach(container => {
+        if (!container.type || container.quantity === 0) return;
+
+        const baseFreight = basePrices[container.type] || 3300; // Default price
+        
+        // Sum up local charges
+        const localChargesTotal = localCharges.reduce((sum, charge) => sum + charge.amount, 0);
+
+        // Total cost is freight + local charges
+        const totalCost = baseFreight + localChargesTotal;
+        const currency = 'USD';
+        
+        // Create ONE rate for the container type
+        allRates.push({
+            id: `MAEU-${Math.random().toString(36).substring(2, 9)}-${origin}-${destination}-${container.type}`,
+            carrier: 'Maersk',
+            origin: origin,
+            destination: destination,
+            transitTime: '26 dias',
+            cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost),
+            costValue: totalCost,
+            carrierLogo: 'https://placehold.co/120x40',
+            dataAiHint: 'maersk logo',
+            source: 'Maersk API',
         });
+      });
     });
   });
 

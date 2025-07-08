@@ -29,20 +29,24 @@ export async function getRates(input: FreightQuoteFormData): Promise<GetFreightR
 
   console.log(`Simulating API call to Hapag-Lloyd for ${input.origin} -> ${input.destination}`);
 
-  // This is a mocked response template.
-  const mockRateTemplates = [
-    {
-      "quoteId": "HL-QRT-987654",
-      "oceanFreight": { "amount": 2850.00, "currency": "USD" },
-      "containerType": "40'HC",
-      "transitTimeDays": 28,
-    },
-    {
-      "quoteId": "HL-QRT-987655",
-      "oceanFreight": { "amount": 2100.00, "currency": "USD" },
-      "containerType": "20'GP",
-      "transitTimeDays": 28,
-    }
+  // Base prices for simulation
+  const basePrices: { [key: string]: number } = {
+    "20'GP": 2100,
+    "40'GP": 2800,
+    "40'HC": 3000,
+    "40'RF": 4500,
+    "40'NOR": 3500,
+    "20'OT": 2900,
+    "40'OT": 3800,
+    "20'FR": 3100,
+    "40'FR": 4100,
+  };
+
+  // Simulated local charges from the carrier, included in the total cost
+  const localCharges = [
+    { name: 'Terminal Handling Charge (Origin)', amount: 250, currency: 'USD' },
+    { name: 'Booking Fee', amount: 50, currency: 'USD' },
+    { name: 'Documentation Fee', amount: 75, currency: 'USD' },
   ];
 
   // Simulate a network delay
@@ -53,31 +57,41 @@ export async function getRates(input: FreightQuoteFormData): Promise<GetFreightR
 
   const allRates: GetFreightRatesOutput = [];
 
-  // Generate rates for each origin/destination pair and requested container type
   requestedOrigins.forEach(origin => {
     requestedDestinations.forEach(destination => {
-      mockRateTemplates.forEach(template => {
-        const isContainerRequested = input.oceanShipment.containers.some(c => c.type === template.containerType);
-        if (isContainerRequested) {
-            allRates.push({
-                id: `${template.quoteId}-${origin}-${destination}`,
-                carrier: 'Hapag-Lloyd',
-                origin: origin,
-                destination: destination,
-                transitTime: `${template.transitTimeDays} dias`,
-                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: template.oceanFreight.currency }).format(template.oceanFreight.amount),
-                costValue: template.oceanFreight.amount,
-                carrierLogo: 'https://placehold.co/120x40',
-                dataAiHint: 'hapag lloyd logo',
-                source: 'Hapag-Lloyd API',
-            });
-        }
+      // Iterate over each container type in the user's request
+      input.oceanShipment.containers.forEach(container => {
+        if (!container.type || container.quantity === 0) return;
+
+        const baseFreight = basePrices[container.type] || 3200; // Default price for unlisted container types
+        
+        // Sum up local charges
+        const localChargesTotal = localCharges.reduce((sum, charge) => sum + charge.amount, 0);
+
+        // Total cost is freight + local charges
+        const totalCost = baseFreight + localChargesTotal;
+        const currency = 'USD';
+
+        // Create ONE rate for the container type (the quote editor handles quantity)
+        allRates.push({
+            id: `HL-QRT-${Math.random().toString(36).substring(2, 9)}-${origin}-${destination}-${container.type}`,
+            carrier: 'Hapag-Lloyd',
+            origin: origin,
+            destination: destination,
+            transitTime: `28 dias`,
+            cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost),
+            costValue: totalCost,
+            carrierLogo: 'https://placehold.co/120x40',
+            dataAiHint: 'hapag lloyd logo',
+            source: 'Hapag-Lloyd API',
+        });
       });
     });
   });
 
   return allRates;
 }
+
 
 /**
  * Submits Shipping Instructions to the Hapag-Lloyd API (simulated).

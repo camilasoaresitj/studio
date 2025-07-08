@@ -29,75 +29,54 @@ export async function getRates(input: FreightQuoteFormData): Promise<GetFreightR
 
   console.log(`Simulating API call to Hapag-Lloyd for ${input.origin} -> ${input.destination}`);
 
-  // This is a mocked response. A real API would return a much more complex object.
-  const mockApiResponse = {
-    "quotes": [
-      {
-        "quoteId": "HL-QRT-987654",
-        "oceanFreight": {
-          "amount": 2850.00,
-          "currency": "USD"
-        },
-        "portOfLoading": {
-            "UNLocationCode": "BRSSZ",
-            "name": "Santos"
-        },
-        "portOfDischarge": {
-            "UNLocationCode": "NLRTM",
-            "name": "Rotterdam"
-        },
-        "containerType": "40'HC",
-        "transitTimeDays": 28,
-        "validUntil": new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
-      },
-      {
-        "quoteId": "HL-QRT-987655",
-        "oceanFreight": {
-          "amount": 2100.00,
-          "currency": "USD"
-        },
-        "portOfLoading": {
-            "UNLocationCode": "BRSSZ",
-            "name": "Santos"
-        },
-        "portOfDischarge": {
-            "UNLocationCode": "NLRTM",
-            "name": "Rotterdam"
-        },
-        "containerType": "20'GP",
-        "transitTimeDays": 28,
-        "validUntil": new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
-      }
-    ]
-  };
+  // This is a mocked response template.
+  const mockRateTemplates = [
+    {
+      "quoteId": "HL-QRT-987654",
+      "oceanFreight": { "amount": 2850.00, "currency": "USD" },
+      "containerType": "40'HC",
+      "transitTimeDays": 28,
+    },
+    {
+      "quoteId": "HL-QRT-987655",
+      "oceanFreight": { "amount": 2100.00, "currency": "USD" },
+      "containerType": "20'GP",
+      "transitTimeDays": 28,
+    }
+  ];
 
   // Simulate a network delay
   await new Promise(resolve => setTimeout(resolve, 500));
 
-  // Filter mock response based on input for more realistic simulation
-  const requestedOrigins = input.origin.toUpperCase().split(',').map(s => s.trim());
-  const requestedDestinations = input.destination.toUpperCase().split(',').map(s => s.trim());
+  const requestedOrigins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
+  const requestedDestinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
 
-  const matchingQuotes = mockApiResponse.quotes.filter(quote => 
-    requestedOrigins.some(o => quote.portOfLoading.UNLocationCode.includes(o)) &&
-    requestedDestinations.some(d => quote.portOfDischarge.UNLocationCode.includes(d))
-  );
+  const allRates: GetFreightRatesOutput = [];
 
-  // Map the simulated API response to our app's `FreightRate` format.
-  const formattedRates = matchingQuotes.map((quote): GetFreightRatesOutput[0] => ({
-    id: quote.quoteId,
-    carrier: 'Hapag-Lloyd',
-    origin: `${quote.portOfLoading.name}, ${quote.portOfLoading.UNLocationCode.slice(0, 2)}`,
-    destination: `${quote.portOfDischarge.name}, ${quote.portOfDischarge.UNLocationCode.slice(0, 2)}`,
-    transitTime: `${quote.transitTimeDays} dias`,
-    cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: quote.oceanFreight.currency }).format(quote.oceanFreight.amount),
-    costValue: quote.oceanFreight.amount,
-    carrierLogo: 'https://placehold.co/120x40',
-    dataAiHint: 'hapag lloyd logo',
-    source: 'Hapag-Lloyd API',
-  }));
+  // Generate rates for each origin/destination pair and requested container type
+  requestedOrigins.forEach(origin => {
+    requestedDestinations.forEach(destination => {
+      mockRateTemplates.forEach(template => {
+        const isContainerRequested = input.oceanShipment.containers.some(c => c.type === template.containerType);
+        if (isContainerRequested) {
+            allRates.push({
+                id: `${template.quoteId}-${origin}-${destination}`,
+                carrier: 'Hapag-Lloyd',
+                origin: origin,
+                destination: destination,
+                transitTime: `${template.transitTimeDays} dias`,
+                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: template.oceanFreight.currency }).format(template.oceanFreight.amount),
+                costValue: template.oceanFreight.amount,
+                carrierLogo: 'https://placehold.co/120x40',
+                dataAiHint: 'hapag lloyd logo',
+                source: 'Hapag-Lloyd API',
+            });
+        }
+      });
+    });
+  });
 
-  return formattedRates;
+  return allRates;
 }
 
 /**

@@ -22,67 +22,63 @@ export async function getRates(input: FreightQuoteFormData): Promise<GetFreightR
 
   console.log(`Simulating API call to Maersk for ${input.origin} -> ${input.destination}`);
 
-  // This is a mocked response.
-  const mockApiResponse = {
-    "products": [
-      {
-        "productId": "MAEU-PROD-001",
-        "transportationMode": "OCEAN",
-        "freightPrice": 3100.00,
-        "currency": "USD",
-        "origin": { "name": "Santos", "geoId": "BRSSZ" },
-        "destination": { "name": "Rotterdam", "geoId": "NLRTM" },
-        "containerType": "40'HC",
-        "transitTime": "26 days"
-      },
-      {
-        "productId": "MAEU-PROD-002",
-        "transportationMode": "OCEAN",
-        "freightPrice": 2250.00,
-        "currency": "USD",
-        "origin": { "name": "Santos", "geoId": "BRSSZ" },
-        "destination": { "name": "Rotterdam", "geoId": "NLRTM" },
-        "containerType": "20'GP",
-        "transitTime": "26 days"
-      },
-      {
-        "productId": "MAEU-PROD-003",
-        "transportationMode": "OCEAN",
-        "freightPrice": 4800.00,
-        "currency": "USD",
-        "origin": { "name": "Shanghai", "geoId": "CNSHA" },
-        "destination": { "name": "Santos", "geoId": "BRSSZ" },
-        "containerType": "40'HC",
-        "transitTime": "35 days"
-      }
-    ]
-  };
+  // This is a mocked response template.
+  const mockRateTemplates = [
+    {
+      "productId": "MAEU-PROD-001",
+      "freightPrice": 3100.00,
+      "currency": "USD",
+      "containerType": "40'HC",
+      "transitTime": "26 days"
+    },
+    {
+      "productId": "MAEU-PROD-002",
+      "freightPrice": 2250.00,
+      "currency": "USD",
+      "containerType": "20'GP",
+      "transitTime": "26 days"
+    },
+    {
+      "productId": "MAEU-PROD-004",
+      "freightPrice": 3250.00,
+      "currency": "USD",
+      "containerType": "40'GP",
+      "transitTime": "26 days"
+    }
+  ];
 
   // Simulate a network delay
   await new Promise(resolve => setTimeout(resolve, 600));
 
-  const requestedOrigins = input.origin.toUpperCase().split(',').map(s => s.trim());
-  const requestedDestinations = input.destination.toUpperCase().split(',').map(s => s.trim());
+  const requestedOrigins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
+  const requestedDestinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
 
-  const matchingProducts = mockApiResponse.products.filter(product =>
-    requestedOrigins.some(o => product.origin.geoId.includes(o)) &&
-    requestedDestinations.some(d => product.destination.geoId.includes(d))
-  );
+  const allRates: GetFreightRatesOutput = [];
+  
+  // Generate rates for each origin/destination pair and requested container type
+  requestedOrigins.forEach(origin => {
+    requestedDestinations.forEach(destination => {
+        mockRateTemplates.forEach(template => {
+            const isContainerRequested = input.oceanShipment.containers.some(c => c.type === template.containerType);
+            if (isContainerRequested) {
+                allRates.push({
+                    id: `${template.productId}-${origin}-${destination}`,
+                    carrier: 'Maersk',
+                    origin: origin,
+                    destination: destination,
+                    transitTime: `${template.transitTime.replace(' days', '')} dias`,
+                    cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: template.currency }).format(template.freightPrice),
+                    costValue: template.freightPrice,
+                    carrierLogo: 'https://placehold.co/120x40',
+                    dataAiHint: 'maersk logo',
+                    source: 'Maersk API',
+                });
+            }
+        });
+    });
+  });
 
-  const formattedRates = matchingProducts.map((product): GetFreightRatesOutput[0] => ({
-    id: product.productId,
-    carrier: 'Maersk',
-    origin: `${product.origin.name}, ${product.origin.geoId.slice(0, 2)}`,
-    destination: `${product.destination.name}, ${product.destination.geoId.slice(0, 2)}`,
-    transitTime: `${product.transitTime.replace(' days', '')} dias`,
-    cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency }).format(product.freightPrice),
-    costValue: product.freightPrice,
-    carrierLogo: 'https://placehold.co/120x40',
-    dataAiHint: 'maersk logo',
-    source: 'Maersk API',
-  }));
-
-  return formattedRates;
+  return allRates;
 }
 
 /**

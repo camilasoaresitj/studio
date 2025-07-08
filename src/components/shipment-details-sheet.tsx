@@ -24,8 +24,11 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt } from 'lucide-react';
 import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
+import { useToast } from '@/hooks/use-toast';
+
 
 const containerDetailSchema = z.object({
   id: z.string(),
@@ -55,8 +58,11 @@ interface ShipmentDetailsSheetProps {
   onUpdate: (updatedShipment: Shipment) => void;
 }
 
-const MilestoneIcon = ({ status, dueDate }: { status: Milestone['status'], dueDate: Date }) => {
-    const isOverdue = isValid(dueDate) && isPast(dueDate) && status !== 'completed';
+const MilestoneIcon = ({ status, dueDate }: { status: Milestone['status'], dueDate?: Date }) => {
+    if (!dueDate || !isValid(dueDate)) {
+         return <Circle className="h-5 w-5 text-muted-foreground" />;
+    }
+    const isOverdue = isPast(dueDate) && status !== 'completed';
 
     if (isOverdue) {
         return <AlertTriangle className="h-5 w-5 text-destructive" />;
@@ -72,6 +78,7 @@ const MilestoneIcon = ({ status, dueDate }: { status: Milestone['status'], dueDa
 
 
 export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
+  const { toast } = useToast();
   
   const form = useForm<ShipmentDetailsFormData>({
     resolver: zodResolver(shipmentDetailsSchema),
@@ -90,8 +97,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         voyageNumber: shipment.voyageNumber || '',
         masterBillNumber: shipment.masterBillNumber || '',
         houseBillNumber: shipment.houseBillNumber || '',
-        etd: shipment.etd ? new Date(shipment.etd) : undefined,
-        eta: shipment.eta ? new Date(shipment.eta) : undefined,
+        etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
+        eta: shipment.eta && isValid(new Date(shipment.eta)) ? new Date(shipment.eta) : undefined,
         containers: shipment.containers || [],
       });
     }
@@ -125,9 +132,18 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     });
   };
 
-  const currentMilestoneIndex = useMemo(() => 
-    shipment?.milestones.findIndex(m => m.status === 'in_progress') ?? -1
-  , [shipment]);
+  const { progressPercentage, completedCount, totalCount } = useMemo(() => {
+    if (!shipment?.milestones || shipment.milestones.length === 0) {
+      return { progressPercentage: 0, completedCount: 0, totalCount: 0 };
+    }
+    const completed = shipment.milestones.filter(m => m.status === 'completed').length;
+    const total = shipment.milestones.length;
+    return {
+      progressPercentage: total > 0 ? (completed / total) * 100 : 0,
+      completedCount: completed,
+      totalCount: total,
+    };
+  }, [shipment]);
 
 
   if (!shipment) {
@@ -135,6 +151,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   }
   
   const { overseasPartner, agent } = shipment;
+
+  const handleBillingClick = (type: 'receber' | 'pagar') => {
+    toast({
+        title: `Função em Desenvolvimento`,
+        description: `A ação de "Faturar Contas a ${type === 'receber' ? 'Receber' : 'Pagar'}" será integrada ao módulo Financeiro.`,
+    });
+  }
 
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -194,7 +217,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <Popover>
                                         <PopoverTrigger asChild><FormControl>
                                             <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Select date</span>)}
+                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
                                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                             </Button>
                                         </FormControl></PopoverTrigger>
@@ -207,7 +230,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <Popover>
                                         <PopoverTrigger asChild><FormControl>
                                             <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Select date</span>)}
+                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
                                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                             </Button>
                                         </FormControl></PopoverTrigger>
@@ -231,35 +254,47 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         </CardContent>
                       </Card>
 
-                        {/* Milestones */}
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg">Milestones Operacionais</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                {shipment.milestones?.map((milestone, index) => (
-                                    <div key={milestone.name + index} className="flex items-center gap-4 p-3 rounded-lg border bg-background">
-                                        <MilestoneIcon status={milestone.status} dueDate={milestone.dueDate} />
-                                        <div className="flex-grow">
-                                            <p className="font-semibold">{milestone.name}</p>
-                                            <p className={cn("text-xs", isValid(milestone.dueDate) && isPast(milestone.dueDate) && milestone.status !== 'completed' ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-                                                Vencimento: {isValid(milestone.dueDate) ? format(milestone.dueDate, 'dd/MM/yyyy') : 'Data inválida'}
+                      {/* Milestones */}
+                      <Card>
+                          <CardHeader>
+                              <div className="flex justify-between items-center">
+                                  <CardTitle className="text-lg">Milestones Operacionais</CardTitle>
+                                  <span className="text-sm text-muted-foreground font-medium">{completedCount} de {totalCount} concluídos</span>
+                              </div>
+                              <Progress value={progressPercentage} className="w-full mt-2" />
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                              {shipment.milestones?.map((milestone, index) => (
+                                  <div key={milestone.name + index} className={cn(
+                                      "flex items-center gap-4 p-3 rounded-lg border",
+                                      milestone.status === 'in_progress' ? 'bg-accent border-primary' : 'bg-background'
+                                  )}>
+                                      <MilestoneIcon status={milestone.status} dueDate={isValid(new Date(milestone.dueDate)) ? new Date(milestone.dueDate) : undefined} />
+                                      <div className="flex-grow">
+                                          <p className="font-semibold">{milestone.name}</p>
+                                          {isValid(new Date(milestone.dueDate)) &&
+                                            <p className={cn("text-xs", isPast(new Date(milestone.dueDate)) && milestone.status !== 'completed' ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                                                Vencimento: {format(new Date(milestone.dueDate), 'dd/MM/yyyy')}
                                             </p>
-                                        </div>
-                                        <Badge variant={
-                                            milestone.status === 'completed' ? 'outline' :
-                                            milestone.status === 'in_progress' ? 'default' : 'secondary'
-                                        } className="capitalize">{milestone.status.replace('_', ' ')}</Badge>
-                                        {milestone.status === 'in_progress' && (
-                                            <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)}>
-                                                Concluir Etapa <ArrowRight className="ml-2 h-4 w-4"/>
-                                            </Button>
-                                        )}
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
+                                          }
+                                      </div>
+                                      <Badge variant={
+                                          milestone.status === 'completed' ? 'outline' :
+                                          milestone.status === 'in_progress' ? 'default' : 'secondary'
+                                      } className="capitalize w-24 justify-center">{milestone.status.replace('_', ' ')}</Badge>
+                                      {milestone.status === 'in_progress' && (
+                                          <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)} className="w-36">
+                                              Concluir Etapa <ArrowRight className="ml-2 h-4 w-4"/>
+                                          </Button>
+                                      )}
+                                      {milestone.status !== 'in_progress' && <div className="w-36"/>}
+                                  </div>
+                              ))}
+                          </CardContent>
+                      </Card>
 
                       {/* Cargo Details */}
-                       <Card>
+                      <Card>
                         <CardHeader>
                           <div className="flex justify-between items-center">
                             <CardTitle className="text-lg">Detalhes da Carga</CardTitle>
@@ -299,6 +334,48 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </div>
                         </CardContent>
                       </Card>
+
+                      {/* Financial Details */}
+                      <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Detalhes Financeiros</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="border rounded-lg overflow-hidden">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Taxa</TableHead>
+                                            <TableHead>Fornecedor</TableHead>
+                                            <TableHead className="text-right">Custo</TableHead>
+                                            <TableHead className="text-right">Venda</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {shipment.charges && shipment.charges.map(charge => (
+                                            <TableRow key={charge.id}>
+                                                <TableCell>{charge.name}</TableCell>
+                                                <TableCell className="text-muted-foreground">{charge.supplier}</TableCell>
+                                                <TableCell className="text-right font-mono">{charge.costCurrency} {charge.cost.toFixed(2)}</TableCell>
+                                                <TableCell className="text-right font-mono">{charge.saleCurrency} {charge.sale.toFixed(2)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <div className="flex justify-end gap-2 mt-4">
+                                <Button variant="outline" type="button" onClick={() => handleBillingClick('pagar')}>
+                                    <Receipt className="mr-2 h-4 w-4" />
+                                    Faturar Contas a Pagar
+                                </Button>
+                                <Button variant="outline" type="button" onClick={() => handleBillingClick('receber')}>
+                                    <Wallet className="mr-2 h-4 w-4" />
+                                    Faturar Contas a Receber
+                                </Button>
+                            </div>
+                        </CardContent>
+                      </Card>
+
                   </div>
                   <SheetFooter className="pt-4 mt-4 border-t">
                       <Button type="submit">

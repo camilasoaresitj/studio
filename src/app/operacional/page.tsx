@@ -82,14 +82,14 @@ export default function OperacionalPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="px-2 py-1">Processo</TableHead>
-                            <TableHead className="px-2 py-1">Cliente</TableHead>
-                            <TableHead className="px-2 py-1">Rota</TableHead>
-                            <TableHead className="px-2 py-1">ETD</TableHead>
-                            <TableHead className="px-2 py-1">ETA</TableHead>
-                            <TableHead className="px-2 py-1">Master</TableHead>
-                            <TableHead className="px-2 py-1">Modal</TableHead>
-                            <TableHead className="px-2 py-1">Status</TableHead>
+                            <TableHead className="p-2">Processo</TableHead>
+                            <TableHead className="p-2">Cliente</TableHead>
+                            <TableHead className="p-2">Rota</TableHead>
+                            <TableHead className="p-2">ETD</TableHead>
+                            <TableHead className="p-2">ETA</TableHead>
+                            <TableHead className="p-2">Master</TableHead>
+                            <TableHead className="p-2">Modal</TableHead>
+                            <TableHead className="p-2">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -102,14 +102,14 @@ export default function OperacionalPage() {
                                 const status = getShipmentStatus(shipment);
                                 return (
                                 <TableRow key={shipment.id} onClick={() => setSelectedShipment(shipment)} className="cursor-pointer text-xs">
-                                    <TableCell className="font-semibold text-primary px-2 py-1">{shipment.id}</TableCell>
-                                    <TableCell className="px-2 py-1">{shipment.customer}</TableCell>
-                                    <TableCell className="px-2 py-1">{shipment.origin} &rarr; {shipment.destination}</TableCell>
-                                    <TableCell className="px-2 py-1">{shipment.etd ? format(new Date(shipment.etd), 'dd/MM/yy') : 'N/A'}</TableCell>
-                                    <TableCell className="px-2 py-1">{shipment.eta ? format(new Date(shipment.eta), 'dd/MM/yy') : 'N/A'}</TableCell>
-                                    <TableCell className="px-2 py-1">{shipment.masterBillNumber || 'N/A'}</TableCell>
-                                    <TableCell className="px-2 py-1">{shipment.details?.cargo?.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
-                                    <TableCell className="px-2 py-1"><Badge variant={status.variant}>{status.text}</Badge></TableCell>
+                                    <TableCell className="font-semibold text-primary p-2">{shipment.id}</TableCell>
+                                    <TableCell className="p-2">{shipment.customer}</TableCell>
+                                    <TableCell className="p-2">{shipment.origin} &rarr; {shipment.destination}</TableCell>
+                                    <TableCell className="p-2">{shipment.etd ? format(new Date(shipment.etd), 'dd/MM/yy') : 'N/A'}</TableCell>
+                                    <TableCell className="p-2">{shipment.eta ? format(new Date(shipment.eta), 'dd/MM/yy') : 'N/A'}</TableCell>
+                                    <TableCell className="p-2">{shipment.masterBillNumber || 'N/A'}</TableCell>
+                                    <TableCell className="p-2">{shipment.details?.cargo?.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
+                                    <TableCell className="p-2"><Badge variant={status.variant}>{status.text}</Badge></TableCell>
                                 </TableRow>
                             )})
                         )}

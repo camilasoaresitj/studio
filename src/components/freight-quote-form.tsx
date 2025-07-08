@@ -63,33 +63,36 @@ interface FreightQuoteFormProps {
   onStartManualQuote: (formData: FreightQuoteFormData, charges: QuoteCharge[]) => void;
 }
 
-// Helper component for the autocomplete input
-const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestions: string[], placeholder: string }) => {
-    const [isOpen, setIsOpen] = useState(false);
+// Custom Autocomplete Input Component
+const AutocompleteInput = ({ field, suggestions, placeholder }: { field: any, suggestions: string[], placeholder: string }) => {
+    const [showSuggestions, setShowSuggestions] = useState(false);
     const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        field.onChange(value);
-
+    const filterSuggestions = (value: string) => {
         const parts = value.split(',');
         const currentPart = parts[parts.length - 1].trim().toLowerCase();
 
         if (currentPart.length >= 2) {
-            const newFiltered = suggestions.filter(s =>
+            setFilteredSuggestions(suggestions.filter(s =>
                 s.toLowerCase().includes(currentPart)
-            );
-            setFilteredSuggestions(newFiltered);
-            setIsOpen(newFiltered.length > 0);
+            ));
         } else {
             setFilteredSuggestions([]);
-            setIsOpen(false);
         }
     };
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        field.onChange(value);
+        if (!showSuggestions) {
+            setShowSuggestions(true);
+        }
+        filterSuggestions(value);
+    };
+
     const handleSelectSuggestion = (suggestion: string) => {
-        const parts = (field.value || '').split(',').map((p: string) => p.trim()).filter(p => p);
+        const parts = (field.value || '').split(',').map((p: string) => p.trim()).filter(Boolean);
         if (parts.length > 0) {
             parts[parts.length - 1] = suggestion;
         } else {
@@ -98,39 +101,48 @@ const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestion
         
         const newValue = parts.join(', ') + ', ';
         field.onChange(newValue);
-        
-        setIsOpen(false);
-        setTimeout(() => inputRef.current?.focus(), 0);
+        setShowSuggestions(false);
     };
+    
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const currentInputPart = field.value?.split(',').pop()?.trim() ?? '';
 
     return (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
-            <PopoverTrigger asChild>
-                <Input
-                    ref={inputRef}
-                    placeholder={placeholder}
-                    {...field}
-                    onChange={handleInputChange}
-                    onKeyDown={(e) => {
-                        if(e.key === 'Escape') {
-                            setIsOpen(false);
-                        }
-                    }}
-                    autoComplete="off"
-                />
-            </PopoverTrigger>
-            <PopoverContent 
-                className="p-1"
-                style={{ width: inputRef.current?.offsetWidth }}
-                align="start"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-                <div className="max-h-60 overflow-y-auto">
+        <div ref={containerRef} className="relative">
+            <Input
+                placeholder={placeholder}
+                {...field}
+                onChange={handleInputChange}
+                onFocus={() => {
+                    filterSuggestions(field.value || '');
+                    setShowSuggestions(true);
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                        setShowSuggestions(false);
+                    }
+                }}
+                autoComplete="off"
+            />
+            {showSuggestions && (
+                <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto p-1">
                     {filteredSuggestions.length > 0 ? (
                         filteredSuggestions.map((suggestion, index) => (
                             <div
                                 key={`${suggestion}-${index}`}
-                                onClick={() => handleSelectSuggestion(suggestion)}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleSelectSuggestion(suggestion);
+                                }}
                                 className="cursor-pointer rounded-sm px-3 py-2 text-sm hover:bg-accent"
                             >
                                 {suggestion}
@@ -138,12 +150,12 @@ const PortInput = ({ field, suggestions, placeholder }: { field: any, suggestion
                         ))
                     ) : (
                         <div className="px-3 py-2 text-sm text-muted-foreground">
-                            Nenhum porto encontrado.
+                            {currentInputPart.length >= 2 ? 'Nenhum porto encontrado.' : 'Digite 2+ letras para buscar...'}
                         </div>
                     )}
                 </div>
-            </PopoverContent>
-        </Popover>
+            )}
+        </div>
     );
 };
 
@@ -676,7 +688,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                     <FormField control={form.control} name="origin" render={({ field }) => (
                         <FormItem><FormLabel>Origem (Porto/Aeroporto, País)</FormLabel>
                           <FormControl>
-                            <PortInput
+                            <AutocompleteInput
                                 field={field}
                                 suggestions={allPortsAndAirports}
                                 placeholder="Ex: Santos, BR, Itajai, BR"
@@ -688,7 +700,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                     <FormField control={form.control} name="destination" render={({ field }) => (
                         <FormItem><FormLabel>Destino (Porto/Aeroporto, País)</FormLabel>
                            <FormControl>
-                             <PortInput
+                             <AutocompleteInput
                                 field={field}
                                 suggestions={allPortsAndAirports}
                                 placeholder="Ex: Rotterdam, NL"
@@ -1003,5 +1015,3 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     </div>
   );
 }
-
-    

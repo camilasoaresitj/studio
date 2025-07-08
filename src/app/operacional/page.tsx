@@ -1,27 +1,36 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Shipment, Milestone } from '@/lib/shipment';
 import { getShipments, updateShipment } from '@/lib/shipment';
-import { format } from 'date-fns';
+import { format, isPast, isToday, isWithinInterval, addDays, isValid } from 'date-fns';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, ListTodo, Calendar as CalendarIcon, Ship } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+type Task = {
+    milestone: Milestone;
+    shipment: Shipment;
+};
 
 export default function OperacionalPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<'today' | 'week' | 'all'>('today');
   const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
     setShipments(getShipments());
   }, []);
-  
+
   const handleShipmentUpdate = (updatedShipmentData: Shipment) => {
       const newShipments = updateShipment(updatedShipmentData);
       setShipments(newShipments);
@@ -33,6 +42,35 @@ export default function OperacionalPage() {
       });
   };
 
+  const allTasks = useMemo((): Task[] => {
+    return shipments
+      .flatMap(shipment => 
+        shipment.milestones
+          .filter(m => m.status === 'pending' || m.status === 'in_progress')
+          .map(milestone => ({ milestone, shipment }))
+      )
+      .sort((a, b) => new Date(a.milestone.dueDate).getTime() - new Date(b.milestone.dueDate).getTime());
+  }, [shipments]);
+
+  const filteredTasks = useMemo(() => {
+    const now = new Date();
+    return allTasks.filter(task => {
+        if (!task.milestone.dueDate || !isValid(new Date(task.milestone.dueDate))) return false;
+
+        const dueDate = new Date(task.milestone.dueDate);
+        switch (taskFilter) {
+            case 'today':
+                return isToday(dueDate) || isPast(dueDate);
+            case 'week':
+                return isWithinInterval(dueDate, { start: now, end: addDays(now, 7) }) || isPast(dueDate);
+            case 'all':
+                return true;
+            default:
+                return true;
+        }
+    });
+  }, [allTasks, taskFilter]);
+  
   const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'outline' } => {
     if (!shipment.milestones || shipment.milestones.length === 0) {
         return { text: 'Não iniciado', variant: 'secondary' };
@@ -49,14 +87,13 @@ export default function OperacionalPage() {
     return { text: 'Finalizado', variant: 'outline' };
   };
 
-
   if (!isClient) {
     return (
         <div className="p-4 md:p-8">
             <header className="mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold text-foreground">Acompanhamento de Embarques</h1>
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground">Dashboard Operacional</h1>
                 <p className="text-muted-foreground mt-2 text-lg">
-                  Carregando lista de embarques...
+                  Carregando dados operacionais...
                 </p>
             </header>
         </div>
@@ -65,16 +102,71 @@ export default function OperacionalPage() {
 
   return (
     <>
-    <div className="p-4 md:p-8">
-      <header className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground">Acompanhamento de Embarques</h1>
+    <div className="p-4 md:p-8 space-y-8">
+      <header className="mb-0">
+        <h1 className="text-3xl md:text-4xl font-bold text-foreground">Dashboard Operacional</h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Gerencie todos os seus processos de importação e exportação ativos.
+          Gerencie suas tarefas diárias e acompanhe os embarques ativos.
         </p>
       </header>
+
+      <Card>
+          <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5 text-primary" />Tarefas Operacionais</CardTitle>
+                  <CardDescription>Marcos pendentes ou em andamento. Tarefas atrasadas são destacadas.</CardDescription>
+                </div>
+                <div className="flex gap-2 self-start sm:self-center">
+                    <Button variant={taskFilter === 'today' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('today')}>Hoje</Button>
+                    <Button variant={taskFilter === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('week')}>7 Dias</Button>
+                    <Button variant={taskFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('all')}>Todas</Button>
+                </div>
+              </div>
+          </CardHeader>
+          <CardContent>
+              <div className="space-y-3">
+                  {filteredTasks.length > 0 ? filteredTasks.map(({ milestone, shipment }) => {
+                      const dueDate = new Date(milestone.dueDate);
+                      const overdue = isValid(dueDate) && isPast(dueDate) && milestone.status !== 'completed';
+                      return (
+                          <div
+                              key={`${shipment.id}-${milestone.name}`}
+                              className={cn(
+                                "flex items-center gap-4 p-3 rounded-lg border cursor-pointer hover:bg-accent",
+                                overdue ? 'bg-destructive/10 border-destructive' : 'bg-background'
+                              )}
+                              onClick={() => setSelectedShipment(shipment)}
+                          >
+                            {overdue && <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />}
+                            <div className="flex-grow">
+                                <p className="font-semibold">{milestone.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Embarque <span className="font-medium text-primary">{shipment.id}</span>
+                                    {` para ${shipment.customer}`}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <p className={cn("text-sm font-medium", overdue ? "text-destructive" : "text-foreground")}>
+                                    {isValid(dueDate) ? format(dueDate, 'dd/MM/yyyy') : 'Sem data'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Vencimento</p>
+                            </div>
+                          </div>
+                      )
+                  }) : (
+                      <div className="text-center text-muted-foreground p-8">
+                          <CalendarIcon className="mx-auto h-12 w-12 mb-2" />
+                          <p>Nenhuma tarefa encontrada para este período.</p>
+                      </div>
+                  )}
+              </div>
+          </CardContent>
+      </Card>
+      
       <Card>
         <CardHeader>
-            <CardTitle>Processos Ativos</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" />Embarques Ativos</CardTitle>
             <CardDescription>Clique em um processo para ver e editar todos os detalhes.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -93,20 +185,20 @@ export default function OperacionalPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {shipments.length === 0 ? (
+                        {shipments.filter(s => getShipmentStatus(s).text !== 'Finalizado').length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={8} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell>
                             </TableRow>
                         ) : (
-                            shipments.map(shipment => {
+                            shipments.filter(s => getShipmentStatus(s).text !== 'Finalizado').map(shipment => {
                                 const status = getShipmentStatus(shipment);
                                 return (
                                 <TableRow key={shipment.id} onClick={() => setSelectedShipment(shipment)} className="cursor-pointer text-xs">
                                     <TableCell className="font-semibold text-primary p-2">{shipment.id}</TableCell>
                                     <TableCell className="p-2">{shipment.customer}</TableCell>
                                     <TableCell className="p-2">{shipment.origin} &rarr; {shipment.destination}</TableCell>
-                                    <TableCell className="p-2">{shipment.etd ? format(new Date(shipment.etd), 'dd/MM/yy') : 'N/A'}</TableCell>
-                                    <TableCell className="p-2">{shipment.eta ? format(new Date(shipment.eta), 'dd/MM/yy') : 'N/A'}</TableCell>
+                                    <TableCell className="p-2">{shipment.etd && isValid(new Date(shipment.etd)) ? format(new Date(shipment.etd), 'dd/MM/yy') : 'N/A'}</TableCell>
+                                    <TableCell className="p-2">{shipment.eta && isValid(new Date(shipment.eta)) ? format(new Date(shipment.eta), 'dd/MM/yy') : 'N/A'}</TableCell>
                                     <TableCell className="p-2">{shipment.masterBillNumber || 'N/A'}</TableCell>
                                     <TableCell className="p-2">{shipment.details?.cargo?.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
                                     <TableCell className="p-2"><Badge variant={status.variant}>{status.text}</Badge></TableCell>

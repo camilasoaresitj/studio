@@ -157,8 +157,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         commodityDescription: shipment.commodityDescription || '',
         ncm: shipment.ncm || '',
         netWeight: shipment.netWeight || '',
-        packageQuantity: shipment.packageQuantity || shipment.details.cargo,
-        freeTimeDemurrage: shipment.freeTimeDemurrage || shipment.details.freeTime,
+        packageQuantity: shipment.packageQuantity || shipment.details?.cargo || '',
+        freeTimeDemurrage: shipment.freeTimeDemurrage || shipment.details?.freeTime || '',
         transshipments: shipment.transshipments?.map(t => ({
           ...t,
           etd: t.etd && isValid(new Date(t.etd)) ? new Date(t.etd) : undefined,

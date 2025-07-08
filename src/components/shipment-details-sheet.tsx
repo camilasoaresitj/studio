@@ -192,20 +192,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     };
   }, [shipment]);
 
-
-  if (!shipment) {
-      return null;
-  }
-  
-  const { overseasPartner, agent } = shipment;
-
-  const handleBillingClick = (type: 'receber' | 'pagar') => {
-    toast({
-        title: `Função em Desenvolvimento`,
-        description: `A ação de "Faturar Contas a ${type === 'receber' ? 'Receber' : 'Pagar'}" será integrada ao módulo Financeiro.`,
-    });
-  }
-
   const assembledMilestones = useMemo(() => {
     if (!shipment) return [];
     
@@ -218,6 +204,18 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }));
   }, [shipment]);
 
+  const handleBillingClick = (type: 'receber' | 'pagar') => {
+    toast({
+        title: `Função em Desenvolvimento`,
+        description: `A ação de "Faturar Contas a ${type === 'receber' ? 'Receber' : 'Pagar'}" será integrada ao módulo Financeiro.`,
+    });
+  };
+
+  if (!shipment) {
+      return null;
+  }
+  
+  const { overseasPartner, agent } = shipment;
 
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>

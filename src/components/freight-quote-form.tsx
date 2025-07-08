@@ -21,12 +21,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
 import { runGetFreightRates, runRequestAgentQuote, runSendQuote } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
-import type { Quote, QuoteCharge } from './customer-quotes-list';
+import type { Quote, QuoteCharge, QuoteDetails } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Checkbox } from './ui/checkbox';
@@ -34,6 +34,7 @@ import { Badge } from './ui/badge';
 import type { Rate as LocalRate } from './rates-table';
 import type { Fee } from './fees-registry';
 import { QuoteCostSheet } from './quote-cost-sheet';
+import { exchangeRateService } from '@/services/exchange-rate-service';
 
 const DynamicJsPDF = dynamic(() => import('jspdf').then(mod => mod.default), { ssr: false });
 const DynamicHtml2Canvas = dynamic(() => import('html2canvas'), { ssr: false });
@@ -60,7 +61,6 @@ interface FreightQuoteFormProps {
   fees: Fee[];
   initialData?: Partial<FreightQuoteFormData> | null;
   onQuoteUpdate: (quote: Quote) => void;
-  onStartManualQuote: (formData: FreightQuoteFormData, charges: QuoteCharge[]) => void;
 }
 
 // Custom Autocomplete Input Component
@@ -159,7 +159,7 @@ const AutocompleteInput = ({ field, suggestions, placeholder }: { field: any, su
     );
 };
 
-export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees, initialData, onQuoteUpdate, onStartManualQuote }: FreightQuoteFormProps) {
+export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees, initialData, onQuoteUpdate }: FreightQuoteFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isRequestingAgentQuote, setIsRequestingAgentQuote] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -299,6 +299,19 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
     setIsLoading(false);
   }
+  
+  const getCargoDetails = (values: FreightQuoteFormData): string => {
+    if (values.modal === 'ocean') {
+        if (values.oceanShipmentType === 'FCL') {
+            return values.oceanShipment.containers.map(c => `${c.quantity}x${c.type}`).join(', ');
+        }
+        return `LCL ${values.lclDetails.cbm} CBM / ${values.lclDetails.weight} KG`;
+    }
+    const totalWeight = values.airShipment.pieces.reduce((acc, p) => acc + (p.quantity * p.weight), 0);
+    const pieceCount = values.airShipment.pieces.reduce((acc, p) => acc + p.quantity, 0);
+    return `${pieceCount} piece(s) / ${totalWeight.toFixed(2)} KG`;
+}
+
 
  const calculateCharges = (rate: FreightRate | null) => {
     const values = form.getValues();
@@ -395,40 +408,22 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     const newQuote: Quote = {
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
         customer: customer?.name || 'N/A',
-        destination: rate.destination, // Use specific destination from rate
+        origin: rate.origin,
+        destination: rate.destination,
         status: 'Rascunho',
         date: new Date().toLocaleDateString('pt-BR'),
-        charges: initialCharges
+        charges: initialCharges,
+        details: {
+            cargo: getCargoDetails(form.getValues()),
+            transitTime: rate.transitTime || 'N/A',
+            validity: (rate as any).validity || 'N/A',
+            freeTime: (rate as any).freeTime || 'N/A',
+        }
     };
-    setActiveQuote(newQuote);
     onQuoteCreated(newQuote);
+    setActiveQuote(newQuote);
   };
   
-  const handleStartManualQuote = () => {
-      const isValid = form.trigger(['customerId', 'origin', 'destination']);
-      if (!isValid) {
-          toast({
-            variant: "destructive",
-            title: "Formulário incompleto",
-            description: "Por favor, selecione um cliente e preencha origem/destino antes de iniciar uma cotação manual.",
-        });
-        return;
-      }
-      const initialCharges = calculateCharges(null);
-      const customer = partners.find(p => p.id.toString() === form.getValues('customerId'));
-      
-      const newQuote: Quote = {
-        id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
-        customer: customer?.name || 'N/A',
-        destination: form.getValues('destination').split(',')[0].trim(), // Use first destination
-        status: 'Rascunho',
-        date: new Date().toLocaleDateString('pt-BR'),
-        charges: initialCharges
-    };
-    setActiveQuote(newQuote);
-    onQuoteCreated(newQuote);
-  }
-
   const handleRequestAgentQuote = async () => {
     const isValid = await form.trigger();
     if (!isValid) {
@@ -459,10 +454,25 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     setIsRequestingAgentQuote(false);
   };
 
-  const handleUpdateQuote = (updatedQuote: Quote) => {
+  const handleUpdateQuote = (data: { charges: QuoteCharge[] }) => {
+    if (!activeQuote) return;
+
+    const updatedQuote: Quote = {
+        ...activeQuote,
+        charges: data.charges,
+        status: 'Enviada'
+    };
+    
     setActiveQuote(updatedQuote);
     onQuoteUpdate(updatedQuote);
-  }
+
+    toast({
+        title: "Cotação Atualizada!",
+        description: "As alterações foram salvas com sucesso.",
+        className: 'bg-success text-success-foreground'
+    });
+};
+
 
   const handleSendQuote = async (channel: 'email' | 'whatsapp') => {
       if (!activeQuote) return;
@@ -474,22 +484,30 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           setIsSending(false);
           return;
       }
-
-      const totalValue = activeQuote.charges.reduce((acc, charge) => {
-          // Simplistic sum, assumes currencies are aligned or converted elsewhere.
-          // For a real app, you'd handle multi-currency totals properly.
-          return acc + charge.sale;
-      }, 0);
+      
+      const exchangeRates = await exchangeRateService.getRates();
+      const customerAgio = customer.exchangeRateAgio || 0;
+      const finalExchangeRates = {
+          USD: exchangeRates.USD * (1 + customerAgio / 100),
+          EUR: exchangeRates.EUR * (1 + customerAgio / 100),
+          JPY: exchangeRates.JPY * (1 + customerAgio / 100),
+          CHF: exchangeRates.CHF * (1 + customerAgio / 100),
+          GBP: exchangeRates.GBP * (1 + customerAgio / 100),
+      };
 
       const response = await runSendQuote({
         customerName: activeQuote.customer,
-        rateDetails: {
-            origin: form.getValues('origin'),
+        quoteId: activeQuote.id,
+        details: {
+            ...activeQuote.details,
+            origin: activeQuote.origin,
             destination: activeQuote.destination,
-            carrier: activeQuote.charges.find(c => c.name === 'Frete Internacional')?.supplier || 'N/A',
-            transitTime: results.find(r => r.carrier === activeQuote.charges.find(c => c.name === 'Frete Internacional')?.supplier)?.transitTime || 'N/A',
-            finalPrice: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValue) // Example
         },
+        charges: activeQuote.charges.map(c => ({
+            name: c.name,
+            value: `${c.saleCurrency} ${c.sale.toFixed(2)}`
+        })),
+        exchangeRates: finalExchangeRates,
         approvalLink: `https://cargainteligente.com/approve/${activeQuote.id}`,
         rejectionLink: `https://cargainteligente.com/reject/${activeQuote.id}`,
       });
@@ -498,10 +516,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         if (channel === 'email') {
             const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
             const recipient = primaryContact.email;
-            console.log("SIMULATING EMAIL TO:", recipient);
-            console.log("SUBJECT:", response.data.emailSubject);
-            console.log("BODY:", response.data.emailBody);
-            window.open(`mailto:${recipient}?subject=${encodeURIComponent(response.data.emailSubject)}&body=${encodeURIComponent(response.data.emailBody)}`);
+            const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(response.data.emailSubject)}&body=${encodeURIComponent(response.data.emailBody)}`;
+            window.open(mailtoLink, '_self');
             toast({ title: 'E-mail de cotação gerado!', description: `Pronto para enviar para ${recipient}.` });
         } else { // WhatsApp
             const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
@@ -555,19 +571,24 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     return (
         <Card className="animate-in fade-in-50 duration-500">
              <CardHeader>
-                <CardTitle>Editor de Cotação - {activeQuote.id}</CardTitle>
-                <CardDescription>
-                    Ajuste os custos e valores de venda. Quando estiver pronto, envie para o cliente ou salve em PDF.
-                </CardDescription>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle>Editor de Cotação - {activeQuote.id}</CardTitle>
+                        <CardDescription>
+                            Ajuste os custos e valores de venda. Quando estiver pronto, envie para o cliente ou salve em PDF.
+                        </CardDescription>
+                    </div>
+                    <Button variant="outline" onClick={() => setActiveQuote(null)}>
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao Formulário
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
                 <div id={`quote-sheet-${activeQuote.id}`}>
                     <QuoteCostSheet quote={activeQuote} onUpdate={handleUpdateQuote} />
                 </div>
+                <Separator className="my-6"/>
                 <div className="flex flex-col sm:flex-row gap-2 mt-6 justify-end">
-                    <Button variant="outline" onClick={() => setActiveQuote(null)}>
-                        <Edit className="mr-2 h-4 w-4" /> Voltar ao Formulário
-                    </Button>
                      <Button variant="secondary" onClick={handleGeneratePdf}>
                         <FileDown className="mr-2 h-4 w-4" /> Gerar PDF
                     </Button>
@@ -942,9 +963,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando...</> : <><Search className="mr-2 h-4 w-4" /> Buscar Tarifas</>}
                     </Button>
                     <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={handleStartManualQuote} className="flex-1 py-6">
-                            <FileText className="mr-2 h-4 w-4" /> Cotação Manual
-                        </Button>
                         <Button type="button" variant="secondary" onClick={handleRequestAgentQuote} disabled={isRequestingAgentQuote} className="flex-1 py-6">
                             {isRequestingAgentQuote ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                             Cotar com Agente

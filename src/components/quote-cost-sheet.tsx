@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Separator } from './ui/separator';
 import { Trash2 } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
@@ -21,9 +21,9 @@ const quoteChargeSchema = z.object({
   name: z.string(),
   type: z.string(),
   cost: z.coerce.number().default(0),
-  costCurrency: z.enum(['USD', 'BRL']),
+  costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
   sale: z.coerce.number().default(0),
-  saleCurrency: z.enum(['USD', 'BRL']),
+  saleCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
   supplier: z.string(),
 });
 
@@ -42,9 +42,13 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
   const form = useForm<QuoteCostSheetFormData>({
     resolver: zodResolver(quoteCostSheetSchema),
     defaultValues: {
-      charges: quote.charges,
+      charges: [],
     },
   });
+
+  React.useEffect(() => {
+    form.reset({ charges: quote.charges });
+  }, [quote, form]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -54,20 +58,19 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
   const watchedCharges = form.watch('charges');
 
   const totals = React.useMemo(() => {
-    const cost = { BRL: 0, USD: 0 };
-    const sale = { BRL: 0, USD: 0 };
-    const profit = { BRL: 0, USD: 0 };
+    const cost = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
+    const sale = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
+    const profit = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
 
     watchedCharges.forEach(charge => {
-      // Accumulate total costs and sales per currency
-      cost[charge.costCurrency] += charge.cost;
-      sale[charge.saleCurrency] += charge.sale;
+      const chargeCost = Number(charge.cost) || 0;
+      const chargeSale = Number(charge.sale) || 0;
+
+      cost[charge.costCurrency] += chargeCost;
+      sale[charge.saleCurrency] += chargeSale;
       
-      // To calculate profit, we add the sale value to its currency bucket
-      // and subtract the cost value from its currency bucket.
-      // This correctly handles multi-currency profit calculation.
-      profit[charge.saleCurrency] += charge.sale;
-      profit[charge.costCurrency] -= charge.cost;
+      profit[charge.saleCurrency] += chargeSale;
+      profit[charge.costCurrency] -= chargeCost;
     });
 
     return { cost, sale, profit };
@@ -79,6 +82,19 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
 
   return (
     <div className="flex flex-col h-full">
+        <Card className="mb-4">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Detalhes do Embarque</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
+                <div><strong className="text-muted-foreground">Origem:</strong> {quote.origin}</div>
+                <div><strong className="text-muted-foreground">Destino:</strong> {quote.destination}</div>
+                <div><strong className="text-muted-foreground">Carga:</strong> {quote.details.cargo}</div>
+                <div><strong className="text-muted-foreground">Trânsito:</strong> {quote.details.transitTime}</div>
+                <div><strong className="text-muted-foreground">Free Time:</strong> {quote.details.freeTime}</div>
+                <div><strong className="text-muted-foreground">Validade:</strong> {quote.details.validity}</div>
+            </CardContent>
+        </Card>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-grow flex flex-col">
           <div className="flex-grow overflow-y-auto border rounded-lg">
@@ -100,7 +116,7 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
                 {fields.map((field, index) => {
                   const charge = watchedCharges[index];
                   const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
-                  const profit = canCalculateProfit ? charge.sale - charge.cost : 0;
+                  const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
                   const profitCurrency = charge.saleCurrency;
                   const isLoss = canCalculateProfit && profit < 0;
                   
@@ -112,7 +128,14 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
                         <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
+                            <SelectContent>
+                                <SelectItem value="BRL">BRL</SelectItem>
+                                <SelectItem value="USD">USD</SelectItem>
+                                <SelectItem value="EUR">EUR</SelectItem>
+                                <SelectItem value="JPY">JPY</SelectItem>
+                                <SelectItem value="CHF">CHF</SelectItem>
+                                <SelectItem value="GBP">GBP</SelectItem>
+                            </SelectContent>
                           </Select>
                         )} />
                       </TableCell>
@@ -125,7 +148,14 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
                          <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
+                            <SelectContent>
+                                <SelectItem value="BRL">BRL</SelectItem>
+                                <SelectItem value="USD">USD</SelectItem>
+                                <SelectItem value="EUR">EUR</SelectItem>
+                                <SelectItem value="JPY">JPY</SelectItem>
+                                <SelectItem value="CHF">CHF</SelectItem>
+                                <SelectItem value="GBP">GBP</SelectItem>
+                            </SelectContent>
                           </Select>
                          )} />
                        </TableCell>
@@ -160,28 +190,31 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
               <Card>
                   <CardHeader><CardTitle className="text-lg">Totais de Custo</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span>USD:</span><span className="font-mono">{totals.cost.USD.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span>BRL:</span><span className="font-mono">{totals.cost.BRL.toFixed(2)}</span></div>
+                      {Object.entries(totals.cost).filter(([, value]) => value !== 0).map(([key, value]) => (
+                        <div key={key} className="flex justify-between"><span>{key}:</span><span className="font-mono">{value.toFixed(2)}</span></div>
+                      ))}
                   </CardContent>
               </Card>
                <Card>
                   <CardHeader><CardTitle className="text-lg">Totais de Venda</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span>USD:</span><span className="font-mono">{totals.sale.USD.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span>BRL:</span><span className="font-mono">{totals.sale.BRL.toFixed(2)}</span></div>
+                       {Object.entries(totals.sale).filter(([, value]) => value !== 0).map(([key, value]) => (
+                        <div key={key} className="flex justify-between"><span>{key}:</span><span className="font-mono">{value.toFixed(2)}</span></div>
+                      ))}
                   </CardContent>
               </Card>
-              <Card className={cn(totals.profit.BRL < 0 || totals.profit.USD < 0 ? "border-destructive" : "border-success")}>
+              <Card className={cn(Object.values(totals.profit).some(p => p < 0) ? "border-destructive" : "border-success")}>
                   <CardHeader><CardTitle className="text-lg">Lucro Total</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span>USD:</span><span className="font-mono">{totals.profit.USD.toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span>BRL:</span><span className="font-mono">{totals.profit.BRL.toFixed(2)}</span></div>
+                      {Object.entries(totals.profit).filter(([, value]) => value !== 0).map(([key, value]) => (
+                        <div key={key} className="flex justify-between"><span>{key}:</span><span className="font-mono">{value.toFixed(2)}</span></div>
+                      ))}
                   </CardContent>
               </Card>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="submit">Atualizar Cotação</Button>
+            <Button type="submit">Salvar Alterações</Button>
           </div>
         </form>
       </Form>

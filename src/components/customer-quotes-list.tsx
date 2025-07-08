@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -20,20 +21,27 @@ import dynamic from 'next/dynamic';
 import { runSendQuote } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Partner } from './partners-registry';
+import { exchangeRateService } from '@/services/exchange-rate-service';
 
 const DynamicJsPDF = dynamic(() => import('jspdf').then(mod => mod.default), { ssr: false });
 const DynamicHtml2Canvas = dynamic(() => import('html2canvas'), { ssr: false });
-
 
 export type QuoteCharge = {
   id: string;
   name: string;
   type: string;
   cost: number;
-  costCurrency: 'USD' | 'BRL';
+  costCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   sale: number;
-  saleCurrency: 'USD' | 'BRL';
+  saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   supplier: string;
+};
+
+export type QuoteDetails = {
+    cargo: string;
+    transitTime: string;
+    validity: string;
+    freeTime: string;
 };
 
 export type Quote = {
@@ -43,6 +51,7 @@ export type Quote = {
   destination: string;
   status: 'Enviada' | 'Aprovada' | 'Perdida' | 'Rascunho';
   date: string;
+  details: QuoteDetails;
   charges: QuoteCharge[];
 };
 
@@ -51,22 +60,14 @@ interface CustomerQuotesListProps {
   quotes: Quote[];
   partners: Partner[];
   onQuoteUpdate: (updatedQuote: Quote) => void;
-  quoteToOpen: Quote | null;
-  onDialogClose: () => void;
 }
 
-export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, quoteToOpen, onDialogClose }: CustomerQuotesListProps) {
+export function CustomerQuotesList({ quotes, partners, onQuoteUpdate }: CustomerQuotesListProps) {
     const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
     const [isSending, setIsSending] = useState(false);
     const [sendDialogOpen, setSendDialogOpen] = useState(false);
     const [quoteToSend, setQuoteToSend] = useState<Quote | null>(null);
     const { toast } = useToast();
-
-    useEffect(() => {
-        if (quoteToOpen) {
-            setSelectedQuote(quoteToOpen);
-        }
-    }, [quoteToOpen]);
 
     const handleOpenSendDialog = (quote: Quote) => {
         setQuoteToSend(quote);
@@ -83,24 +84,30 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, quoteToOpe
           setIsSending(false);
           return;
       }
-
-      const totalValueBRL = quoteToSend.charges.filter(c => c.saleCurrency === 'BRL').reduce((sum, c) => sum + c.sale, 0);
-      const totalValueUSD = quoteToSend.charges.filter(c => c.saleCurrency === 'USD').reduce((sum, c) => sum + c.sale, 0);
       
-      const priceParts = [];
-      if (totalValueUSD > 0) priceParts.push(new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalValueUSD));
-      if (totalValueBRL > 0) priceParts.push(new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalValueBRL));
-      const finalPrice = priceParts.join(' + ');
+      const exchangeRates = await exchangeRateService.getRates();
+      const customerAgio = customer.exchangeRateAgio || 0;
+      const finalExchangeRates = {
+          USD: exchangeRates.USD * (1 + customerAgio / 100),
+          EUR: exchangeRates.EUR * (1 + customerAgio / 100),
+          JPY: exchangeRates.JPY * (1 + customerAgio / 100),
+          CHF: exchangeRates.CHF * (1 + customerAgio / 100),
+          GBP: exchangeRates.GBP * (1 + customerAgio / 100),
+      };
 
       const response = await runSendQuote({
         customerName: quoteToSend.customer,
-        rateDetails: {
+        quoteId: quoteToSend.id,
+        details: {
+            ...quoteToSend.details,
             origin: quoteToSend.origin,
             destination: quoteToSend.destination,
-            carrier: quoteToSend.charges.find(c => c.name === 'Frete Internacional')?.supplier || 'N/A',
-            transitTime: 'Conforme acordado', // This info is lost from the original rate selection
-            finalPrice: finalPrice || 'Sob consulta',
         },
+        charges: quoteToSend.charges.map(c => ({
+            name: c.name,
+            value: `${c.saleCurrency} ${c.sale.toFixed(2)}`
+        })),
+        exchangeRates: finalExchangeRates,
         approvalLink: `https://cargainteligente.com/approve/${quoteToSend.id}`,
         rejectionLink: `https://cargainteligente.com/reject/${quoteToSend.id}`,
       });
@@ -110,9 +117,8 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, quoteToOpe
             const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
             const recipient = primaryContact?.email;
             if (recipient) {
-                const subject = encodeURIComponent(response.data.emailSubject);
-                const body = encodeURIComponent(response.data.emailBody);
-                window.open(`mailto:${recipient}?subject=${subject}&body=${body}`);
+                const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(response.data.emailSubject)}&body=${encodeURIComponent(response.data.emailBody)}`;
+                window.open(mailtoLink, '_self');
                 toast({ title: 'E-mail de cotação gerado!', description: `Pronto para enviar para ${recipient}.` });
             } else {
                  toast({ variant: 'destructive', title: 'E-mail não encontrado', description: 'O contato principal do cliente não possui um e-mail cadastrado.' });
@@ -196,12 +202,6 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, quoteToOpe
         });
     };
 
-    const handleDialogClose = () => {
-        setSelectedQuote(null);
-        onDialogClose();
-    };
-
-
   return (
     <>
     <Card>
@@ -225,16 +225,16 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, quoteToOpe
                     </TableHeader>
                     <TableBody>
                     {quotes.map((quote) => (
-                        <TableRow key={quote.id}>
-                            <TableCell className="font-medium text-primary cursor-pointer" onClick={() => setSelectedQuote(quote)}>{quote.id.replace('-DRAFT', '')}</TableCell>
-                            <TableCell className="cursor-pointer" onClick={() => setSelectedQuote(quote)}>{quote.customer}</TableCell>
-                            <TableCell className="cursor-pointer" onClick={() => setSelectedQuote(quote)}>{quote.origin}</TableCell>
-                            <TableCell className="cursor-pointer" onClick={() => setSelectedQuote(quote)}>{quote.destination}</TableCell>
-                            <TableCell className="cursor-pointer" onClick={() => setSelectedQuote(quote)}>
+                        <TableRow key={quote.id} onClick={() => setSelectedQuote(quote)} className="cursor-pointer">
+                            <TableCell className="font-medium text-primary">{quote.id.replace('-DRAFT', '')}</TableCell>
+                            <TableCell>{quote.customer}</TableCell>
+                            <TableCell>{quote.origin}</TableCell>
+                            <TableCell>{quote.destination}</TableCell>
+                            <TableCell>
                                 <Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge>
                             </TableCell>
-                            <TableCell className="cursor-pointer" onClick={() => setSelectedQuote(quote)}>{quote.date}</TableCell>
-                            <TableCell className="text-center">
+                            <TableCell>{quote.date}</TableCell>
+                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon">
@@ -273,7 +273,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, quoteToOpe
             </div>
         </CardContent>
     </Card>
-    <Dialog open={!!selectedQuote} onOpenChange={(open) => !open && handleDialogClose()}>
+    <Dialog open={!!selectedQuote} onOpenChange={setSelectedQuote}>
         <DialogContent className="max-w-6xl h-[90vh]">
             <DialogHeader>
                 <DialogTitle>Detalhes da Cotação: {selectedQuote?.id.replace('-DRAFT', '')}</DialogTitle>

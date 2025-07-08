@@ -6,7 +6,7 @@ import { CrmForm } from '@/components/crm-form';
 import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { RateImporter } from '@/components/rate-importer';
 import { RatesTable } from '@/components/rates-table';
-import { CustomerQuotesList, Quote, QuoteCharge, QuoteDetails } from '@/components/customer-quotes-list';
+import { CustomerQuotesList, Quote, QuoteCharge } from '@/components/customer-quotes-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
@@ -15,6 +15,8 @@ import { FeesRegistry, Fee } from '@/components/fees-registry';
 import type { Rate } from '@/components/rates-table';
 import type { FreightQuoteFormData } from '@/lib/schemas';
 import { SendQuoteOutput } from '@/ai/flows/send-quote';
+import { useToast } from '@/hooks/use-toast';
+
 
 const initialRatesData: Rate[] = [
   // Maersk
@@ -49,8 +51,13 @@ const initialRatesData: Rate[] = [
 
 const initialQuotesData: Quote[] = [
   { 
-    id: 'COT-00125', customer: 'Nexus Imports', destination: 'Roterdã, NL', status: 'Enviada', date: '15/07/2024',
-    details: { origin: 'Santos, BR', cargo: '1x20GP', transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias' },
+    id: 'COT-00125', 
+    customer: 'Nexus Imports', 
+    origin: 'Santos, BR',
+    destination: 'Roterdã, NL', 
+    status: 'Enviada', 
+    date: '15/07/2024',
+    details: { cargo: '1x20GP', transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias' },
     charges: [
         { id: 'charge-1', name: 'Frete Marítimo', type: 'Por Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line' },
         { id: 'charge-2', name: 'THC', type: 'Por Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã' },
@@ -59,16 +66,21 @@ const initialQuotesData: Quote[] = [
     ]
   },
   { 
-    id: 'COT-00124', customer: 'TechFront Solutions', destination: 'Miami, US', status: 'Aprovada', date: '14/07/2024', 
-    details: { origin: 'Guarulhos, BR', cargo: '500kg', transitTime: '1 dia', validity: '31/10/2024', freeTime: 'N/A' },
+    id: 'COT-00124', 
+    customer: 'TechFront Solutions', 
+    origin: 'Guarulhos, BR',
+    destination: 'Miami, US', 
+    status: 'Aprovada', 
+    date: '14/07/2024', 
+    details: { cargo: '500kg', transitTime: '1 dia', validity: '31/10/2024', freeTime: 'N/A' },
     charges: [
         { id: 'charge-5', name: 'Frete Aéreo', type: 'Por KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo' },
         { id: 'charge-6', name: 'Handling Fee', type: 'Por AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA' },
     ]
   },
-  { id: 'COT-00123', customer: 'Global Foods Ltda', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', details: { origin: 'Paranaguá, BR', cargo: '1x40HC', transitTime: '35-40 dias', validity: '31/12/2024', freeTime: '7 dias' }, charges: [] },
-  { id: 'COT-00122', customer: 'Nexus Imports', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', details: { origin: 'Itajaí, BR', cargo: '1x20GP', transitTime: '28-32 dias', validity: '30/11/2024', freeTime: '21 dias' }, charges: [] },
-  { id: 'COT-00121', customer: 'AutoParts Express', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', details: { origin: 'Guarulhos, BR', cargo: '100kg', transitTime: '1-2 dias', validity: '30/11/2024', freeTime: 'N/A' }, charges: [] },
+  { id: 'COT-00123', customer: 'Global Foods Ltda', origin: 'Paranaguá, BR', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', details: { cargo: '1x40HC', transitTime: '35-40 dias', validity: '31/12/2024', freeTime: '7 dias' }, charges: [] },
+  { id: 'COT-00122', customer: 'Nexus Imports', origin: 'Itajaí, BR', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', details: { cargo: '1x20GP', transitTime: '28-32 dias', validity: '30/11/2024', freeTime: '21 dias' }, charges: [] },
+  { id: 'COT-00121', customer: 'AutoParts Express', origin: 'Guarulhos, BR', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', details: { cargo: '100kg', transitTime: '1-2 dias', validity: '30/11/2024', freeTime: 'N/A' }, charges: [] },
 ];
 
 const initialPartnersData: Partner[] = [
@@ -174,7 +186,7 @@ export default function ComercialPage() {
   const [fees, setFees] = useState(initialFeesData);
   const [activeTab, setActiveTab] = useState('quote');
   const [quoteFormData, setQuoteFormData] = useState<Partial<FreightQuoteFormData> | null>(null);
-  const [quoteToEdit, setQuoteToEdit] = useState<Quote | null>(null);
+  const { toast } = useToast();
 
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
     const newRates = importedRates.map((rate, index) => ({
@@ -189,9 +201,20 @@ export default function ComercialPage() {
   };
   
   const handleQuoteCreated = (newQuoteData: Quote) => {
-    setQuotes(prevQuotes => [newQuoteData, ...prevQuotes]);
-    setQuoteToEdit(newQuoteData); // Open the new quote for editing
-    setActiveTab('customer_quotes');
+    setQuotes(prevQuotes => {
+        // Check if a quote with the same ID already exists (e.g., from manual creation)
+        const existingIndex = prevQuotes.findIndex(q => q.id === newQuoteData.id);
+        if (existingIndex > -1) {
+            const updatedQuotes = [...prevQuotes];
+            updatedQuotes[existingIndex] = newQuoteData;
+            return updatedQuotes;
+        }
+        return [newQuoteData, ...prevQuotes];
+    });
+    toast({
+        title: "Rascunho da Cotação Criado",
+        description: "Ajuste os valores na aba 'Cotação de Frete' e envie para o cliente.",
+    });
   };
 
   const handlePartnerSaved = (partnerToSave: Partner) => {
@@ -258,35 +281,7 @@ export default function ComercialPage() {
   
   const handleQuoteUpdated = (updatedQuote: Quote) => {
     setQuotes(prevQuotes => prevQuotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
-    if (quoteToEdit && quoteToEdit.id === updatedQuote.id) {
-        setQuoteToEdit(updatedQuote);
-    }
   };
-
-  const handleStartManualQuote = (formData: FreightQuoteFormData, charges: QuoteCharge[]) => {
-    const customer = partners.find(p => p.id.toString() === formData.customerId);
-    if (!customer) return;
-
-    const newQuote: Quote = {
-        id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}-DRAFT`,
-        customer: customer.name,
-        destination: formData.destination.split(',')[0],
-        details: {
-          origin: formData.origin,
-          cargo: "Manual Entry",
-          transitTime: "N/A",
-          validity: "N/A",
-          freeTime: "N/A",
-        },
-        status: 'Rascunho',
-        date: new Date().toLocaleDateString('pt-BR'),
-        charges: charges,
-    };
-    setQuotes(prevQuotes => [newQuote, ...prevQuotes]);
-    setQuoteToEdit(newQuote);
-    setActiveTab('customer_quotes');
-  };
-
 
   return (
     <div className="p-4 md:p-8">
@@ -313,7 +308,6 @@ export default function ComercialPage() {
             onRegisterCustomer={() => setActiveTab('partners')}
             rates={rates}
             fees={fees}
-            onStartManualQuote={handleStartManualQuote}
             onQuoteUpdate={handleQuoteUpdated}
           />
         </TabsContent>
@@ -322,8 +316,6 @@ export default function ComercialPage() {
             quotes={quotes}
             partners={partners}
             onQuoteUpdate={handleQuoteUpdated}
-            quoteToOpen={quoteToEdit}
-            onDialogClose={() => setQuoteToEdit(null)}
           />
         </TabsContent>
          <TabsContent value="rates" className="mt-6">

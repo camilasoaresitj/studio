@@ -194,9 +194,18 @@ export default function ComercialPage() {
     setActiveTab('customer_quotes');
   };
 
-  const handlePartnerAdded = (newPartner: Partner) => {
-    const newPartnerWithId = { ...newPartner, id: partners.length + 1 };
-    setPartners(prevPartners => [...prevPartners, newPartnerWithId]);
+  const handlePartnerSaved = (partnerToSave: Partner) => {
+      setPartners(prevPartners => {
+          const index = prevPartners.findIndex(p => p.id === partnerToSave.id);
+          if (index > -1) {
+              const newPartners = [...prevPartners];
+              newPartners[index] = partnerToSave;
+              return newPartners;
+          } else {
+              // It's a new partner, give it a new ID
+              return [...prevPartners, { ...partnerToSave, id: Math.max(...prevPartners.map(p => p.id), 0) + 1 }];
+          }
+      });
   };
   
   const handleFeeSaved = (feeToSave: Fee) => {
@@ -261,6 +270,7 @@ export default function ComercialPage() {
     const newQuote: Quote = {
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}-DRAFT`,
         customer: customer.name,
+        destination: formData.destination.split(',')[0],
         details: {
           origin: formData.origin,
           cargo: "Manual Entry",
@@ -345,7 +355,7 @@ export default function ComercialPage() {
                     <CardDescription>Gerencie seus clientes, fornecedores e agentes.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <PartnersRegistry partners={partners} onPartnerAdded={handlePartnerAdded} />
+                    <PartnersRegistry partners={partners} onPartnerSaved={handlePartnerSaved} />
                 </CardContent>
             </Card>
         </TabsContent>

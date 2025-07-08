@@ -632,7 +632,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                                             <CommandItem
                                                 value={partner.name}
                                                 key={partner.id}
-                                                onSelect={() => {
+                                                onSelect={(currentValue) => {
                                                     form.setValue("customerId", partner.id.toString());
                                                     setIsCustomerPopoverOpen(false);
                                                 }}

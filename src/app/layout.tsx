@@ -3,7 +3,7 @@ import './globals.css';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { MainSidebar } from '@/components/layout/main-sidebar';
 import { Toaster } from "@/components/ui/toaster"
-import { BottomNavbar } from '@/components/layout/bottom-navbar';
+import { MainHeader } from '@/components/layout/main-header';
 
 export const metadata: Metadata = {
   title: 'CargaInteligente',
@@ -26,11 +26,13 @@ export default function RootLayout({
         <SidebarProvider>
           <div className="flex min-h-screen">
             <MainSidebar />
-            <SidebarInset className="flex-1 pb-16 md:pb-0">
-              {children}
-            </SidebarInset>
+            <div className="flex flex-1 flex-col">
+              <MainHeader />
+              <SidebarInset className="flex-1">
+                {children}
+              </SidebarInset>
+            </div>
           </div>
-          <BottomNavbar />
         </SidebarProvider>
         <Toaster />
       </body>

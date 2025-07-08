@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { MainSidebar } from '@/components/layout/main-sidebar';
 import { Toaster } from "@/components/ui/toaster"
+import { BottomNavbar } from '@/components/layout/bottom-navbar';
 
 export const metadata: Metadata = {
   title: 'CargaInteligente',
@@ -25,10 +26,11 @@ export default function RootLayout({
         <SidebarProvider>
           <div className="flex min-h-screen">
             <MainSidebar />
-            <SidebarInset className="flex-1">
+            <SidebarInset className="flex-1 pb-16 md:pb-0">
               {children}
             </SidebarInset>
           </div>
+          <BottomNavbar />
         </SidebarProvider>
         <Toaster />
       </body>

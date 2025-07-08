@@ -32,36 +32,38 @@ export function MainSidebar() {
   const pathname = usePathname();
 
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <Link href="/" className="flex items-center gap-2">
-            <Ship className="w-8 h-8 text-sidebar-primary" />
-            <span className="text-xl font-semibold text-sidebar-foreground">CargaInteligente</span>
-        </Link>
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
-                tooltip={item.label}
-              >
-                <Link href={item.href}>
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-      <SidebarFooter>
-        <div className="text-xs text-center text-sidebar-foreground/50 p-4">
-          © {new Date().getFullYear()} CargaInteligente
-        </div>
-      </SidebarFooter>
-    </Sidebar>
+    <div className="hidden md:block">
+      <Sidebar>
+        <SidebarHeader>
+          <Link href="/" className="flex items-center gap-2">
+              <Ship className="w-8 h-8 text-sidebar-primary" />
+              <span className="text-xl font-semibold text-sidebar-foreground">CargaInteligente</span>
+          </Link>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu>
+            {menuItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
+                  tooltip={item.label}
+                >
+                  <Link href={item.href}>
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter>
+          <div className="text-xs text-center text-sidebar-foreground/50 p-4">
+            © {new Date().getFullYear()} CargaInteligente
+          </div>
+        </SidebarFooter>
+      </Sidebar>
+    </div>
   );
 }

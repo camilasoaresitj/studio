@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -52,6 +53,7 @@ const partnerSchema = z.object({
     city: z.string().optional(),
     state: z.string().optional(),
     zip: z.string().optional(),
+    country: z.string().optional(),
   }),
   contacts: z.array(contactSchema).min(1, 'Adicione pelo menos um contato'),
 });
@@ -85,6 +87,7 @@ export function PartnersRegistry({ partners, onPartnerAdded }: PartnersRegistryP
         city: '',
         state: '',
         zip: '',
+        country: '',
       },
       contacts: [
         { name: '', email: '', phone: '', department: 'Comercial' }
@@ -133,6 +136,7 @@ export function PartnersRegistry({ partners, onPartnerAdded }: PartnersRegistryP
       form.setValue('address.city', data.municipio || '');
       form.setValue('address.state', data.uf || '');
       form.setValue('address.zip', data.cep?.replace(/\D/g, '') || '');
+      form.setValue('address.country', 'Brasil');
 
       toast({ title: 'Dados do CNPJ preenchidos!', description: `Os dados de ${data.razao_social} foram carregados.` });
 
@@ -250,12 +254,15 @@ export function PartnersRegistry({ partners, onPartnerAdded }: PartnersRegistryP
                           <FormItem><FormLabel>Bairro</FormLabel><FormControl><Input placeholder="Bela Vista" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                   </div>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField control={form.control} name="address.city" render={({ field }) => (
                           <FormItem><FormLabel>Cidade</FormLabel><FormControl><Input placeholder="São Paulo" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                        <FormField control={form.control} name="address.state" render={({ field }) => (
                           <FormItem><FormLabel>Estado</FormLabel><FormControl><Input placeholder="SP" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="address.country" render={({ field }) => (
+                          <FormItem><FormLabel>País</FormLabel><FormControl><Input placeholder="Brasil" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                   </div>
                   <Separator className="my-4" />

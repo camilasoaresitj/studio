@@ -6,7 +6,7 @@ import { CrmForm } from '@/components/crm-form';
 import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { RateImporter } from '@/components/rate-importer';
 import { RatesTable } from '@/components/rates-table';
-import { CustomerQuotesList, Quote, QuoteCharge } from '@/components/customer-quotes-list';
+import { CustomerQuotesList, Quote, QuoteCharge, QuoteDetails } from '@/components/customer-quotes-list';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
@@ -14,6 +14,7 @@ import { PartnersRegistry, Partner } from '@/components/partners-registry';
 import { FeesRegistry, Fee } from '@/components/fees-registry';
 import type { Rate } from '@/components/rates-table';
 import type { FreightQuoteFormData } from '@/lib/schemas';
+import { SendQuoteOutput } from '@/ai/flows/send-quote';
 
 const initialRatesData: Rate[] = [
   // Maersk
@@ -48,7 +49,8 @@ const initialRatesData: Rate[] = [
 
 const initialQuotesData: Quote[] = [
   { 
-    id: 'COT-00125', customer: 'Nexus Imports', destination: 'Roterdã, NL', status: 'Enviada', date: '15/07/2024', 
+    id: 'COT-00125', customer: 'Nexus Imports', destination: 'Roterdã, NL', status: 'Enviada', date: '15/07/2024',
+    details: { origin: 'Santos, BR', cargo: '1x20GP', transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias' },
     charges: [
         { id: 'charge-1', name: 'Frete Marítimo', type: 'Por Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line' },
         { id: 'charge-2', name: 'THC', type: 'Por Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã' },
@@ -57,15 +59,16 @@ const initialQuotesData: Quote[] = [
     ]
   },
   { 
-    id: 'COT-00124', customer: 'TechFront Solutions', destination: 'Miami, US', status: 'Aprovada', date: '14/07/2024',
+    id: 'COT-00124', customer: 'TechFront Solutions', destination: 'Miami, US', status: 'Aprovada', date: '14/07/2024', 
+    details: { origin: 'Guarulhos, BR', cargo: '500kg', transitTime: '1 dia', validity: '31/10/2024', freeTime: 'N/A' },
     charges: [
         { id: 'charge-5', name: 'Frete Aéreo', type: 'Por KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo' },
         { id: 'charge-6', name: 'Handling Fee', type: 'Por AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA' },
     ]
   },
-  { id: 'COT-00123', customer: 'Global Foods Ltda', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', charges: [] },
-  { id: 'COT-00122', customer: 'Nexus Imports', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', charges: [] },
-  { id: 'COT-00121', customer: 'AutoParts Express', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', charges: [] },
+  { id: 'COT-00123', customer: 'Global Foods Ltda', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', details: { origin: 'Paranaguá, BR', cargo: '1x40HC', transitTime: '35-40 dias', validity: '31/12/2024', freeTime: '7 dias' }, charges: [] },
+  { id: 'COT-00122', customer: 'Nexus Imports', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', details: { origin: 'Itajaí, BR', cargo: '1x20GP', transitTime: '28-32 dias', validity: '30/11/2024', freeTime: '21 dias' }, charges: [] },
+  { id: 'COT-00121', customer: 'AutoParts Express', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', details: { origin: 'Guarulhos, BR', cargo: '100kg', transitTime: '1-2 dias', validity: '30/11/2024', freeTime: 'N/A' }, charges: [] },
 ];
 
 const initialPartnersData: Partner[] = [
@@ -76,7 +79,7 @@ const initialPartnersData: Partner[] = [
         cnpj: '12345678000199',
         paymentTerm: 30,
         exchangeRateAgio: 2.0,
-        address: { street: 'Av. das Nações', number: '100', complement: 'Torre B, 5º Andar', district: 'Centro', city: 'São Paulo', state: 'SP', zip: '01234-000' },
+        address: { street: 'Av. das Nações', number: '100', complement: 'Torre B, 5º Andar', district: 'Centro', city: 'São Paulo', state: 'SP', zip: '01234-000', country: 'Brasil' },
         contacts: [
             { name: 'Ana Costa', email: 'ana.costa@nexus.com', phone: '5511987654321', department: 'Comercial' },
             { name: 'Roberto Lima', email: 'roberto.lima@nexus.com', phone: '5511987654322', department: 'Operacional' }
@@ -89,7 +92,7 @@ const initialPartnersData: Partner[] = [
         cnpj: '98765432000100',
         paymentTerm: 15,
         exchangeRateAgio: 0,
-        address: { street: 'Rua do Porto', number: '555', complement: '', district: 'Paquetá', city: 'Santos', state: 'SP', zip: '11010-151' },
+        address: { street: 'Rua do Porto', number: '555', complement: '', district: 'Paquetá', city: 'Santos', state: 'SP', zip: '11010-151', country: 'Brasil' },
         contacts: [
             { name: 'Carlos Pereira', email: 'comercial.br@maersk.com', phone: '551332268500', department: 'Comercial' }
         ]
@@ -101,7 +104,7 @@ const initialPartnersData: Partner[] = [
         cnpj: '',
         paymentTerm: 45,
         exchangeRateAgio: 0,
-        address: { street: 'Ocean Drive', number: '123', complement: 'Suite 200', district: 'South Beach', city: 'Miami', state: 'FL', zip: '33139' },
+        address: { street: 'Ocean Drive', number: '123', complement: 'Suite 200', district: 'South Beach', city: 'Miami', state: 'FL', zip: '33139', country: 'EUA' },
         contacts: [
             { name: 'John Smith', email: 'ops@gla.com', phone: '13055551234', department: 'Operacional' }
         ]
@@ -113,7 +116,7 @@ const initialPartnersData: Partner[] = [
         cnpj: '11223344000155',
         paymentTerm: 21,
         exchangeRateAgio: 2.5,
-        address: { street: 'Rua da Inovação', number: '404', complement: '', district: 'Centro', city: 'Florianópolis', state: 'SC', zip: '88010-000' },
+        address: { street: 'Rua da Inovação', number: '404', complement: '', district: 'Centro', city: 'Florianópolis', state: 'SC', zip: '88010-000', country: 'Brasil' },
         contacts: [
             { name: 'Sofia Mendes', email: 'sofia@techfront.com', phone: '5548999887766', department: 'Comercial' },
             { name: 'Lucas Ferreira', email: 'financeiro@techfront.com', phone: '5548999887755', department: 'Financeiro' },
@@ -185,15 +188,10 @@ export default function ComercialPage() {
     setRates(updatedRates);
   };
   
-  const handleQuoteCreated = (newQuoteData: Omit<Quote, 'id' | 'status' | 'date'>) => {
-    const newQuote: Quote = {
-        ...newQuoteData,
-        id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
-        status: 'Enviada',
-        date: new Date().toLocaleDateString('pt-BR'),
-    };
-    setQuotes(prevQuotes => [newQuote, ...prevQuotes]);
-    setQuoteToEdit(null);
+  const handleQuoteCreated = (newQuoteData: Quote) => {
+    setQuotes(prevQuotes => [newQuoteData, ...prevQuotes]);
+    setQuoteToEdit(newQuoteData); // Open the new quote for editing
+    setActiveTab('customer_quotes');
   };
 
   const handlePartnerAdded = (newPartner: Partner) => {
@@ -222,16 +220,22 @@ export default function ComercialPage() {
       destination: rate.destination,
       modal: rate.modal === 'Marítimo' ? 'ocean' : 'air',
       oceanShipmentType: 'FCL',
+      // Store rate details for later use in proposal
+      rateDetails: {
+        transitTime: rate.transitTime,
+        validity: rate.validity,
+        freeTime: rate.freeTime,
+      }
     };
     
     if (isGroup && containerType) {
         formData.oceanShipment = {
-            containers: [{ type: containerType, quantity: 1, weight: undefined }],
+            containers: [{ type: containerType, quantity: 1, weight: undefined, length: undefined, width: undefined, height: undefined }],
         };
     } else if (!isGroup) {
         if(rate.modal === 'Marítimo') {
             formData.oceanShipment = {
-                containers: rate.container ? [{ type: rate.container, quantity: 1, weight: undefined }] : [],
+                containers: rate.container ? [{ type: rate.container, quantity: 1, weight: undefined, length: undefined, width: undefined, height: undefined }] : [],
             };
         }
     } else {
@@ -250,14 +254,20 @@ export default function ComercialPage() {
     }
   };
 
-  const handleStartManualQuote = (formData: FreightQuoteFormData, charges: QuoteCharge[] = []) => {
+  const handleStartManualQuote = (formData: FreightQuoteFormData, charges: QuoteCharge[]) => {
     const customer = partners.find(p => p.id.toString() === formData.customerId);
     if (!customer) return;
 
     const newQuote: Quote = {
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}-DRAFT`,
         customer: customer.name,
-        destination: formData.destination,
+        details: {
+          origin: formData.origin,
+          cargo: "Manual Entry",
+          transitTime: "N/A",
+          validity: "N/A",
+          freeTime: "N/A",
+        },
         status: 'Rascunho',
         date: new Date().toLocaleDateString('pt-BR'),
         charges: charges,
@@ -300,6 +310,7 @@ export default function ComercialPage() {
         <TabsContent value="customer_quotes" className="mt-6">
           <CustomerQuotesList
             quotes={quotes}
+            partners={partners}
             onQuoteUpdate={handleQuoteUpdated}
             quoteToOpen={quoteToEdit}
             onDialogClose={() => setQuoteToEdit(null)}

@@ -62,8 +62,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange }: ShipmentD
                         <Card>
                             <CardHeader className="pb-2"><CardTitle className="text-base">{shipment.destination.includes('BR') ? 'Exportador' : 'Importador'}</CardTitle></CardHeader>
                             <CardContent className="text-sm">
-                                <p className="font-semibold">{overseasPartner.name}</p>
-                                <p className="text-muted-foreground">{overseasPartner.address.city}, {overseasPartner.address.country}</p>
+                                <p className="font-semibold">{overseasPartner?.name}</p>
+                                <p className="text-muted-foreground">{overseasPartner?.address?.city}, {overseasPartner?.address?.country}</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -96,7 +96,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange }: ShipmentD
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {shipment.charges.map(charge => (
+                                        {(shipment.charges || []).map(charge => (
                                             <TableRow key={charge.id}>
                                                 <TableCell>{charge.name}</TableCell>
                                                 <TableCell className="text-muted-foreground">{charge.supplier}</TableCell>
@@ -122,5 +122,3 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange }: ShipmentD
         </Sheet>
     );
 }
-
-    

@@ -28,6 +28,14 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from './ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 
 const containerDetailSchema = z.object({
@@ -108,7 +116,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     control: form.control,
     name: "transshipments"
   });
-  
+
   const { progressPercentage, completedCount, totalCount } = useMemo(() => {
     if (!shipment?.milestones || shipment.milestones.length === 0) {
       return { progressPercentage: 0, completedCount: 0, totalCount: 0 };
@@ -159,6 +167,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       });
     }
   }, [shipment, form]);
+
+  if (!shipment) {
+      return null;
+  }
 
   const onSubmit = (data: ShipmentDetailsFormData) => {
     if (!shipment) return;
@@ -212,10 +224,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         description: `A ação de "Faturar Contas a ${type === 'receber' ? 'Receber' : 'Pagar'}" será integrada ao módulo Financeiro.`,
     });
   };
-
-  if (!shipment) {
-      return null;
-  }
 
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -546,5 +554,3 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       </Sheet>
   );
 }
-
-    

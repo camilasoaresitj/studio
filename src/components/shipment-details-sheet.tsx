@@ -74,8 +74,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         voyageNumber: shipment.voyageNumber || '',
         masterBillNumber: shipment.masterBillNumber || '',
         houseBillNumber: shipment.houseBillNumber || '',
-        etd: shipment.etd,
-        eta: shipment.eta,
+        etd: shipment.etd ? new Date(shipment.etd) : undefined,
+        eta: shipment.eta ? new Date(shipment.eta) : undefined,
         containers: shipment.containers || [],
       });
     }

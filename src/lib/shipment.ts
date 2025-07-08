@@ -147,11 +147,11 @@ export function getShipments(): Shipment[] {
         ...shipment,
         etd: shipment.etd ? new Date(shipment.etd) : undefined,
         eta: shipment.eta ? new Date(shipment.eta) : undefined,
-        milestones: shipment.milestones.map((m: any) => ({
+        milestones: shipment.milestones?.map((m: any) => ({
             ...m,
             dueDate: new Date(m.dueDate),
             completedDate: m.completedDate ? new Date(m.completedDate) : null,
-        })),
+        })) || [],
     }));
   } catch (error) {
     console.error("Failed to parse shipments from localStorage", error);
@@ -208,12 +208,12 @@ export function createShipment(quote: ShipmentCreationData, overseasPartner: Par
     voyageNumber: '',
     masterBillNumber: `MSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    containers: quote.details.cargo.includes('GP') || quote.details.cargo.includes('HC') ? [{
+    containers: quote.details.cargo.toLowerCase().includes('fcl') ? [{
       id: `cont-1`,
-      number: 'ABCD1234567',
-      seal: 'S12345',
-      tare: '2200 kg',
-      grossWeight: '15000 kg',
+      number: 'TBC',
+      seal: 'TBC',
+      tare: 'TBC',
+      grossWeight: 'TBC',
     }] : [],
     transshipmentPort: '',
     transshipmentVessel: '',

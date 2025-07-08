@@ -87,7 +87,7 @@ export default function OperacionalPage() {
                                     <TableCell>{shipment.etd ? format(new Date(shipment.etd), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                     <TableCell>{shipment.eta ? format(new Date(shipment.eta), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                     <TableCell>{shipment.masterBillNumber || 'N/A'}</TableCell>
-                                    <TableCell>{shipment.details.cargo.includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
+                                    <TableCell>{shipment.details.cargo.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
                                 </TableRow>
                             ))
                         )}

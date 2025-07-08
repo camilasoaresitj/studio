@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import {
   Table,
   TableHeader,
@@ -22,7 +22,8 @@ import { runSendQuote } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Partner } from './partners-registry';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import { OverseasPartnerDialog } from './overseas-partner-dialog';
+import { ApproveQuoteDialog } from './approve-quote-dialog';
+import { createShipment } from '@/lib/shipment';
 
 const DynamicJsPDF = dynamic(() => import('jspdf').then(mod => mod.default), { ssr: false });
 const DynamicHtml2Canvas = dynamic(() => import('html2canvas'), { ssr: false });
@@ -54,6 +55,13 @@ export type Quote = {
   date: string;
   details: QuoteDetails;
   charges: QuoteCharge[];
+  // Extra fields for full proposal generation
+  modal: 'ocean' | 'air';
+  incoterm: string;
+  oceanShipmentType?: 'FCL' | 'LCL';
+  oceanContainers?: { type: string, quantity: number }[];
+  lclDetails?: { cbm: number, weight: number };
+  airPieces?: { quantity: number, weight: number, length: number, width: number, height: number }[];
 };
 
 
@@ -69,7 +77,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
     const [isSending, setIsSending] = useState(false);
     const [sendDialogOpen, setSendDialogOpen] = useState(false);
     const [quoteToSend, setQuoteToSend] = useState<Quote | null>(null);
-    const [quoteForPartner, setQuoteForPartner] = useState<Quote | null>(null);
+    const [quoteToApprove, setQuoteToApprove] = useState<Quote | null>(null);
     const { toast } = useToast();
 
     const handleOpenSendDialog = (quote: Quote) => {
@@ -90,27 +98,12 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
       
       const exchangeRates = await exchangeRateService.getRates();
       const customerAgio = customer.exchangeRateAgio || 0;
-      const finalExchangeRates = {
-          USD: exchangeRates.USD * (1 + customerAgio / 100),
-          EUR: exchangeRates.EUR * (1 + customerAgio / 100),
-          JPY: exchangeRates.JPY * (1 + customerAgio / 100),
-          CHF: exchangeRates.CHF * (1 + customerAgio / 100),
-          GBP: exchangeRates.GBP * (1 + customerAgio / 100),
-      };
-
+      
       const response = await runSendQuote({
-        customerName: quoteToSend.customer,
-        quoteId: quoteToSend.id.replace('-DRAFT', ''),
-        details: {
-            ...quoteToSend.details,
-            origin: quoteToSend.origin,
-            destination: quoteToSend.destination,
-        },
-        charges: quoteToSend.charges.map(c => ({
-            name: c.name,
-            value: `${c.saleCurrency} ${c.sale.toFixed(2)}`
-        })),
-        exchangeRates: finalExchangeRates,
+        quote: quoteToSend,
+        customer,
+        exchangeRates,
+        customerAgio,
         approvalLink: `https://cargainteligente.com/approve/${quoteToSend.id}`,
         rejectionLink: `https://cargainteligente.com/reject/${quoteToSend.id}`,
       });
@@ -120,8 +113,9 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
             const recipient = primaryContact?.email;
             if (recipient) {
-                const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(response.data.emailSubject)}&body=${encodeURIComponent(response.data.htmlBody)}`;
-                window.open(mailtoLink, '_self');
+                // Using window.location to trigger mail client for better HTML compatibility
+                const mailto_link = 'mailto:' + recipient + '?subject=' + encodeURIComponent(response.data.emailSubject) + '&body=' + encodeURIComponent(response.data.htmlBody);
+                window.location.href = mailto_link;
                 toast({ title: 'E-mail de cotação gerado!', description: `Pronto para enviar para ${recipient}.` });
             } else {
                  toast({ variant: 'destructive', title: 'E-mail não encontrado', description: 'O contato principal do cliente não possui um e-mail cadastrado.' });
@@ -146,6 +140,33 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
     };
 
      const handleGeneratePdf = async (quote: Quote) => {
+        setIsSending(true);
+        toast({ title: 'Gerando PDF...', description: 'Aguarde um momento.' });
+
+        const customer = partners.find(p => p.name === quote.customer);
+        if (!customer) {
+            toast({ variant: 'destructive', title: 'Cliente não encontrado!' });
+            setIsSending(false);
+            return;
+        }
+        
+        const exchangeRates = await exchangeRateService.getRates();
+
+        const response = await runSendQuote({
+            quote,
+            customer,
+            exchangeRates,
+            customerAgio: customer.exchangeRateAgio || 0,
+            approvalLink: 'N/A',
+            rejectionLink: 'N/A',
+        });
+
+        if (!response.success) {
+            toast({ variant: 'destructive', title: 'Erro ao gerar PDF', description: response.error });
+            setIsSending(false);
+            return;
+        }
+
         const [jsPDF, html2canvas] = await Promise.all([
             DynamicJsPDF,
             DynamicHtml2Canvas,
@@ -154,29 +175,26 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         const element = document.createElement("div");
         element.style.position = 'absolute';
         element.style.left = '-9999px';
+        element.style.width = '800px';
+        element.innerHTML = response.data.htmlBody;
         document.body.appendChild(element);
-
-        const { createRoot } = await import('react-dom/client');
-        const root = createRoot(element);
-        
-        const quoteForPdf = <div id={`pdf-gen-${quote.id}`} className="w-[800px] p-4 bg-white"> <QuoteCostSheet quote={quote} onUpdate={()=>{}} /> </div>;
-        root.render(quoteForPdf);
         
         await new Promise(resolve => setTimeout(resolve, 500)); 
 
-        const quoteElement = document.getElementById(`pdf-gen-${quote.id}`);
+        const quoteElement = element.querySelector('#proposal');
         if (quoteElement) {
-            const canvas = await html2canvas(quoteElement, { scale: 2 });
+            const canvas = await html2canvas(quoteElement as HTMLElement, { scale: 2 });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`cotacao-${quote.id.replace('-DRAFT', '')}.pdf`);
+            pdf.save(`proposta-${quote.id.replace('-DRAFT', '')}.pdf`);
         }
 
-        root.unmount();
         document.body.removeChild(element);
+        setIsSending(false);
+        toast({ title: 'PDF gerado com sucesso!', className: 'bg-success text-success-foreground' });
     };
 
     const getStatusVariant = (status: Quote['status']): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -196,24 +214,29 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         setSelectedQuote(updatedQuote); 
     };
 
-    const handlePartnerConfirmed = (partner: Partner, quote: Quote) => {
-        // If the partner doesn't exist in the list, save it.
-        if (!partners.some(p => p.id === partner.id)) {
-            onPartnerSaved(partner);
+    const handleApprovalConfirmed = (quote: Quote, overseasPartner: Partner, agent?: Partner) => {
+        // If the partner is new (doesn't have an existing ID in the main list), save it.
+        if (!partners.some(p => p.id === overseasPartner.id)) {
+            onPartnerSaved(overseasPartner);
         }
-        // Then, update the quote status
+        
+        // Update quote status
         onQuoteUpdate({ ...quote, status: 'Aprovada' });
+
+        // Create the new shipment
+        createShipment(quote, overseasPartner, agent);
+
         toast({
             title: `Cotação ${quote.id.replace('-DRAFT', '')} Aprovada!`,
-            description: `${partner.name} foi definido como parceiro do embarque.`,
+            description: `Embarque criado no Módulo Operacional.`,
             className: 'bg-success text-success-foreground'
         });
-        setQuoteForPartner(null); // Close the dialog
+        setQuoteToApprove(null); // Close the dialog
     };
     
     const handleStatusChange = (quote: Quote, newStatus: Quote['status']) => {
         if (newStatus === 'Aprovada') {
-            setQuoteForPartner(quote);
+            setQuoteToApprove(quote);
         } else {
             onQuoteUpdate({ ...quote, status: newStatus });
             toast({
@@ -267,12 +290,12 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                                             <FileText className="mr-2 h-4 w-4" />
                                             <span>Ver/Editar Detalhes</span>
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleOpenSendDialog(quote)}>
+                                        <DropdownMenuItem onClick={() => handleOpenSendDialog(quote)} disabled={isSending}>
                                             <Send className="mr-2 h-4 w-4" />
                                             <span>Enviar Cotação</span>
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleGeneratePdf(quote)}>
-                                            <FileDown className="mr-2 h-4 w-4" />
+                                        <DropdownMenuItem onClick={() => handleGeneratePdf(quote)} disabled={isSending}>
+                                            {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                                             <span>Gerar PDF</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
@@ -328,11 +351,11 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             </div>
         </DialogContent>
     </Dialog>
-    <OverseasPartnerDialog
-        quote={quoteForPartner}
+    <ApproveQuoteDialog
+        quote={quoteToApprove}
         partners={partners}
-        onClose={() => setQuoteForPartner(null)}
-        onPartnerConfirmed={handlePartnerConfirmed}
+        onClose={() => setQuoteToApprove(null)}
+        onApprovalConfirmed={handleApprovalConfirmed}
     />
     </>
   );

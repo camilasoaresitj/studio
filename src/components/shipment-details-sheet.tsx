@@ -27,6 +27,7 @@ import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass,
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { Label } from './ui/label';
 
 
 const containerDetailSchema = z.object({
@@ -107,6 +108,32 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     control: form.control,
     name: "transshipments"
   });
+  
+  const { progressPercentage, completedCount, totalCount } = useMemo(() => {
+    if (!shipment?.milestones || shipment.milestones.length === 0) {
+      return { progressPercentage: 0, completedCount: 0, totalCount: 0 };
+    }
+    const completed = shipment.milestones.filter(m => m.status === 'completed').length;
+    const total = shipment.milestones.length;
+    return {
+      progressPercentage: total > 0 ? (completed / total) * 100 : 0,
+      completedCount: completed,
+      totalCount: total,
+    };
+  }, [shipment]);
+
+  const assembledMilestones = useMemo(() => {
+    if (!shipment) return [];
+    
+    return [...(shipment.milestones || [])].map(m => ({
+        ...m,
+        details: m.name === 'Embarque' && shipment.vesselName 
+                    ? `${shipment.vesselName} / ${shipment.voyageNumber || ''}` 
+                    : m.details,
+    }));
+  }, [shipment]);
+  
+  const { overseasPartner, agent } = shipment || {};
 
   useEffect(() => {
     if (shipment) {
@@ -179,31 +206,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     });
   };
 
-  const { progressPercentage, completedCount, totalCount } = useMemo(() => {
-    if (!shipment?.milestones || shipment.milestones.length === 0) {
-      return { progressPercentage: 0, completedCount: 0, totalCount: 0 };
-    }
-    const completed = shipment.milestones.filter(m => m.status === 'completed').length;
-    const total = shipment.milestones.length;
-    return {
-      progressPercentage: total > 0 ? (completed / total) * 100 : 0,
-      completedCount: completed,
-      totalCount: total,
-    };
-  }, [shipment]);
-
-  const assembledMilestones = useMemo(() => {
-    if (!shipment) return [];
-    
-    return [...(shipment.milestones || [])].map(m => ({
-        ...m,
-        // Inject details into main departure milestone
-        details: m.name === 'Embarque' && shipment.vesselName 
-                    ? `${shipment.vesselName} / ${shipment.voyageNumber || ''}` 
-                    : m.details,
-    }));
-  }, [shipment]);
-
   const handleBillingClick = (type: 'receber' | 'pagar') => {
     toast({
         title: `Função em Desenvolvimento`,
@@ -214,8 +216,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   if (!shipment) {
       return null;
   }
-  
-  const { overseasPartner, agent } = shipment;
 
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -546,3 +546,5 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       </Sheet>
   );
 }
+
+    

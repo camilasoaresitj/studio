@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import { Trash2 } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
+import { cn } from '@/lib/utils';
 
 const quoteChargeSchema = z.object({
   id: z.string(),

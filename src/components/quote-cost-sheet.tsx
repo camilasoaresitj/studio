@@ -59,12 +59,15 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
     const profit = { BRL: 0, USD: 0 };
 
     watchedCharges.forEach(charge => {
+      // Accumulate total costs and sales per currency
       cost[charge.costCurrency] += charge.cost;
       sale[charge.saleCurrency] += charge.sale;
-      profit[charge.costCurrency] += charge.sale * (charge.saleCurrency === charge.costCurrency ? 1 : 0) - charge.cost;
-      if (charge.saleCurrency !== charge.costCurrency) {
-        profit[charge.saleCurrency] += charge.sale;
-      }
+      
+      // To calculate profit, we add the sale value to its currency bucket
+      // and subtract the cost value from its currency bucket.
+      // This correctly handles multi-currency profit calculation.
+      profit[charge.saleCurrency] += charge.sale;
+      profit[charge.costCurrency] -= charge.cost;
     });
 
     return { cost, sale, profit };
@@ -96,9 +99,10 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
               <TableBody>
                 {fields.map((field, index) => {
                   const charge = watchedCharges[index];
-                  const profit = charge.saleCurrency === charge.costCurrency ? charge.sale - charge.cost : charge.sale;
+                  const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
+                  const profit = canCalculateProfit ? charge.sale - charge.cost : 0;
                   const profitCurrency = charge.saleCurrency;
-                  const isLoss = profit < 0;
+                  const isLoss = canCalculateProfit && profit < 0;
                   
                   return (
                     <TableRow key={field.id}>
@@ -130,8 +134,8 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
                            <Input type="number" {...field} className="w-24" />
                          )} />
                        </TableCell>
-                       <TableCell className={cn('font-semibold', isLoss ? 'text-destructive' : 'text-success')}>
-                          {profitCurrency} {profit.toFixed(2)}
+                       <TableCell className={cn('font-semibold', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
+                          {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
                        </TableCell>
                        <TableCell>
                          <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
@@ -167,7 +171,7 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
                       <div className="flex justify-between"><span>BRL:</span><span className="font-mono">{totals.sale.BRL.toFixed(2)}</span></div>
                   </CardContent>
               </Card>
-              <Card className={cn(totals.profit.BRL + totals.profit.USD < 0 ? "border-destructive" : "border-success")}>
+              <Card className={cn(totals.profit.BRL < 0 || totals.profit.USD < 0 ? "border-destructive" : "border-success")}>
                   <CardHeader><CardTitle className="text-lg">Lucro Total</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
                       <div className="flex justify-between"><span>USD:</span><span className="font-mono">{totals.profit.USD.toFixed(2)}</span></div>

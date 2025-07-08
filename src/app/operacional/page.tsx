@@ -4,11 +4,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Shipment } from '@/lib/shipment';
+import type { Shipment, Milestone } from '@/lib/shipment';
 import { getShipments, updateShipment } from '@/lib/shipment';
 import { format } from 'date-fns';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 export default function OperacionalPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -31,6 +32,23 @@ export default function OperacionalPage() {
         className: 'bg-success text-success-foreground'
       });
   };
+
+  const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'outline' } => {
+    if (!shipment.milestones || shipment.milestones.length === 0) {
+        return { text: 'Não iniciado', variant: 'secondary' };
+    }
+    const inProgress = shipment.milestones.find(m => m.status === 'in_progress');
+    if (inProgress) return { text: inProgress.name, variant: 'default' };
+
+    const allCompleted = shipment.milestones.every(m => m.status === 'completed');
+    if (allCompleted) return { text: 'Finalizado', variant: 'outline' };
+    
+    const firstPending = shipment.milestones.find(m => m.status === 'pending');
+    if (firstPending) return { text: 'Pendente', variant: 'secondary' };
+
+    return { text: 'Finalizado', variant: 'outline' };
+  };
+
 
   if (!isClient) {
     return (
@@ -64,32 +82,36 @@ export default function OperacionalPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Processo</TableHead>
-                            <TableHead>Cliente</TableHead>
-                            <TableHead>Rota</TableHead>
-                            <TableHead>ETD</TableHead>
-                            <TableHead>ETA</TableHead>
-                            <TableHead>Master</TableHead>
-                            <TableHead>Modal</TableHead>
+                            <TableHead className="p-2">Processo</TableHead>
+                            <TableHead className="p-2">Cliente</TableHead>
+                            <TableHead className="p-2">Rota</TableHead>
+                            <TableHead className="p-2">ETD</TableHead>
+                            <TableHead className="p-2">ETA</TableHead>
+                            <TableHead className="p-2">Master</TableHead>
+                            <TableHead className="p-2">Modal</TableHead>
+                            <TableHead className="p-2">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {shipments.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell>
+                                <TableCell colSpan={8} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell>
                             </TableRow>
                         ) : (
-                            shipments.map(shipment => (
-                                <TableRow key={shipment.id} onClick={() => setSelectedShipment(shipment)} className="cursor-pointer">
-                                    <TableCell className="font-semibold text-primary">{shipment.id}</TableCell>
-                                    <TableCell>{shipment.customer}</TableCell>
-                                    <TableCell>{shipment.origin} &rarr; {shipment.destination}</TableCell>
-                                    <TableCell>{shipment.etd ? format(new Date(shipment.etd), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                                    <TableCell>{shipment.eta ? format(new Date(shipment.eta), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                                    <TableCell>{shipment.masterBillNumber || 'N/A'}</TableCell>
-                                    <TableCell>{shipment.details?.cargo?.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
+                            shipments.map(shipment => {
+                                const status = getShipmentStatus(shipment);
+                                return (
+                                <TableRow key={shipment.id} onClick={() => setSelectedShipment(shipment)} className="cursor-pointer text-xs">
+                                    <TableCell className="font-semibold text-primary p-2">{shipment.id}</TableCell>
+                                    <TableCell className="p-2">{shipment.customer}</TableCell>
+                                    <TableCell className="p-2">{shipment.origin} &rarr; {shipment.destination}</TableCell>
+                                    <TableCell className="p-2">{shipment.etd ? format(new Date(shipment.etd), 'dd/MM/yy') : 'N/A'}</TableCell>
+                                    <TableCell className="p-2">{shipment.eta ? format(new Date(shipment.eta), 'dd/MM/yy') : 'N/A'}</TableCell>
+                                    <TableCell className="p-2">{shipment.masterBillNumber || 'N/A'}</TableCell>
+                                    <TableCell className="p-2">{shipment.details?.cargo?.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
+                                    <TableCell className="p-2"><Badge variant={status.variant}>{status.text}</Badge></TableCell>
                                 </TableRow>
-                            ))
+                            )})
                         )}
                     </TableBody>
                 </Table>

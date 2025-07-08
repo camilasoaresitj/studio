@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useEffect } from 'react';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useEffect, useMemo } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format } from 'date-fns';
+import { format, isPast } from 'date-fns';
 import {
   Sheet,
   SheetContent,
@@ -22,9 +22,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, ContainerDetail } from '@/lib/shipment';
+import type { Shipment, Milestone } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Badge } from './ui/badge';
 
 const containerDetailSchema = z.object({
   id: z.string(),
@@ -43,7 +44,6 @@ const shipmentDetailsSchema = z.object({
   etd: z.date().optional(),
   eta: z.date().optional(),
   containers: z.array(containerDetailSchema).optional(),
-  // Add other fields from Shipment type that should be editable
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -54,6 +54,22 @@ interface ShipmentDetailsSheetProps {
   onOpenChange: (open: boolean) => void;
   onUpdate: (updatedShipment: Shipment) => void;
 }
+
+const MilestoneIcon = ({ status, dueDate }: { status: Milestone['status'], dueDate: Date }) => {
+    const isOverdue = isPast(dueDate) && status !== 'completed';
+
+    if (isOverdue) {
+        return <AlertTriangle className="h-5 w-5 text-destructive" />;
+    }
+    if (status === 'completed') {
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
+    }
+    if (status === 'in_progress') {
+        return <Hourglass className="h-5 w-5 text-blue-600 animate-spin" />;
+    }
+    return <Circle className="h-5 w-5 text-muted-foreground" />;
+};
+
 
 export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
   
@@ -81,10 +97,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
   }, [shipment, form]);
 
-  if (!shipment) {
-      return null;
-  }
-  
   const onSubmit = (data: ShipmentDetailsFormData) => {
     if (!shipment) return;
     const updatedShipment: Shipment = {
@@ -93,6 +105,34 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     };
     onUpdate(updatedShipment);
   };
+  
+  const handleCompleteMilestone = (milestoneIndex: number) => {
+    if (!shipment) return;
+
+    const updatedMilestones = shipment.milestones.map((m, index) => {
+        if (index === milestoneIndex) {
+            return { ...m, status: 'completed' as const, completedDate: new Date() };
+        }
+        if (index === milestoneIndex + 1 && m.status === 'pending') {
+            return { ...m, status: 'in_progress' as const };
+        }
+        return m;
+    });
+
+    onUpdate({
+        ...shipment,
+        milestones: updatedMilestones,
+    });
+  };
+
+  const currentMilestoneIndex = useMemo(() => 
+    shipment?.milestones.findIndex(m => m.status === 'in_progress') ?? -1
+  , [shipment]);
+
+
+  if (!shipment) {
+      return null;
+  }
   
   const { overseasPartner, agent } = shipment;
 
@@ -144,10 +184,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         <CardHeader><CardTitle className="text-lg">Dados da Viagem/Voo</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <FormField control={form.control} name="vesselName" render={({ field }) => (
-                                <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="MSC LEO" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="MSC LEO" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="voyageNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Viagem / Nº Voo</FormLabel><FormControl><Input placeholder="AB123C" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Viagem / Nº Voo</FormLabel><FormControl><Input placeholder="AB123C" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="etd" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
@@ -183,13 +223,40 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         <CardHeader><CardTitle className="text-lg">Documentos</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Master Bill of Lading / MAWB</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Master Bill of Lading / MAWB</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="houseBillNumber" render={({ field }) => (
-                                <FormItem><FormLabel>House Bill of Lading / HAWB</FormLabel><FormControl><Input placeholder="MYHBL12345" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>House Bill of Lading / HAWB</FormLabel><FormControl><Input placeholder="MYHBL12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                         </CardContent>
                       </Card>
+
+                        {/* Milestones */}
+                        <Card>
+                            <CardHeader><CardTitle className="text-lg">Milestones Operacionais</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                {shipment.milestones?.map((milestone, index) => (
+                                    <div key={milestone.name + index} className="flex items-center gap-4 p-3 rounded-lg border bg-background">
+                                        <MilestoneIcon status={milestone.status} dueDate={milestone.dueDate} />
+                                        <div className="flex-grow">
+                                            <p className="font-semibold">{milestone.name}</p>
+                                            <p className={cn("text-xs", isPast(milestone.dueDate) && milestone.status !== 'completed' ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                                                Vencimento: {format(milestone.dueDate, 'dd/MM/yyyy')}
+                                            </p>
+                                        </div>
+                                        <Badge variant={
+                                            milestone.status === 'completed' ? 'outline' :
+                                            milestone.status === 'in_progress' ? 'default' : 'secondary'
+                                        } className="capitalize">{milestone.status.replace('_', ' ')}</Badge>
+                                        {milestone.status === 'in_progress' && (
+                                            <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)}>
+                                                Concluir Etapa <ArrowRight className="ml-2 h-4 w-4"/>
+                                            </Button>
+                                        )}
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
 
                       {/* Cargo Details */}
                        <Card>

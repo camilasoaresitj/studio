@@ -5,9 +5,9 @@ export default function FinanceiroPage() {
   return (
     <div className="p-4 md:p-8">
       <header className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground">Módulo Financeiro</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-foreground">Dashboard Financeiro</h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Controle suas finanças, faturas e pagamentos.
+          Acompanhe faturas, contas a pagar, contas a receber e a saúde financeira da empresa.
         </p>
       </header>
       <Card>
@@ -17,7 +17,7 @@ export default function FinanceiroPage() {
         <CardContent>
           <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-64">
             <Landmark className="h-16 w-16 mb-4" />
-            <p>O módulo Financeiro está em desenvolvimento.</p>
+            <p>O Dashboard Financeiro com gráficos e KPIs está em desenvolvimento.</p>
           </div>
         </CardContent>
       </Card>

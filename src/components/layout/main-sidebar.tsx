@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/', label: 'Gerencial', icon: LayoutDashboard },
   { href: '/comercial', label: 'Comercial', icon: Briefcase },
   { href: '/operacional', label: 'Operacional', icon: Truck },
   { href: '/financeiro', label: 'Financeiro', icon: Landmark },

@@ -88,6 +88,13 @@ function saveShipments(shipments: Shipment[]): void {
  */
 export function createShipment(quote: MinimalQuote, overseasPartner: Partner, agent?: Partner): Shipment {
   const isImport = quote.destination.toUpperCase().includes('BR');
+  const milestones = isImport ? getDefaultImportMilestones() : getDefaultExportMilestones();
+  
+  // Automatically start the first milestone
+  if (milestones.length > 0) {
+      milestones[0].status = 'in_progress';
+      milestones[0].date = new Date().toLocaleDateString('pt-BR');
+  }
   
   const newShipment: Shipment = {
     id: quote.id.replace('-DRAFT', ''),
@@ -96,7 +103,7 @@ export function createShipment(quote: MinimalQuote, overseasPartner: Partner, ag
     customer: quote.customer,
     overseasPartner,
     agent,
-    milestones: isImport ? getDefaultImportMilestones() : getDefaultExportMilestones(),
+    milestones,
   };
 
   const shipments = getShipments();

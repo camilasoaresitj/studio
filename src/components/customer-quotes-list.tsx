@@ -55,13 +55,6 @@ export type Quote = {
   date: string;
   details: QuoteDetails;
   charges: QuoteCharge[];
-  // Extra fields for full proposal generation
-  modal: 'ocean' | 'air';
-  incoterm: string;
-  oceanShipmentType?: 'FCL' | 'LCL';
-  oceanContainers?: { type: string, quantity: number }[];
-  lclDetails?: { cbm: number, weight: number };
-  airPieces?: { quantity: number, weight: number, length: number, width: number, height: number }[];
 };
 
 
@@ -221,10 +214,11 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         }
         
         // Update quote status
-        onQuoteUpdate({ ...quote, status: 'Aprovada' });
+        const approvedQuote = { ...quote, status: 'Aprovada' as const };
+        onQuoteUpdate(approvedQuote);
 
-        // Create the new shipment
-        createShipment(quote, overseasPartner, agent);
+        // Create the new shipment, passing the full quote data
+        createShipment(approvedQuote, overseasPartner, agent);
 
         toast({
             title: `Cotação ${quote.id.replace('-DRAFT', '')} Aprovada!`,
@@ -360,3 +354,5 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
     </>
   );
 }
+
+    

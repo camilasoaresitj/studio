@@ -486,28 +486,24 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       }
       
       const exchangeRates = await exchangeRateService.getRates();
-      const customerAgio = customer.exchangeRateAgio || 0;
-      const finalExchangeRates = {
-          USD: exchangeRates.USD * (1 + customerAgio / 100),
-          EUR: exchangeRates.EUR * (1 + customerAgio / 100),
-          JPY: exchangeRates.JPY * (1 + customerAgio / 100),
-          CHF: exchangeRates.CHF * (1 + customerAgio / 100),
-          GBP: exchangeRates.GBP * (1 + customerAgio / 100),
-      };
+      
+      const totalSaleBRL = activeQuote.charges.reduce((acc, charge) => {
+        const rate = exchangeRates[charge.saleCurrency] || 1;
+        return acc + charge.sale * rate;
+      }, 0);
+
+      const finalPrice = `BRL ${totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const supplier = activeQuote.charges.find(c => c.name.toLowerCase().includes('frete'))?.supplier || 'N/A';
 
       const response = await runSendQuote({
         customerName: activeQuote.customer,
-        quoteId: activeQuote.id,
-        details: {
-            ...activeQuote.details,
+        rateDetails: {
             origin: activeQuote.origin,
             destination: activeQuote.destination,
+            carrier: supplier,
+            transitTime: activeQuote.details.transitTime,
+            finalPrice: finalPrice
         },
-        charges: activeQuote.charges.map(c => ({
-            name: c.name,
-            value: `${c.saleCurrency} ${c.sale.toFixed(2)}`
-        })),
-        exchangeRates: finalExchangeRates,
         approvalLink: `https://cargainteligente.com/approve/${activeQuote.id}`,
         rejectionLink: `https://cargainteligente.com/reject/${activeQuote.id}`,
       });
@@ -516,15 +512,27 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         if (channel === 'email') {
             const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
             const recipient = primaryContact.email;
-            const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(response.data.emailSubject)}&body=${encodeURIComponent(response.data.emailBody)}`;
-            window.open(mailtoLink, '_self');
-            toast({ title: 'E-mail de cotação gerado!', description: `Pronto para enviar para ${recipient}.` });
+            if (recipient) {
+                // In a real app, you would use an email service API here.
+                console.log("----- SIMULATING EMAIL SEND -----");
+                console.log("TO:", recipient);
+                console.log("SUBJECT:", response.data.emailSubject);
+                console.log("BODY (HTML):", response.data.emailBody);
+                console.log("---------------------------------");
+                toast({ title: 'Simulando envio de e-mail!', description: `E-mail para ${recipient} gerado no console.` });
+            } else {
+                 toast({ variant: 'destructive', title: 'E-mail não encontrado', description: 'O contato principal do cliente não possui um e-mail cadastrado.' });
+            }
         } else { // WhatsApp
             const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
             const phone = primaryContact.phone.replace(/\D/g, '');
-            const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(response.data.whatsappMessage)}`;
-            window.open(whatsappUrl, '_blank');
-            toast({ title: 'Mensagem de WhatsApp gerada!', description: 'Pronto para enviar.' });
+             if (phone) {
+                const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(response.data.whatsappMessage)}`;
+                window.open(whatsappUrl, '_blank');
+                toast({ title: 'Mensagem de WhatsApp gerada!', description: 'Pronto para enviar.' });
+            } else {
+                 toast({ variant: 'destructive', title: 'Telefone não encontrado', description: 'O contato principal do cliente não possui um telefone cadastrado.' });
+            }
         }
       } else {
         toast({ variant: 'destructive', title: 'Erro ao gerar comunicação', description: response.error });

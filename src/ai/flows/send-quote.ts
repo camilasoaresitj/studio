@@ -11,11 +11,11 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const RateDetailsSchema = z.object({
-    origin: z.string(),
-    destination: z.string(),
-    carrier: z.string(),
-    transitTime: z.string(),
-    finalPrice: z.string(),
+    origin: z.string().describe("The origin of the shipment."),
+    destination: z.string().describe("The destination of the shipment."),
+    carrier: z.string().describe("The carrier for the shipment."),
+    transitTime: z.string().describe("The estimated transit time."),
+    finalPrice: z.string().describe("The final price of the quote, including currency."),
 });
 
 const SendQuoteInputSchema = z.object({
@@ -41,22 +41,33 @@ const sendQuotePrompt = ai.definePrompt({
   name: 'sendQuotePrompt',
   input: {schema: SendQuoteInputSchema},
   output: {schema: SendQuoteOutputSchema},
-  prompt: `You are an expert logistics assistant. Your task is to create a professional and friendly quote communication for a customer.
+  prompt: `You are an expert logistics assistant. Your task is to create a professional and friendly quote communication for a customer in Portuguese.
 
 Generate the following based on the input data:
 1.  **Email Subject**: A clear and professional subject line for the quote email. e.g., "Sua Cotação de Frete | CargaInteligente"
 2.  **Email Body (HTML)**: A well-formatted HTML email.
+    - The entire email must be in Portuguese.
     - Start with a friendly greeting to the customer (e.g., "Olá, {{{customerName}}},").
-    - Clearly present the quote details in a structured way (e.g., using a list or a simple table): Origin, Destination, Carrier, Transit Time, and Final Price.
+    - Clearly present the quote details in a structured way (e.g., using a list or a simple table).
+    - **Quote Details to include:**
+        - Origem: {{{rateDetails.origin}}}
+        - Destino: {{{rateDetails.destination}}}
+        - Cia: {{{rateDetails.carrier}}}
+        - Transit Time: {{{rateDetails.transitTime}}}
+        - Preço Final: {{{rateDetails.finalPrice}}}
     - Include two prominent, nicely styled HTML buttons (<a href="..." style="...">...</a>): one to "Aprovar Cotação" (green background) using the approvalLink, and one to "Rejeitar Cotação" (red background) using the rejectionLink.
     - End with a professional closing (e.g., "Atenciosamente, Equipe CargaInteligente").
-3.  **WhatsApp Message**: A concise and friendly message summarizing the quote.
+3.  **WhatsApp Message**: A concise and friendly message summarizing the quote in Portuguese.
     - Example: "Olá {{{customerName}}}! Segue sua cotação de frete: De {{{rateDetails.origin}}} para {{{rateDetails.destination}}} por {{{rateDetails.finalPrice}}}. Para aprovar, acesse: {{{approvalLink}}}"
     - The message should be plain text, not URL-encoded.
 
 **Customer and Rate Information:**
 - Customer Name: {{{customerName}}}
-- Rate Details: {{{rateDetails}}}
+- Origin: {{{rateDetails.origin}}}
+- Destination: {{{rateDetails.destination}}}
+- Carrier: {{{rateDetails.carrier}}}
+- Transit Time: {{{rateDetails.transitTime}}}
+- Final Price: {{{rateDetails.finalPrice}}}
 - Approval Link: {{{approvalLink}}}
 - Rejection Link: {{{rejectionLink}}}
 `,

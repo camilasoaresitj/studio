@@ -90,13 +90,24 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
       }
       
       const exchangeRates = await exchangeRateService.getRates();
-      const customerAgio = customer.exchangeRateAgio || 0;
       
+      const totalSaleBRL = quoteToSend.charges.reduce((acc, charge) => {
+        const rate = exchangeRates[charge.saleCurrency] || 1;
+        return acc + charge.sale * rate;
+      }, 0);
+
+      const finalPrice = `BRL ${totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const supplier = quoteToSend.charges.find(c => c.name.toLowerCase().includes('frete'))?.supplier || 'N/A';
+
       const response = await runSendQuote({
-        quote: quoteToSend,
-        customer,
-        exchangeRates,
-        customerAgio,
+        customerName: quoteToSend.customer,
+        rateDetails: {
+            origin: quoteToSend.origin,
+            destination: quoteToSend.destination,
+            carrier: supplier,
+            transitTime: quoteToSend.details.transitTime,
+            finalPrice: finalPrice,
+        },
         approvalLink: `https://cargainteligente.com/approve/${quoteToSend.id}`,
         rejectionLink: `https://cargainteligente.com/reject/${quoteToSend.id}`,
       });
@@ -106,10 +117,13 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
             const recipient = primaryContact?.email;
             if (recipient) {
-                // Using window.location to trigger mail client for better HTML compatibility
-                const mailto_link = 'mailto:' + recipient + '?subject=' + encodeURIComponent(response.data.emailSubject) + '&body=' + encodeURIComponent(response.data.htmlBody);
-                window.location.href = mailto_link;
-                toast({ title: 'E-mail de cotação gerado!', description: `Pronto para enviar para ${recipient}.` });
+                // In a real app, you would use an email service API here.
+                console.log("----- SIMULATING EMAIL SEND -----");
+                console.log("TO:", recipient);
+                console.log("SUBJECT:", response.data.emailSubject);
+                console.log("BODY (HTML):", response.data.emailBody);
+                console.log("---------------------------------");
+                toast({ title: 'Simulando envio de e-mail!', description: `E-mail para ${recipient} gerado no console.` });
             } else {
                  toast({ variant: 'destructive', title: 'E-mail não encontrado', description: 'O contato principal do cliente não possui um e-mail cadastrado.' });
             }
@@ -144,15 +158,26 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         }
         
         const exchangeRates = await exchangeRateService.getRates();
+        const totalSaleBRL = quote.charges.reduce((acc, charge) => {
+            const rate = exchangeRates[charge.saleCurrency] || 1;
+            return acc + charge.sale * rate;
+        }, 0);
+        const finalPrice = `BRL ${totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const supplier = quote.charges.find(c => c.name.toLowerCase().includes('frete'))?.supplier || 'N/A';
 
         const response = await runSendQuote({
-            quote,
-            customer,
-            exchangeRates,
-            customerAgio: customer.exchangeRateAgio || 0,
+            customerName: quote.customer,
+            rateDetails: {
+                origin: quote.origin,
+                destination: quote.destination,
+                carrier: supplier,
+                transitTime: quote.details.transitTime,
+                finalPrice,
+            },
             approvalLink: 'N/A',
             rejectionLink: 'N/A',
         });
+
 
         if (!response.success) {
             toast({ variant: 'destructive', title: 'Erro ao gerar PDF', description: response.error });
@@ -169,14 +194,22 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         element.style.position = 'absolute';
         element.style.left = '-9999px';
         element.style.width = '800px';
-        element.innerHTML = response.data.htmlBody;
+        element.innerHTML = response.data.emailBody;
         document.body.appendChild(element);
         
         await new Promise(resolve => setTimeout(resolve, 500)); 
 
-        const quoteElement = element.querySelector('#proposal');
+        const quoteElement = element.querySelector('#proposal'); // Assuming the prompt generates an element with this ID
         if (quoteElement) {
             const canvas = await html2canvas(quoteElement as HTMLElement, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`proposta-${quote.id.replace('-DRAFT', '')}.pdf`);
+        } else {
+             const canvas = await html2canvas(element as HTMLElement, { scale: 2 });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -284,20 +317,20 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                                             <FileText className="mr-2 h-4 w-4" />
                                             <span>Ver/Editar Detalhes</span>
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleOpenSendDialog(quote)} disabled={isSending}>
+                                        <DropdownMenuItem onClick={() => handleOpenSendDialog(quote)} disabled={isSending || quote.status === 'Rascunho'}>
                                             <Send className="mr-2 h-4 w-4" />
                                             <span>Enviar Cotação</span>
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleGeneratePdf(quote)} disabled={isSending}>
+                                        <DropdownMenuItem onClick={() => handleGeneratePdf(quote)} disabled={isSending || quote.status === 'Rascunho'}>
                                             {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                                             <span>Gerar PDF</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => handleStatusChange(quote, 'Aprovada')} disabled={quote.status === 'Aprovada'}>
+                                        <DropdownMenuItem onClick={() => handleStatusChange(quote, 'Aprovada')} disabled={quote.status === 'Aprovada' || quote.status === 'Rascunho'}>
                                             <CheckCircle className="mr-2 h-4 w-4" />
                                             <span>Aprovar</span>
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleStatusChange(quote, 'Perdida')} disabled={quote.status === 'Perdida'} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                        <DropdownMenuItem onClick={() => handleStatusChange(quote, 'Perdida')} disabled={quote.status === 'Perdida' || quote.status === 'Rascunho'} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                                             <XCircle className="mr-2 h-4 w-4" />
                                             <span>Rejeitar (Perdida)</span>
                                         </DropdownMenuItem>
@@ -354,5 +387,3 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
     </>
   );
 }
-
-    

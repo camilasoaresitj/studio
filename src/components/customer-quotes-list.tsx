@@ -275,13 +275,17 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate }: Customer
     </Card>
     <Dialog open={!!selectedQuote} onOpenChange={setSelectedQuote}>
         <DialogContent className="max-w-6xl h-[90vh]">
-            <DialogHeader>
-                <DialogTitle>Detalhes da Cotação: {selectedQuote?.id.replace('-DRAFT', '')}</DialogTitle>
-                <DialogDescription>
-                    Gerencie os custos, receitas e lucro desta cotação. Status: <Badge variant={getStatusVariant(selectedQuote?.status ?? 'Rascunho')} className="text-xs">{selectedQuote?.status}</Badge>
-                </DialogDescription>
-            </DialogHeader>
-            {selectedQuote && <QuoteCostSheet quote={selectedQuote} onUpdate={handleUpdateQuote} />}
+            {selectedQuote && (
+                <>
+                    <DialogHeader>
+                        <DialogTitle>Detalhes da Cotação: {selectedQuote.id.replace('-DRAFT', '')}</DialogTitle>
+                        <DialogDescription>
+                            Gerencie os custos, receitas e lucro desta cotação. Status: <Badge variant={getStatusVariant(selectedQuote.status)} className="text-xs">{selectedQuote.status}</Badge>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <QuoteCostSheet quote={selectedQuote} onUpdate={handleUpdateQuote} />
+                </>
+            )}
         </DialogContent>
     </Dialog>
      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>

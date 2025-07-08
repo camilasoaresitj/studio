@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Shipment, Milestone } from '@/lib/shipment';
-import { getShipments, updateShipment } from '@/lib/shipment';
+import { getShipments, updateShipment, rebuildMilestones } from '@/lib/shipment';
 import { format, isPast, isToday, isWithinInterval, addDays, isValid } from 'date-fns';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
 import { useToast } from '@/hooks/use-toast';
@@ -32,12 +32,16 @@ export default function OperacionalPage() {
   }, []);
 
   const handleShipmentUpdate = (updatedShipmentData: Shipment) => {
-      const newShipments = updateShipment(updatedShipmentData);
+      // Rebuild milestones before saving to ensure they reflect transshipment data
+      const milestones = rebuildMilestones(updatedShipmentData);
+      const finalShipmentData = { ...updatedShipmentData, milestones };
+
+      const newShipments = updateShipment(finalShipmentData);
       setShipments(newShipments);
-      setSelectedShipment(updatedShipmentData); // Keep the sheet open with updated data
+      setSelectedShipment(finalShipmentData); // Keep the sheet open with updated data
       toast({
         title: "Embarque Atualizado",
-        description: `Os dados do embarque ${updatedShipmentData.id} foram salvos com sucesso.`,
+        description: `Os dados do embarque ${finalShipmentData.id} foram salvos com sucesso.`,
         className: 'bg-success text-success-foreground'
       });
   };
@@ -49,20 +53,20 @@ export default function OperacionalPage() {
           .filter(m => m.status === 'pending' || m.status === 'in_progress')
           .map(milestone => ({ milestone, shipment }))
       )
-      .sort((a, b) => new Date(a.milestone.dueDate).getTime() - new Date(b.milestone.dueDate).getTime());
+      .sort((a, b) => new Date(a.milestone.predictedDate).getTime() - new Date(b.milestone.predictedDate).getTime());
   }, [shipments]);
 
   const filteredTasks = useMemo(() => {
     const now = new Date();
     return allTasks.filter(task => {
-        if (!task.milestone.dueDate || !isValid(new Date(task.milestone.dueDate))) return false;
+        if (!task.milestone.predictedDate || !isValid(new Date(task.milestone.predictedDate))) return false;
 
-        const dueDate = new Date(task.milestone.dueDate);
+        const predictedDate = new Date(task.milestone.predictedDate);
         switch (taskFilter) {
             case 'today':
-                return isToday(dueDate) || isPast(dueDate);
+                return isToday(predictedDate) || isPast(predictedDate);
             case 'week':
-                return isWithinInterval(dueDate, { start: now, end: addDays(now, 7) }) || isPast(dueDate);
+                return isWithinInterval(predictedDate, { start: now, end: addDays(now, 7) }) || isPast(predictedDate);
             case 'all':
                 return true;
             default:
@@ -82,7 +86,7 @@ export default function OperacionalPage() {
     if (allCompleted) return { text: 'Finalizado', variant: 'outline' };
     
     const firstPending = shipment.milestones.find(m => m.status === 'pending');
-    if (firstPending) return { text: firstPending.name, variant: 'secondary' };
+    if (firstPending) return { text: `Pendente: ${firstPending.name}`, variant: 'secondary' };
 
     return { text: 'Finalizado', variant: 'outline' };
   };
@@ -127,11 +131,11 @@ export default function OperacionalPage() {
           <CardContent>
               <div className="space-y-3">
                   {filteredTasks.length > 0 ? filteredTasks.map(({ milestone, shipment }) => {
-                      const dueDate = new Date(milestone.dueDate);
-                      const overdue = isValid(dueDate) && isPast(dueDate) && milestone.status !== 'completed';
+                      const predictedDate = new Date(milestone.predictedDate);
+                      const overdue = isValid(predictedDate) && isPast(predictedDate) && milestone.status !== 'completed';
                       return (
                           <div
-                              key={`${shipment.id}-${milestone.name}`}
+                              key={`${shipment.id}-${milestone.name}-${milestone.predictedDate}`}
                               className={cn(
                                 "flex items-center gap-4 p-3 rounded-lg border cursor-pointer hover:bg-accent",
                                 overdue ? 'bg-destructive/10 border-destructive' : 'bg-background'
@@ -148,9 +152,9 @@ export default function OperacionalPage() {
                             </div>
                             <div className="text-right">
                                 <p className={cn("text-sm font-medium", overdue ? "text-destructive" : "text-foreground")}>
-                                    {isValid(dueDate) ? format(dueDate, 'dd/MM/yyyy') : 'Sem data'}
+                                    {isValid(predictedDate) ? format(predictedDate, 'dd/MM/yyyy') : 'Sem data'}
                                 </p>
-                                <p className="text-xs text-muted-foreground">Vencimento</p>
+                                <p className="text-xs text-muted-foreground">Data Prevista</p>
                             </div>
                           </div>
                       )
@@ -201,7 +205,7 @@ export default function OperacionalPage() {
                                     <TableCell className="p-2">{shipment.eta && isValid(new Date(shipment.eta)) ? format(new Date(shipment.eta), 'dd/MM/yy') : 'N/A'}</TableCell>
                                     <TableCell className="p-2">{shipment.masterBillNumber || 'N/A'}</TableCell>
                                     <TableCell className="p-2">{shipment.details?.cargo?.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
-                                    <TableCell className="p-2"><Badge variant={status.variant}>{status.text}</Badge></TableCell>
+                                    <TableCell className="p-2"><Badge variant={status.variant} className="whitespace-nowrap">{status.text}</Badge></TableCell>
                                 </TableRow>
                             )})
                         )}

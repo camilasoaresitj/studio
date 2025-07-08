@@ -2,7 +2,7 @@
 'use client';
 
 import type { Partner } from '@/components/partners-registry';
-import { addDays } from 'date-fns';
+import { addDays, isValid, parse } from 'date-fns';
 
 const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments';
 
@@ -39,8 +39,10 @@ export type ShipmentCreationData = {
 export type Milestone = {
   name: string;
   status: 'pending' | 'in_progress' | 'completed';
-  dueDate: Date;
-  completedDate: Date | null;
+  predictedDate: Date;
+  effectiveDate: Date | null;
+  details?: string; // For vessel/port/voyage info
+  isTransshipment?: boolean; // To identify milestones generated from transshipment data
 };
 
 export type ContainerDetail = {
@@ -49,6 +51,14 @@ export type ContainerDetail = {
   seal: string;
   tare: string;
   grossWeight: string;
+};
+
+export type TransshipmentDetail = {
+  id: string;
+  port: string;
+  vessel: string;
+  etd?: Date;
+  eta?: Date;
 };
 
 export type Shipment = {
@@ -69,21 +79,17 @@ export type Shipment = {
   etd?: Date;
   eta?: Date;
   containers?: ContainerDetail[];
-  // New fields from user request
   commodityDescription?: string;
   ncm?: string;
   netWeight?: string;
   packageQuantity?: string;
   freeTimeDemurrage?: string;
-  transshipmentPort?: string;
-  transshipmentVessel?: string;
-  etdTransshipment?: Date;
-  etaTransshipment?: Date;
+  transshipments?: TransshipmentDetail[];
 };
 
 // --- Milestone Templates & Due Date Calculation ---
 
-const MILESTONE_DUE_DAYS: { [key: string]: number } = {
+const BASE_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Confirmação de Booking': 2,
   'Coleta da Carga': 4,
   'Coleta da Carga (se aplicável)': 4,
@@ -99,30 +105,31 @@ const MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Confirmação de Entrega': 2, // Days after arrival
 };
 
-function generateMilestones(isImport: boolean, transitTimeStr: string, creationDate: Date): Milestone[] {
-    const baseMilestones = isImport 
+function generateInitialMilestones(isImport: boolean, transitTimeStr: string, creationDate: Date): Milestone[] {
+    const baseMilestoneNames = isImport 
         ? ['Confirmação de Booking', 'Coleta da Carga', 'Chegada no Porto/Aeroporto de Origem', 'Embarque', 'Chegada no Porto/Aeroporto de Destino', 'Desembaraço Aduaneiro', 'Carga Liberada', 'Entrega Final']
         : ['Confirmação de Booking', 'Coleta da Carga (se aplicável)', 'Chegada no Porto/Aeroporto', 'Desembaraço de Exportação', 'Embarque', 'Chegada no Destino', 'Confirmação de Entrega'];
 
     const transitTime = parseInt(transitTimeStr.split('-').pop() || '30', 10);
-    const departureDate = addDays(creationDate, MILESTONE_DUE_DAYS['Embarque']);
+    const departureDate = addDays(creationDate, BASE_MILESTONE_DUE_DAYS['Embarque']);
     const arrivalDate = addDays(departureDate, transitTime);
 
-    return baseMilestones.map(name => {
-        let dueDate: Date;
+    return baseMilestoneNames.map(name => {
+        let predictedDate: Date;
         if (name.includes('Chegada no') && (name.includes('Destino') || name.includes('Aeroporto de Destino'))) {
-            dueDate = arrivalDate;
+            predictedDate = arrivalDate;
         } else if (name === 'Desembaraço Aduaneiro' || name === 'Carga Liberada' || name === 'Entrega Final' || name === 'Confirmação de Entrega') {
-            dueDate = addDays(arrivalDate, MILESTONE_DUE_DAYS[name]);
+            predictedDate = addDays(arrivalDate, BASE_MILESTONE_DUE_DAYS[name]);
         } else {
-            dueDate = addDays(creationDate, MILESTONE_DUE_DAYS[name]);
+            predictedDate = addDays(creationDate, BASE_MILESTONE_DUE_DAYS[name]);
         }
         
         return {
             name,
             status: 'pending',
-            dueDate,
-            completedDate: null,
+            predictedDate,
+            effectiveDate: null,
+            isTransshipment: false,
         };
     });
 }
@@ -131,8 +138,7 @@ function generateMilestones(isImport: boolean, transitTimeStr: string, creationD
 // --- LocalStorage Interaction ---
 function getInitialShipments(): Shipment[] {
     // This function provides initial data if localStorage is empty.
-    // The structure is more detailed to support the new features.
-    return []; // Start with an empty list by default. A real app would fetch from a DB.
+    return []; // Start with an empty list by default.
 }
 
 /**
@@ -155,12 +161,16 @@ export function getShipments(): Shipment[] {
         ...shipment,
         etd: shipment.etd ? new Date(shipment.etd) : undefined,
         eta: shipment.eta ? new Date(shipment.eta) : undefined,
-        etdTransshipment: shipment.etdTransshipment ? new Date(shipment.etdTransshipment) : undefined,
-        etaTransshipment: shipment.etaTransshipment ? new Date(shipment.etaTransshipment) : undefined,
+        transshipments: shipment.transshipments?.map((t: any) => ({
+            ...t,
+            etd: t.etd ? new Date(t.etd) : undefined,
+            eta: t.eta ? new Date(t.eta) : undefined,
+        })) || [],
         milestones: shipment.milestones?.map((m: any) => ({
             ...m,
-            dueDate: new Date(m.dueDate),
-            completedDate: m.completedDate ? new Date(m.completedDate) : null,
+            // Migrate old data structures
+            predictedDate: m.predictedDate ? new Date(m.predictedDate) : (m.dueDate ? new Date(m.dueDate) : new Date()),
+            effectiveDate: m.effectiveDate ? new Date(m.effectiveDate) : (m.completedDate ? new Date(m.completedDate) : null),
         })) || [],
     }));
   } catch (error) {
@@ -191,14 +201,14 @@ function saveShipments(shipments: Shipment[]): void {
 export function createShipment(quote: ShipmentCreationData, overseasPartner: Partner, agent?: Partner): Shipment {
   const isImport = quote.destination.toUpperCase().includes('BR');
   const creationDate = new Date();
-  const milestones = generateMilestones(isImport, quote.details.transitTime, creationDate);
+  const milestones = generateInitialMilestones(isImport, quote.details.transitTime, creationDate);
   
   if (milestones.length > 0) {
       milestones[0].status = 'in_progress';
   }
 
   const transitTime = parseInt(quote.details.transitTime.split('-').pop() || '30', 10);
-  const etd = addDays(creationDate, MILESTONE_DUE_DAYS['Embarque']);
+  const etd = addDays(creationDate, BASE_MILESTONE_DUE_DAYS['Embarque']);
   const eta = addDays(etd, transitTime);
   
   const newShipment: Shipment = {
@@ -225,27 +235,16 @@ export function createShipment(quote: ShipmentCreationData, overseasPartner: Par
       tare: 'TBC',
       grossWeight: 'TBC',
     }] : [],
-    // Initialize new fields
     commodityDescription: '',
     ncm: '',
     netWeight: '',
     packageQuantity: quote.details.cargo,
     freeTimeDemurrage: quote.details.freeTime,
-    transshipmentPort: '',
-    transshipmentVessel: '',
-    etdTransshipment: undefined,
-    etaTransshipment: undefined,
+    transshipments: [],
   };
 
   const shipments = getShipments();
-  const existingIndex = shipments.findIndex(s => s.id === newShipment.id);
-
-  if (existingIndex > -1) {
-    shipments[existingIndex] = newShipment;
-  } else {
-    shipments.unshift(newShipment);
-  }
-  
+  shipments.unshift(newShipment);
   saveShipments(shipments);
   return newShipment;
 }
@@ -266,4 +265,46 @@ export function updateShipment(updatedShipment: Shipment): Shipment[] {
   shipments[shipmentIndex] = updatedShipment;
   saveShipments(shipments);
   return shipments;
+}
+
+/**
+ * Rebuilds the milestone list based on the shipment's transshipment data.
+ * This ensures the milestone list is always in sync with the transshipment details.
+ */
+export function rebuildMilestones(shipment: Shipment): Milestone[] {
+    const baseMilestones = shipment.milestones.filter(m => !m.isTransshipment);
+    
+    const transshipmentMilestones: Milestone[] = (shipment.transshipments || [])
+        .filter(t => t.port && t.vessel && t.etd && t.eta) // Ensure transshipment has necessary data
+        .flatMap(t => [
+            {
+                name: 'Saída do Transbordo',
+                status: 'pending',
+                predictedDate: t.etd!,
+                effectiveDate: null,
+                details: `${t.port} via ${t.vessel}`,
+                isTransshipment: true,
+            },
+            {
+                name: 'Chegada no Transbordo',
+                status: 'pending',
+                predictedDate: t.eta!,
+                effectiveDate: null,
+                details: `${t.port} via ${t.vessel}`,
+                isTransshipment: true,
+            },
+        ]);
+
+    const allMilestones = [...baseMilestones, ...transshipmentMilestones];
+    
+    // Sort everything by predicted date
+    allMilestones.sort((a, b) => {
+        const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
+        const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return dateA - dateB;
+    });
+
+    return allMilestones;
 }

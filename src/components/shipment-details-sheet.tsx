@@ -16,15 +16,14 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +36,15 @@ const containerDetailSchema = z.object({
   tare: z.string().min(1, "Obrigatório"),
   grossWeight: z.string().min(1, "Obrigatório"),
 });
+
+const transshipmentDetailSchema = z.object({
+  id: z.string(),
+  port: z.string().min(1, "Obrigatório"),
+  vessel: z.string().min(1, "Obrigatório"),
+  etd: z.date().optional(),
+  eta: z.date().optional(),
+});
+
 
 const shipmentDetailsSchema = z.object({
   id: z.string(),
@@ -52,10 +60,7 @@ const shipmentDetailsSchema = z.object({
   netWeight: z.string().optional(),
   packageQuantity: z.string().optional(),
   freeTimeDemurrage: z.string().optional(),
-  transshipmentPort: z.string().optional(),
-  transshipmentVessel: z.string().optional(),
-  etdTransshipment: z.date().optional(),
-  etaTransshipment: z.date().optional(),
+  transshipments: z.array(transshipmentDetailSchema).optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -67,11 +72,11 @@ interface ShipmentDetailsSheetProps {
   onUpdate: (updatedShipment: Shipment) => void;
 }
 
-const MilestoneIcon = ({ status, dueDate }: { status: Milestone['status'], dueDate?: Date }) => {
-    if (!dueDate || !isValid(dueDate)) {
+const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date }) => {
+    if (!predictedDate || !isValid(predictedDate)) {
          return <Circle className="h-5 w-5 text-muted-foreground" />;
     }
-    const isOverdue = isPast(dueDate) && status !== 'completed';
+    const isOverdue = isPast(predictedDate) && status !== 'completed';
 
     if (isOverdue) {
         return <AlertTriangle className="h-5 w-5 text-destructive" />;
@@ -93,9 +98,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     resolver: zodResolver(shipmentDetailsSchema),
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
     control: form.control,
     name: "containers"
+  });
+  
+  const { fields: transshipmentFields, append: appendTransshipment, remove: removeTransshipment } = useFieldArray({
+    control: form.control,
+    name: "transshipments"
   });
 
   useEffect(() => {
@@ -114,10 +124,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         netWeight: shipment.netWeight || '',
         packageQuantity: shipment.packageQuantity || shipment.details.cargo,
         freeTimeDemurrage: shipment.freeTimeDemurrage || shipment.details.freeTime,
-        transshipmentPort: shipment.transshipmentPort || '',
-        transshipmentVessel: shipment.transshipmentVessel || '',
-        etdTransshipment: shipment.etdTransshipment && isValid(new Date(shipment.etdTransshipment)) ? new Date(shipment.etdTransshipment) : undefined,
-        etaTransshipment: shipment.etaTransshipment && isValid(new Date(shipment.etaTransshipment)) ? new Date(shipment.etaTransshipment) : undefined,
+        transshipments: shipment.transshipments?.map(t => ({
+          ...t,
+          etd: t.etd && isValid(new Date(t.etd)) ? new Date(t.etd) : undefined,
+          eta: t.eta && isValid(new Date(t.eta)) ? new Date(t.eta) : undefined,
+        })) || [],
       });
     }
   }, [shipment, form]);
@@ -131,18 +142,36 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     onUpdate(updatedShipment);
   };
   
+  const handleMilestoneUpdate = (milestoneIndex: number, field: 'predictedDate' | 'effectiveDate', value: Date | undefined) => {
+    if (!shipment || !value) return;
+
+    const updatedMilestones = [...shipment.milestones];
+    const targetMilestone = updatedMilestones[milestoneIndex];
+    if(targetMilestone) {
+        (targetMilestone as any)[field] = value;
+        onUpdate({
+            ...shipment,
+            milestones: updatedMilestones
+        });
+    }
+  };
+
+
   const handleCompleteMilestone = (milestoneIndex: number) => {
     if (!shipment) return;
 
     const updatedMilestones = shipment.milestones.map((m, index) => {
         if (index === milestoneIndex) {
-            return { ...m, status: 'completed' as const, completedDate: new Date() };
-        }
-        if (index === milestoneIndex + 1 && m.status === 'pending') {
-            return { ...m, status: 'in_progress' as const };
+            return { ...m, status: 'completed' as const, effectiveDate: new Date() };
         }
         return m;
     });
+
+    // Set next pending milestone to 'in_progress'
+    const nextPendingIndex = updatedMilestones.findIndex(m => m.status === 'pending');
+    if (nextPendingIndex > -1) {
+        updatedMilestones[nextPendingIndex].status = 'in_progress';
+    }
 
     onUpdate({
         ...shipment,
@@ -176,6 +205,19 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         description: `A ação de "Faturar Contas a ${type === 'receber' ? 'Receber' : 'Pagar'}" será integrada ao módulo Financeiro.`,
     });
   }
+
+  const assembledMilestones = useMemo(() => {
+    if (!shipment) return [];
+    
+    return [...(shipment.milestones || [])].map(m => ({
+        ...m,
+        // Inject details into main departure milestone
+        details: m.name === 'Embarque' && shipment.vesselName 
+                    ? `${shipment.vesselName} / ${shipment.voyageNumber || ''}` 
+                    : m.details,
+    }));
+  }, [shipment]);
+
 
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -260,39 +302,55 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     </Popover>
                                 <FormMessage /></FormItem>
                             )}/>
-                             <FormField control={form.control} name="transshipmentPort" render={({ field }) => (
-                                <FormItem><FormLabel>Porto/Aeroporto de Transbordo</FormLabel><FormControl><Input placeholder="Ex: Antuérpia" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="transshipmentVessel" render={({ field }) => (
-                                <FormItem><FormLabel>Navio/Voo de Conexão</FormLabel><FormControl><Input placeholder="Ex: MAERSK HONAM / AA905" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                             <FormField control={form.control} name="etdTransshipment" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>ETD Transbordo</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild><FormControl>
-                                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl></PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
-                                    </Popover>
-                                <FormMessage /></FormItem>
-                            )}/>
-                              <FormField control={form.control} name="etaTransshipment" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>ETA Transbordo</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild><FormControl>
-                                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl></PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
-                                    </Popover>
-                                <FormMessage /></FormItem>
-                            )}/>
                         </CardContent>
+                      </Card>
+
+                      {/* Transshipments */}
+                      <Card>
+                          <CardHeader>
+                              <div className="flex justify-between items-center">
+                                <CardTitle className="text-lg flex items-center gap-2"><GanttChart />Transbordos / Conexões</CardTitle>
+                                <Button type="button" size="sm" variant="outline" onClick={() => appendTransshipment({ id: `new-${transshipmentFields.length}`, port: '', vessel: '' })}>
+                                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                                </Button>
+                              </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {transshipmentFields.map((field, index) => (
+                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 border rounded-lg items-end relative">
+                                    <FormField control={form.control} name={`transshipments.${index}.port`} render={({ field }) => (
+                                        <FormItem className="col-span-1 md:col-span-2"><FormLabel>Porto / Aeroporto</FormLabel><FormControl><Input placeholder="Ex: Antuérpia" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name={`transshipments.${index}.vessel`} render={({ field }) => (
+                                        <FormItem className="col-span-1 md:col-span-1"><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="Ex: MAERSK HONAM" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name={`transshipments.${index}.etd`} render={({ field }) => (
+                                        <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
+                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                    {field.value && isValid(field.value) ? format(field.value, "dd/MM/yy") : <span>Data</span>}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                        <FormMessage /></FormItem>
+                                    )}/>
+                                     <FormField control={form.control} name={`transshipments.${index}.eta`} render={({ field }) => (
+                                        <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
+                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                    {field.value && isValid(field.value) ? format(field.value, "dd/MM/yy") : <span>Data</span>}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                        <FormMessage /></FormItem>
+                                    )}/>
+                                    <div className="absolute top-1 right-1">
+                                      <Button type="button" variant="ghost" size="icon" onClick={() => removeTransshipment(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                    </div>
+                                </div>
+                            ))}
+                            {transshipmentFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum transbordo adicionado.</p>}
+                          </CardContent>
                       </Card>
 
                       {/* Bill Numbers */}
@@ -317,47 +375,57 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                               </div>
                               <Progress value={progressPercentage} className="w-full mt-2" />
                           </CardHeader>
-                          <CardContent className="space-y-2">
-                              {shipment.milestones?.map((milestone, index) => (
-                                  <div key={milestone.name + index} className={cn(
-                                      "flex items-center gap-4 p-3 rounded-lg border",
+                          <CardContent className="space-y-4">
+                              {assembledMilestones.map((milestone, index) => {
+                                const predictedDate = milestone.predictedDate && isValid(new Date(milestone.predictedDate)) ? new Date(milestone.predictedDate) : null;
+                                const isOverdue = !!predictedDate && isPast(predictedDate) && milestone.status !== 'completed';
+                                
+                                return (
+                                  <div key={`${milestone.name}-${index}`} className={cn(
+                                      "p-3 rounded-lg border",
                                       milestone.status === 'in_progress' ? 'bg-accent border-primary' : 'bg-background'
                                   )}>
-                                      <MilestoneIcon status={milestone.status} dueDate={isValid(new Date(milestone.dueDate)) ? new Date(milestone.dueDate) : undefined} />
-                                      <div className="flex-grow">
-                                          <p className="font-semibold">{milestone.name}</p>
-                                          {isValid(new Date(milestone.dueDate)) &&
-                                            <p className={cn("text-xs", isPast(new Date(milestone.dueDate)) && milestone.status !== 'completed' ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-                                                Vencimento: {format(new Date(milestone.dueDate), 'dd/MM/yyyy')}
-                                            </p>
-                                          }
+                                      <div className="flex items-center gap-4">
+                                          <MilestoneIcon status={milestone.status} predictedDate={predictedDate || undefined} />
+                                          <div className="flex-grow">
+                                              <p className="font-semibold">{milestone.name}</p>
+                                              {milestone.details && <p className="text-xs text-muted-foreground">{milestone.details}</p>}
+                                          </div>
+                                          <Badge variant={
+                                              milestone.status === 'completed' ? 'outline' :
+                                              milestone.status === 'in_progress' ? 'default' : 'secondary'
+                                          } className="capitalize w-24 justify-center">{milestone.status.replace('_', ' ')}</Badge>
+                                          {milestone.status === 'in_progress' && (
+                                              <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)} className="w-36">
+                                                  Concluir Etapa <ArrowRight className="ml-2 h-4 w-4"/>
+                                              </Button>
+                                          )}
+                                          {milestone.status !== 'in_progress' && <div className="w-36"/>}
                                       </div>
-                                      <Badge variant={
-                                          milestone.status === 'completed' ? 'outline' :
-                                          milestone.status === 'in_progress' ? 'default' : 'secondary'
-                                      } className="capitalize w-24 justify-center">{milestone.status.replace('_', ' ')}</Badge>
-                                      {milestone.status === 'in_progress' && (
-                                          <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)} className="w-36">
-                                              Concluir Etapa <ArrowRight className="ml-2 h-4 w-4"/>
-                                          </Button>
-                                      )}
-                                      {milestone.status !== 'in_progress' && <div className="w-36"/>}
+                                      <div className="grid grid-cols-2 gap-4 mt-2 pl-10">
+                                           <div className="space-y-1">
+                                                <Label className="text-xs">Data Prevista</Label>
+                                                <Popover>
+                                                    <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                        <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                        {predictedDate ? format(predictedDate, 'dd/MM/yyyy') : 'N/A'}
+                                                    </Button></PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={predictedDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'predictedDate', d)}/></PopoverContent>
+                                                </Popover>
+                                           </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Data Efetiva</Label>
+                                                <Popover>
+                                                    <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                        <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                        {milestone.effectiveDate ? format(milestone.effectiveDate, 'dd/MM/yyyy') : 'Pendente'}
+                                                    </Button></PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={milestone.effectiveDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
+                                                </Popover>
+                                           </div>
+                                      </div>
                                   </div>
-                              ))}
-                               {shipment.etdTransshipment && isValid(new Date(shipment.etdTransshipment)) && (
-                                  <div className="flex items-center gap-4 p-3 rounded-lg border bg-blue-50 dark:bg-blue-900/20">
-                                      <Ship className="h-5 w-5 text-blue-600" />
-                                      <div className="flex-grow"><p className="font-semibold">Previsão de Saída do Transbordo</p></div>
-                                      <p className="text-sm text-muted-foreground font-medium">{format(new Date(shipment.etdTransshipment), 'dd/MM/yyyy')}</p>
-                                  </div>
-                              )}
-                               {shipment.etaTransshipment && isValid(new Date(shipment.etaTransshipment)) && (
-                                  <div className="flex items-center gap-4 p-3 rounded-lg border bg-blue-50 dark:bg-blue-900/20">
-                                      <Anchor className="h-5 w-5 text-blue-600" />
-                                      <div className="flex-grow"><p className="font-semibold">Previsão de Chegada no Transbordo</p></div>
-                                      <p className="text-sm text-muted-foreground font-medium">{format(new Date(shipment.etaTransshipment), 'dd/MM/yyyy')}</p>
-                                  </div>
-                              )}
+                              )})}
                           </CardContent>
                       </Card>
 
@@ -389,7 +457,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         <CardHeader>
                           <div className="flex justify-between items-center">
                             <CardTitle className="text-lg">Contêineres</CardTitle>
-                             <Button type="button" size="sm" variant="outline" onClick={() => append({ id: `new-${fields.length}`, number: '', seal: '', tare: '', grossWeight: '' })}>
+                             <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `new-${containerFields.length}`, number: '', seal: '', tare: '', grossWeight: '' })}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
                             </Button>
                           </div>
@@ -407,14 +475,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {fields && fields.length > 0 ? fields.map((field, index) => (
+                                        {containerFields && containerFields.length > 0 ? containerFields.map((field, index) => (
                                             <TableRow key={field.id}>
                                                 <TableCell><FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                 <TableCell><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                 <TableCell><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                 <TableCell><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                 <TableCell>
-                                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                                 </TableCell>
                                             </TableRow>
                                         )) : (

@@ -316,6 +316,7 @@ export default function ComercialPage() {
             quotes={quotes}
             partners={partners}
             onQuoteUpdate={handleQuoteUpdated}
+            onPartnerSaved={handlePartnerSaved}
           />
         </TabsContent>
          <TabsContent value="rates" className="mt-6">

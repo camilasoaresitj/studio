@@ -22,6 +22,7 @@ import { runSendQuote } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Partner } from './partners-registry';
 import { exchangeRateService } from '@/services/exchange-rate-service';
+import { OverseasPartnerDialog } from './overseas-partner-dialog';
 
 const DynamicJsPDF = dynamic(() => import('jspdf').then(mod => mod.default), { ssr: false });
 const DynamicHtml2Canvas = dynamic(() => import('html2canvas'), { ssr: false });
@@ -60,13 +61,15 @@ interface CustomerQuotesListProps {
   quotes: Quote[];
   partners: Partner[];
   onQuoteUpdate: (updatedQuote: Quote) => void;
+  onPartnerSaved: (partner: Partner) => void;
 }
 
-export function CustomerQuotesList({ quotes, partners, onQuoteUpdate }: CustomerQuotesListProps) {
+export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerSaved }: CustomerQuotesListProps) {
     const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
     const [isSending, setIsSending] = useState(false);
     const [sendDialogOpen, setSendDialogOpen] = useState(false);
     const [quoteToSend, setQuoteToSend] = useState<Quote | null>(null);
+    const [quoteForPartner, setQuoteForPartner] = useState<Quote | null>(null);
     const { toast } = useToast();
 
     const handleOpenSendDialog = (quote: Quote) => {
@@ -97,7 +100,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate }: Customer
 
       const response = await runSendQuote({
         customerName: quoteToSend.customer,
-        quoteId: quoteToSend.id,
+        quoteId: quoteToSend.id.replace('-DRAFT', ''),
         details: {
             ...quoteToSend.details,
             origin: quoteToSend.origin,
@@ -117,7 +120,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate }: Customer
             const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
             const recipient = primaryContact?.email;
             if (recipient) {
-                const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(response.data.emailSubject)}&body=${encodeURIComponent(response.data.emailBody)}`;
+                const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(response.data.emailSubject)}&body=${encodeURIComponent(response.data.htmlBody)}`;
                 window.open(mailtoLink, '_self');
                 toast({ title: 'E-mail de cotação gerado!', description: `Pronto para enviar para ${recipient}.` });
             } else {
@@ -192,14 +195,32 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate }: Customer
         onQuoteUpdate(updatedQuote);
         setSelectedQuote(updatedQuote); 
     };
-    
-    const handleStatusChange = (quote: Quote, newStatus: Quote['status']) => {
-        onQuoteUpdate({ ...quote, status: newStatus });
+
+    const handlePartnerConfirmed = (partner: Partner, quote: Quote) => {
+        // If the partner doesn't exist in the list, save it.
+        if (!partners.some(p => p.id === partner.id)) {
+            onPartnerSaved(partner);
+        }
+        // Then, update the quote status
+        onQuoteUpdate({ ...quote, status: 'Aprovada' });
         toast({
-            title: `Cotação ${newStatus === 'Aprovada' ? 'Aprovada' : 'Rejeitada'}!`,
-            description: `O status da cotação ${quote.id.replace('-DRAFT', '')} foi atualizado.`,
+            title: `Cotação ${quote.id.replace('-DRAFT', '')} Aprovada!`,
+            description: `${partner.name} foi definido como parceiro do embarque.`,
             className: 'bg-success text-success-foreground'
         });
+        setQuoteForPartner(null); // Close the dialog
+    };
+    
+    const handleStatusChange = (quote: Quote, newStatus: Quote['status']) => {
+        if (newStatus === 'Aprovada') {
+            setQuoteForPartner(quote);
+        } else {
+            onQuoteUpdate({ ...quote, status: newStatus });
+            toast({
+                title: `Cotação ${newStatus === 'Perdida' ? 'Rejeitada' : 'Atualizada'}!`,
+                description: `O status da cotação ${quote.id.replace('-DRAFT', '')} foi atualizado.`,
+            });
+        }
     };
 
   return (
@@ -261,7 +282,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate }: Customer
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleStatusChange(quote, 'Perdida')} disabled={quote.status === 'Perdida'} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                                             <XCircle className="mr-2 h-4 w-4" />
-                                            <span>Rejeitar</span>
+                                            <span>Rejeitar (Perdida)</span>
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -273,7 +294,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate }: Customer
             </div>
         </CardContent>
     </Card>
-    <Dialog open={!!selectedQuote} onOpenChange={setSelectedQuote}>
+    <Dialog open={!!selectedQuote} onOpenChange={(isOpen) => !isOpen && setSelectedQuote(null)}>
         <DialogContent className="max-w-6xl h-[90vh]">
             {selectedQuote && (
                 <>
@@ -307,6 +328,12 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate }: Customer
             </div>
         </DialogContent>
     </Dialog>
+    <OverseasPartnerDialog
+        quote={quoteForPartner}
+        partners={partners}
+        onClose={() => setQuoteForPartner(null)}
+        onPartnerConfirmed={handlePartnerConfirmed}
+    />
     </>
   );
 }

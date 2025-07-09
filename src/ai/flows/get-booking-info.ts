@@ -37,9 +37,10 @@ const getBookingInfoFlow = ai.defineFlow(
     console.log(`Simulating API call to fetch details for booking: ${bookingNumber}`);
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // For this simulation, if the booking number is a specific value, return a complete mocked shipment.
-    if (bookingNumber.toUpperCase() !== 'BKG123456') {
-      throw new Error(`Booking number "${bookingNumber}" not found.`);
+    // For this simulation, we return a complete mocked shipment for any booking number.
+    // This allows the user to test the sync functionality.
+    if (!bookingNumber) {
+      throw new Error(`Booking number not provided.`);
     }
 
     const etd = subDays(new Date(), 2);
@@ -74,11 +75,11 @@ const getBookingInfoFlow = ai.defineFlow(
       ],
       details: { cargo: "1x40'HC", transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias', incoterm: 'FOB' },
       milestones,
-      bookingNumber: 'BKG123456',
+      bookingNumber: bookingNumber,
       vesselName: 'MAERSK PICO',
       voyageNumber: '428N',
-      masterBillNumber: 'MAEU123456789',
-      houseBillNumber: 'MYHBL987654321',
+      masterBillNumber: `MAEU${Math.floor(Math.random() * 900000000) + 100000000}`,
+      houseBillNumber: `MYHBL${Math.floor(Math.random() * 90000000) + 10000000}`,
       etd,
       eta,
       containers: [{

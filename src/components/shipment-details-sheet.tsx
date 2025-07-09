@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +37,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { runGetBookingInfo } from '@/app/actions';
 
 
 const containerDetailSchema = z.object({
@@ -107,6 +108,7 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 
 export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
   const { toast } = useToast();
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const form = useForm<ShipmentDetailsFormData>({
     resolver: zodResolver(shipmentDetailsSchema),
@@ -251,6 +253,43 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     });
   };
 
+  const handleSyncBookingInfo = async () => {
+    const bookingNumber = form.getValues('bookingNumber');
+    if (!bookingNumber) {
+        toast({ variant: 'destructive', title: 'Nenhum Booking Number', description: 'Por favor, insira um número de booking para sincronizar.' });
+        return;
+    }
+    setIsSyncing(true);
+    const response = await runGetBookingInfo(bookingNumber);
+
+    if (response.success && shipment) {
+        const fetchedData = response.data;
+        const updatedShipment: Shipment = {
+            ...shipment, // Keep original quote/customer/charge/id data
+            // Overwrite with fresh data from the "carrier"
+            vesselName: fetchedData.vesselName,
+            voyageNumber: fetchedData.voyageNumber,
+            masterBillNumber: fetchedData.masterBillNumber,
+            houseBillNumber: fetchedData.houseBillNumber,
+            etd: fetchedData.etd,
+            eta: fetchedData.eta,
+            milestones: fetchedData.milestones,
+            containers: fetchedData.containers,
+            commodityDescription: fetchedData.commodityDescription,
+            ncm: fetchedData.ncm,
+            netWeight: fetchedData.netWeight,
+            packageQuantity: fetchedData.packageQuantity,
+            freeTimeDemurrage: fetchedData.freeTimeDemurrage,
+            transshipments: fetchedData.transshipments,
+        };
+        onUpdate(updatedShipment);
+        toast({ title: 'Dados Sincronizados!', description: 'As informações do embarque foram atualizadas.', className: 'bg-success text-success-foreground' });
+    } else {
+        toast({ variant: 'destructive', title: 'Erro na Sincronização', description: response.error });
+    }
+    setIsSyncing(false);
+  };
+
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>
           <SheetContent className="sm:max-w-4xl w-full flex flex-col">
@@ -341,8 +380,16 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                       <Card>
                         <CardHeader><CardTitle className="text-lg">Documentos e Rastreio</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <FormField control={form.control} name="bookingNumber" render={({ field }) => (
-                               <FormItem><FormLabel>Booking Reference</FormLabel><FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                           <FormField control={form.control} name="bookingNumber" render={({ field }) => (
+                               <FormItem><FormLabel>Booking Reference</FormLabel>
+                                <div className="flex items-center gap-2">
+                                  <FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl>
+                                  <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
+                                      {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                  </Button>
+                                </div>
+                               <FormMessage />
+                               </FormItem>
                            )}/>
                            <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
                                <FormItem><FormLabel>Master Bill of Lading / MAWB</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>

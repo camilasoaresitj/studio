@@ -6,7 +6,7 @@ import type { GetFreightRatesOutput } from '@/ai/flows/get-freight-rates';
 import type { TrackingEvent } from '@/ai/flows/get-tracking-info';
 import type { Shipment, Milestone } from '@/lib/shipment';
 
-const API_BASE_URL = 'https://api.maersk.com';
+const API_BASE_URL = 'https://maersk-prod-v2.p.mashape.com';
 
 // Helper to attempt converting "City, CC" to a UN/LOCODE format.
 // This is a simplification; a real app might use a library or a proper lookup service.

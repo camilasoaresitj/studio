@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Extracts structured freight rate data from unstructured text.
@@ -52,7 +53,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 **Extraction Rules:**
 - Each object in the array represents ONE rate for ONE container type.
 - The fields \`origin\`, \`destination\`, and \`rate\` are **MANDATORY**. If you cannot find all three for a given rate, DO NOT create an object for it.
-- **Agent Contact Details**: If the text mentions contact details for the agent (contact person's name, email, phone), you MUST extract this information into the \`agentContact\` object. If no contact is mentioned, **omit the \`agentContact\` field entirely** from the rate object.
+- **Agent Contact Details**: Only create the \`agentContact\` object if you can find the contact person's **full name, email, AND phone number**. If any of these three pieces of information are missing or incomplete, **you MUST omit the \`agentContact\` object entirely** from the rate object. Do not create a partial contact object.
 - **ETD as Validity**: If a rate is explicitly tied to a specific ETD (Estimated Time of Departure) or a specific vessel/voyage, you MUST use that departure date as the 'validity' for that rate. Format it as "DD/MM/YYYY". This rule takes precedence over general validity dates. For example, if the text says "Rate for vessel MSC LEO departing on 15/07/2024", the validity should be "15/07/2024".
 - If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), you MUST create separate objects for 20'GP, 40'GP, and 40'HC respectively.
 - The \`modal\` field must be either "Aéreo" or "Marítimo". Infer from context.
@@ -111,7 +112,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 
 If no valid rates can be extracted, return an empty array: \`[]\`.
 
-Finally, double-check your output. Ensure the entire response is a valid JSON array and that every single object inside the array is complete with all the required fields as specified in the schema. Do not return incomplete or truncated objects.
+Finally, double-check your output. Ensure the entire response is a valid JSON array and that every single object inside the array is complete with all the required fields as specified in the schema. Do not return incomplete or truncated JSON. Your entire response must be a single, valid, complete JSON array.
 
 Analyze the following text and extract the rates:
 {{{textInput}}}

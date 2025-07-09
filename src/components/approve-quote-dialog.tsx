@@ -46,28 +46,15 @@ const contactSchema = z.object({
 const partnerSchema = z.object({
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
   nomeFantasia: z.string().optional(),
-  type: z.enum(['Cliente', 'Fornecedor', 'Agente']),
+  roles: z.object({
+    cliente: z.boolean().default(false),
+    fornecedor: z.boolean().default(true), // Default to supplier in this context
+    agente: z.boolean().default(false),
+    comissionado: z.boolean().default(false),
+  }),
   cnpj: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
   exchangeRateAgio: z.coerce.number().optional(),
-  
-  // Cliente specific
-  limiteCredito: z.coerce.number().optional(),
-  tipoCliente: z.object({
-    importacao: z.boolean().default(false),
-    exportacao: z.boolean().default(false),
-  }).optional(),
-
-  // Agente specific
-  tipoAgente: z.object({
-    fcl: z.boolean().default(false),
-    lcl: z.boolean().default(false),
-    air: z.boolean().default(false),
-    projects: z.boolean().default(false),
-  }).optional(),
-  
-  // Fornecedor specific
-  tipoFornecedor: z.string().optional(),
   
   address: z.object({
     street: z.string().optional(),
@@ -104,7 +91,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
     resolver: zodResolver(partnerSchema),
     defaultValues: {
       name: '',
-      type: 'Cliente',
+      roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
       cnpj: '',
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
@@ -127,7 +114,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
       setAiAutofillText('');
       form.reset({
         name: '',
-        type: 'Cliente',
+        roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
         cnpj: '',
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
         contacts: [{ name: '', email: '', phone: '', departments: ['Operacional'] }],
@@ -139,7 +126,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
 
   const isImport = quote.destination.toUpperCase().includes('BR');
   const partnerRole = isImport ? 'Shipper' : 'Consignee';
-  const agentPartners = partners.filter(p => p.type === 'Agente');
+  const agentPartners = partners.filter(p => p.roles.agente);
 
   const handleConfirm = async () => {
     let overseasPartner: Partner | null = null;
@@ -268,25 +255,9 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                                     </Button>
                                 </div>
                                 <Separator />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <FormField control={form.control} name="name" render={({ field }) => (
-                                      <FormItem><FormLabel>Nome / Razão Social</FormLabel><FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl><FormMessage /></FormItem>
-                                  )} />
-                                  <FormField control={form.control} name="type" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Tipo</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                          <SelectContent>
-                                              <SelectItem value="Cliente">Cliente</SelectItem>
-                                              <SelectItem value="Fornecedor">Fornecedor</SelectItem>
-                                              <SelectItem value="Agente">Agente</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                  )} />
-                                </div>
+                                <FormField control={form.control} name="name" render={({ field }) => (
+                                    <FormItem><FormLabel>Nome / Razão Social</FormLabel><FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
                                 <FormField control={form.control} name="address.country" render={({ field }) => (
                                     <FormItem><FormLabel>País</FormLabel><FormControl><Input placeholder="USA" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                 )} />
@@ -387,5 +358,3 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
     </Dialog>
   );
 }
-
-    

@@ -88,7 +88,7 @@ const initialPartnersData: Partner[] = [
         id: 1, 
         name: 'Nexus Imports', 
         nomeFantasia: 'Nexus',
-        type: 'Cliente', 
+        roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
         cnpj: '12345678000199',
         limiteCredito: 100000,
         tipoCliente: { importacao: true, exportacao: true },
@@ -104,7 +104,7 @@ const initialPartnersData: Partner[] = [
         id: 2, 
         name: 'Maersk Line Brasil', 
         nomeFantasia: 'Maersk',
-        type: 'Fornecedor',
+        roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
         tipoFornecedor: 'Cia Maritima',
         cnpj: '98765432000100',
         paymentTerm: 15,
@@ -118,7 +118,7 @@ const initialPartnersData: Partner[] = [
         id: 3, 
         name: 'Global Logistics Agents', 
         nomeFantasia: 'GLA',
-        type: 'Agente', 
+        roles: { cliente: false, fornecedor: false, agente: true, comissionado: false },
         tipoAgente: { fcl: true, lcl: false, air: true, projects: true },
         profitAgreement: { amount: 50, unit: 'por_container' },
         paymentTerm: 45,
@@ -132,7 +132,7 @@ const initialPartnersData: Partner[] = [
         id: 4, 
         name: 'TechFront Solutions', 
         nomeFantasia: 'TechFront',
-        type: 'Cliente', 
+        roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
         cnpj: '11223344000155',
         customerCategory: 'Nacional',
         limiteCredito: 50000,
@@ -232,7 +232,7 @@ export default function ComercialPage() {
             id: 0, // A temporary ID; a real one will be assigned when saving to state.
             name: agentName,
             nomeFantasia: agentName,
-            type: 'Agente',
+            roles: { agente: true, cliente: false, fornecedor: false, comissionado: false },
             // Pre-fill with sensible defaults for a newly discovered agent.
             tipoAgente: { fcl: true, lcl: true, air: true, projects: false },
             profitAgreement: { amount: 50, unit: 'por_container' },
@@ -369,7 +369,7 @@ export default function ComercialPage() {
             key={JSON.stringify(quoteFormData)}
             initialData={quoteFormData}
             onQuoteCreated={handleQuoteCreated} 
-            partners={partners.filter(p => p.type === 'Cliente')}
+            partners={partners.filter(p => p.roles.cliente)}
             onRegisterCustomer={() => setActiveTab('partners')}
             rates={rates}
             fees={fees}

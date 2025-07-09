@@ -49,7 +49,12 @@ const contactSchema = z.object({
 const partnerSchema = z.object({
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
   nomeFantasia: z.string().optional(),
-  type: z.enum(['Cliente', 'Fornecedor', 'Agente']),
+  roles: z.object({
+    cliente: z.boolean().default(false),
+    fornecedor: z.boolean().default(false),
+    agente: z.boolean().default(false),
+    comissionado: z.boolean().default(false),
+  }),
   cnpj: z.string().optional(),
   vat: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
@@ -78,6 +83,14 @@ const partnerSchema = z.object({
   // Fornecedor specific
   tipoFornecedor: z.string().optional(),
 
+  // Comissionado specific
+  tipoPessoaComissionado: z.enum(['Pessoa Fisica', 'Pessoa Juridica']).optional(),
+  comissao: z.object({
+    amount: z.coerce.number().optional(),
+    unit: z.enum(['percent_profit', 'por_container', 'por_bl', 'por_kg']).optional(),
+  }).optional(),
+
+
   address: z.object({
     street: z.string().optional(),
     number: z.string().optional(),
@@ -89,6 +102,14 @@ const partnerSchema = z.object({
     country: z.string().optional(),
   }),
   contacts: z.array(contactSchema).min(1, 'Adicione pelo menos um contato'),
+}).superRefine((data, ctx) => {
+    if (!data.roles.cliente && !data.roles.fornecedor && !data.roles.agente && !data.roles.comissionado) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Selecione pelo menos um perfil para o parceiro.",
+            path: ['roles'],
+        });
+    }
 });
 
 export type Partner = z.infer<typeof partnerSchema> & { id: number };
@@ -120,7 +141,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     defaultValues: {
       name: '',
       nomeFantasia: '',
-      type: 'Cliente',
+      roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
       cnpj: '',
       vat: '',
       paymentTerm: undefined,
@@ -131,6 +152,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       profitAgreement: { amount: undefined, unit: 'por_container' },
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       tipoFornecedor: '',
+      tipoPessoaComissionado: 'Pessoa Juridica',
+      comissao: { amount: undefined, unit: 'percent_profit' },
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
     },
@@ -141,32 +164,38 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     name: "contacts",
   });
   
-  const partnerType = form.watch('type');
+  const watchedRoles = form.watch('roles');
   const customerCategory = form.watch('customerCategory');
 
   const filteredPartners = useMemo(() => {
     return partners.filter(partner => {
         const nameMatch = filterName ? partner.name.toLowerCase().includes(filterName.toLowerCase()) : true;
         const fantasiaMatch = filterNomeFantasia ? partner.nomeFantasia?.toLowerCase().includes(filterNomeFantasia.toLowerCase()) : true;
-        const typeMatch = filterType === 'Todos' || partner.type === filterType;
         const stateMatch = filterState ? partner.address?.state?.toLowerCase().includes(filterState.toLowerCase()) : true;
         const countryMatch = filterCountry ? partner.address?.country?.toLowerCase().includes(filterCountry.toLowerCase()) : true;
         
+        let typeMatch = true;
+        if (filterType !== 'Todos') {
+            const roleKey = filterType.toLowerCase() as keyof Partner['roles'];
+            typeMatch = !!partner.roles[roleKey];
+        }
+
         if (!nameMatch || !fantasiaMatch || !typeMatch || !stateMatch || !countryMatch) {
             return false;
         }
 
         if (filterType === 'Cliente' && filterClienteTipo !== 'Todos') {
-            if (!partner.tipoCliente) return false;
+            if (!partner.roles.cliente || !partner.tipoCliente) return false;
             return partner.tipoCliente[filterClienteTipo.toLowerCase() as 'importacao' | 'exportacao'];
         }
 
         if (filterType === 'Fornecedor' && filterFornecedorTipo !== 'Todos') {
+             if (!partner.roles.fornecedor) return false;
             return partner.tipoFornecedor === filterFornecedorTipo;
         }
 
         if (filterType === 'Agente' && filterAgenteTipo !== 'Todos') {
-            if (!partner.tipoAgente) return false;
+            if (!partner.roles.agente || !partner.tipoAgente) return false;
             return partner.tipoAgente[filterAgenteTipo as 'fcl' | 'lcl' | 'air' | 'projects'];
         }
 
@@ -181,7 +210,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     form.reset(partner ? partner : {
       name: '',
       nomeFantasia: '',
-      type: 'Cliente',
+      roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
       cnpj: '',
       vat: '',
       paymentTerm: undefined,
@@ -192,6 +221,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       profitAgreement: { amount: undefined, unit: 'por_container' },
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       tipoFornecedor: '',
+      tipoPessoaComissionado: 'Pessoa Juridica',
+      comissao: { amount: undefined, unit: 'percent_profit' },
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
     });
@@ -268,14 +299,12 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     }
     setIsAiLoading(false);
   };
-
-  const getPartnerTypeVariant = (type: Partner['type']): 'default' | 'secondary' | 'outline' => {
-      switch (type) {
-          case 'Cliente': return 'default';
-          case 'Fornecedor': return 'secondary';
-          case 'Agente': return 'outline';
-          default: return 'default';
-      }
+  
+  const roleDisplay: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' } } = {
+    cliente: { label: 'Cliente', variant: 'default' },
+    fornecedor: { label: 'Fornecedor', variant: 'secondary' },
+    agente: { label: 'Agente', variant: 'outline' },
+    comissionado: { label: 'Comissionado', variant: 'destructive' },
   }
 
   return (
@@ -295,10 +324,11 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                  }}>
                      <SelectTrigger><SelectValue/></SelectTrigger>
                      <SelectContent>
-                         <SelectItem value="Todos">Todos os Tipos</SelectItem>
+                         <SelectItem value="Todos">Todos os Perfis</SelectItem>
                          <SelectItem value="Cliente">Cliente</SelectItem>
                          <SelectItem value="Fornecedor">Fornecedor</SelectItem>
                          <SelectItem value="Agente">Agente</SelectItem>
+                         <SelectItem value="Comissionado">Comissionado</SelectItem>
                      </SelectContent>
                  </Select>
                  
@@ -351,7 +381,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
               <TableRow>
                 <TableHead>Razão Social</TableHead>
                 <TableHead>Nome Fantasia</TableHead>
-                <TableHead>Tipo</TableHead>
+                <TableHead>Perfis</TableHead>
                 <TableHead>Contato Principal</TableHead>
                 <TableHead className="text-center">Ações</TableHead>
               </TableRow>
@@ -364,17 +394,14 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                     <TableCell className="font-medium">{partner.name}</TableCell>
                     <TableCell>{partner.nomeFantasia}</TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <Badge variant={getPartnerTypeVariant(partner.type)} className="w-fit">{partner.type}</Badge>
-                        <div className="flex gap-1 flex-wrap">
-                          {partner.type === 'Cliente' && partner.tipoCliente?.importacao && <Badge variant="outline" className="text-xs">Imp</Badge>}
-                          {partner.type === 'Cliente' && partner.tipoCliente?.exportacao && <Badge variant="outline" className="text-xs">Exp</Badge>}
-                          {partner.type === 'Agente' && partner.tipoAgente?.fcl && <Badge variant="outline" className="text-xs">FCL</Badge>}
-                          {partner.type === 'Agente' && partner.tipoAgente?.lcl && <Badge variant="outline" className="text-xs">LCL</Badge>}
-                          {partner.type === 'Agente' && partner.tipoAgente?.air && <Badge variant="outline" className="text-xs">Air</Badge>}
-                          {partner.type === 'Agente' && partner.tipoAgente?.projects && <Badge variant="outline" className="text-xs">Projects</Badge>}
-                          {partner.type === 'Fornecedor' && partner.tipoFornecedor && <Badge variant="outline" className="text-xs">{partner.tipoFornecedor}</Badge>}
-                        </div>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(partner.roles).map(([role, isActive]) => {
+                           if (isActive) {
+                             const display = roleDisplay[role];
+                             return <Badge key={role} variant={display.variant as any} className="w-fit">{display.label}</Badge>
+                           }
+                           return null;
+                        })}
                       </div>
                     </TableCell>
                     <TableCell>{primaryContact?.email || 'N/A'}</TableCell>
@@ -394,7 +421,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         <DialogHeader>
           <DialogTitle>{editingPartner ? 'Editar Parceiro' : 'Adicionar Novo Parceiro'}</DialogTitle>
           <DialogDescription>
-            Preencha os dados do cliente, fornecedor ou agente.
+            Preencha os dados e perfis do seu parceiro de negócios.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -414,20 +441,30 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
               </div>
               <Separator/>
               
-              <FormField control={form.control} name="type" render={({ field }) => (
-                  <FormItem>
-                      <FormLabel>Tipo de Parceiro</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                        <SelectContent>
-                            <SelectItem value="Cliente">Cliente</SelectItem>
-                            <SelectItem value="Fornecedor">Fornecedor</SelectItem>
-                            <SelectItem value="Agente">Agente</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                  </FormItem>
-                )} />
+              <FormField
+                control={form.control}
+                name="roles"
+                render={() => (
+                    <FormItem>
+                        <FormLabel>Perfis do Parceiro</FormLabel>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 pt-2">
+                            <FormField control={form.control} name="roles.cliente" render={({ field }) => (
+                                <FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Cliente</FormLabel></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="roles.fornecedor" render={({ field }) => (
+                                <FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Fornecedor</FormLabel></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="roles.agente" render={({ field }) => (
+                                <FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Agente</FormLabel></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="roles.comissionado" render={({ field }) => (
+                                <FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Comissionado</FormLabel></FormItem>
+                            )}/>
+                        </div>
+                        <FormMessage />
+                    </FormItem>
+                )}
+                />
 
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
@@ -444,7 +481,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                 </FormItem>
               )} />
               
-              {partnerType === 'Cliente' && (
+              {watchedRoles.cliente && (
                 <Card className="bg-muted/30">
                   <CardHeader><CardTitle className="text-base">Detalhes do Cliente</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
@@ -513,7 +550,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                 </Card>
               )}
 
-              {partnerType === 'Agente' && (
+              {watchedRoles.agente && (
                   <Card className="bg-muted/30">
                       <CardHeader><CardTitle className="text-base">Detalhes do Agente</CardTitle></CardHeader>
                       <CardContent className="space-y-4">
@@ -558,7 +595,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                   </Card>
               )}
 
-              {partnerType === 'Fornecedor' && (
+              {watchedRoles.fornecedor && (
                   <Card className="bg-muted/30">
                       <CardHeader><CardTitle className="text-base">Detalhes do Fornecedor</CardTitle></CardHeader>
                       <CardContent>
@@ -580,6 +617,53 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                                   <FormMessage />
                               </FormItem>
                           )} />
+                      </CardContent>
+                  </Card>
+              )}
+
+              {watchedRoles.comissionado && (
+                  <Card className="bg-muted/30">
+                      <CardHeader><CardTitle className="text-base">Detalhes do Comissionado</CardTitle></CardHeader>
+                      <CardContent className="space-y-4">
+                          <FormField control={form.control} name="tipoPessoaComissionado" render={({ field }) => (
+                            <FormItem className="space-y-3">
+                                <FormLabel>Tipo de Pessoa</FormLabel>
+                                <FormControl>
+                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                                    <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl><RadioGroupItem value="Pessoa Fisica" /></FormControl>
+                                    <FormLabel className="font-normal">Pessoa Física</FormLabel>
+                                    </FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl><RadioGroupItem value="Pessoa Juridica" /></FormControl>
+                                    <FormLabel className="font-normal">Pessoa Jurídica</FormLabel>
+                                    </FormItem>
+                                </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                          )}/>
+                          <Separator/>
+                           <Label>Acordo de Comissão</Label>
+                          <div className="grid grid-cols-2 gap-4">
+                              <FormField control={form.control} name="comissao.amount" render={({ field }) => (
+                                  <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" placeholder="50" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                              )}/>
+                              <FormField control={form.control} name="comissao.unit" render={({ field }) => (
+                                  <FormItem><FormLabel>Unidade</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="percent_profit">% Sobre a Lucratividade</SelectItem>
+                                            <SelectItem value="por_container">Por Contêiner</SelectItem>
+                                            <SelectItem value="por_bl">Por BL</SelectItem>
+                                            <SelectItem value="por_kg">Por Kg</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                              )}/>
+                          </div>
                       </CardContent>
                   </Card>
               )}

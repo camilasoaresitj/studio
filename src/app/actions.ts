@@ -1,3 +1,4 @@
+
 'use server';
 
 import { createCrmEntryFromEmail, CreateCrmEntryFromEmailOutput } from '@/ai/flows/create-crm-entry-from-email';
@@ -88,9 +89,9 @@ export async function runRequestAgentQuote(
       return { success: false, error: "A cotação com agentes está habilitada apenas para embarques de importação para o Brasil." };
     }
 
-    const agents = partners.filter(p => p.type === 'Agente');
+    const agents = partners.filter(p => p.roles.agente);
     if (agents.length === 0) {
-        return { success: false, error: "Nenhum parceiro do tipo 'Agente' cadastrado no sistema." };
+        return { success: false, error: "Nenhum parceiro com perfil de 'Agente' cadastrado no sistema." };
     }
     
     const agentContacts = agents.flatMap(a => a.contacts.map(c => c.email)).filter(Boolean);

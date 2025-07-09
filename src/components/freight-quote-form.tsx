@@ -767,6 +767,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const incoterm = form.watch('incoterm');
   const optionalServices = form.watch('optionalServices');
   const watchedContainers = form.watch('oceanShipment.containers');
+  const oceanShipmentType = form.watch('oceanShipmentType');
 
   const allPortsAndAirports = useMemo(() => {
     const locations = new Set<string>();
@@ -993,21 +994,41 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                       )}
                     />
                 </div>
-
-              <Tabs 
-                defaultValue="ocean" 
-                className="w-full"
-                onValueChange={(value) => {
-                    form.setValue('modal', value as 'air' | 'ocean');
-                    setResults([]);
-                }}
-                value={modal}
-              >
-                <TabsList className="grid w-full grid-cols-2 max-w-sm">
-                  <TabsTrigger value="air"><Plane className="mr-2 h-4 w-4" />Aéreo</TabsTrigger>
-                  <TabsTrigger value="ocean"><Ship className="mr-2 h-4 w-4" />Marítimo</TabsTrigger>
-                </TabsList>
                 
+                <div className="flex items-center gap-4">
+                    <Tabs
+                      defaultValue="ocean"
+                      className="w-auto"
+                      onValueChange={(value) => {
+                          form.setValue('modal', value as 'air' | 'ocean');
+                          setResults([]);
+                      }}
+                      value={modal}
+                    >
+                      <TabsList>
+                        <TabsTrigger value="air"><Plane className="mr-2 h-4 w-4" />Aéreo</TabsTrigger>
+                        <TabsTrigger value="ocean"><Ship className="mr-2 h-4 w-4" />Marítimo</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    
+                    {modal === 'ocean' && (
+                        <Tabs
+                          defaultValue="FCL"
+                          className="w-auto animate-in fade-in-50 duration-300"
+                          onValueChange={(value) => {
+                             const newType = value as 'FCL' | 'LCL';
+                             form.setValue('oceanShipmentType', newType);
+                          }}
+                          value={oceanShipmentType}
+                        >
+                          <TabsList>
+                              <TabsTrigger value="FCL">FCL (Contêiner)</TabsTrigger>
+                              <TabsTrigger value="LCL">LCL (Carga Solta)</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                    )}
+                </div>
+
                 <div className="grid md:grid-cols-4 gap-4 mt-6">
                     <FormField control={form.control} name="origin" render={({ field }) => (
                         <FormItem><FormLabel>Origem (Porto/Aeroporto, País)</FormLabel>
@@ -1110,127 +1131,123 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
                 <Separator className="my-6" />
 
-                <TabsContent value="air" className="m-0 space-y-4">
-                    <h3 className="text-lg font-medium">Detalhes da Carga Aérea</h3>
-                    {airPieces.map((field, index) => (
-                        <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3 border rounded-md items-end">
-                            <FormField control={form.control} name={`airShipment.pieces.${index}.quantity`} render={({ field }) => (
-                                <FormItem className="col-span-2 md:col-span-1"><FormLabel>Qtde</FormLabel><FormControl><Input type="number" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name={`airShipment.pieces.${index}.length`} render={({ field }) => (
-                                <FormItem><FormLabel>Compr. (cm)</FormLabel><FormControl><Input type="number" placeholder="120" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name={`airShipment.pieces.${index}.width`} render={({ field }) => (
-                                <FormItem><FormLabel>Larg. (cm)</FormLabel><FormControl><Input type="number" placeholder="80" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name={`airShipment.pieces.${index}.height`} render={({ field }) => (
-                                <FormItem><FormLabel>Alt. (cm)</FormLabel><FormControl><Input type="number" placeholder="100" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name={`airShipment.pieces.${index}.weight`} render={({ field }) => (
-                                <FormItem><FormLabel>Peso (kg)</FormLabel><FormControl><Input type="number" placeholder="500" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeAirPiece(index)} disabled={airPieces.length <= 1}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
+                {modal === 'air' && (
+                  <div className="m-0 space-y-4 animate-in fade-in-50 duration-300">
+                      <h3 className="text-lg font-medium">Detalhes da Carga Aérea</h3>
+                      {airPieces.map((field, index) => (
+                          <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3 border rounded-md items-end">
+                              <FormField control={form.control} name={`airShipment.pieces.${index}.quantity`} render={({ field }) => (
+                                  <FormItem className="col-span-2 md:col-span-1"><FormLabel>Qtde</FormLabel><FormControl><Input type="number" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                              )} />
+                              <FormField control={form.control} name={`airShipment.pieces.${index}.length`} render={({ field }) => (
+                                  <FormItem><FormLabel>Compr. (cm)</FormLabel><FormControl><Input type="number" placeholder="120" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
+                              )} />
+                              <FormField control={form.control} name={`airShipment.pieces.${index}.width`} render={({ field }) => (
+                                  <FormItem><FormLabel>Larg. (cm)</FormLabel><FormControl><Input type="number" placeholder="80" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
+                              )} />
+                              <FormField control={form.control} name={`airShipment.pieces.${index}.height`} render={({ field }) => (
+                                  <FormItem><FormLabel>Alt. (cm)</FormLabel><FormControl><Input type="number" placeholder="100" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
+                              )} />
+                              <FormField control={form.control} name={`airShipment.pieces.${index}.weight`} render={({ field }) => (
+                                  <FormItem><FormLabel>Peso (kg)</FormLabel><FormControl><Input type="number" placeholder="500" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
+                              )} />
+                              <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeAirPiece(index)} disabled={airPieces.length <= 1}>
+                                  <Trash2 className="h-4 w-4" />
+                              </Button>
+                          </div>
+                      ))}
+                      <div className="flex items-center justify-between">
+                          <Button type="button" variant="outline" size="sm" onClick={() => appendAirPiece({ quantity: 1, length: 0, width: 0, height: 0, weight: 0 })}>
+                              <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Peça
+                          </Button>
+                          <FormField control={form.control} name="airShipment.isStackable" render={({ field }) => (
+                              <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                                  <FormLabel>Empilhável?</FormLabel>
+                                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                              </FormItem>
+                          )} />
+                      </div>
+                  </div>
+                )}
+                
+                {modal === 'ocean' && (
+                  <div className="m-0 space-y-4 animate-in fade-in-50 duration-300">
+                      <h3 className="text-lg font-medium">Detalhes da Carga Marítima</h3>
+                      
+                      {oceanShipmentType === 'FCL' && (
+                        <div className="mt-4 space-y-4">
+                           {oceanContainers.map((field, index) => {
+                              const containerType = watchedContainers[index]?.type;
+                              const isSpecialContainer = containerType?.includes('OT') || containerType?.includes('FR');
+                              return (
+                              <div key={field.id} className="p-3 border rounded-lg space-y-4">
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                                      <FormField control={form.control} name={`oceanShipment.containers.${index}.type`} render={({ field }) => (
+                                          <FormItem><FormLabel>Tipo de Contêiner</FormLabel>
+                                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                  <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                                                  <SelectContent>
+                                                      <SelectItem value="20'GP">20' General Purpose</SelectItem>
+                                                      <SelectItem value="40'GP">40' General Purpose</SelectItem>
+                                                      <SelectItem value="40'HC">40' High Cube</SelectItem>
+                                                      <SelectItem value="20'RF">20' Reefer</SelectItem>
+                                                      <SelectItem value="40'RF">40' Reefer</SelectItem>
+                                                      <SelectItem value="40'NOR">40' Non-Operating Reefer</SelectItem>
+                                                      <SelectItem value="20'OT">20' Open Top</SelectItem>
+                                                      <SelectItem value="40'OT">40' Open Top</SelectItem>
+                                                      <SelectItem value="20'FR">20' Flat Rack</SelectItem>
+                                                      <SelectItem value="40'FR">40' Flat Rack</SelectItem>
+                                                  </SelectContent>
+                                              </Select>
+                                              <FormMessage />
+                                          </FormItem>
+                                      )} />
+                                      <FormField control={form.control} name={`oceanShipment.containers.${index}.quantity`} render={({ field }) => (
+                                          <FormItem><FormLabel>Quantidade</FormLabel><FormControl><Input type="number" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                                      )} />
+                                      <FormField control={form.control} name={`oceanShipment.containers.${index}.weight`} render={({ field }) => (
+                                          <FormItem><FormLabel>Peso Total (kg)</FormLabel><FormControl><Input type="number" placeholder="22000" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/></FormControl><FormMessage /></FormItem>
+                                      )} />
+                                      <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeOceanContainer(index)} disabled={oceanContainers.length <= 1}>
+                                          <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                  </div>
+                                  {isSpecialContainer && (
+                                       <div className="grid md:grid-cols-3 gap-4 p-3 bg-muted/50 rounded-md animate-in fade-in-50 duration-300">
+                                          <FormField control={form.control} name={`oceanShipment.containers.${index}.length`} render={({ field }) => (
+                                              <FormItem><FormLabel>Compr. Carga (cm)</FormLabel><FormControl><Input type="number" placeholder="1200" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/></FormControl><FormMessage /></FormItem>
+                                          )} />
+                                          <FormField control={form.control} name={`oceanShipment.containers.${index}.width`} render={({ field }) => (
+                                              <FormItem><FormLabel>Larg. Carga (cm)</FormLabel><FormControl><Input type="number" placeholder="230" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/></FormControl><FormMessage /></FormItem>
+                                          )} />
+                                          <FormField control={form.control} name={`oceanShipment.containers.${index}.height`} render={({ field }) => (
+                                              <FormItem><FormLabel>Alt. Carga (cm)</FormLabel><FormControl><Input type="number" placeholder="230" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/></FormControl><FormMessage /></FormItem>
+                                          )} />
+                                       </div>
+                                  )}
+                              </div>
+                              )
+                          })}
+                           <Button type="button" variant="outline" size="sm" onClick={() => appendOceanContainer({ type: "20'GP", quantity: 1, weight: undefined, length: undefined, width: undefined, height: undefined })}>
+                              <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contêiner
+                          </Button>
                         </div>
-                    ))}
-                    <div className="flex items-center justify-between">
-                        <Button type="button" variant="outline" size="sm" onClick={() => appendAirPiece({ quantity: 1, length: 0, width: 0, height: 0, weight: 0 })}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Peça
-                        </Button>
-                        <FormField control={form.control} name="airShipment.isStackable" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center gap-2 space-y-0">
-                                <FormLabel>Empilhável?</FormLabel>
-                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                            </FormItem>
-                        )} />
-                    </div>
-                </TabsContent>
-                <TabsContent value="ocean" className="m-0 space-y-4">
-                    <h3 className="text-lg font-medium">Detalhes da Carga Marítima</h3>
-                     <Tabs 
-                        defaultValue="FCL" 
-                        className="w-full"
-                        onValueChange={(value) => {
-                           const newType = value as 'FCL' | 'LCL';
-                           form.setValue('oceanShipmentType', newType);
-                        }}
-                        value={form.getValues('oceanShipmentType')}
-                    >
-                        <TabsList>
-                            <TabsTrigger value="FCL">FCL (Contêiner)</TabsTrigger>
-                            <TabsTrigger value="LCL">LCL (Carga Solta)</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="FCL" className="mt-4 space-y-4">
-                             {oceanContainers.map((field, index) => {
-                                const containerType = watchedContainers[index]?.type;
-                                const isSpecialContainer = containerType?.includes('OT') || containerType?.includes('FR');
-                                return (
-                                <div key={field.id} className="p-3 border rounded-lg space-y-4">
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                                        <FormField control={form.control} name={`oceanShipment.containers.${index}.type`} render={({ field }) => (
-                                            <FormItem><FormLabel>Tipo de Contêiner</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="20'GP">20' General Purpose</SelectItem>
-                                                        <SelectItem value="40'GP">40' General Purpose</SelectItem>
-                                                        <SelectItem value="40'HC">40' High Cube</SelectItem>
-                                                        <SelectItem value="20'RF">20' Reefer</SelectItem>
-                                                        <SelectItem value="40'RF">40' Reefer</SelectItem>
-                                                        <SelectItem value="40'NOR">40' Non-Operating Reefer</SelectItem>
-                                                        <SelectItem value="20'OT">20' Open Top</SelectItem>
-                                                        <SelectItem value="40'OT">40' Open Top</SelectItem>
-                                                        <SelectItem value="20'FR">20' Flat Rack</SelectItem>
-                                                        <SelectItem value="40'FR">40' Flat Rack</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={form.control} name={`oceanShipment.containers.${index}.quantity`} render={({ field }) => (
-                                            <FormItem><FormLabel>Quantidade</FormLabel><FormControl><Input type="number" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
-                                        )} />
-                                        <FormField control={form.control} name={`oceanShipment.containers.${index}.weight`} render={({ field }) => (
-                                            <FormItem><FormLabel>Peso Total (kg)</FormLabel><FormControl><Input type="number" placeholder="22000" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/></FormControl><FormMessage /></FormItem>
-                                        )} />
-                                        <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeOceanContainer(index)} disabled={oceanContainers.length <= 1}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                    {isSpecialContainer && (
-                                         <div className="grid md:grid-cols-3 gap-4 p-3 bg-muted/50 rounded-md animate-in fade-in-50 duration-300">
-                                            <FormField control={form.control} name={`oceanShipment.containers.${index}.length`} render={({ field }) => (
-                                                <FormItem><FormLabel>Compr. Carga (cm)</FormLabel><FormControl><Input type="number" placeholder="1200" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/></FormControl><FormMessage /></FormItem>
-                                            )} />
-                                            <FormField control={form.control} name={`oceanShipment.containers.${index}.width`} render={({ field }) => (
-                                                <FormItem><FormLabel>Larg. Carga (cm)</FormLabel><FormControl><Input type="number" placeholder="230" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/></FormControl><FormMessage /></FormItem>
-                                            )} />
-                                            <FormField control={form.control} name={`oceanShipment.containers.${index}.height`} render={({ field }) => (
-                                                <FormItem><FormLabel>Alt. Carga (cm)</FormLabel><FormControl><Input type="number" placeholder="230" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/></FormControl><FormMessage /></FormItem>
-                                            )} />
-                                         </div>
-                                    )}
-                                </div>
-                                )
-                            })}
-                             <Button type="button" variant="outline" size="sm" onClick={() => appendOceanContainer({ type: "20'GP", quantity: 1, weight: undefined, length: undefined, width: undefined, height: undefined })}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contêiner
-                            </Button>
-                        </TabsContent>
-                        <TabsContent value="LCL" className="mt-4">
-                            <div className="grid md:grid-cols-2 gap-4 p-3 border rounded-md">
-                                <FormField control={form.control} name="lclDetails.cbm" render={({ field }) => (
-                                    <FormItem><FormLabel>Cubagem Total (CBM)</FormLabel><FormControl><Input type="number" placeholder="Ex: 2.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="lclDetails.weight" render={({ field }) => (
-                                    <FormItem><FormLabel>Peso Bruto Total (kg)</FormLabel><FormControl><Input type="number" placeholder="Ex: 1200" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                            </div>
-                        </TabsContent>
-                    </Tabs>
-                </TabsContent>
-              </Tabs>
+                      )}
+                      
+                      {oceanShipmentType === 'LCL' && (
+                          <div className="mt-4">
+                              <div className="grid md:grid-cols-2 gap-4 p-3 border rounded-md">
+                                  <FormField control={form.control} name="lclDetails.cbm" render={({ field }) => (
+                                      <FormItem><FormLabel>Cubagem Total (CBM)</FormLabel><FormControl><Input type="number" placeholder="Ex: 2.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+                                  )} />
+                                  <FormField control={form.control} name="lclDetails.weight" render={({ field }) => (
+                                      <FormItem><FormLabel>Peso Bruto Total (kg)</FormLabel><FormControl><Input type="number" placeholder="Ex: 1200" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+                                  )} />
+                              </div>
+                          </div>
+                      )}
+                  </div>
+                )}
               
               <Separator className="my-6" />
                 <div>

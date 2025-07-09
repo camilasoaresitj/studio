@@ -135,6 +135,7 @@ export async function submitVgm(vgmData: any): Promise<{ success: true; vgmConfi
 
 /**
  * Fetches tracking information from the Maersk API using a robust two-step lookup.
+ * It intelligently tries to search by Booking Reference and then by Bill of Lading (Transport Document Reference).
  * @param trackingNumber The Bill of Lading or booking number.
  * @returns A promise that resolves to an object containing the latest status, a list of events, and partial shipment details.
  */
@@ -146,113 +147,125 @@ export async function getTracking(trackingNumber: string): Promise<{ status: str
     
     console.log(`Real API Call: Calling Maersk tracking API for: ${trackingNumber}`);
     
-    try {
-        // Step 1: Call shipments-summaries to find the canonical transportDocumentId using the booking number.
-        const summaryResponse = await fetch(`${API_BASE_URL}/v2/tracking/shipments-summaries?carrierBookingReference=${trackingNumber}`, {
-            headers: { 'Consumer-Key': apiKey, 'Accept': 'application/json' }
-        });
-        
-        if (!summaryResponse.ok) {
-            const errorBody = await summaryResponse.text();
-            let errorMessage = `Maersk API Error (Summary Check): Status ${summaryResponse.status}.`;
-            if (summaryResponse.status === 401 || summaryResponse.status === 403) {
-                errorMessage = `Erro de Autenticação/Autorização (Status ${summaryResponse.status}). Verifique se a chave de API da Maersk está correta.`;
-            } else {
-                 errorMessage += ` Resposta: ${errorBody}`;
-            }
-            throw new Error(errorMessage);
-        }
+    let shipmentSummary;
+    let transportDocumentId;
+    let summaryResponse;
 
+    // --- Step 1: Intelligent Search ---
+    // Try searching by Carrier Booking Reference first
+    console.log(`Attempting search by Carrier Booking Reference: ${trackingNumber}`);
+    summaryResponse = await fetch(`${API_BASE_URL}/v2/tracking/shipments-summaries?carrierBookingReference=${trackingNumber}`, {
+        headers: { 'Consumer-Key': apiKey, 'Accept': 'application/json' }
+    });
+    
+    if (summaryResponse.ok) {
         const summaryData = await summaryResponse.json();
-        const shipmentSummary = summaryData.shipments?.[0];
+        shipmentSummary = summaryData.shipments?.[0];
+    }
 
-        if (!shipmentSummary) {
-            throw new Error(`Nenhum embarque encontrado para o número de rastreamento: ${trackingNumber}. Verifique se o número está correto e se a sua chave de API tem permissão para acessá-lo.`);
-        }
-
-        const transportDocumentId = shipmentSummary.transportDocumentId;
-        console.log(`Found transportDocumentId: ${transportDocumentId} for booking ${trackingNumber}. Fetching details...`);
-
-
-        // Step 2: Use the canonical ID to get full shipment details
-        const response = await fetch(`${API_BASE_URL}/v2/tracking/shipments/${transportDocumentId}`, {
+    // If not found, try searching by Transport Document Reference (Bill of Lading)
+    if (!shipmentSummary) {
+        console.log(`Not found by Booking Ref. Attempting search by Transport Document Reference (BL): ${trackingNumber}`);
+        summaryResponse = await fetch(`${API_BASE_URL}/v2/tracking/shipments-summaries?transportDocumentReference=${trackingNumber}`, {
             headers: { 'Consumer-Key': apiKey, 'Accept': 'application/json' }
         });
-
-        if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Maersk API Error (Detail Fetch): Status ${response.status}. Resposta: ${errorBody}`);
+        if (summaryResponse.ok) {
+            const summaryData = await summaryResponse.json();
+            shipmentSummary = summaryData.shipments?.[0];
         }
-
-        const data = await response.json();
-        const shipmentData = data.shipments?.[0];
-
-        if (!shipmentData) {
-            throw new Error(`Nenhuma informação de embarque encontrada na resposta da API para ${transportDocumentId}, embora a chamada tenha sido bem-sucedida.`);
-        }
-        
-        const transportPlan = shipmentData.transportPlan || [];
-        const originLeg = transportPlan.find((leg: any) => leg.transportLeg.sequenceNumber === 1)?.transportLeg;
-        const destinationLeg = [...transportPlan].reverse().find((leg: any) => leg.transportLeg.destination)?.transportLeg;
-
-        // Map events to our TrackingEvent format
-        const events: TrackingEvent[] = shipmentData.events.map((event: any): TrackingEvent => ({
-            status: event.eventDescription,
-            date: event.eventDateTime,
-            location: event.eventLocation?.locationName || 'Unknown Location',
-            completed: event.eventClassifierCode === 'ACT',
-            carrier: 'Maersk'
-        }));
-        
-        const latestCompletedEvent = [...events].reverse().find(e => e.completed);
-        const overallStatus = latestCompletedEvent?.status || 'Pending';
-        
-        // Map data to our partial Shipment format
-        let etd: Date | undefined;
-        let eta: Date | undefined;
-        
-        const etdEvent = shipmentData.events.find((e: any) => e.eventTypeCode === 'ETD');
-        if (etdEvent) etd = new Date(etdEvent.eventDateTime);
-        else if (originLeg?.departure?.eventDateTime) etd = new Date(originLeg.departure.eventDateTime);
-
-        const etaEvent = shipmentData.events.find((e: any) => e.eventTypeCode === 'ETA');
-        if (etaEvent) eta = new Date(etaEvent.eventDateTime);
-        else if (destinationLeg?.arrival?.eventDateTime) eta = new Date(destinationLeg.arrival.eventDateTime);
-
-        const milestones: Milestone[] = events.map((event: TrackingEvent): Milestone => ({
-            name: event.status,
-            status: event.completed ? 'completed' : 'pending',
-            predictedDate: new Date(event.date),
-            effectiveDate: event.completed ? new Date(event.date) : null,
-            details: event.location,
-            isTransshipment: false, // Simplification
-        }));
-        
-        const shipmentDetails: Partial<Shipment> = {
-            id: shipmentData.carrierBookingReference || trackingNumber, // Use booking ref as ID if available
-            origin: originLeg?.origin?.locationName || 'Unknown',
-            destination: destinationLeg?.destination?.locationName || 'Unknown',
-            bookingNumber: shipmentData.carrierBookingReference,
-            masterBillNumber: shipmentData.transportDocumentReference,
-            vesselName: originLeg?.vessel?.vesselName || '',
-            voyageNumber: originLeg?.voyageReference || '',
-            etd,
-            eta,
-            milestones: milestones.sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime()),
-            // Other fields like containers would need parsing from shipmentData if available
-        };
-
-        return {
-            status: overallStatus,
-            events: events.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
-            shipmentDetails
-        };
-
-    } catch(error) {
-        console.error("Error fetching tracking from Maersk:", error);
-        if (error instanceof Error) {
-            throw new Error(error.message);
-        }
-        throw new Error("An unknown error occurred during Maersk tracking.");
     }
+    
+    // --- Step 2: Process Response or Handle Errors ---
+    if (!summaryResponse.ok) {
+        const errorBody = await summaryResponse.text();
+        let errorMessage = `Maersk API Error: Status ${summaryResponse.status}.`;
+        if (summaryResponse.status === 401 || summaryResponse.status === 403) {
+            errorMessage = `Erro de Autenticação/Autorização (Status ${summaryResponse.status}). Verifique se a chave de API da Maersk está correta e tem as permissões necessárias.`;
+        } else {
+             errorMessage += ` Resposta: ${errorBody}`;
+        }
+        throw new Error(errorMessage);
+    }
+    
+    if (!shipmentSummary) {
+        throw new Error(`Nenhum embarque encontrado para o número de rastreamento: ${trackingNumber}. Verifique se o número está correto e se sua chave de API tem permissão para acessá-lo.`);
+    }
+
+    transportDocumentId = shipmentSummary.transportDocumentId;
+    console.log(`Found transportDocumentId: ${transportDocumentId} for booking ${trackingNumber}. Fetching details...`);
+
+
+    // --- Step 3: Fetch Full Details ---
+    const response = await fetch(`${API_BASE_URL}/v2/tracking/shipments/${transportDocumentId}`, {
+        headers: { 'Consumer-Key': apiKey, 'Accept': 'application/json' }
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Maersk API Error (Detail Fetch): Status ${response.status}. Resposta: ${errorBody}`);
+    }
+
+    const data = await response.json();
+    const shipmentData = data.shipments?.[0];
+
+    if (!shipmentData) {
+        throw new Error(`Nenhuma informação de embarque encontrada na resposta da API para ${transportDocumentId}, embora a chamada tenha sido bem-sucedida.`);
+    }
+    
+    const transportPlan = shipmentData.transportPlan || [];
+    const originLeg = transportPlan.find((leg: any) => leg.transportLeg.sequenceNumber === 1)?.transportLeg;
+    const destinationLeg = [...transportPlan].reverse().find((leg: any) => leg.transportLeg.destination)?.transportLeg;
+
+    // Map events to our TrackingEvent format
+    const events: TrackingEvent[] = shipmentData.events.map((event: any): TrackingEvent => ({
+        status: event.eventDescription,
+        date: event.eventDateTime,
+        location: event.eventLocation?.locationName || 'Unknown Location',
+        completed: event.eventClassifierCode === 'ACT',
+        carrier: 'Maersk'
+    }));
+    
+    const latestCompletedEvent = [...events].reverse().find(e => e.completed);
+    const overallStatus = latestCompletedEvent?.status || 'Pending';
+    
+    // Map data to our partial Shipment format
+    let etd: Date | undefined;
+    let eta: Date | undefined;
+    
+    const etdEvent = shipmentData.events.find((e: any) => e.eventTypeCode === 'ETD');
+    if (etdEvent) etd = new Date(etdEvent.eventDateTime);
+    else if (originLeg?.departure?.eventDateTime) etd = new Date(originLeg.departure.eventDateTime);
+
+    const etaEvent = shipmentData.events.find((e: any) => e.eventTypeCode === 'ETA');
+    if (etaEvent) eta = new Date(etaEvent.eventDateTime);
+    else if (destinationLeg?.arrival?.eventDateTime) eta = new Date(destinationLeg.arrival.eventDateTime);
+
+    const milestones: Milestone[] = events.map((event: TrackingEvent): Milestone => ({
+        name: event.status,
+        status: event.completed ? 'completed' : 'pending',
+        predictedDate: new Date(event.date),
+        effectiveDate: event.completed ? new Date(event.date) : null,
+        details: event.location,
+        isTransshipment: false, // Simplification
+    }));
+    
+    const shipmentDetails: Partial<Shipment> = {
+        id: shipmentData.carrierBookingReference || trackingNumber, // Use booking ref as ID if available
+        origin: originLeg?.origin?.locationName || 'Unknown',
+        destination: destinationLeg?.destination?.locationName || 'Unknown',
+        bookingNumber: shipmentData.carrierBookingReference,
+        masterBillNumber: shipmentData.transportDocumentReference,
+        vesselName: originLeg?.vessel?.vesselName || '',
+        voyageNumber: originLeg?.voyageReference || '',
+        etd,
+        eta,
+        milestones: milestones.sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime()),
+        // Other fields like containers would need parsing from shipmentData if available
+    };
+
+    return {
+        status: overallStatus,
+        events: events.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+        shipmentDetails
+    };
 }

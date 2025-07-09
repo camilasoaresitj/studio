@@ -112,7 +112,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 
 If no valid rates can be extracted, return an empty array: \`[]\`.
 
-Finally, double-check your output. Ensure the entire response is a valid JSON array and that every single object inside the array is complete with all the required fields as specified in the schema. Do not return incomplete or truncated JSON. Your entire response must be a single, valid, complete JSON array.
+**Crucial Final Instruction:** Before you finish, you MUST review your generated JSON. Every single object in the array MUST contain all the mandatory fields (\`origin\`, \`destination\`, \`carrier\`, \`modal\`, \`rate\`, \`transitTime\`, \`container\`, \`validity\`, \`freeTime\`, \`agent\`). If you find an object that is incomplete, you MUST delete that entire object from the array. It is better to return fewer, complete objects than to return an array with even one incomplete object. Your final output MUST be a valid, complete JSON array and must not be truncated.
 
 Analyze the following text and extract the rates:
 {{{textInput}}}

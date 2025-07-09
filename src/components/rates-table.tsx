@@ -43,38 +43,49 @@ interface RatesTableProps {
 const maritimeContainerTypes = ["20'GP", "40'GP", "40'HC", "40'NOR"];
 
 const groupMaritimeRates = (rates: Rate[]) => {
-    const groups = new Map<string, any>();
-    
+    // Using a plain object for the groups map
+    const groups: { [key: string]: Rate[] } = {};
+
+    // Group rates by a unique key (origin, destination, carrier)
     rates.forEach(rate => {
         if (rate.modal !== 'Marítimo') return;
-
         const groupKey = `${rate.origin}|${rate.destination}|${rate.carrier}`;
-        
-        if (!groups.has(groupKey)) {
-            // If the group doesn't exist, create it with data from the current rate.
-            // Since all rates in a group should have the same common data after an edit,
-            // we can safely take the values from the first rate we encounter.
-            groups.set(groupKey, {
-                origin: rate.origin,
-                destination: rate.destination,
-                carrier: rate.carrier,
-                modal: rate.modal,
-                transitTime: rate.transitTime,
-                validity: rate.validity,
-                freeTime: rate.freeTime,
-                agent: rate.agent,
-                rates: {},
-            });
+        if (!groups[groupKey]) {
+            groups[groupKey] = [];
         }
-        
-        const group = groups.get(groupKey)!;
-        
-        if (rate.container) {
-            group.rates[rate.container] = rate.rate;
-        }
+        groups[groupKey].push(rate);
     });
 
-    return Array.from(groups.values());
+    // Now, map the grouped rates to the final display structure
+    return Object.values(groups).map((groupedRates: Rate[]) => {
+        if (groupedRates.length === 0) {
+            return null; // Should not happen
+        }
+
+        // All rates in the group should have the same shared properties after an edit.
+        // We can safely take them from the first rate to represent the group.
+        const representative = groupedRates[0];
+
+        // Create the object of container-specific rates
+        const containerRates: { [key: string]: string } = {};
+        groupedRates.forEach(rate => {
+            if (rate.container) {
+                containerRates[rate.container] = rate.rate;
+            }
+        });
+
+        return {
+            origin: representative.origin,
+            destination: representative.destination,
+            carrier: representative.carrier,
+            modal: representative.modal,
+            transitTime: representative.transitTime,
+            validity: representative.validity,
+            freeTime: representative.freeTime,
+            agent: representative.agent,
+            rates: containerRates,
+        };
+    }).filter(item => item !== null); // Filter out any nulls
 };
 
 
@@ -82,7 +93,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
   const [filters, setFilters] = useState({ origin: '', destination: '' });
   const [modalFilter, setModalFilter] = useState('Marítimo');
   const [showExpired, setShowExpired] = useState(false);
-  const [localRates, setLocalRates] = useState<Rate[]>([]);
+  const [localRates, setLocalRates] = useState<Rate[]>(rates);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -338,5 +349,4 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
       )}
     </div>
   );
-
-    
+}

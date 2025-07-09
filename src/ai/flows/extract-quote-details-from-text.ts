@@ -42,22 +42,24 @@ const extractQuoteDetailsFromTextPrompt = ai.definePrompt({
   prompt: `You are a logistics operations expert. Your task is to extract freight quoting information from the unstructured text provided below and return a valid JSON object that partially matches the quoting form schema.
 
 **Extraction Rules:**
-- **Modal:** Determine if the request is 'air' or 'ocean'.
-- **Locations:** Identify the 'origin' and 'destination'. Standardize them to 'City, Country Code' format (e.g., "Santos, BR", "Shanghai, CN").
-- **Incoterm:** Find the Incoterm (e.g., FOB, EXW). If not found, default to 'FOB'.
+- **Modal:** Determine if the request is 'air' or 'ocean'. If it mentions containers like 20ft, 40ft, it's 'ocean'.
+- **Locations:** Identify the 'origin' and 'destination'.
+    - Recognize \`POL\` as Port of Loading (origin) and \`POD\` as Port of Discharge (destination).
+    - Standardize locations to 'City, Country' format (e.g., "Santos, Brazil", "Belawan, Indonesia").
+- **Incoterm:** Find the Incoterm (e.g., FOB, EXW). If not found, you can omit it.
 - **Cargo Details:**
-  - If **Ocean FCL**, identify the container types and quantities (e.g., 1x40'HC). Populate the 'oceanShipment.containers' array.
-  - If **Ocean LCL**, find the CBM and weight in KG. Populate 'lclDetails'.
-  - If **Air**, identify the number of pieces, their dimensions (L, W, H in cm), and weight in KG. Populate the 'airShipment.pieces' array.
+  - If **Ocean FCL**, identify the container types and quantities from terms like \`Vol\`.
+  - **CRITICAL CONTAINER MAPPING:** Standardize container types: \`20ft\` or \`20'\` -> \`20'GP\`, \`40ft\` or \`40'\` -> \`40'GP\`, \`40hc\` -> \`40'HC\`.
+  - Populate the \`oceanShipment.containers\` array.
 - **Commodity:** Extract the description of the goods if available.
 - **Do not guess or invent information.** If a field is not present in the text, omit it from the JSON output.
 
-**Example Input Text:**
+---
+**Example 1 Input Text:**
 "Hi team, please quote a shipment for our client Nexus Imports.
-We need to ship 1x40'HC container from Shanghai, CN to Santos, BR. Incoterm is FOB. Commodity is electronics.
-Thanks, John"
+We need to ship 1x40'HC container from Shanghai, CN to Santos, BR. Incoterm is FOB. Commodity is electronics."
 
-**Expected Example JSON Output:**
+**Expected Example 1 JSON Output:**
 \`\`\`json
 {
   "modal": "ocean",
@@ -76,6 +78,33 @@ Thanks, John"
   }
 }
 \`\`\`
+---
+**Example 2 Input Text:**
+"Could you please give us your best offer for below details,
+POL: Santos, Brazil
+POD: Belawan, Indonesia
+Vol: 1x20ft
+Commodity: desiccated coconut"
+
+**Expected Example 2 JSON Output:**
+\`\`\`json
+{
+  "modal": "ocean",
+  "origin": "Santos, Brazil",
+  "destination": "Belawan, Indonesia",
+  "commodity": "desiccated coconut",
+  "oceanShipmentType": "FCL",
+  "oceanShipment": {
+    "containers": [
+      {
+        "type": "20'GP",
+        "quantity": 1
+      }
+    ]
+  }
+}
+\`\`\`
+---
 
 Now, analyze the following text and extract the quoting information:
 {{{textInput}}}

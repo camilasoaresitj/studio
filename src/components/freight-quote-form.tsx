@@ -546,6 +546,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
       const finalPrice = `BRL ${totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       const supplier = activeQuote.charges.find(c => c.name.toLowerCase().includes('frete'))?.supplier || 'N/A';
+      
+      const isClientAgent = customer.roles.agente === true;
 
       const response = await runSendQuote({
         customerName: activeQuote.customer,
@@ -555,10 +557,11 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             destination: activeQuote.destination,
             carrier: supplier,
             transitTime: activeQuote.details.transitTime,
-            finalPrice: finalPrice
+            finalPrice: finalPrice,
         },
         approvalLink: `https://cargainteligente.com/approve/${activeQuote.id}`,
         rejectionLink: `https://cargainteligente.com/reject/${activeQuote.id}`,
+        isClientAgent: isClientAgent,
       });
 
       if (response.success) {

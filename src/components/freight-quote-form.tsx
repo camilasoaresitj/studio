@@ -22,10 +22,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
-import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetShipSchedules, runGenerateQuotePdfHtml } from '@/app/actions';
+import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetShipSchedules, runGenerateQuotePdfHtml, runExtractQuoteDetailsFromText } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import type { Quote, QuoteCharge, QuoteDetails } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
@@ -37,6 +37,7 @@ import type { Fee } from './fees-registry';
 import { QuoteCostSheet } from './quote-cost-sheet';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Textarea } from './ui/textarea';
 
 
 type FreightRate = {
@@ -175,6 +176,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const [isFetchingSchedules, setIsFetchingSchedules] = useState(false);
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   const [activeQuote, setActiveQuote] = useState<Quote | null>(null);
+  const [isAutofilling, setIsAutofilling] = useState(false);
+  const [autofillText, setAutofillText] = useState("");
   const { toast } = useToast();
 
   const form = useForm<FreightQuoteFormData>({
@@ -189,7 +192,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       collectionAddress: '',
       airShipment: {
         pieces: [{ quantity: 1, length: 100, width: 100, height: 100, weight: 500 }],
-        isStackable: false,
+        isStackable: true,
       },
       oceanShipmentType: 'FCL',
       oceanShipment: {
@@ -204,8 +207,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         insurance: false,
         delivery: false,
         trading: false,
+        redestinacao: false,
         cargoValue: 0,
         deliveryCost: 0,
+        redestinacaoCost: 0,
       }
     },
   });
@@ -395,7 +400,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       const isOptionalSelected = 
         (fee.name.toLowerCase().includes('despacho') && values.optionalServices.customsClearance) ||
         (fee.name.toLowerCase().includes('seguro') && values.optionalServices.insurance) ||
-        (fee.name.toLowerCase().includes('trading') && values.optionalServices.trading);
+        (fee.name.toLowerCase().includes('trading') && values.optionalServices.trading) ||
+        (fee.name.toLowerCase().includes('redestina') && values.optionalServices.redestinacao);
 
       return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected)
     });
@@ -677,6 +683,25 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     }
   };
 
+  const handleAutofill = async () => {
+    if (!autofillText.trim()) {
+      toast({ variant: 'destructive', title: 'Nenhum texto para analisar' });
+      return;
+    }
+    setIsAutofilling(true);
+    const response = await runExtractQuoteDetailsFromText(autofillText);
+    if (response.success) {
+      const currentValues = form.getValues();
+      form.reset({
+        ...currentValues,
+        ...response.data
+      });
+      toast({ title: 'Dados preenchidos com sucesso!', className: 'bg-success text-success-foreground' });
+    } else {
+      toast({ variant: 'destructive', title: 'Erro na análise', description: response.error });
+    }
+    setIsAutofilling(false);
+  };
 
   const modal = form.watch('modal');
   const incoterm = form.watch('incoterm');
@@ -745,9 +770,24 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       <Card>
         <CardHeader>
           <CardTitle>Cotação de Frete Internacional</CardTitle>
-          <CardDescription>Preencha os detalhes abaixo para buscar as melhores tarifas de frete aéreo e marítimo.</CardDescription>
+          <CardDescription>Preencha os detalhes abaixo ou cole os dados de um e-mail para que a IA preencha para você.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="space-y-2 mb-6">
+              <Label htmlFor="autofill-textarea">Preenchimento com IA</Label>
+              <Textarea
+                  id="autofill-textarea"
+                  placeholder="Cole aqui o corpo de um e-mail ou uma mensagem de cotação..."
+                  value={autofillText}
+                  onChange={(e) => setAutofillText(e.target.value)}
+                  className="min-h-[100px]"
+              />
+              <Button type="button" variant="secondary" onClick={handleAutofill} disabled={isAutofilling}>
+                  {isAutofilling ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4"/>}
+                  Preencher Formulário com IA
+              </Button>
+          </div>
+          <Separator className="mb-6"/>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-4 items-start">
@@ -1067,12 +1107,23 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
               <Separator className="my-6" />
                 <div>
                     <h3 className="text-lg font-medium mb-4">Serviços Opcionais</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <FormField control={form.control} name="optionalServices.customsClearance" render={({ field }) => (
                             <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Despacho</FormLabel></div></FormItem>
                         )} />
                          <FormField control={form.control} name="optionalServices.trading" render={({ field }) => (
                             <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Trading</FormLabel></div></FormItem>
+                        )} />
+                        <FormField control={form.control} name="optionalServices.redestinacao" render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <div className="space-y-1 leading-none w-full"><FormLabel>Redestinação</FormLabel>
+                                {optionalServices.redestinacao && (
+                                    <FormField control={form.control} name="optionalServices.redestinacaoCost" render={({ field }) => (
+                                        <FormItem className="mt-2"><FormControl><Input type="number" placeholder="Custo (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                )}
+                                </div>
+                            </FormItem>
                         )} />
                         <FormField control={form.control} name="optionalServices.insurance" render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>

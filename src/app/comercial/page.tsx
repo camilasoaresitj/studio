@@ -187,6 +187,7 @@ const initialFeesData: Fee[] = [
     // Serviços Opcionais
     { id: 14, name: 'Despacho Aduaneiro', value: '1000', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Ambos', direction: 'Ambos' },
     { id: 15, name: 'Seguro Internacional', value: '0.3', currency: 'BRL', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos' },
+    { id: 32, name: 'Redestinação de Carga', value: '1200', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Marítimo', direction: 'Importação' },
 ];
 
 

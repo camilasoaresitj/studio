@@ -44,7 +44,7 @@ export const baseFreightQuoteFormSchema = z.object({
   
   airShipment: z.object({
     pieces: z.array(airPieceSchema),
-    isStackable: z.boolean().default(false),
+    isStackable: z.boolean().default(true),
   }),
 
   oceanShipmentType: z.enum(['FCL', 'LCL']),
@@ -58,8 +58,10 @@ export const baseFreightQuoteFormSchema = z.object({
     insurance: z.boolean(),
     delivery: z.boolean(),
     trading: z.boolean(),
+    redestinacao: z.boolean(),
     cargoValue: z.number(),
     deliveryCost: z.number(),
+    redestinacaoCost: z.number(),
   }),
 });
 

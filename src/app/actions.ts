@@ -9,6 +9,7 @@ import { requestAgentQuote, RequestAgentQuoteInput, RequestAgentQuoteOutput } fr
 import { extractPartnerInfo, ExtractPartnerInfoOutput } from '@/ai/flows/extract-partner-info';
 import { getShipSchedules, GetShipSchedulesInput, GetShipSchedulesOutput } from '@/ai/flows/get-ship-schedules';
 import { generateQuotePdfHtml, GenerateQuotePdfHtmlInput, GenerateQuotePdfHtmlOutput } from '@/ai/flows/generate-quote-pdf-html';
+import { extractQuoteDetailsFromText, ExtractQuoteDetailsFromTextOutput } from '@/ai/flows/extract-quote-details-from-text';
 import type { Partner } from '@/components/partners-registry';
 
 export async function runCreateCrmEntry(emailContent: string): Promise<{ success: true; data: CreateCrmEntryFromEmailOutput } | { success: false; error: string }> {
@@ -149,6 +150,19 @@ export async function runGenerateQuotePdfHtml(
   } catch (e) {
     console.error(e);
     const error = e instanceof Error ? e.message : 'An unknown error occurred while generating the PDF HTML.';
+    return { success: false, error };
+  }
+}
+
+export async function runExtractQuoteDetailsFromText(
+  textInput: string
+): Promise<{ success: true; data: ExtractQuoteDetailsFromTextOutput } | { success: false; error: string }> {
+  try {
+    const result = await extractQuoteDetailsFromText({ textInput });
+    return { success: true, data: result };
+  } catch (e) {
+    console.error(e);
+    const error = e instanceof Error ? e.message : 'An unknown error occurred while extracting quote details.';
     return { success: false, error };
   }
 }

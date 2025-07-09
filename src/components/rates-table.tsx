@@ -43,10 +43,8 @@ interface RatesTableProps {
 const maritimeContainerTypes = ["20'GP", "40'GP", "40'HC", "40'NOR"];
 
 const groupMaritimeRates = (rates: Rate[]) => {
-    // Using a plain object for the groups map
     const groups: { [key: string]: Rate[] } = {};
 
-    // Group rates by a unique key (origin, destination, carrier)
     rates.forEach(rate => {
         if (rate.modal !== 'Marítimo') return;
         const groupKey = `${rate.origin}|${rate.destination}|${rate.carrier}`;
@@ -56,17 +54,11 @@ const groupMaritimeRates = (rates: Rate[]) => {
         groups[groupKey].push(rate);
     });
 
-    // Now, map the grouped rates to the final display structure
-    return Object.values(groups).map((groupedRates: Rate[]) => {
+    return Object.entries(groups).map(([groupKey, groupedRates]) => {
         if (groupedRates.length === 0) {
-            return null; // Should not happen
+            return null;
         }
-
-        // All rates in the group should have the same shared properties after an edit.
-        // We can safely take them from the first rate to represent the group.
         const representative = groupedRates[0];
-
-        // Create the object of container-specific rates
         const containerRates: { [key: string]: string } = {};
         groupedRates.forEach(rate => {
             if (rate.container) {
@@ -75,6 +67,7 @@ const groupMaritimeRates = (rates: Rate[]) => {
         });
 
         return {
+            groupKey, // Pass the key for stable identification
             origin: representative.origin,
             destination: representative.destination,
             carrier: representative.carrier,
@@ -85,7 +78,7 @@ const groupMaritimeRates = (rates: Rate[]) => {
             agent: representative.agent,
             rates: containerRates,
         };
-    }).filter(item => item !== null); // Filter out any nulls
+    }).filter(item => item !== null);
 };
 
 
@@ -93,7 +86,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
   const [filters, setFilters] = useState({ origin: '', destination: '' });
   const [modalFilter, setModalFilter] = useState('Marítimo');
   const [showExpired, setShowExpired] = useState(false);
-  const [localRates, setLocalRates] = useState<Rate[]>(rates);
+  const [localRates, setLocalRates] = useState<Rate[]>([]);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -146,9 +139,10 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
       return commonFilteredRates.filter(r => r.modal === 'Aéreo');
   }, [commonFilteredRates]);
 
-  const handleMaritimeGroupChange = (group: any, field: 'freeTime' | 'agent', value: string) => {
+  const handleMaritimeGroupChange = (groupKey: string, field: 'freeTime' | 'agent', value: string) => {
+      const [origin, destination, carrier] = groupKey.split('|');
       const newLocalRates = localRates.map(rate => {
-          if (rate.modal === 'Marítimo' && rate.origin === group.origin && rate.destination === group.destination && rate.carrier === group.carrier) {
+          if (rate.modal === 'Marítimo' && rate.origin === origin && rate.destination === destination && rate.carrier === carrier) {
               return { ...rate, [field]: value };
           }
           return rate;
@@ -231,15 +225,14 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
                                     <TableCell colSpan={maritimeContainerTypes.length + 6} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
                                 </TableRow>
                             ) : maritimeRates.map((item: any) => {
-                                const key = `${item.origin}-${item.destination}-${item.carrier}`;
                                 const isExpired = isValidDateString(item.validity) && isBefore(parse(item.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
-                                <TableRow key={key} className={isExpired ? 'bg-muted/30 text-muted-foreground' : ''}>
+                                <TableRow key={item.groupKey} className={isExpired ? 'bg-muted/30 text-muted-foreground' : ''}>
                                     <TableCell className="font-medium truncate" title={item.carrier}>{item.carrier}</TableCell>
                                     <TableCell className="p-2">
                                         <Input
                                             value={item.agent || ''}
-                                            onChange={(e) => handleMaritimeGroupChange(item, 'agent', e.target.value)}
+                                            onChange={(e) => handleMaritimeGroupChange(item.groupKey, 'agent', e.target.value)}
                                             className="h-8"
                                             disabled={isExpired}
                                         />
@@ -264,7 +257,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
                                     <TableCell className="p-2">
                                         <Input
                                             value={item.freeTime}
-                                            onChange={(e) => handleMaritimeGroupChange(item, 'freeTime', e.target.value)}
+                                            onChange={(e) => handleMaritimeGroupChange(item.groupKey, 'freeTime', e.target.value)}
                                             className="h-8"
                                             disabled={isExpired}
                                         />

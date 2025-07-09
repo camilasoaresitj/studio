@@ -11,7 +11,9 @@ import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, ListTodo, Calendar as CalendarIcon, Ship } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { runGetBookingInfo } from '@/app/actions';
+import { AlertTriangle, ListTodo, Calendar as CalendarIcon, Ship, PackagePlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Task = {
@@ -24,6 +26,8 @@ export default function OperacionalPage() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [taskFilter, setTaskFilter] = useState<'today' | 'week' | 'all'>('today');
+  const [newBookingNumber, setNewBookingNumber] = useState('');
+  const [isFetchingBooking, setIsFetchingBooking] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -45,6 +49,47 @@ export default function OperacionalPage() {
         className: 'bg-success text-success-foreground'
       });
   };
+  
+  const handleFetchBooking = async () => {
+      if (!newBookingNumber.trim()) {
+          toast({
+              variant: 'destructive',
+              title: "Campo obrigatório",
+              description: "Por favor, insira um número de booking.",
+          });
+          return;
+      }
+      setIsFetchingBooking(true);
+      const response = await runGetBookingInfo(newBookingNumber);
+
+      if (response.success) {
+          // Check if a shipment with this ID already exists to avoid duplicates
+          if (shipments.some(s => s.id === response.data.id)) {
+              toast({
+                  variant: 'default',
+                  title: "Processo já existente",
+                  description: `O processo ${response.data.id} já está na sua lista.`,
+              });
+          } else {
+              // Add the new shipment to the top of the list
+              setShipments(prevShipments => [response.data, ...prevShipments]);
+              toast({
+                  title: "Processo Importado!",
+                  description: `O processo ${response.data.id} foi adicionado com sucesso.`,
+                  className: 'bg-success text-success-foreground'
+              });
+          }
+          setNewBookingNumber(''); // Clear input on success
+      } else {
+          toast({
+              variant: 'destructive',
+              title: "Erro ao buscar processo",
+              description: response.error,
+          });
+      }
+      setIsFetchingBooking(false);
+  };
+
 
   const allTasks = useMemo((): Task[] => {
     return shipments
@@ -113,6 +158,32 @@ export default function OperacionalPage() {
           Gerencie suas tarefas diárias e acompanhe os embarques ativos.
         </p>
       </header>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><PackagePlus /> Importar Processo por Booking</CardTitle>
+          <CardDescription>Insira um número de booking de uma transportadora para criar e preencher um novo processo automaticamente.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              placeholder="Ex: BKG123456"
+              value={newBookingNumber}
+              onChange={(e) => setNewBookingNumber(e.target.value)}
+              disabled={isFetchingBooking}
+              onKeyUp={(e) => e.key === 'Enter' && handleFetchBooking()}
+            />
+            <Button onClick={handleFetchBooking} disabled={isFetchingBooking} className="w-full sm:w-auto">
+              {isFetchingBooking ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando...</>
+              ) : (
+                'Importar Processo'
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">Dica: Tente o número "BKG123456" para ver um exemplo.</p>
+        </CardContent>
+      </Card>
 
       <Card>
           <CardHeader>

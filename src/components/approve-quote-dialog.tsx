@@ -40,10 +40,30 @@ const contactSchema = z.object({
 
 const partnerSchema = z.object({
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
+  nomeFantasia: z.string().optional(),
   type: z.enum(['Cliente', 'Fornecedor', 'Agente']),
   cnpj: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
   exchangeRateAgio: z.coerce.number().optional(),
+  
+  // Cliente specific
+  limiteCredito: z.coerce.number().optional(),
+  tipoCliente: z.object({
+    importacao: z.boolean().default(false),
+    exportacao: z.boolean().default(false),
+  }).optional(),
+
+  // Agente specific
+  tipoAgente: z.object({
+    fcl: z.boolean().default(false),
+    lcl: z.boolean().default(false),
+    air: z.boolean().default(false),
+    projects: z.boolean().default(false),
+  }).optional(),
+  
+  // Fornecedor specific
+  tipoFornecedor: z.string().optional(),
+  
   address: z.object({
     street: z.string().optional(),
     number: z.string().optional(),

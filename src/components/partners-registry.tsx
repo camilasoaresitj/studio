@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useState, useMemo } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -24,26 +24,47 @@ import {
 } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit, Trash2, Search, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Checkbox } from './ui/checkbox';
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Nome do contato é obrigatório'),
   email: z.string().email('E-mail inválido'),
   phone: z.string().min(10, 'Telefone inválido'),
-  department: z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação']),
+  department: z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']),
 });
 
 const partnerSchema = z.object({
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
+  nomeFantasia: z.string().optional(),
   type: z.enum(['Cliente', 'Fornecedor', 'Agente']),
   cnpj: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
   exchangeRateAgio: z.coerce.number().optional(),
+  
+  // Cliente specific
+  limiteCredito: z.coerce.number().optional(),
+  tipoCliente: z.object({
+    importacao: z.boolean().default(false),
+    exportacao: z.boolean().default(false),
+  }).optional(),
+
+  // Agente specific
+  tipoAgente: z.object({
+    fcl: z.boolean().default(false),
+    lcl: z.boolean().default(false),
+    air: z.boolean().default(false),
+    projects: z.boolean().default(false),
+  }).optional(),
+  
+  // Fornecedor specific
+  tipoFornecedor: z.string().optional(),
+
   address: z.object({
     street: z.string().optional(),
     number: z.string().optional(),
@@ -69,16 +90,24 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
+  const [filterName, setFilterName] = useState('');
+  const [filterNomeFantasia, setFilterNomeFantasia] = useState('');
+  const [filterType, setFilterType] = useState('Todos');
   const { toast } = useToast();
 
   const form = useForm<PartnerFormData>({
     resolver: zodResolver(partnerSchema),
     defaultValues: {
       name: '',
+      nomeFantasia: '',
       type: 'Cliente',
       cnpj: '',
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
+      limiteCredito: undefined,
+      tipoCliente: { importacao: false, exportacao: false },
+      tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
+      tipoFornecedor: '',
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', department: 'Comercial' }],
     },
@@ -88,15 +117,31 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     control: form.control,
     name: "contacts",
   });
+  
+  const partnerType = form.watch('type');
+
+  const filteredPartners = useMemo(() => {
+    return partners.filter(partner => {
+        const nameMatch = filterName ? partner.name.toLowerCase().includes(filterName.toLowerCase()) : true;
+        const fantasiaMatch = filterNomeFantasia ? partner.nomeFantasia?.toLowerCase().includes(filterNomeFantasia.toLowerCase()) : true;
+        const typeMatch = filterType === 'Todos' || partner.type === filterType;
+        return nameMatch && fantasiaMatch && typeMatch;
+    });
+  }, [partners, filterName, filterNomeFantasia, filterType]);
 
   const handleOpenDialog = (partner: Partner | null) => {
     setEditingPartner(partner);
     form.reset(partner ? partner : {
       name: '',
+      nomeFantasia: '',
       type: 'Cliente',
       cnpj: '',
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
+      limiteCredito: undefined,
+      tipoCliente: { importacao: false, exportacao: false },
+      tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
+      tipoFornecedor: '',
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', department: 'Comercial' }],
     });
@@ -106,7 +151,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const onSubmit = (data: PartnerFormData) => {
     onPartnerSaved({
       ...data,
-      id: editingPartner?.id ?? 0, // 0 will indicate a new partner to the parent
+      id: editingPartner?.id ?? 0,
     });
     form.reset();
     setIsDialogOpen(false);
@@ -133,6 +178,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       const data = await response.json();
       
       form.setValue('name', data.razao_social || '');
+      form.setValue('nomeFantasia', data.nome_fantasia || '');
       form.setValue('address.street', data.logradouro || '');
       form.setValue('address.number', data.numero || '');
       form.setValue('address.complement', data.complemento || '');
@@ -163,35 +209,58 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <div>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold">Parceiros</h3>
-          <Button onClick={() => handleOpenDialog(null)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Adicionar Parceiro
-          </Button>
+        <div className="flex justify-between items-start mb-4 flex-col sm:flex-row gap-4">
+            <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                 <Input placeholder="Filtrar por Razão Social..." value={filterName} onChange={e => setFilterName(e.target.value)} />
+                 <Input placeholder="Filtrar por Nome Fantasia..." value={filterNomeFantasia} onChange={e => setFilterNomeFantasia(e.target.value)} />
+                 <Select value={filterType} onValueChange={setFilterType}>
+                     <SelectTrigger><SelectValue/></SelectTrigger>
+                     <SelectContent>
+                         <SelectItem value="Todos">Todos os Tipos</SelectItem>
+                         <SelectItem value="Cliente">Cliente</SelectItem>
+                         <SelectItem value="Fornecedor">Fornecedor</SelectItem>
+                         <SelectItem value="Agente">Agente</SelectItem>
+                     </SelectContent>
+                 </Select>
+            </div>
+            <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Adicionar Parceiro
+            </Button>
         </div>
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
+                <TableHead>Razão Social</TableHead>
+                <TableHead>Nome Fantasia</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Contato Principal</TableHead>
-                <TableHead>Telefone</TableHead>
                 <TableHead className="text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {partners.map((partner) => {
+              {filteredPartners.map((partner) => {
                 const primaryContact = partner.contacts.find(c => c.department === 'Comercial') || partner.contacts[0];
                 return (
                   <TableRow key={partner.id}>
                     <TableCell className="font-medium">{partner.name}</TableCell>
+                    <TableCell>{partner.nomeFantasia}</TableCell>
                     <TableCell>
-                      <Badge variant={getPartnerTypeVariant(partner.type)}>{partner.type}</Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge variant={getPartnerTypeVariant(partner.type)} className="w-fit">{partner.type}</Badge>
+                        <div className="flex gap-1 flex-wrap">
+                          {partner.type === 'Cliente' && partner.tipoCliente?.importacao && <Badge variant="outline" className="text-xs">Imp</Badge>}
+                          {partner.type === 'Cliente' && partner.tipoCliente?.exportacao && <Badge variant="outline" className="text-xs">Exp</Badge>}
+                          {partner.type === 'Agente' && partner.tipoAgente?.fcl && <Badge variant="outline" className="text-xs">FCL</Badge>}
+                          {partner.type === 'Agente' && partner.tipoAgente?.lcl && <Badge variant="outline" className="text-xs">LCL</Badge>}
+                          {partner.type === 'Agente' && partner.tipoAgente?.air && <Badge variant="outline" className="text-xs">Air</Badge>}
+                          {partner.type === 'Agente' && partner.tipoAgente?.projects && <Badge variant="outline" className="text-xs">Projects</Badge>}
+                          {partner.type === 'Fornecedor' && partner.tipoFornecedor && <Badge variant="outline" className="text-xs">{partner.tipoFornecedor}</Badge>}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>{primaryContact?.email || 'N/A'}</TableCell>
-                    <TableCell>{primaryContact?.phone || 'N/A'}</TableCell>
                     <TableCell className="text-center">
                       <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(partner)}>
                         <Edit className="h-4 w-4" />
@@ -219,7 +288,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                     <FormLabel>CNPJ (Opcional)</FormLabel>
                     <div className="flex gap-2">
                       <FormControl>
-                        <Input placeholder="00.000.000/0000-00" {...field} />
+                        <Input placeholder="00.000.000/0000-00" {...field} value={field.value ?? ''} />
                       </FormControl>
                       <Button type="button" onClick={handleFetchCnpj} disabled={isFetchingCnpj}>
                         {isFetchingCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
@@ -250,6 +319,95 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                   <FormMessage />
                 </FormItem>
               )} />
+              <FormField control={form.control} name="nomeFantasia" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome Fantasia (Opcional)</FormLabel>
+                  <FormControl><Input placeholder="Nome comercial da empresa" {...field} value={field.value ?? ''} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              
+              {partnerType === 'Cliente' && (
+                <Card className="bg-muted/30">
+                  <CardHeader><CardTitle className="text-base">Detalhes do Cliente</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField control={form.control} name="limiteCredito" render={({ field }) => (
+                        <FormItem><FormLabel>Limite de Crédito (R$)</FormLabel>
+                            <FormControl><Input type="number" placeholder="50000" {...field} value={field.value ?? ''}/></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                    <FormItem>
+                        <FormLabel>Tipo de Cliente</FormLabel>
+                        <div className="flex gap-4 items-center pt-2">
+                            <FormField control={form.control} name="tipoCliente.importacao" render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <div className="space-y-1 leading-none"><FormLabel>Importação</FormLabel></div>
+                                </FormItem>
+                            )} />
+                             <FormField control={form.control} name="tipoCliente.exportacao" render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <div className="space-y-1 leading-none"><FormLabel>Exportação</FormLabel></div>
+                                </FormItem>
+                            )} />
+                        </div>
+                    </FormItem>
+                  </CardContent>
+                </Card>
+              )}
+
+              {partnerType === 'Agente' && (
+                  <Card className="bg-muted/30">
+                      <CardHeader><CardTitle className="text-base">Detalhes do Agente</CardTitle></CardHeader>
+                      <CardContent>
+                          <FormItem>
+                              <FormLabel>Tipo de Agente</FormLabel>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-2">
+                                  <FormField control={form.control} name="tipoAgente.fcl" render={({ field }) => (
+                                      <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">FCL</FormLabel></FormItem>
+                                  )}/>
+                                  <FormField control={form.control} name="tipoAgente.lcl" render={({ field }) => (
+                                      <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">LCL</FormLabel></FormItem>
+                                  )}/>
+                                  <FormField control={form.control} name="tipoAgente.air" render={({ field }) => (
+                                      <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Air</FormLabel></FormItem>
+                                  )}/>
+                                  <FormField control={form.control} name="tipoAgente.projects" render={({ field }) => (
+                                      <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Projects</FormLabel></FormItem>
+                                  )}/>
+                              </div>
+                          </FormItem>
+                      </CardContent>
+                  </Card>
+              )}
+
+              {partnerType === 'Fornecedor' && (
+                  <Card className="bg-muted/30">
+                      <CardHeader><CardTitle className="text-base">Detalhes do Fornecedor</CardTitle></CardHeader>
+                      <CardContent>
+                          <FormField control={form.control} name="tipoFornecedor" render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Tipo de Fornecedor</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione um tipo..." /></SelectTrigger></FormControl>
+                                      <SelectContent>
+                                          <SelectItem value="Transportadora">Transportadora</SelectItem>
+                                          <SelectItem value="Cia Maritima">Cia Marítima</SelectItem>
+                                          <SelectItem value="Cia Aerea">Cia Aérea</SelectItem>
+                                          <SelectItem value="Terminal">Terminal</SelectItem>
+                                          <SelectItem value="Fumigacao">Fumigação</SelectItem>
+                                          <SelectItem value="Despachante">Despachante</SelectItem>
+                                          <SelectItem value="Representante">Representante</SelectItem>
+                                      </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                              </FormItem>
+                          )} />
+                      </CardContent>
+                  </Card>
+              )}
 
             <Separator className="my-4" />
             <h4 className="text-md font-semibold">Informações Financeiras</h4>
@@ -305,7 +463,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
               <Separator className="my-4" />
               <div className="flex justify-between items-center">
                 <h4 className="text-md font-semibold">Contatos</h4>
-                <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', department: 'Comercial' })}>
+                <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', department: 'Comercial', department: 'Outro' })}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contato
                 </Button>
               </div>
@@ -337,6 +495,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                               <SelectItem value="Financeiro">Financeiro</SelectItem>
                               <SelectItem value="Importação">Importação</SelectItem>
                               <SelectItem value="Exportação">Exportação</SelectItem>
+                              <SelectItem value="Outro">Outro</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

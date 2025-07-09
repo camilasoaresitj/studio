@@ -47,6 +47,7 @@ const groupMaritimeRates = (rates: Rate[]) => {
 
     rates.forEach(rate => {
         if (rate.modal !== 'Marítimo') return;
+        // The group key uniquely identifies a route by a specific carrier.
         const groupKey = `${rate.origin}|${rate.destination}|${rate.carrier}`;
         if (!groups[groupKey]) {
             groups[groupKey] = [];
@@ -54,11 +55,16 @@ const groupMaritimeRates = (rates: Rate[]) => {
         groups[groupKey].push(rate);
     });
 
-    return Object.entries(groups).map(([groupKey, groupedRates]) => {
+    return Object.values(groups).map(groupedRates => {
         if (groupedRates.length === 0) {
             return null;
         }
-        const representative = groupedRates[0];
+
+        // Sort to get a stable "representative" rate for shared properties.
+        // This prevents the UI from flickering or showing stale data.
+        const sortedGroup = [...groupedRates].sort((a, b) => a.container.localeCompare(b.container));
+        const representative = sortedGroup[0];
+        
         const containerRates: { [key: string]: string } = {};
         groupedRates.forEach(rate => {
             if (rate.container) {
@@ -66,8 +72,11 @@ const groupMaritimeRates = (rates: Rate[]) => {
             }
         });
 
+        // The key for this group is now stable and based on the representative rate.
+        const stableGroupKey = `${representative.origin}|${representative.destination}|${representative.carrier}`;
+
         return {
-            groupKey, // Pass the key for stable identification
+            groupKey: stableGroupKey,
             origin: representative.origin,
             destination: representative.destination,
             carrier: representative.carrier,
@@ -78,7 +87,7 @@ const groupMaritimeRates = (rates: Rate[]) => {
             agent: representative.agent,
             rates: containerRates,
         };
-    }).filter(item => item !== null);
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
 };
 
 
@@ -86,11 +95,11 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
   const [filters, setFilters] = useState({ origin: '', destination: '' });
   const [modalFilter, setModalFilter] = useState('Marítimo');
   const [showExpired, setShowExpired] = useState(false);
-  const [localRates, setLocalRates] = useState<Rate[]>([]);
+  const [editableRates, setEditableRates] = useState<Rate[]>([]);
   const { toast } = useToast();
   
   useEffect(() => {
-    setLocalRates(rates);
+    setEditableRates(JSON.parse(JSON.stringify(rates)));
   }, [rates]);
 
   const today = useMemo(() => {
@@ -108,7 +117,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
   };
 
   const commonFilteredRates = useMemo(() => {
-     return localRates.filter(rate => {
+     return editableRates.filter(rate => {
       if (!showExpired) {
         if (!rate.validity || !isValidDateString(rate.validity)) return true;
         try {
@@ -128,7 +137,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
       }
       return true;
     });
-  }, [filters, showExpired, today, localRates]);
+  }, [filters, showExpired, today, editableRates]);
   
   const maritimeRates = useMemo(() => {
       const filtered = commonFilteredRates.filter(r => r.modal === 'Marítimo');
@@ -141,27 +150,29 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
 
   const handleMaritimeGroupChange = (groupKey: string, field: 'freeTime' | 'agent', value: string) => {
       const [origin, destination, carrier] = groupKey.split('|');
-      const newLocalRates = localRates.map(rate => {
-          if (rate.modal === 'Marítimo' && rate.origin === origin && rate.destination === destination && rate.carrier === carrier) {
-              return { ...rate, [field]: value };
-          }
-          return rate;
-      });
-      setLocalRates(newLocalRates);
+      setEditableRates(prevRates =>
+          prevRates.map(rate => {
+              if (rate.origin === origin && rate.destination === destination && rate.carrier === carrier) {
+                  return { ...rate, [field]: value };
+              }
+              return rate;
+          })
+      );
   };
 
   const handleAirRateChange = (rateId: number, field: 'freeTime' | 'agent', value: string) => {
-      const newLocalRates = localRates.map(rate => {
-          if (rate.id === rateId) {
-              return { ...rate, [field]: value };
-          }
-          return rate;
-      });
-      setLocalRates(newLocalRates);
+      setEditableRates(prevRates =>
+          prevRates.map(rate => {
+              if (rate.id === rateId) {
+                  return { ...rate, [field]: value };
+              }
+              return rate;
+          })
+      );
   };
 
   const handleSaveChanges = () => {
-    onRatesChange(localRates);
+    onRatesChange(editableRates);
     toast({
         title: "Alterações Salvas",
         description: "Suas tarifas foram atualizadas com sucesso.",

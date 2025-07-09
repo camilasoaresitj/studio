@@ -282,9 +282,9 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <div>
         <div className="flex justify-between items-start mb-4 flex-col sm:flex-row gap-4">
-            <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-                 <Input placeholder="Filtrar por Razão Social..." value={filterName} onChange={e => setFilterName(e.target.value)} />
-                 <Input placeholder="Filtrar por Nome Fantasia..." value={filterNomeFantasia} onChange={e => setFilterNomeFantasia(e.target.value)} />
+            <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                 <Input placeholder="Filtrar por Razão Social..." value={filterName} onChange={e => setFilterName(e.target.value)} className="lg:col-span-2" />
+                 <Input placeholder="Filtrar por Nome Fantasia..." value={filterNomeFantasia} onChange={e => setFilterNomeFantasia(e.target.value)} className="lg:col-span-2" />
                  <Input placeholder="Filtrar por Estado (UF)..." value={filterState} onChange={e => setFilterState(e.target.value)} />
                  <Input placeholder="Filtrar por País..." value={filterCountry} onChange={e => setFilterCountry(e.target.value)} />
                  <Select value={filterType} onValueChange={(value) => {
@@ -304,7 +304,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                  
                  {filterType === 'Cliente' && (
                     <Select value={filterClienteTipo} onValueChange={setFilterClienteTipo} >
-                        <SelectTrigger className="lg:col-start-1"><SelectValue placeholder="Tipo Cliente..." /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Tipo Cliente..." /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Todos">Qualquer Tipo</SelectItem>
                             <SelectItem value="Importacao">Importação</SelectItem>
@@ -314,7 +314,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                  )}
                  {filterType === 'Fornecedor' && (
                     <Select value={filterFornecedorTipo} onValueChange={setFilterFornecedorTipo} >
-                        <SelectTrigger className="lg:col-start-1"><SelectValue placeholder="Tipo Fornecedor..." /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Tipo Fornecedor..." /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Todos">Qualquer Tipo</SelectItem>
                             <SelectItem value="Transportadora">Transportadora</SelectItem>
@@ -329,7 +329,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                  )}
                  {filterType === 'Agente' && (
                     <Select value={filterAgenteTipo} onValueChange={setFilterAgenteTipo} >
-                        <SelectTrigger className="lg:col-start-1"><SelectValue placeholder="Tipo Agente..." /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Tipo Agente..." /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Todos">Qualquer Tipo</SelectItem>
                             <SelectItem value="fcl">FCL</SelectItem>
@@ -340,7 +340,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                     </Select>
                  )}
             </div>
-            <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto">
+            <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto self-end">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Adicionar Parceiro
             </Button>

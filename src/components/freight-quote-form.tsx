@@ -190,6 +190,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       customerId: '',
       exporterId: '',
       importerId: '',
+      invoiceNumber: '',
+      purchaseOrderNumber: '',
       originAgentId: '',
       destinationAgentId: '',
       modal: 'ocean',
@@ -873,12 +875,12 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           <Separator className="mb-6"/>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-6">
                    <FormField
                       control={form.control}
                       name="customerId"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="lg:col-span-2">
                           <FormLabel>Nome do Cliente</FormLabel>
                            <div className="flex gap-2">
                                 <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
@@ -941,80 +943,101 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                       )}
                     />
                     <FormField control={form.control} name="commodity" render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="lg:col-span-2">
                             <FormLabel>Tipo de Mercadoria (Opcional)</FormLabel>
                             <FormControl><Input placeholder="Ex: Eletrônicos" {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )} />
-                   <FormField
-                      control={form.control}
-                      name="exporterId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Exportador</FormLabel>
-                            <Popover open={isExporterPopoverOpen} onOpenChange={setIsExporterPopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <FormControl>
-                                <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
-                                    {field.value ? partners.find((p) => p.id.toString() === field.value)?.name : "Selecione o exportador"}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                                </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command><CommandInput placeholder="Buscar parceiro..." />
-                                <CommandList><CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
-                                    <CommandGroup>
-                                    {partners.map((partner) => (
-                                        <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("exporterId", partner.id.toString()); setIsExporterPopoverOpen(false);}}>
-                                        <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
-                                        {partner.name}
-                                        </CommandItem>
-                                    ))}
-                                    </CommandGroup>
-                                </CommandList>
-                                </Command>
-                            </PopoverContent>
-                            </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="importerId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Importador</FormLabel>
-                            <Popover open={isImporterPopoverOpen} onOpenChange={setIsImporterPopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <FormControl>
-                                <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
-                                    {field.value ? partners.find((p) => p.id.toString() === field.value)?.name : "Selecione o importador"}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                                </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command><CommandInput placeholder="Buscar parceiro..." />
-                                <CommandList><CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
-                                    <CommandGroup>
-                                    {partners.map((partner) => (
-                                        <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("importerId", partner.id.toString()); setIsImporterPopoverOpen(false);}}>
-                                        <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
-                                        {partner.name}
-                                        </CommandItem>
-                                    ))}
-                                    </CommandGroup>
-                                </CommandList>
-                                </Command>
-                            </PopoverContent>
-                            </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                   
+                    <div className="flex flex-col gap-y-6">
+                        <FormField
+                        control={form.control}
+                        name="exporterId"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Exportador</FormLabel>
+                                <Popover open={isExporterPopoverOpen} onOpenChange={setIsExporterPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
+                                        {field.value ? partners.find((p) => p.id.toString() === field.value)?.name : "Selecione o exportador"}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command><CommandInput placeholder="Buscar parceiro..." />
+                                    <CommandList><CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
+                                        <CommandGroup>
+                                        {partners.map((partner) => (
+                                            <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("exporterId", partner.id.toString()); setIsExporterPopoverOpen(false);}}>
+                                            <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
+                                            {partner.name}
+                                            </CommandItem>
+                                        ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                                </Popover>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                         <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Invoice</FormLabel>
+                                <FormControl><Input placeholder="Número da Invoice" {...field} value={field.value ?? ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+
+                    <div className="flex flex-col gap-y-6">
+                        <FormField
+                        control={form.control}
+                        name="importerId"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Importador</FormLabel>
+                                <Popover open={isImporterPopoverOpen} onOpenChange={setIsImporterPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
+                                        {field.value ? partners.find((p) => p.id.toString() === field.value)?.name : "Selecione o importador"}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command><CommandInput placeholder="Buscar parceiro..." />
+                                    <CommandList><CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
+                                        <CommandGroup>
+                                        {partners.map((partner) => (
+                                            <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("importerId", partner.id.toString()); setIsImporterPopoverOpen(false);}}>
+                                            <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
+                                            {partner.name}
+                                            </CommandItem>
+                                        ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                                </Popover>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>PO</FormLabel>
+                                <FormControl><Input placeholder="Número da PO" {...field} value={field.value ?? ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+
                     <FormField
                         control={form.control}
                         name="originAgentId"
@@ -1121,7 +1144,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
                 <div className="grid md:grid-cols-4 gap-4 mt-6">
                     <FormField control={form.control} name="origin" render={({ field }) => (
-                        <FormItem><FormLabel>Origem (Porto/Aeroporto, País)</FormLabel>
+                        <FormItem><FormLabel>Origem (Porto/Aeroporto)</FormLabel>
                           <FormControl>
                             <AutocompleteInput
                                 field={field}
@@ -1133,7 +1156,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         </FormItem>
                     )} />
                     <FormField control={form.control} name="destination" render={({ field }) => (
-                        <FormItem><FormLabel>Destino (Porto/Aeroporto, País)</FormLabel>
+                        <FormItem><FormLabel>Destino (Porto/Aeroporto)</FormLabel>
                            <FormControl>
                              <AutocompleteInput
                                 field={field}

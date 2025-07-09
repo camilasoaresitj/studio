@@ -36,6 +36,8 @@ export const baseFreightQuoteFormSchema = z.object({
   customerId: z.string({ required_error: "Por favor, selecione um cliente."}).min(1, { message: "Por favor, selecione um cliente." }),
   exporterId: z.string().optional(),
   importerId: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  purchaseOrderNumber: z.string().optional(),
   originAgentId: z.string().optional(),
   destinationAgentId: z.string().optional(),
   modal: z.enum(['air', 'ocean']),

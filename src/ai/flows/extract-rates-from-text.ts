@@ -18,7 +18,7 @@ export type ExtractRatesFromTextInput = z.infer<typeof ExtractRatesFromTextInput
 
 const AgentContactSchema = z.object({
   name: z.string().describe("The agent's contact person's full name."),
-  email: z.string().describe("The agent's contact person's email."),
+  email: z.string().email().describe("The agent's contact person's email."),
   phone: z.string().describe("The agent's contact person's phone number."),
 });
 
@@ -36,7 +36,6 @@ const ParsedRateSchema = z.object({
   agent: z.string().describe('The agent who provided the rate (e.g., "Global Logistics Agents").'),
   agentContact: AgentContactSchema.describe("The contact person for the agent, if mentioned in the text.").optional(),
 });
-const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
 export type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutputSchema>;
 
 
@@ -53,7 +52,7 @@ const PartialRateSchemaForPrompt = z.object({
     validity: z.string().describe('The validity date (e.g., "31/12/2024").').optional(),
     freeTime: z.string().describe('The free time in days, only the number (e.g., "14").').optional(),
     agent: z.string().describe('The agent who provided the rate (e.g., "Global Logistics Agents").').optional(),
-    agentContact: AgentContactSchema.describe("The contact person for the agent, if mentioned in the text.").optional(),
+    agentContact: AgentContactSchema.optional(),
 });
 
 
@@ -97,7 +96,7 @@ const extractRatesFromTextFlow = ai.defineFlow(
     // The prompt returns a list of potentially incomplete rate objects.
     const { output } = await extractRatesFromTextPrompt(input);
     
-    if (!output) {
+    if (!output || output.length === 0) {
       return [];
     }
 
@@ -105,17 +104,17 @@ const extractRatesFromTextFlow = ai.defineFlow(
     // This moves the data integrity logic from the prompt into reliable code.
     const completeRates = output
       .map(partialRate => {
-        // Filter out useless objects that don't have the bare minimum of information.
-        if (!partialRate.origin || !partialRate.rate || !partialRate.destination || !partialRate.modal) {
+        // Filter out completely useless objects that don't have the bare minimum of information.
+        if (!partialRate.rate || (!partialRate.origin && !partialRate.destination)) {
           return null;
         }
 
         // Create a new, complete rate object, providing "N/A" as a fallback for missing fields.
         const completeRate: z.infer<typeof ParsedRateSchema> = {
-          origin: partialRate.origin,
-          destination: partialRate.destination,
-          rate: partialRate.rate,
-          modal: partialRate.modal,
+          origin: partialRate.origin || 'N/A',
+          destination: partialRate.destination || 'N/A',
+          rate: partialRate.rate, // We've confirmed this exists.
+          modal: partialRate.modal || 'Marítimo', // Default to most common
           carrier: partialRate.carrier || 'N/A',
           transitTime: partialRate.transitTime || 'N/A',
           container: partialRate.container || 'N/A',

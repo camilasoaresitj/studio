@@ -44,13 +44,12 @@ const maritimeContainerTypes = ["20'GP", "40'GP", "40'HC", "40'NOR"];
 
 const groupMaritimeRates = (rates: Rate[]) => {
     const groups = new Map<string, any>();
+    
     rates.forEach(rate => {
         if (rate.modal !== 'Marítimo') return;
 
         const groupKey = `${rate.origin}|${rate.destination}|${rate.carrier}`;
         if (!groups.has(groupKey)) {
-            // Set group properties from the first rate encountered for this group.
-            // This is safe because the edit handlers ensure these properties are consistent across the group.
             groups.set(groupKey, {
                 origin: rate.origin,
                 destination: rate.destination,
@@ -58,29 +57,33 @@ const groupMaritimeRates = (rates: Rate[]) => {
                 modal: rate.modal,
                 transitTime: rate.transitTime,
                 validity: rate.validity,
-                freeTime: rate.freeTime,
+                freeTime: rate.freeTime, 
                 agent: rate.agent,
-                rates: {}, // Initialize the rates for each container type
+                rates: {},
             });
         }
         
         const group = groups.get(groupKey)!;
-        // Add the specific rate for the container type
+        
         if (rate.container) {
-          group.rates[rate.container] = rate.rate;
+            group.rates[rate.container] = rate.rate;
         }
+
+        group.freeTime = rate.freeTime;
+        group.agent = rate.agent;
     });
 
     return Array.from(groups.values());
 };
 
+
 export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTableProps) {
   const [filters, setFilters] = useState({ origin: '', destination: '' });
   const [modalFilter, setModalFilter] = useState('Marítimo');
   const [showExpired, setShowExpired] = useState(false);
-  const [localRates, setLocalRates] = useState<Rate[]>(rates);
+  const [localRates, setLocalRates] = useState<Rate[]>([]);
   const { toast } = useToast();
-
+  
   useEffect(() => {
     setLocalRates(rates);
   }, [rates]);
@@ -100,7 +103,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
   };
 
   const commonFilteredRates = useMemo(() => {
-     return localRates.filter(rate => { // Use local state for filtering
+     return localRates.filter(rate => {
       if (!showExpired) {
         if (!rate.validity || !isValidDateString(rate.validity)) return true;
         try {
@@ -120,7 +123,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
       }
       return true;
     });
-  }, [filters, showExpired, today, localRates]); // Depend on local state
+  }, [filters, showExpired, today, localRates]);
   
   const maritimeRates = useMemo(() => {
       const filtered = commonFilteredRates.filter(r => r.modal === 'Marítimo');

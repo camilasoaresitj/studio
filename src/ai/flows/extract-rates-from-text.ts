@@ -98,6 +98,8 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 
 If no valid rates can be extracted, return an empty array: \`[]\`.
 
+Finally, double-check your output. Ensure the entire response is a valid JSON array and that every single object inside the array is complete with all the required fields as specified in the schema. Do not return incomplete or truncated objects.
+
 Analyze the following text and extract the rates:
 {{{textInput}}}
 `,

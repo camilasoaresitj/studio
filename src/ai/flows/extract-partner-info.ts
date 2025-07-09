@@ -14,7 +14,7 @@ const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Import
 
 const ContactSchema = z.object({
   name: z.string().describe('The full name of the contact person.'),
-  email: z.string().email().describe('The email address of the contact.'),
+  email: z.string().describe('The email address of the contact.'),
   phone: z.string().describe('The phone number of the contact.'),
   departments: z.array(departmentEnum).describe('A list of departments for the contact. Infer if possible, otherwise use "Outro".'),
 });

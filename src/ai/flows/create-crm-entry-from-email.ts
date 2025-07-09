@@ -18,7 +18,7 @@ export type CreateCrmEntryFromEmailInput = z.infer<typeof CreateCrmEntryFromEmai
 const CreateCrmEntryFromEmailOutputSchema = z.object({
   contactName: z.string().describe('The name of the contact extracted from the email.'),
   companyName: z.string().describe('The company name extracted from the email.'),
-  emailAddress: z.string().email().describe('The email address of the contact.'),
+  emailAddress: z.string().describe('The email address of the contact.'),
   summary: z.string().describe('A brief summary of the email content.'),
   priority: z.enum(['high', 'medium', 'low']).describe('The priority of the CRM entry based on the email content.'),
 });

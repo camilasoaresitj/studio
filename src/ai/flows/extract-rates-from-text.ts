@@ -18,7 +18,7 @@ export type ExtractRatesFromTextInput = z.infer<typeof ExtractRatesFromTextInput
 
 const AgentContactSchema = z.object({
   name: z.string().describe("The agent's contact person's full name."),
-  email: z.string().email().describe("The agent's contact person's email."),
+  email: z.string().describe("The agent's contact person's email."),
   phone: z.string().describe("The agent's contact person's phone number."),
 });
 
@@ -36,8 +36,6 @@ const ParsedRateSchema = z.object({
   agent: z.string().describe('The agent who provided the rate (e.g., "Global Logistics Agents").'),
   agentContact: AgentContactSchema.describe("The contact person for the agent, if mentioned in the text.").optional(),
 });
-
-// The final output of the flow is an array of these parsed rates.
 const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
 export type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutputSchema>;
 
@@ -80,6 +78,9 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 - **Location Standardization:** You MUST normalize all location names to their standardized name (e.g., "Santos" -> "Santos, BR"; "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN"; "Guarulhos" -> "Aeroporto de Guarulhos, BR").
 - **Multi-Port Rule:** If a rate is valid for multiple origins or destinations (e.g., "BR base ports", "Santos/Itapoa"), you MUST create separate, identical rate objects for EACH individual location. "BR base ports" refers to: Santos, Itapoá, Navegantes, Paranaguá, Rio Grande.
 
+**Final Review Rule (Crucial):**
+- Before finishing, you MUST review the entire JSON array you have generated. If you find ANY object that is incomplete or missing required fields (like origin, destination, rate, modal), you MUST delete that entire object from the array. It is better to return fewer, correct rates than an invalid list.
+
 Analyze the following text and extract the rates:
 {{{textInput}}}
 `,
@@ -106,7 +107,7 @@ const extractRatesFromTextFlow = ai.defineFlow(
     const completeRates = output
       .map(partialRate => {
         // Filter out completely useless objects that don't have the bare minimum of information.
-        if (!partialRate.rate || !partialRate.modal || (!partialRate.origin && !partialRate.destination)) {
+        if (!partialRate.rate || !partialRate.modal || !partialRate.origin || !partialRate.destination) {
           return null;
         }
 

@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import dynamic from 'next/dynamic';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -36,10 +35,6 @@ import type { Fee } from './fees-registry';
 import { QuoteCostSheet } from './quote-cost-sheet';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-
-
-const DynamicJsPDF = dynamic(() => import('jspdf').then(mod => mod.default), { ssr: false });
-const DynamicHtml2Canvas = dynamic(() => import('html2canvas'), { ssr: false });
 
 
 type FreightRate = {
@@ -590,14 +585,11 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   }
 
   const handleGeneratePdf = async () => {
-    const [jsPDF, html2canvas] = await Promise.all([
-      DynamicJsPDF,
-      DynamicHtml2Canvas,
-    ]);
+    const { default: jsPDF } = await import('jspdf');
+    const { default: html2canvas } = await import('html2canvas');
 
     const quoteElement = document.getElementById(`quote-sheet-${activeQuote?.id}`);
     if (quoteElement && activeQuote) {
-
         const canvas = await html2canvas(quoteElement, { scale: 2 });
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');

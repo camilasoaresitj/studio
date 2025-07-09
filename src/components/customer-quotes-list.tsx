@@ -17,16 +17,12 @@ import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, Check
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { QuoteCostSheet } from './quote-cost-sheet';
-import dynamic from 'next/dynamic';
 import { runSendQuote } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Partner } from './partners-registry';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
 import { createShipment } from '@/lib/shipment';
-
-const DynamicJsPDF = dynamic(() => import('jspdf').then(mod => mod.default), { ssr: false });
-const DynamicHtml2Canvas = dynamic(() => import('html2canvas'), { ssr: false });
 
 export type QuoteCharge = {
   id: string;
@@ -185,10 +181,8 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             return;
         }
 
-        const [jsPDF, html2canvas] = await Promise.all([
-            DynamicJsPDF,
-            DynamicHtml2Canvas,
-        ]);
+        const { default: jsPDF } = await import('jspdf');
+        const { default: html2canvas } = await import('html2canvas');
         
         const element = document.createElement("div");
         element.style.position = 'absolute';
@@ -199,28 +193,22 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         
         await new Promise(resolve => setTimeout(resolve, 500)); 
 
-        const quoteElement = element.querySelector('#proposal'); // Assuming the prompt generates an element with this ID
-        if (quoteElement) {
-            const canvas = await html2canvas(quoteElement as HTMLElement, { scale: 2 });
+        try {
+            const canvas = await html2canvas(element, { scale: 2 });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
             pdf.save(`proposta-${quote.id.replace('-DRAFT', '')}.pdf`);
-        } else {
-             const canvas = await html2canvas(element as HTMLElement, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`proposta-${quote.id.replace('-DRAFT', '')}.pdf`);
+            toast({ title: 'PDF gerado com sucesso!', className: 'bg-success text-success-foreground' });
+        } catch (e) {
+            console.error("PDF generation error", e);
+            toast({ variant: "destructive", title: "Erro ao gerar PDF", description: "Ocorreu um erro ao converter o conteúdo." });
+        } finally {
+            document.body.removeChild(element);
+            setIsSending(false);
         }
-
-        document.body.removeChild(element);
-        setIsSending(false);
-        toast({ title: 'PDF gerado com sucesso!', className: 'bg-success text-success-foreground' });
     };
 
     const getStatusVariant = (status: Quote['status']): 'default' | 'secondary' | 'destructive' | 'outline' => {

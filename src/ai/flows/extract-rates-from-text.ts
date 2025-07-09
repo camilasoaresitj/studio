@@ -68,17 +68,21 @@ const extractRatesFromTextPrompt = ai.definePrompt({
   output: { schema: z.array(PartialRateSchemaForPrompt) },
   prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the text below and return a valid JSON array of rate objects.
 
-**Core Extraction Rules:**
-- Each object in the array represents ONE rate for ONE container type.
-- Extract as much information as you can for each rate. If a field is not present, you can omit it from the JSON.
-- **Free Time:** Actively search the entire text for "free time", "demurrage", "detention" or similar terms associated with a carrier. Extract only the number of days (e.g., from "free time 21 days at dest", extract "21"). If different free times are mentioned for different container types (e.g., "21 days for dry, 18 for NOR"), you MUST apply the correct value to each corresponding rate object.
-- **Critical Final Check:** Before finishing, review your generated JSON. If you find any rate object that is incomplete (missing key fields like origin, destination, or rate), you MUST delete that entire malformed object from the array. It is better to return fewer, complete rates than an invalid list.
-- **Agent Contact:** You MUST only generate the \`agentContact\` object if the text explicitly contains all three of the following pieces of information for a specific contact person: a full name, an email address, AND a phone number. If even one of these three is missing for a contact, you **MUST OMIT the \`agentContact\` object and key entirely** for that rate's JSON object. Do not generate a partial or empty \`agentContact\` object under any circumstances.
-- If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), create separate objects for 20'GP, 40'GP, and 40'HC.
+**CRITICAL RULE FOR FREE TIME:**
+Information about "free time", "demurrage", or "detention" is often listed separately from the rates themselves (e.g., "CMA free time 28 days"). You MUST find this information and apply it to every single rate object for the corresponding carrier.
+- **Example:** If the text says "HMM free time 21 days for dry, 18 for nor", you MUST find every "HMM" rate. For dry containers (GP, HC), set \`"freeTime": "21"\`. For "NOR" containers, set \`"freeTime": "18"\`.
+- This is the most important rule. Do not miss it. Extract only the number.
 
-**Data Formatting Rules:**
-- **Location Standardization:** You MUST normalize all location names to their standardized name (e.g., "Santos" -> "Santos, BR"; "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN"; "Guarulhos" -> "Aeroporto de Guarulhos, BR").
-- **Multi-Port Rule:** If a rate is valid for multiple origins or destinations (e.g., "BR base ports", "Santos/Itapoa"), you MUST create separate, identical rate objects for EACH individual location. "BR base ports" refers to: Santos, Itapoá, Navegantes, Paranaguá, Rio Grande.
+**Extraction Process:**
+1.  Read the entire text first to find all carrier-specific free time rules.
+2.  Then, extract each rate, creating one JSON object per rate/container type.
+3.  As you create each object, populate the \`freeTime\` field using the rules you found in step 1.
+
+**Other Rules:**
+- **Multi-Port/Multi-Container:** If a rate is for multiple ports (e.g., "BR base ports") or multiple containers (e.g., "USD 5000/6000/6000"), you MUST create separate, identical rate objects for EACH individual port and container combination. "BR base ports" refers to: Santos, Itapoá, Navegantes, Paranaguá, Rio Grande.
+- **Location Standardization:** You MUST normalize all location names (e.g., "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN").
+- **Agent Contact:** Only generate the \`agentContact\` object if a full name, email, AND phone number are explicitly present. Otherwise, OMIT the object entirely.
+- **Final Check:** Before finishing, you MUST review your generated JSON. If any object is incomplete (missing key fields like origin, destination, or rate), delete that entire object from the array.
 
 Analyze the following text and extract the rates:
 {{{textInput}}}

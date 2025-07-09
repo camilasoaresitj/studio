@@ -17,7 +17,7 @@ export type ExtractRatesFromTextInput = z.infer<typeof ExtractRatesFromTextInput
 
 const AgentContactSchema = z.object({
   name: z.string().describe("The agent's contact person's full name."),
-  email: z.string().email().describe("The agent's contact person's email."),
+  email: z.string().describe("The agent's contact person's email."),
   phone: z.string().describe("The agent's contact person's phone number."),
 }).optional();
 

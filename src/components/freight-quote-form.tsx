@@ -850,7 +850,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           <Separator className="mb-6"/>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-x-4 gap-y-6 items-start">
+                <div className="grid md:grid-cols-2 gap-x-4 gap-y-6 items-end">
                    <FormField
                       control={form.control}
                       name="customerId"
@@ -924,8 +924,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                             <FormMessage />
                         </FormItem>
                     )} />
-                </div>
-                 <div className="grid md:grid-cols-2 gap-x-4 gap-y-6 items-start">
                    <FormField
                       control={form.control}
                       name="exporterId"

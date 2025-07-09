@@ -40,13 +40,14 @@ const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
 export type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutputSchema>;
 
 
-// Partial schema for the AI prompt. It's more lenient, so the AI has less chance of error.
+// A more lenient schema for the AI prompt. The AI will extract what it can,
+// and we will clean up the data in the code.
 const PartialRateSchemaForPrompt = z.object({
     origin: z.string().describe('The standardized origin location (e.g., "Santos, BR").').optional(),
     destination: z.string().describe('The standardized destination location (e.g., "Roterdã, NL").').optional(),
-    carrier: z.string().describe('The carrier name (e.g., "Maersk").').optional(),
-    modal: z.string().describe("The transport modal. Must be exactly 'Aéreo' or 'Marítimo'.").optional(),
     rate: z.string().describe('The rate for a single container, including currency (e.g., "USD 2500").').optional(),
+    modal: z.string().describe("The transport modal. Must be exactly 'Aéreo' or 'Marítimo'.").optional(),
+    carrier: z.string().describe('The carrier name (e.g., "Maersk").').optional(),
     transitTime: z.string().describe('The transit time (e.g., "25-30").').optional(),
     container: z.string().describe('The container type (e.g., "20\'GP").').optional(),
     validity: z.string().describe('The validity date (e.g., "31/12/2024").').optional(),
@@ -77,7 +78,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 - **Location Standardization:** You MUST normalize all location names to their standardized name (e.g., "Santos" -> "Santos, BR"; "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN"; "Guarulhos" -> "Aeroporto de Guarulhos, BR").
 - **Multi-Port Rule:** If a rate is valid for multiple origins or destinations (e.g., "BR base ports", "Santos/Itapoa"), you MUST create separate, identical rate objects for EACH individual location. "BR base ports" refers to: Santos, Itapoá, Navegantes, Paranaguá, Rio Grande.
 
-If no valid rates can be extracted, return an empty array: \`[]\`. Your final output MUST be a valid, complete JSON array and must not be truncated.
+**Final Check Rule:** Before finishing, review your generated JSON. Every single object in the array MUST be a complete JSON object. If the last object is incomplete or cut-off, DELETE IT. It is better to return fewer, complete rates than to return an invalid full list. If no valid rates can be extracted, return an empty array: \`[]\`.
 
 Analyze the following text and extract the rates:
 {{{textInput}}}

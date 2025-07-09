@@ -96,8 +96,8 @@ const initialPartnersData: Partner[] = [
         exchangeRateAgio: 2.0,
         address: { street: 'Av. das Nações', number: '100', complement: 'Torre B, 5º Andar', district: 'Centro', city: 'São Paulo', state: 'SP', zip: '01234-000', country: 'Brasil' },
         contacts: [
-            { name: 'Ana Costa', email: 'ana.costa@nexus.com', phone: '5511987654321', department: 'Comercial' },
-            { name: 'Roberto Lima', email: 'roberto.lima@nexus.com', phone: '5511987654322', department: 'Operacional' }
+            { name: 'Ana Costa', email: 'ana.costa@nexus.com', phone: '5511987654321', departments: ['Comercial'] },
+            { name: 'Roberto Lima', email: 'roberto.lima@nexus.com', phone: '5511987654322', departments: ['Operacional'] }
         ]
     },
     { 
@@ -111,7 +111,7 @@ const initialPartnersData: Partner[] = [
         exchangeRateAgio: 0,
         address: { street: 'Rua do Porto', number: '555', complement: '', district: 'Paquetá', city: 'Santos', state: 'SP', zip: '11010-151', country: 'Brasil' },
         contacts: [
-            { name: 'Carlos Pereira', email: 'comercial.br@maersk.com', phone: '551332268500', department: 'Comercial' }
+            { name: 'Carlos Pereira', email: 'comercial.br@maersk.com', phone: '551332268500', departments: ['Comercial'] }
         ]
     },
     { 
@@ -119,13 +119,13 @@ const initialPartnersData: Partner[] = [
         name: 'Global Logistics Agents', 
         nomeFantasia: 'GLA',
         type: 'Agente', 
-        cnpj: '',
         tipoAgente: { fcl: true, lcl: false, air: true, projects: true },
+        profitAgreement: { amount: 50, unit: 'por_container' },
         paymentTerm: 45,
         exchangeRateAgio: 0,
         address: { street: 'Ocean Drive', number: '123', complement: 'Suite 200', district: 'South Beach', city: 'Miami', state: 'FL', zip: '33139', country: 'EUA' },
         contacts: [
-            { name: 'John Smith', email: 'ops@gla.com', phone: '13055551234', department: 'Operacional' }
+            { name: 'John Smith', email: 'ops@gla.com', phone: '13055551234', departments: ['Operacional'] }
         ]
     },
     { 
@@ -134,15 +134,16 @@ const initialPartnersData: Partner[] = [
         nomeFantasia: 'TechFront',
         type: 'Cliente', 
         cnpj: '11223344000155',
+        customerCategory: 'Nacional',
         limiteCredito: 50000,
         tipoCliente: { importacao: true, exportacao: false },
         paymentTerm: 21,
         exchangeRateAgio: 2.5,
         address: { street: 'Rua da Inovação', number: '404', complement: '', district: 'Centro', city: 'Florianópolis', state: 'SC', zip: '88010-000', country: 'Brasil' },
         contacts: [
-            { name: 'Sofia Mendes', email: 'sofia@techfront.com', phone: '5548999887766', department: 'Comercial' },
-            { name: 'Lucas Ferreira', email: 'financeiro@techfront.com', phone: '5548999887755', department: 'Financeiro' },
-            { name: 'Carla Dias', email: 'impo@techfront.com', phone: '5548999887744', department: 'Importação' },
+            { name: 'Sofia Mendes', email: 'sofia@techfront.com', phone: '5548999887766', departments: ['Comercial'] },
+            { name: 'Lucas Ferreira', email: 'financeiro@techfront.com', phone: '5548999887755', departments: ['Financeiro'] },
+            { name: 'Carla Dias', email: 'impo@techfront.com', phone: '5548999887744', departments: ['Importação'] },
         ]
     },
 ];
@@ -262,12 +263,6 @@ export default function ComercialPage() {
       destination: rate.destination,
       modal: rate.modal === 'Marítimo' ? 'ocean' : 'air',
       oceanShipmentType: 'FCL',
-      // Store rate details for later use in proposal
-      rateDetails: {
-        transitTime: rate.transitTime,
-        validity: rate.validity,
-        freeTime: rate.freeTime,
-      }
     };
     
     if (isGroup && containerType) {

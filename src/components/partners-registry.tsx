@@ -38,6 +38,8 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
 const departmentsArray = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
+const supplierTypes = ['Transportadora', 'Cia Maritima', 'Cia Aerea', 'Terminal', 'Fumigacao', 'Despachante', 'Representante'];
+
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Nome do contato é obrigatório'),
@@ -83,7 +85,7 @@ const partnerSchema = z.object({
   }).optional(),
   
   // Fornecedor specific
-  tipoFornecedor: z.string().optional(),
+  tipoFornecedor: z.array(z.string()).optional(),
 
   // Comissionado specific
   comissao: z.object({
@@ -154,7 +156,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       tipoCliente: { importacao: false, exportacao: false },
       profitAgreement: { amount: undefined, unit: 'por_container' },
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
-      tipoFornecedor: '',
+      tipoFornecedor: [],
       comissao: { amount: undefined, unit: 'percent_profit' },
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
@@ -194,7 +196,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
         if (filterType === 'Fornecedor' && filterFornecedorTipo !== 'Todos') {
              if (!partner.roles.fornecedor) return false;
-            return partner.tipoFornecedor === filterFornecedorTipo;
+            return partner.tipoFornecedor?.includes(filterFornecedorTipo);
         }
 
         if (filterType === 'Agente' && filterAgenteTipo !== 'Todos') {
@@ -225,7 +227,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       tipoCliente: { importacao: false, exportacao: false },
       profitAgreement: { amount: undefined, unit: 'por_container' },
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
-      tipoFornecedor: '',
+      tipoFornecedor: [],
       comissao: { amount: undefined, unit: 'percent_profit' },
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
@@ -351,13 +353,9 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         <SelectTrigger><SelectValue placeholder="Tipo Fornecedor..." /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Todos">Qualquer Tipo</SelectItem>
-                            <SelectItem value="Transportadora">Transportadora</SelectItem>
-                            <SelectItem value="Cia Maritima">Cia Marítima</SelectItem>
-                            <SelectItem value="Cia Aerea">Cia Aérea</SelectItem>
-                            <SelectItem value="Terminal">Terminal</SelectItem>
-                            <SelectItem value="Fumigacao">Fumigação</SelectItem>
-                            <SelectItem value="Despachante">Despachante</SelectItem>
-                            <SelectItem value="Representante">Representante</SelectItem>
+                            {supplierTypes.map(type => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                  )}
@@ -639,24 +637,41 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                   <Card className="bg-muted/30">
                       <CardHeader><CardTitle className="text-base">Detalhes do Fornecedor</CardTitle></CardHeader>
                       <CardContent>
-                          <FormField control={form.control} name="tipoFornecedor" render={({ field }) => (
-                              <FormItem>
-                                  <FormLabel>Tipo de Fornecedor</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione um tipo..." /></SelectTrigger></FormControl>
-                                      <SelectContent>
-                                          <SelectItem value="Transportadora">Transportadora</SelectItem>
-                                          <SelectItem value="Cia Maritima">Cia Marítima</SelectItem>
-                                          <SelectItem value="Cia Aerea">Cia Aérea</SelectItem>
-                                          <SelectItem value="Terminal">Terminal</SelectItem>
-                                          <SelectItem value="Fumigacao">Fumigação</SelectItem>
-                                          <SelectItem value="Despachante">Despachante</SelectItem>
-                                          <SelectItem value="Representante">Representante</SelectItem>
-                                      </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                              </FormItem>
-                          )} />
+                          <FormField
+                            control={form.control}
+                            name="tipoFornecedor"
+                            render={() => (
+                                <FormItem>
+                                    <FormLabel>Tipo de Fornecedor</FormLabel>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                                        {supplierTypes.map((item) => (
+                                            <FormField
+                                                key={item}
+                                                control={form.control}
+                                                name="tipoFornecedor"
+                                                render={({ field }) => (
+                                                    <FormItem key={item} className="flex flex-row items-center space-x-2 space-y-0">
+                                                        <FormControl>
+                                                            <Checkbox
+                                                                checked={field.value?.includes(item)}
+                                                                onCheckedChange={(checked) => {
+                                                                    const currentValue = field.value || [];
+                                                                    return checked
+                                                                        ? field.onChange([...currentValue, item])
+                                                                        : field.onChange(currentValue.filter((value) => value !== item));
+                                                                }}
+                                                            />
+                                                        </FormControl>
+                                                        <FormLabel className="text-sm font-normal">{item}</FormLabel>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        ))}
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                          />
                       </CardContent>
                   </Card>
               )}

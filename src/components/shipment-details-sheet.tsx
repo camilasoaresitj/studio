@@ -23,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 
 const containerDetailSchema = z.object({
@@ -44,6 +45,7 @@ const containerDetailSchema = z.object({
   seal: z.string().min(1, "Obrigatório"),
   tare: z.string().min(1, "Obrigatório"),
   grossWeight: z.string().min(1, "Obrigatório"),
+  freeTime: z.string().optional(),
 });
 
 const transshipmentDetailSchema = z.object({
@@ -61,6 +63,9 @@ const shipmentDetailsSchema = z.object({
   voyageNumber: z.string().optional(),
   masterBillNumber: z.string().optional(),
   houseBillNumber: z.string().optional(),
+  bookingNumber: z.string().optional(),
+  courier: z.enum(['DHL', 'UPS', 'FedEx', 'Outro']).optional(),
+  courierNumber: z.string().optional(),
   etd: z.date().optional(),
   eta: z.date().optional(),
   containers: z.array(containerDetailSchema).optional(),
@@ -117,6 +122,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     name: "transshipments"
   });
 
+  const assembledMilestones = useMemo(() => {
+    if (!shipment) return [];
+    
+    return [...(shipment.milestones || [])].map(m => ({
+        ...m,
+        details: m.name === 'Embarque' && shipment.vesselName 
+                    ? `${shipment.vesselName} / ${shipment.voyageNumber || ''}` 
+                    : m.details,
+    }));
+  }, [shipment]);
+
   const { progressPercentage, completedCount, totalCount } = useMemo(() => {
     if (!shipment?.milestones || shipment.milestones.length === 0) {
       return { progressPercentage: 0, completedCount: 0, totalCount: 0 };
@@ -129,17 +145,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       totalCount: total,
     };
   }, [shipment]);
-
-  const assembledMilestones = useMemo(() => {
-    if (!shipment) return [];
-    
-    return [...(shipment.milestones || [])].map(m => ({
-        ...m,
-        details: m.name === 'Embarque' && shipment.vesselName 
-                    ? `${shipment.vesselName} / ${shipment.voyageNumber || ''}` 
-                    : m.details,
-    }));
-  }, [shipment]);
   
   const { overseasPartner, agent } = shipment || {};
 
@@ -151,9 +156,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         voyageNumber: shipment.voyageNumber || '',
         masterBillNumber: shipment.masterBillNumber || '',
         houseBillNumber: shipment.houseBillNumber || '',
+        bookingNumber: shipment.bookingNumber || '',
+        courier: shipment.courier,
+        courierNumber: shipment.courierNumber || '',
         etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
         eta: shipment.eta && isValid(new Date(shipment.eta)) ? new Date(shipment.eta) : undefined,
-        containers: shipment.containers || [],
+        containers: shipment.containers?.map(c => ({...c, freeTime: c.freeTime || ''})) || [],
         commodityDescription: shipment.commodityDescription || '',
         ncm: shipment.ncm || '',
         netWeight: shipment.netWeight || '',
@@ -167,6 +175,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       });
     }
   }, [shipment, form]);
+
+  const getCourierTrackingUrl = (courier?: string, trackingNumber?: string) => {
+      if (!courier || !trackingNumber) return null;
+      switch (courier) {
+          case 'DHL':
+              return `https://www.dhl.com/br-pt/home/tracking/tracking-express.html?submit=1&tracking-id=${trackingNumber}`;
+          case 'UPS':
+              return `https://www.ups.com/track?tracknum=${trackingNumber}`;
+          case 'FedEx':
+              return `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`;
+          default:
+              return null;
+      }
+  };
+
+  const watchedCourier = form.watch('courier');
+  const watchedCourierNumber = form.watch('courierNumber');
+  const courierTrackingUrl = getCourierTrackingUrl(watchedCourier, watchedCourierNumber);
 
   if (!shipment) {
       return null;
@@ -311,6 +337,48 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         </CardContent>
                       </Card>
 
+                      {/* Bill Numbers & Booking */}
+                      <Card>
+                        <CardHeader><CardTitle className="text-lg">Documentos e Rastreio</CardTitle></CardHeader>
+                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <FormField control={form.control} name="bookingNumber" render={({ field }) => (
+                               <FormItem><FormLabel>Booking Reference</FormLabel><FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                           )}/>
+                           <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
+                               <FormItem><FormLabel>Master Bill of Lading / MAWB</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                           )}/>
+                           <FormField control={form.control} name="houseBillNumber" render={({ field }) => (
+                               <FormItem><FormLabel>House Bill of Lading / HAWB</FormLabel><FormControl><Input placeholder="MYHBL12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                           )}/>
+                           <FormField control={form.control} name="courier" render={({ field }) => (
+                               <FormItem><FormLabel>Courrier (Documentos)</FormLabel>
+                                   <Select onValueChange={field.onChange} value={field.value}>
+                                       <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                                       <SelectContent>
+                                           <SelectItem value="DHL">DHL</SelectItem>
+                                           <SelectItem value="UPS">UPS</SelectItem>
+                                           <SelectItem value="FedEx">FedEx</SelectItem>
+                                           <SelectItem value="Outro">Outro</SelectItem>
+                                       </SelectContent>
+                                   </Select>
+                               <FormMessage /></FormItem>
+                           )}/>
+                           <FormField control={form.control} name="courierNumber" render={({ field }) => (
+                               <FormItem><FormLabel>Nº Rastreio Courrier</FormLabel><FormControl><Input placeholder="1234567890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                           )}/>
+                           <div className="flex items-end">
+                               {courierTrackingUrl && (
+                                   <Button asChild variant="outline" className="w-full">
+                                       <a href={courierTrackingUrl} target="_blank" rel="noopener noreferrer">
+                                           Rastrear Courrier
+                                           <LinkIcon className="ml-2 h-4 w-4" />
+                                       </a>
+                                   </Button>
+                               )}
+                           </div>
+                        </CardContent>
+                      </Card>
+
                       {/* Transshipments */}
                       <Card>
                           <CardHeader>
@@ -357,19 +425,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             ))}
                             {transshipmentFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum transbordo adicionado.</p>}
                           </CardContent>
-                      </Card>
-
-                      {/* Bill Numbers */}
-                      <Card>
-                        <CardHeader><CardTitle className="text-lg">Documentos</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Master Bill of Lading / MAWB</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="houseBillNumber" render={({ field }) => (
-                                <FormItem><FormLabel>House Bill of Lading / HAWB</FormLabel><FormControl><Input placeholder="MYHBL12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                        </CardContent>
                       </Card>
 
                       {/* Milestones */}
@@ -463,7 +518,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         <CardHeader>
                           <div className="flex justify-between items-center">
                             <CardTitle className="text-lg">Contêineres</CardTitle>
-                             <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `new-${containerFields.length}`, number: '', seal: '', tare: '', grossWeight: '' })}>
+                             <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `new-${containerFields.length}`, number: '', seal: '', tare: '', grossWeight: '', freeTime: '' })}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
                             </Button>
                           </div>
@@ -477,6 +532,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <TableHead>Lacre</TableHead>
                                             <TableHead>Tara</TableHead>
                                             <TableHead>Peso Bruto</TableHead>
+                                            <TableHead>Free Time</TableHead>
                                             <TableHead></TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -487,12 +543,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <TableCell><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                 <TableCell><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                 <TableCell><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
+                                                <TableCell><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => (<Input placeholder="14 dias" {...field}/>)}/></TableCell>
                                                 <TableCell>
                                                     <Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                                 </TableCell>
                                             </TableRow>
                                         )) : (
-                                            <TableRow><TableCell colSpan={5} className="text-center h-24">Nenhum contêiner adicionado.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={6} className="text-center h-24">Nenhum contêiner adicionado.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>

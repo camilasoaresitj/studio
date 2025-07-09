@@ -31,6 +31,7 @@ export type Rate = {
   transitTime: string;
   validity: string;
   freeTime: string;
+  agent?: string;
 }
 
 interface RatesTableProps {
@@ -56,6 +57,7 @@ const groupMaritimeRates = (rates: Rate[]) => {
         transitTime: rate.transitTime,
         validity: rate.validity,
         freeTime: rate.freeTime,
+        agent: rate.agent,
         rates: {},
       });
     }
@@ -152,7 +154,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
       return commonFilteredRates.filter(r => r.modal === 'Aéreo');
   }, [commonFilteredRates]);
 
-  const handleMaritimeGroupChange = (group: any, field: 'freeTime', value: string) => {
+  const handleMaritimeGroupChange = (group: any, field: 'freeTime' | 'agent', value: string) => {
       setEditableRates(prevRates => 
           prevRates.map(rate => {
               if (rate.modal === 'Marítimo' && rate.origin === group.origin && rate.destination === group.destination && rate.carrier === group.carrier) {
@@ -163,7 +165,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
       );
   };
 
-  const handleAirRateChange = (rateId: number, field: 'freeTime', value: string) => {
+  const handleAirRateChange = (rateId: number, field: 'freeTime' | 'agent', value: string) => {
       setEditableRates(prevRates => 
           prevRates.map(rate => {
               if (rate.id === rateId) {
@@ -207,7 +209,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" /> Tarifas Marítimas (FCL)</CardTitle>
-                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite o Free Time e salve as alterações.</CardDescription>
+                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite o Free Time e o Agente e salve as alterações.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="border rounded-lg">
@@ -215,24 +217,33 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[15%]">Transportadora</TableHead>
-                                <TableHead className="w-[13%]">Origem</TableHead>
-                                <TableHead className="w-[13%]">Destino</TableHead>
-                                {maritimeContainerTypes.map(type => <TableHead key={type} className="w-[10%] text-center">{type}</TableHead>)}
-                                <TableHead className="w-[10%]">Trânsito</TableHead>
-                                <TableHead className="w-[12%]">Free Time</TableHead>
-                                <TableHead className="w-[15%]">Validade</TableHead>
+                                <TableHead className="w-[12%]">Agente</TableHead>
+                                <TableHead className="w-[12%]">Origem</TableHead>
+                                <TableHead className="w-[12%]">Destino</TableHead>
+                                {maritimeContainerTypes.map(type => <TableHead key={type} className="w-[8%] text-center">{type}</TableHead>)}
+                                <TableHead className="w-[8%]">Trânsito</TableHead>
+                                <TableHead className="w-[10%]">Free Time</TableHead>
+                                <TableHead className="w-[10%]">Validade</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {maritimeRates.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={maritimeContainerTypes.length + 5} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
+                                    <TableCell colSpan={maritimeContainerTypes.length + 6} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
                                 </TableRow>
                             ) : maritimeRates.map((item: any, index: number) => {
                                 const isExpired = isValidDateString(item.validity) && isBefore(parse(item.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
                                 <TableRow key={index} className={isExpired ? 'bg-muted/30' : ''}>
                                     <TableCell className="font-medium truncate" title={item.carrier}>{item.carrier}</TableCell>
+                                    <TableCell className="p-2">
+                                        <Input
+                                            value={item.agent || ''}
+                                            onChange={(e) => handleMaritimeGroupChange(item, 'agent', e.target.value)}
+                                            className="h-8"
+                                            disabled={isExpired}
+                                        />
+                                    </TableCell>
                                     <TableCell className="truncate" title={item.origin}>{item.origin}</TableCell>
                                     <TableCell className="truncate" title={item.destination}>{item.destination}</TableCell>
                                     {maritimeContainerTypes.map(type => (
@@ -273,33 +284,42 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Plane className="h-5 w-5 text-primary" /> Tarifas Aéreas</CardTitle>
-                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite o Free Time e salve as alterações.</CardDescription>
+                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite o Free Time e o Agente e salve as alterações.</CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="border rounded-lg">
                     <Table>
                         <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[20%]">Transportadora</TableHead>
+                            <TableHead className="w-[18%]">Transportadora</TableHead>
+                            <TableHead className="w-[15%]">Agente</TableHead>
                             <TableHead className="w-[15%]">Origem</TableHead>
                             <TableHead className="w-[15%]">Destino</TableHead>
-                            <TableHead className="w-[12%]">Tarifa</TableHead>
-                            <TableHead className="w-[12%]">Trânsito</TableHead>
+                            <TableHead className="w-[10%]">Tarifa</TableHead>
+                            <TableHead className="w-[10%]">Trânsito</TableHead>
                             <TableHead className="w-[12%]">Free Time</TableHead>
                             <TableHead className="w-[10%]">Validade</TableHead>
-                            <TableHead className="w-[10%] text-center">Ações</TableHead>
+                            <TableHead className="w-[5%] text-center">Ações</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                              {airRates.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
+                                    <TableCell colSpan={9} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
                                 </TableRow>
                              ) : airRates.map((rate, index) => {
                                 const isExpired = isValidDateString(rate.validity) && isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
                                 <TableRow key={rate.id} className={isExpired ? 'bg-muted/30' : ''}>
                                     <TableCell className="font-medium truncate p-2" title={rate.carrier}>{rate.carrier}</TableCell>
+                                    <TableCell className="p-2">
+                                        <Input 
+                                            value={rate.agent || ''} 
+                                            onChange={(e) => handleAirRateChange(rate.id, 'agent', e.target.value)} 
+                                            className="h-8"
+                                            disabled={isExpired}
+                                        />
+                                    </TableCell>
                                     <TableCell className="truncate p-2" title={rate.origin}>{rate.origin}</TableCell>
                                     <TableCell className="truncate p-2" title={rate.destination}>{rate.destination}</TableCell>
                                     <TableCell className="font-semibold text-primary p-2">{rate.rate}</TableCell>

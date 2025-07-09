@@ -100,6 +100,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
 
       const response = await runSendQuote({
         customerName: quoteToSend.customer,
+        quoteId: quoteToSend.id.replace('-DRAFT', ''),
         rateDetails: {
             origin: quoteToSend.origin,
             destination: quoteToSend.destination,

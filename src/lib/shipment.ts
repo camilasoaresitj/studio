@@ -51,6 +51,7 @@ export type ContainerDetail = {
   seal: string;
   tare: string;
   grossWeight: string;
+  freeTime?: string;
 };
 
 export type TransshipmentDetail = {
@@ -72,6 +73,9 @@ export type Shipment = {
   details: QuoteDetails;
   milestones: Milestone[];
   // Existing operational fields
+  bookingNumber?: string;
+  courier?: 'DHL' | 'UPS' | 'FedEx' | 'Outro';
+  courierNumber?: string;
   vesselName?: string;
   voyageNumber?: string;
   masterBillNumber?: string;
@@ -222,6 +226,7 @@ export function createShipment(quote: ShipmentCreationData, overseasPartner: Par
     details: quote.details,
     milestones,
     // Initialize operational fields
+    bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     etd,
     eta,
     vesselName: '',
@@ -234,6 +239,7 @@ export function createShipment(quote: ShipmentCreationData, overseasPartner: Par
       seal: 'TBC',
       tare: 'TBC',
       grossWeight: 'TBC',
+      freeTime: '14 dias',
     }] : [],
     commodityDescription: '',
     ncm: '',

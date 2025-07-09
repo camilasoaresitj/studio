@@ -543,6 +543,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
       const response = await runSendQuote({
         customerName: activeQuote.customer,
+        quoteId: activeQuote.id.replace('-DRAFT', ''),
         rateDetails: {
             origin: activeQuote.origin,
             destination: activeQuote.destination,

@@ -134,7 +134,7 @@ export async function submitVgm(vgmData: any): Promise<{ success: true; vgmConfi
 }
 
 /**
- * Fetches tracking information from the Maersk API.
+ * Fetches tracking information from the Maersk API using a robust two-step lookup.
  * @param trackingNumber The Bill of Lading or booking number.
  * @returns A promise that resolves to an object containing the latest status, a list of events, and partial shipment details.
  */
@@ -147,28 +147,48 @@ export async function getTracking(trackingNumber: string): Promise<{ status: str
     console.log(`Real API Call: Calling Maersk tracking API for: ${trackingNumber}`);
     
     try {
-        const response = await fetch(`${API_BASE_URL}/v2/tracking/shipments/${trackingNumber}`, {
+        // Step 1: Call shipments-summaries to find the canonical transportDocumentId using the booking number.
+        const summaryResponse = await fetch(`${API_BASE_URL}/v2/tracking/shipments-summaries?carrierBookingReference=${trackingNumber}`, {
             headers: { 'Consumer-Key': apiKey, 'Accept': 'application/json' }
         });
         
-        if (!response.ok) {
-            const errorBody = await response.text();
-            let errorMessage = `Maersk API Error: Status ${response.status}.`;
-            if (response.status === 404) {
-                errorMessage = `Nenhum embarque encontrado para o número de rastreamento: ${trackingNumber}. Verifique se o número está correto e se a sua chave de API tem permissão para acessá-lo.`;
-            } else if (response.status === 401 || response.status === 403) {
-                errorMessage = `Erro de Autenticação/Autorização (Status ${response.status}). Verifique se a chave de API da Maersk está correta.`;
+        if (!summaryResponse.ok) {
+            const errorBody = await summaryResponse.text();
+            let errorMessage = `Maersk API Error (Summary Check): Status ${summaryResponse.status}.`;
+            if (summaryResponse.status === 401 || summaryResponse.status === 403) {
+                errorMessage = `Erro de Autenticação/Autorização (Status ${summaryResponse.status}). Verifique se a chave de API da Maersk está correta.`;
             } else {
                  errorMessage += ` Resposta: ${errorBody}`;
             }
             throw new Error(errorMessage);
         }
 
+        const summaryData = await summaryResponse.json();
+        const shipmentSummary = summaryData.shipments?.[0];
+
+        if (!shipmentSummary) {
+            throw new Error(`Nenhum embarque encontrado para o número de rastreamento: ${trackingNumber}. Verifique se o número está correto e se a sua chave de API tem permissão para acessá-lo.`);
+        }
+
+        const transportDocumentId = shipmentSummary.transportDocumentId;
+        console.log(`Found transportDocumentId: ${transportDocumentId} for booking ${trackingNumber}. Fetching details...`);
+
+
+        // Step 2: Use the canonical ID to get full shipment details
+        const response = await fetch(`${API_BASE_URL}/v2/tracking/shipments/${transportDocumentId}`, {
+            headers: { 'Consumer-Key': apiKey, 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`Maersk API Error (Detail Fetch): Status ${response.status}. Resposta: ${errorBody}`);
+        }
+
         const data = await response.json();
         const shipmentData = data.shipments?.[0];
 
         if (!shipmentData) {
-            throw new Error(`Nenhuma informação de embarque encontrada na resposta da API para ${trackingNumber}, embora a chamada tenha sido bem-sucedida.`);
+            throw new Error(`Nenhuma informação de embarque encontrada na resposta da API para ${transportDocumentId}, embora a chamada tenha sido bem-sucedida.`);
         }
         
         const transportPlan = shipmentData.transportPlan || [];

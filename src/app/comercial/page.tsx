@@ -199,13 +199,71 @@ export default function ComercialPage() {
   const [quoteFormData, setQuoteFormData] = useState<Partial<FreightQuoteFormData> | null>(null);
   const { toast } = useToast();
 
+  const handlePartnerSaved = (partnerToSave: Partner) => {
+      setPartners(prevPartners => {
+          const index = prevPartners.findIndex(p => p.id === partnerToSave.id && p.id !== 0);
+          if (index > -1) {
+              const newPartners = [...prevPartners];
+              newPartners[index] = partnerToSave;
+              return newPartners;
+          } else {
+              // It's a new partner, give it a new ID
+              const newId = Math.max(...prevPartners.map(p => p.id), 0) + 1;
+              return [...prevPartners, { ...partnerToSave, id: newId }];
+          }
+      });
+  };
+
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
+    const existingPartnerNames = new Set(partners.map(p => p.name.toLowerCase()));
+    let newAgentsCreated = false;
+
+    // First, find and register any new agents from the imported rates
+    importedRates.forEach(rate => {
+      // The AI might return 'N/A' or an empty string for the agent if none is found.
+      // We only care about actual agent names that are not "Direct".
+      if (rate.agent && rate.agent !== 'Direct' && rate.agent !== 'N/A' && rate.agent.trim() !== '') {
+        const agentName = rate.agent.trim();
+        if (!existingPartnerNames.has(agentName.toLowerCase())) {
+          // This agent is new, so we create and save it.
+          const newAgent: Partner = {
+            id: 0, // ID will be assigned by the parent state handler
+            name: agentName,
+            nomeFantasia: agentName,
+            type: 'Agente',
+            // Pre-fill with sensible defaults for a new agent
+            tipoAgente: { fcl: true, lcl: true, air: true, projects: false },
+            profitAgreement: { amount: 50, unit: 'por_container' },
+            paymentTerm: 30,
+            address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
+            contacts: [{ name: 'Contato Principal', email: 'tbc@tbc.com', phone: '000000000', departments: ['Comercial', 'Operacional'] }],
+          };
+          
+          handlePartnerSaved(newAgent); // This function is already defined and handles state update
+          
+          // Add the new agent to our temporary set to avoid creating it multiple times in this one batch
+          existingPartnerNames.add(agentName.toLowerCase());
+          newAgentsCreated = true;
+        }
+      }
+    });
+
+    if (newAgentsCreated) {
+      toast({
+        title: "Novos Agentes Cadastrados",
+        description: "Agentes identificados nas tarifas foram adicionados automaticamente ao seu cadastro de parceiros.",
+        className: 'bg-success text-success-foreground'
+      });
+    }
+
+    // Now, add the imported rates to the rates table state
     const newRates = importedRates.map((rate, index) => ({
       ...rate,
       id: rates.length + index + 1, // Simple ID generation
     }));
     setRates(prevRates => [...prevRates, ...newRates]);
   };
+
 
   const handleRatesChange = (updatedRates: Rate[]) => {
     setRates(updatedRates);
@@ -228,19 +286,6 @@ export default function ComercialPage() {
     });
   };
 
-  const handlePartnerSaved = (partnerToSave: Partner) => {
-      setPartners(prevPartners => {
-          const index = prevPartners.findIndex(p => p.id === partnerToSave.id);
-          if (index > -1) {
-              const newPartners = [...prevPartners];
-              newPartners[index] = partnerToSave;
-              return newPartners;
-          } else {
-              // It's a new partner, give it a new ID
-              return [...prevPartners, { ...partnerToSave, id: Math.max(...prevPartners.map(p => p.id), 0) + 1 }];
-          }
-      });
-  };
   
   const handleFeeSaved = (feeToSave: Fee) => {
       setFees(prevFees => {

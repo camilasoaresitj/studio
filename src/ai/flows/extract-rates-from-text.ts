@@ -25,6 +25,7 @@ const ParsedRateSchema = z.object({
   container: z.string().describe('The container type (e.g., "20\'GP"). Use "N/A" for air freight.'),
   validity: z.string().describe('The validity date (e.g., "31/12/2024"). Use "N/A" if not found.'),
   freeTime: z.string().describe('The free time in days, only the number (e.g., "14"). Use "N/A" if not found.'),
+  agent: z.string().describe('The agent who provided the rate (e.g., "Global Logistics Agents"). Use "Direct" if the rate is directly from the carrier.'),
 });
 
 const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
@@ -46,9 +47,10 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 - The fields \`origin\`, \`destination\`, and \`rate\` are **MANDATORY**. If you cannot find all three for a given rate, DO NOT create an object for it.
 - If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), you MUST create separate objects for 20'GP, 40'GP, and 40'HC respectively.
 - The \`modal\` field must be either "Aéreo" or "Marítimo". Infer from context.
-- For all other non-mandatory fields (\`carrier\`, \`transitTime\`, \`container\`, \`validity\`, \`freeTime\`), use the exact string "N/A" if the information is not present.
+- For all other non-mandatory fields (\`carrier\`, \`transitTime\`, \`container\`, \`validity\`, \`freeTime\`, \`agent\`), use the exact string "N/A" if the information is not present.
 - For \`freeTime\`, extract only the number of days (e.g., for "14 dias free time", extract "14").
 - For \`transitTime\`, extract the range of days (e.g., for "25-30 dias", extract "25-30").
+- Differentiate between the Carrier (e.g., Maersk, LATAM Cargo) and the Agent (the freight forwarder or partner providing the quote). The 'carrier' field is for the shipping line/airline. The 'agent' field is for the partner. If no agent is mentioned or the rate is from the carrier itself, use "Direct" as the value for the 'agent' field.
 
 **Location Standardization Rules (Based on Official Tables):**
 - You MUST act as an expert with access to official port and airport code tables (like IATA, UN/LOCODE, and Brazilian Receita Federal).
@@ -88,7 +90,8 @@ const extractRatesFromTextPrompt = ai.definePrompt({
   "transitTime": "25-30",
   "container": "20'GP",
   "validity": "31/12/2024",
-  "freeTime": "14"
+  "freeTime": "14",
+  "agent": "Global Logistics Agents"
 }
 \`\`\`
 
@@ -114,5 +117,3 @@ const extractRatesFromTextFlow = ai.defineFlow(
     return output || [];
   }
 );
-
-    

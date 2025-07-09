@@ -274,6 +274,8 @@ export default function ComercialPage() {
         const newRates = importedRates.map((rate) => ({
           ...rate,
           id: ++currentMaxId,
+          freeTime: (rate.freeTime && rate.freeTime !== 'N/A') ? `${rate.freeTime} dias` : 'N/A',
+          transitTime: (rate.transitTime && rate.transitTime !== 'N/A') ? `${rate.transitTime} dias` : 'N/A',
         }));
         return [...prevRates, ...newRates];
     });

@@ -99,7 +99,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
     resolver: zodResolver(partnerSchema),
     defaultValues: {
       name: '',
-      type: 'Fornecedor',
+      type: 'Cliente',
       cnpj: '',
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
@@ -122,7 +122,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
       setAiAutofillText('');
       form.reset({
         name: '',
-        type: 'Fornecedor',
+        type: 'Cliente',
         cnpj: '',
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
         contacts: [{ name: '', email: '', phone: '', department: 'Operacional' }],
@@ -263,9 +263,25 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                                     </Button>
                                 </div>
                                 <Separator />
-                                <FormField control={form.control} name="name" render={({ field }) => (
-                                    <FormItem><FormLabel>Nome / Razão Social</FormLabel><FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <FormField control={form.control} name="name" render={({ field }) => (
+                                      <FormItem><FormLabel>Nome / Razão Social</FormLabel><FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl><FormMessage /></FormItem>
+                                  )} />
+                                  <FormField control={form.control} name="type" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Tipo</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                          <SelectContent>
+                                              <SelectItem value="Cliente">Cliente</SelectItem>
+                                              <SelectItem value="Fornecedor">Fornecedor</SelectItem>
+                                              <SelectItem value="Agente">Agente</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                  )} />
+                                </div>
                                 <FormField control={form.control} name="address.country" render={({ field }) => (
                                     <FormItem><FormLabel>País</FormLabel><FormControl><Input placeholder="USA" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                 )} />
@@ -351,3 +367,5 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
     </Dialog>
   );
 }
+
+    

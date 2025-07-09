@@ -380,16 +380,58 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     const charges: QuoteCharge[] = [];
 
     if (rate) {
-        charges.push({
-          id: `freight-${rate.id}`,
-          name: 'Frete Internacional',
-          type: 'Por Lote',
-          cost: rate.costValue,
-          costCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
-          sale: rate.costValue,
-          saleCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
-          supplier: rate.carrier,
-        });
+        if (values.modal === 'air') {
+            const ratePerKg = rate.costValue;
+            const volumetricFactor = 6000; // Standard IATA volumetric factor (cm³/kg)
+            
+            let totalGrossWeight = 0;
+            let totalVolumetricWeight = 0;
+
+            values.airShipment.pieces.forEach(piece => {
+                totalGrossWeight += piece.quantity * piece.weight;
+                const volumePerPiece = (piece.length * piece.width * piece.height) / volumetricFactor;
+                totalVolumetricWeight += piece.quantity * volumePerPiece;
+            });
+
+            const chargeableWeight = Math.max(totalGrossWeight, totalVolumetricWeight);
+            
+            // In a real scenario, MIN charges might be part of the rate data.
+            // Here, we simulate it with a default or a value from a generic "Frete Aéreo" fee.
+            const airFreightFee = fees.find(f => f.name.toLowerCase().includes('frete aéreo') && (f.direction === direction || f.direction === 'Ambos'));
+            const minCharge = airFreightFee?.minValue ?? 150; // Defaulting to 150 of the rate's currency if not found.
+
+            let calculatedCost = chargeableWeight * ratePerKg;
+            let chargeTypeDescription = `Por ${chargeableWeight.toFixed(2)} kg taxado`;
+
+            if (calculatedCost < minCharge) {
+                calculatedCost = minCharge;
+                chargeTypeDescription = `Mínimo (${chargeableWeight.toFixed(2)} kg)`
+            }
+            
+            const currency = rate.cost.includes('R$') ? 'BRL' : 'USD';
+
+            charges.push({
+                id: `freight-${rate.id}`,
+                name: 'Frete Internacional Aéreo',
+                type: chargeTypeDescription,
+                cost: calculatedCost,
+                costCurrency: currency,
+                sale: calculatedCost, // Sale price logic can be more complex
+                saleCurrency: currency,
+                supplier: rate.carrier,
+            });
+        } else { // Ocean freight
+            charges.push({
+              id: `freight-${rate.id}`,
+              name: 'Frete Internacional',
+              type: 'Por Lote',
+              cost: rate.costValue,
+              costCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
+              sale: rate.costValue,
+              saleCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
+              supplier: rate.carrier,
+            });
+        }
     }
     
     const relevantFees = fees.filter(fee => {

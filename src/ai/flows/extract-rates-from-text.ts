@@ -45,6 +45,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 **Extraction Rules:**
 - Each object in the array represents ONE rate for ONE container type.
 - The fields \`origin\`, \`destination\`, and \`rate\` are **MANDATORY**. If you cannot find all three for a given rate, DO NOT create an object for it.
+- **ETD as Validity**: If a rate is explicitly tied to a specific ETD (Estimated Time of Departure) or a specific vessel/voyage, you MUST use that departure date as the 'validity' for that rate. Format it as "DD/MM/YYYY". This rule takes precedence over general validity dates. For example, if the text says "Rate for vessel MSC LEO departing on 15/07/2024", the validity should be "15/07/2024".
 - If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), you MUST create separate objects for 20'GP, 40'GP, and 40'HC respectively.
 - The \`modal\` field must be either "Aéreo" or "Marítimo". Infer from context.
 - For all other non-mandatory fields (\`carrier\`, \`transitTime\`, \`container\`, \`validity\`, \`freeTime\`, \`agent\`), use the exact string "N/A" if the information is not present.

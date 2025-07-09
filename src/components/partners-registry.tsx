@@ -96,6 +96,9 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const [filterName, setFilterName] = useState('');
   const [filterNomeFantasia, setFilterNomeFantasia] = useState('');
   const [filterType, setFilterType] = useState('Todos');
+  const [filterClienteTipo, setFilterClienteTipo] = useState('Todos');
+  const [filterFornecedorTipo, setFilterFornecedorTipo] = useState('Todos');
+  const [filterAgenteTipo, setFilterAgenteTipo] = useState('Todos');
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiAutofillText, setAiAutofillText] = useState('');
@@ -130,9 +133,29 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         const nameMatch = filterName ? partner.name.toLowerCase().includes(filterName.toLowerCase()) : true;
         const fantasiaMatch = filterNomeFantasia ? partner.nomeFantasia?.toLowerCase().includes(filterNomeFantasia.toLowerCase()) : true;
         const typeMatch = filterType === 'Todos' || partner.type === filterType;
-        return nameMatch && fantasiaMatch && typeMatch;
+        
+        if (!nameMatch || !fantasiaMatch || !typeMatch) {
+            return false;
+        }
+
+        if (filterType === 'Cliente' && filterClienteTipo !== 'Todos') {
+            if (!partner.tipoCliente) return false;
+            return partner.tipoCliente[filterClienteTipo.toLowerCase() as 'importacao' | 'exportacao'];
+        }
+
+        if (filterType === 'Fornecedor' && filterFornecedorTipo !== 'Todos') {
+            return partner.tipoFornecedor === filterFornecedorTipo;
+        }
+
+        if (filterType === 'Agente' && filterAgenteTipo !== 'Todos') {
+            if (!partner.tipoAgente) return false;
+            return partner.tipoAgente[filterAgenteTipo as 'fcl' | 'lcl' | 'air' | 'projects'];
+        }
+
+        return true;
     });
-  }, [partners, filterName, filterNomeFantasia, filterType]);
+  }, [partners, filterName, filterNomeFantasia, filterType, filterClienteTipo, filterFornecedorTipo, filterAgenteTipo]);
+
 
   const handleOpenDialog = (partner: Partner | null) => {
     setEditingPartner(partner);
@@ -238,10 +261,15 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <div>
         <div className="flex justify-between items-start mb-4 flex-col sm:flex-row gap-4">
-            <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                  <Input placeholder="Filtrar por Razão Social..." value={filterName} onChange={e => setFilterName(e.target.value)} />
                  <Input placeholder="Filtrar por Nome Fantasia..." value={filterNomeFantasia} onChange={e => setFilterNomeFantasia(e.target.value)} />
-                 <Select value={filterType} onValueChange={setFilterType}>
+                 <Select value={filterType} onValueChange={(value) => {
+                    setFilterType(value);
+                    setFilterClienteTipo('Todos');
+                    setFilterFornecedorTipo('Todos');
+                    setFilterAgenteTipo('Todos');
+                 }}>
                      <SelectTrigger><SelectValue/></SelectTrigger>
                      <SelectContent>
                          <SelectItem value="Todos">Todos os Tipos</SelectItem>
@@ -250,6 +278,44 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                          <SelectItem value="Agente">Agente</SelectItem>
                      </SelectContent>
                  </Select>
+                 
+                 {filterType === 'Cliente' && (
+                    <Select value={filterClienteTipo} onValueChange={setFilterClienteTipo}>
+                        <SelectTrigger><SelectValue placeholder="Tipo Cliente..." /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Todos">Qualquer Tipo</SelectItem>
+                            <SelectItem value="Importacao">Importação</SelectItem>
+                            <SelectItem value="Exportacao">Exportação</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 )}
+                 {filterType === 'Fornecedor' && (
+                    <Select value={filterFornecedorTipo} onValueChange={setFilterFornecedorTipo}>
+                        <SelectTrigger><SelectValue placeholder="Tipo Fornecedor..." /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Todos">Qualquer Tipo</SelectItem>
+                            <SelectItem value="Transportadora">Transportadora</SelectItem>
+                            <SelectItem value="Cia Maritima">Cia Marítima</SelectItem>
+                            <SelectItem value="Cia Aerea">Cia Aérea</SelectItem>
+                            <SelectItem value="Terminal">Terminal</SelectItem>
+                            <SelectItem value="Fumigacao">Fumigação</SelectItem>
+                            <SelectItem value="Despachante">Despachante</SelectItem>
+                            <SelectItem value="Representante">Representante</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 )}
+                 {filterType === 'Agente' && (
+                    <Select value={filterAgenteTipo} onValueChange={setFilterAgenteTipo}>
+                        <SelectTrigger><SelectValue placeholder="Tipo Agente..." /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Todos">Qualquer Tipo</SelectItem>
+                            <SelectItem value="fcl">FCL</SelectItem>
+                            <SelectItem value="lcl">LCL</SelectItem>
+                            <SelectItem value="air">Air</SelectItem>
+                            <SelectItem value="projects">Projects</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 )}
             </div>
             <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />

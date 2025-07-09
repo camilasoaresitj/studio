@@ -1,15 +1,27 @@
 /**
- * @fileOverview A simulated service for interacting with the Maersk API.
- * This file provides a foundation for a real integration by mocking API calls.
+ * @fileOverview A service for interacting with the real Maersk API.
  */
 import type { FreightQuoteFormData } from '@/lib/schemas';
 import type { GetFreightRatesOutput } from '@/ai/flows/get-freight-rates';
 import type { TrackingEvent } from '@/ai/flows/get-tracking-info';
+import { format, parse } from 'date-fns';
 
-const API_BASE_URL = 'https://api.maersk.com/v2'; // Example URL
+const API_BASE_URL = 'https://api.maersk.com';
+
+// Helper to attempt converting "City, CC" to a UN/LOCODE format.
+// This is a simplification; a real app might use a library or a proper lookup service.
+function toUNLOCODE(location: string): string {
+    const parts = location.split(',').map(p => p.trim());
+    if (parts.length < 2) return location.toUpperCase(); // Fallback
+    const city = parts[0];
+    const country = parts[1];
+    // A common pattern is CountryCode + first 3 letters of city.
+    return `${country.substring(0, 2).toUpperCase()}${city.substring(0, 3).toUpperCase()}`;
+}
+
 
 /**
- * Fetches FCL freight rates from the Maersk API (simulated).
+ * Fetches FCL freight rates from the Maersk API.
  * @param input The freight quote form data.
  * @returns A promise that resolves to an array of formatted freight rates.
  */
@@ -21,69 +33,73 @@ export async function getRates(input: FreightQuoteFormData): Promise<GetFreightR
     return [];
   }
 
-  console.log(`Simulating API call to Maersk for ${input.origin} -> ${input.destination}`);
+  console.log(`Calling Maersk API for ${input.origin} -> ${input.destination}`);
 
-  // Base prices for simulation
-  const basePrices: { [key: string]: number } = {
-    "20'GP": 2250,
-    "40'GP": 3250,
-    "40'HC": 3100,
-    "40'RF": 4800,
-    "40'NOR": 3600,
-    "20'OT": 3000,
-    "40'OT": 3950,
-    "20'FR": 3300,
-    "40'FR": 4250,
+  const payload = {
+      "productCategory": "oceanFcl",
+      "freightPaymentTerm": "PREPAID", // Or COLLECT based on incoterm logic
+      "transportPlan": [
+          {
+              "placeOfReceipt": { "unlocode": toUNLOCODE(input.origin) },
+              "placeOfDelivery": { "unlocode": toUNLOCODE(input.destination) },
+              "inlandService": "CY"
+          }
+      ],
+      "shipmentDetails": [
+          {
+              "commodity": { "cargoGrossWeight": 15000 }, // Example weight
+              "containers": input.oceanShipment.containers.map(c => ({
+                  "isoContainerCode": c.type.startsWith("20") ? "22G1" : (c.type.includes("HC") ? "45G1" : "42G1"), // Mapping to ISO codes
+                  "numberOfContainers": c.quantity
+              }))
+          }
+      ]
   };
 
-  // Simulated local charges from the carrier, included in the total cost
-  const localCharges = [
-    { name: 'ISPS', amount: 15, currency: 'USD' },
-    { name: 'BL Fee', amount: 75, currency: 'USD' },
-    { name: 'Seal Fee', amount: 20, currency: 'USD' },
-  ];
-  
-  // Simulate a network delay
-  await new Promise(resolve => setTimeout(resolve, 600));
-
-  const requestedOrigins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
-  const requestedDestinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
-
-  const allRates: GetFreightRatesOutput = [];
-  
-  requestedOrigins.forEach(origin => {
-    requestedDestinations.forEach(destination => {
-      // Iterate over each container type in the user's request
-      input.oceanShipment.containers.forEach(container => {
-        if (!container.type || container.quantity === 0) return;
-
-        const baseFreight = basePrices[container.type] || 3300; // Default price
-        
-        // Sum up local charges
-        const localChargesTotal = localCharges.reduce((sum, charge) => sum + charge.amount, 0);
-
-        // Total cost is freight + local charges
-        const totalCost = baseFreight + localChargesTotal;
-        const currency = 'USD';
-        
-        // Create ONE rate for the container type
-        allRates.push({
-            id: `MAEU-${Math.random().toString(36).substring(2, 9)}-${origin}-${destination}-${container.type}`,
-            carrier: 'Maersk',
-            origin: origin,
-            destination: destination,
-            transitTime: '26 dias',
-            cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost),
-            costValue: totalCost,
-            carrierLogo: 'https://placehold.co/120x40',
-            dataAiHint: 'maersk logo',
-            source: 'Maersk API',
-        });
-      });
+  try {
+    const response = await fetch(`${API_BASE_URL}/ocean-products/offers/request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Consumer-Key': apiKey,
+      },
+      body: JSON.stringify(payload),
     });
-  });
 
-  return allRates;
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Maersk API Error: ${response.status} ${errorBody}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.offers || data.offers.length === 0) {
+      return [];
+    }
+
+    const formattedRates: GetFreightRatesOutput = data.offers.map((offer: any) => {
+      const totalPrice = offer.price.totalPrice;
+      return {
+        id: `MAEU-${offer.offerId}`,
+        carrier: 'Maersk',
+        origin: input.origin,
+        destination: input.destination,
+        transitTime: `${offer.transitTimeInDays || '?'} dias`,
+        cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: totalPrice.currency }).format(totalPrice.value),
+        costValue: totalPrice.value,
+        carrierLogo: 'https://placehold.co/120x40',
+        dataAiHint: 'maersk logo',
+        source: 'Maersk API',
+      };
+    });
+
+    return formattedRates;
+
+  } catch (error) {
+    console.error("Error fetching rates from Maersk:", error);
+    // In a real app, you might want to rethrow or handle this more gracefully
+    return [];
+  }
 }
 
 /**
@@ -118,27 +134,57 @@ export async function submitVgm(vgmData: any): Promise<{ success: true; vgmConfi
 }
 
 /**
- * Fetches tracking information from the Maersk API (simulated).
+ * Fetches tracking information from the Maersk API.
  * @param trackingNumber The Bill of Lading or container number.
  * @returns A promise that resolves to an object containing the latest status and a list of events.
  */
 export async function getTracking(trackingNumber: string): Promise<{ status: string; events: TrackingEvent[] }> {
-    console.log(`Simulating tracking request to Maersk for: ${trackingNumber}`);
-    await new Promise(resolve => setTimeout(resolve, 800));
+    const apiKey = process.env.MAERSK_API_KEY;
+    if (!apiKey) {
+      throw new Error("Maersk API key is not configured.");
+    }
     
-    // Simulate a successful response for a different scenario
-    const events: TrackingEvent[] = [
-      { status: 'Booking confirmed', date: new Date(new Date().setDate(new Date().getDate() - 3)).toISOString(), location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
-      { status: 'Container picked up for export', date: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
-      { status: 'Loaded on vessel', date: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
-      { status: 'In Transit', date: new Date().toISOString(), location: 'GULF OF MEXICO', completed: false, carrier: 'Maersk' },
-      { status: 'Estimated arrival', date: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(), location: 'MIAMI', completed: false, carrier: 'Maersk' },
-    ];
+    console.log(`Calling Maersk tracking API for: ${trackingNumber}`);
     
-    const latestCompletedEvent = [...events].reverse().find(e => e.completed);
+    try {
+        const response = await fetch(`${API_BASE_URL}/track/${trackingNumber}`, {
+            headers: { 'Consumer-Key': apiKey }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                return { status: 'Not Found', events: [] };
+            }
+            const errorBody = await response.text();
+            throw new Error(`Maersk Tracking API Error: ${response.status} ${errorBody}`);
+        }
 
-    return {
-        status: latestCompletedEvent?.status || 'Pending',
-        events: events
-    };
+        const data = await response.json();
+        const shipment = data.shipments?.[0];
+
+        if (!shipment || !shipment.events || shipment.events.length === 0) {
+            return { status: 'No events found', events: [] };
+        }
+
+        const events: TrackingEvent[] = shipment.events.map((event: any) => ({
+            status: event.eventDescription,
+            date: event.eventDateTime,
+            location: event.eventLocation?.locationName || 'Unknown Location',
+            completed: event.eventClassifierCode !== 'PLN', // Assumes PLN is "Planned"
+            carrier: 'Maersk'
+        }));
+        
+        const latestEvent = events[events.length - 1];
+        
+        return {
+            status: latestEvent?.status || 'Pending',
+            events: events
+        };
+    } catch(error) {
+        console.error("Error fetching tracking from Maersk:", error);
+        if (error instanceof Error) {
+            throw new Error(error.message);
+        }
+        throw new Error("An unknown error occurred during Maersk tracking.");
+    }
 }

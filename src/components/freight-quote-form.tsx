@@ -8,6 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -23,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
-import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetShipSchedules } from '@/app/actions';
+import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetShipSchedules, runGenerateQuotePdfHtml } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import type { Quote, QuoteCharge, QuoteDetails } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
@@ -35,8 +37,6 @@ import type { Fee } from './fees-registry';
 import { QuoteCostSheet } from './quote-cost-sheet';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 
 type FreightRate = {
@@ -590,30 +590,92 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const handleGeneratePdf = async () => {
     if (!activeQuote) return;
 
-    try {
-        setIsSending(true);
-        toast({ title: "Gerando PDF...", description: "Aguarde um momento." });
-        const { default: jsPDF } = await import('jspdf');
-        const { default: html2canvas } = await import('html2canvas');
+    setIsSending(true);
+    toast({ title: 'Gerando PDF...', description: 'Aguarde um momento.' });
 
-        const quoteElement = document.getElementById(`quote-sheet-${activeQuote.id}`);
-        if (quoteElement) {
-            const canvas = await html2canvas(quoteElement, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`cotacao-${activeQuote.id}.pdf`);
-            toast({ title: "PDF Gerado!", className: "bg-success text-success-foreground" });
+    try {
+        const quote = activeQuote;
+        const formatValue = (value: number) => {
+             return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
-    } catch (e) {
-        toast({ variant: "destructive", title: "Erro ao gerar PDF." });
-        console.error(e);
+
+        const freightCharges = quote.charges
+            .filter(c => c.name.toLowerCase().includes('frete'))
+            .map(c => ({
+                name: c.name,
+                type: c.type,
+                currency: c.saleCurrency,
+                total: formatValue(c.sale),
+            }));
+
+        const localCharges = quote.charges
+            .filter(c => !c.name.toLowerCase().includes('frete'))
+            .map(c => ({
+                name: c.name,
+                type: c.type,
+                currency: c.saleCurrency,
+                total: formatValue(c.sale),
+            }));
+
+        const totalsByCurrency: { [key: string]: number } = {};
+        quote.charges.forEach(charge => {
+            totalsByCurrency[charge.saleCurrency] = (totalsByCurrency[charge.saleCurrency] || 0) + charge.sale;
+        });
+
+        const totalAllIn = Object.entries(totalsByCurrency)
+            .map(([currency, total]) => `${currency} ${formatValue(total)}`)
+            .join(' + ');
+
+        const response = await runGenerateQuotePdfHtml({
+            quoteNumber: quote.id.replace('-DRAFT', ''),
+            customerName: quote.customer,
+            date: new Date().toLocaleDateString('pt-BR'),
+            validity: quote.details.validity,
+            origin: quote.origin,
+            destination: quote.destination,
+            incoterm: quote.details.incoterm,
+            transitTime: quote.details.transitTime,
+            modal: quote.details.cargo.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo',
+            equipment: quote.details.cargo,
+            freightCharges,
+            localCharges,
+            totalAllIn,
+            observations: "Valores sujeitos a alteração sem aviso prévio. Taxas locais na origem e destino não inclusas, exceto quando mencionadas."
+        });
+        
+        if (!response.success) {
+            throw new Error(response.error);
+        }
+        
+        const element = document.createElement("div");
+        element.style.position = 'absolute';
+        element.style.left = '-9999px';
+        element.style.top = '0';
+        element.style.width = '800px'; 
+        element.innerHTML = response.data.html;
+        document.body.appendChild(element);
+        
+        await new Promise(resolve => setTimeout(resolve, 500)); 
+
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`proposta-${quote.id.replace('-DRAFT', '')}.pdf`);
+        toast({ title: 'PDF gerado com sucesso!', className: 'bg-success text-success-foreground' });
+
+        document.body.removeChild(element);
+
+    } catch (e: any) {
+        console.error("PDF generation error", e);
+        toast({ variant: "destructive", title: "Erro ao gerar PDF", description: e.message || "Ocorreu um erro ao converter o conteúdo." });
     } finally {
         setIsSending(false);
     }
   };
+
 
   const modal = form.watch('modal');
   const incoterm = form.watch('incoterm');
@@ -655,13 +717,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                 </div>
             </CardHeader>
             <CardContent>
-                <div id={`quote-sheet-${activeQuote.id}`}>
+                <div>
                     <QuoteCostSheet quote={activeQuote} onUpdate={handleUpdateQuote} />
                 </div>
                 <Separator className="my-6"/>
                 <div className="flex flex-col sm:flex-row gap-2 mt-6 justify-end">
-                     <Button variant="secondary" onClick={handleGeneratePdf}>
-                        <FileDown className="mr-2 h-4 w-4" /> Gerar PDF
+                     <Button variant="secondary" onClick={handleGeneratePdf} disabled={isSending}>
+                        {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                        Gerar PDF
                     </Button>
                     <Button onClick={() => handleSendQuote('whatsapp')} disabled={isSending}>
                         <MessageCircle className="mr-2 h-4 w-4" /> Enviar por WhatsApp

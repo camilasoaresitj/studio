@@ -146,6 +146,21 @@ const initialPartnersData: Partner[] = [
             { name: 'Carla Dias', email: 'impo@techfront.com', phone: '5548999887744', departments: ['Importação'] },
         ]
     },
+    { 
+        id: 5, 
+        name: 'LTI DO BRASIL LTDA', 
+        nomeFantasia: 'LTI BRASIL',
+        roles: { cliente: false, fornecedor: false, agente: true, comissionado: false },
+        cnpj: '00000000000100', // Placeholder
+        tipoAgente: { fcl: true, lcl: true, air: true, projects: true },
+        profitAgreement: { amount: 75, unit: 'por_container' },
+        paymentTerm: 30,
+        exchangeRateAgio: 0,
+        address: { street: 'Av. Paulista', number: '1000', complement: 'Andar 10', district: 'Bela Vista', city: 'São Paulo', state: 'SP', zip: '01310-100', country: 'Brasil' },
+        contacts: [
+            { name: 'Equipe Operacional', email: 'ops@ltiglobal.com.br', phone: '551133334444', departments: ['Operacional', 'Comercial'] }
+        ]
+    }
 ];
 
 const initialFeesData: Fee[] = [
@@ -370,7 +385,7 @@ export default function ComercialPage() {
             key={JSON.stringify(quoteFormData)}
             initialData={quoteFormData}
             onQuoteCreated={handleQuoteCreated} 
-            partners={partners.filter(p => p.roles.cliente)}
+            partners={partners}
             onRegisterCustomer={() => setActiveTab('partners')}
             rates={rates}
             fees={fees}

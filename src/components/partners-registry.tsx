@@ -109,6 +109,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const [filterClienteTipo, setFilterClienteTipo] = useState('Todos');
   const [filterFornecedorTipo, setFilterFornecedorTipo] = useState('Todos');
   const [filterAgenteTipo, setFilterAgenteTipo] = useState('Todos');
+  const [filterState, setFilterState] = useState('');
+  const [filterCountry, setFilterCountry] = useState('');
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiAutofillText, setAiAutofillText] = useState('');
@@ -147,8 +149,10 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         const nameMatch = filterName ? partner.name.toLowerCase().includes(filterName.toLowerCase()) : true;
         const fantasiaMatch = filterNomeFantasia ? partner.nomeFantasia?.toLowerCase().includes(filterNomeFantasia.toLowerCase()) : true;
         const typeMatch = filterType === 'Todos' || partner.type === filterType;
+        const stateMatch = filterState ? partner.address?.state?.toLowerCase().includes(filterState.toLowerCase()) : true;
+        const countryMatch = filterCountry ? partner.address?.country?.toLowerCase().includes(filterCountry.toLowerCase()) : true;
         
-        if (!nameMatch || !fantasiaMatch || !typeMatch) {
+        if (!nameMatch || !fantasiaMatch || !typeMatch || !stateMatch || !countryMatch) {
             return false;
         }
 
@@ -168,7 +172,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
         return true;
     });
-  }, [partners, filterName, filterNomeFantasia, filterType, filterClienteTipo, filterFornecedorTipo, filterAgenteTipo]);
+  }, [partners, filterName, filterNomeFantasia, filterType, filterClienteTipo, filterFornecedorTipo, filterAgenteTipo, filterState, filterCountry]);
 
 
   const handleOpenDialog = (partner: Partner | null) => {
@@ -278,9 +282,11 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <div>
         <div className="flex justify-between items-start mb-4 flex-col sm:flex-row gap-4">
-            <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
                  <Input placeholder="Filtrar por Razão Social..." value={filterName} onChange={e => setFilterName(e.target.value)} />
                  <Input placeholder="Filtrar por Nome Fantasia..." value={filterNomeFantasia} onChange={e => setFilterNomeFantasia(e.target.value)} />
+                 <Input placeholder="Filtrar por Estado (UF)..." value={filterState} onChange={e => setFilterState(e.target.value)} />
+                 <Input placeholder="Filtrar por País..." value={filterCountry} onChange={e => setFilterCountry(e.target.value)} />
                  <Select value={filterType} onValueChange={(value) => {
                     setFilterType(value);
                     setFilterClienteTipo('Todos');
@@ -297,8 +303,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                  </Select>
                  
                  {filterType === 'Cliente' && (
-                    <Select value={filterClienteTipo} onValueChange={setFilterClienteTipo}>
-                        <SelectTrigger><SelectValue placeholder="Tipo Cliente..." /></SelectTrigger>
+                    <Select value={filterClienteTipo} onValueChange={setFilterClienteTipo} >
+                        <SelectTrigger className="lg:col-start-1"><SelectValue placeholder="Tipo Cliente..." /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Todos">Qualquer Tipo</SelectItem>
                             <SelectItem value="Importacao">Importação</SelectItem>
@@ -307,8 +313,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                     </Select>
                  )}
                  {filterType === 'Fornecedor' && (
-                    <Select value={filterFornecedorTipo} onValueChange={setFilterFornecedorTipo}>
-                        <SelectTrigger><SelectValue placeholder="Tipo Fornecedor..." /></SelectTrigger>
+                    <Select value={filterFornecedorTipo} onValueChange={setFilterFornecedorTipo} >
+                        <SelectTrigger className="lg:col-start-1"><SelectValue placeholder="Tipo Fornecedor..." /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Todos">Qualquer Tipo</SelectItem>
                             <SelectItem value="Transportadora">Transportadora</SelectItem>
@@ -322,8 +328,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                     </Select>
                  )}
                  {filterType === 'Agente' && (
-                    <Select value={filterAgenteTipo} onValueChange={setFilterAgenteTipo}>
-                        <SelectTrigger><SelectValue placeholder="Tipo Agente..." /></SelectTrigger>
+                    <Select value={filterAgenteTipo} onValueChange={setFilterAgenteTipo} >
+                        <SelectTrigger className="lg:col-start-1"><SelectValue placeholder="Tipo Agente..." /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="Todos">Qualquer Tipo</SelectItem>
                             <SelectItem value="fcl">FCL</SelectItem>

@@ -78,9 +78,6 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 - **Location Standardization:** You MUST normalize all location names to their standardized name (e.g., "Santos" -> "Santos, BR"; "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN"; "Guarulhos" -> "Aeroporto de Guarulhos, BR").
 - **Multi-Port Rule:** If a rate is valid for multiple origins or destinations (e.g., "BR base ports", "Santos/Itapoa"), you MUST create separate, identical rate objects for EACH individual location. "BR base ports" refers to: Santos, Itapoá, Navegantes, Paranaguá, Rio Grande.
 
-**Final Review Rule (Crucial):**
-- Before finishing, you MUST review the entire JSON array you have generated. If you find ANY object that is incomplete or missing required fields (like origin, destination, rate, modal), you MUST delete that entire object from the array. It is better to return fewer, correct rates than an invalid list.
-
 Analyze the following text and extract the rates:
 {{{textInput}}}
 `,
@@ -91,43 +88,42 @@ const extractRatesFromTextFlow = ai.defineFlow(
   {
     name: 'extractRatesFromTextFlow',
     inputSchema: ExtractRatesFromTextInputSchema,
-    // The flow's final output must match the strict, complete schema.
     outputSchema: ExtractRatesFromTextOutputSchema,
   },
   async (input) => {
-    // The prompt returns a list of potentially incomplete rate objects.
     const { output } = await extractRatesFromTextPrompt(input);
     
     if (!output || output.length === 0) {
       return [];
     }
 
-    // Post-process the partial data to create a complete and valid output.
-    // This moves the data integrity logic from the prompt into reliable code.
+    // This is the new, robust post-processing logic.
+    // It trusts the AI's partial extraction and uses code to enforce data integrity.
     const completeRates = output
       .map(partialRate => {
-        // Filter out completely useless objects that don't have the bare minimum of information.
-        if (!partialRate.rate || !partialRate.modal || !partialRate.origin || !partialRate.destination) {
+        // A rate is only truly useless if it has no price. 
+        // All other fields can have sensible defaults.
+        if (!partialRate.rate) {
           return null;
         }
 
-        // Create a new, complete rate object, providing "N/A" as a fallback for missing fields.
+        // Create a new, complete rate object, providing "N/A" as a fallback.
         const completeRate: z.infer<typeof ParsedRateSchema> = {
           origin: partialRate.origin || 'N/A',
           destination: partialRate.destination || 'N/A',
-          rate: partialRate.rate, // We've confirmed this exists.
-          modal: partialRate.modal, // We've confirmed this exists.
+          rate: partialRate.rate,
+          modal: partialRate.modal || 'Marítimo', // Default to a sensible value
           carrier: partialRate.carrier || 'N/A',
           transitTime: partialRate.transitTime || 'N/A',
           container: partialRate.container || 'N/A',
           validity: partialRate.validity || 'N/A',
           freeTime: partialRate.freeTime || 'N/A',
           agent: partialRate.agent || 'Direct',
-          agentContact: partialRate.agentContact, // This is already optional and handled by the prompt
+          agentContact: partialRate.agentContact,
         };
         return completeRate;
       })
-      .filter((rate): rate is z.infer<typeof ParsedRateSchema> => rate !== null); // Remove nulls
+      .filter((rate): rate is z.infer<typeof ParsedRateSchema> => rate !== null); // Remove the truly useless nulls
 
     return completeRates;
   }

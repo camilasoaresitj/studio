@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableHeader,
@@ -15,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plane, Ship, CheckCircle } from 'lucide-react';
+import { Plane, Ship, CheckCircle, Save } from 'lucide-react';
 import { parse, isBefore, isValid } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -66,6 +65,10 @@ const groupMaritimeRates = (rates: Rate[]) => {
         const group = groups.get(groupKey)!;
         // Add the specific rate for the container type
         group.rates[rate.container] = rate.rate;
+        // Ensure the group reflects the latest freeTime/agent info from any of its rates
+        // This makes sure edits are reflected in the grouped view.
+        if (rate.freeTime) group.freeTime = rate.freeTime;
+        if (rate.agent) group.agent = rate.agent;
     });
 
     return Array.from(groups.values());
@@ -75,7 +78,12 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
   const [filters, setFilters] = useState({ origin: '', destination: '' });
   const [modalFilter, setModalFilter] = useState('Marítimo');
   const [showExpired, setShowExpired] = useState(false);
+  const [localRates, setLocalRates] = useState<Rate[]>(rates);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setLocalRates(rates);
+  }, [rates]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -86,14 +94,18 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
   const isValidDateString = (dateStr: string) => {
     return typeof dateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateStr);
   }
+  
+  const handleFilterChange = (filterName: 'origin' | 'destination', value: string) => {
+    setFilters(prev => ({ ...prev, [filterName]: value }));
+  };
 
   const commonFilteredRates = useMemo(() => {
-     return rates.filter(rate => {
+     return localRates.filter(rate => { // Use local state for filtering
       if (!showExpired) {
         if (!rate.validity || !isValidDateString(rate.validity)) return true;
         try {
           const rateDate = parse(rate.validity, 'dd/MM/yyyy', new Date());
-          if (isBefore(rateDate, today)) {
+          if (!isValid(rateDate) || isBefore(rateDate, today)) {
             return false;
           }
         } catch (e) {
@@ -108,7 +120,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
       }
       return true;
     });
-  }, [filters, showExpired, today, rates]);
+  }, [filters, showExpired, today, localRates]); // Depend on local state
   
   const maritimeRates = useMemo(() => {
       const filtered = commonFilteredRates.filter(r => r.modal === 'Marítimo');
@@ -120,23 +132,32 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
   }, [commonFilteredRates]);
 
   const handleMaritimeGroupChange = (group: any, field: 'freeTime' | 'agent', value: string) => {
-      const newRates = rates.map(rate => {
+      const newLocalRates = localRates.map(rate => {
           if (rate.modal === 'Marítimo' && rate.origin === group.origin && rate.destination === group.destination && rate.carrier === group.carrier) {
               return { ...rate, [field]: value };
           }
           return rate;
       });
-      onRatesChange(newRates);
+      setLocalRates(newLocalRates);
   };
 
   const handleAirRateChange = (rateId: number, field: 'freeTime' | 'agent', value: string) => {
-      const newRates = rates.map(rate => {
+      const newLocalRates = localRates.map(rate => {
           if (rate.id === rateId) {
               return { ...rate, [field]: value };
           }
           return rate;
       });
-      onRatesChange(newRates);
+      setLocalRates(newLocalRates);
+  };
+
+  const handleSaveChanges = () => {
+    onRatesChange(localRates);
+    toast({
+        title: "Alterações Salvas",
+        description: "Suas tarifas foram atualizadas com sucesso.",
+        className: 'bg-success text-success-foreground'
+    });
   };
 
   return (
@@ -160,6 +181,10 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
                 <Switch id="show-expired" checked={showExpired} onCheckedChange={setShowExpired} />
                 <Label htmlFor="show-expired">Mostrar vencidas</Label>
             </div>
+            <Button onClick={handleSaveChanges}>
+                <Save className="mr-2 h-4 w-4" />
+                Salvar Alterações
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -168,7 +193,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" /> Tarifas Marítimas (FCL)</CardTitle>
-                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. As alterações são salvas automaticamente.</CardDescription>
+                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite os campos e clique em "Salvar Alterações".</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="border rounded-lg">
@@ -193,7 +218,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
                             ) : maritimeRates.map((item: any, index: number) => {
                                 const isExpired = isValidDateString(item.validity) && isBefore(parse(item.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
-                                <TableRow key={index} className={isExpired ? 'bg-muted/30' : ''}>
+                                <TableRow key={index} className={isExpired ? 'bg-muted/30 text-muted-foreground' : ''}>
                                     <TableCell className="font-medium truncate" title={item.carrier}>{item.carrier}</TableCell>
                                     <TableCell className="p-2">
                                         <Input
@@ -243,7 +268,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Plane className="h-5 w-5 text-primary" /> Tarifas Aéreas</CardTitle>
-                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. As alterações são salvas automaticamente.</CardDescription>
+                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite os campos e clique em "Salvar Alterações".</CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="border rounded-lg">
@@ -269,7 +294,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
                              ) : airRates.map((rate, index) => {
                                 const isExpired = isValidDateString(rate.validity) && isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
-                                <TableRow key={rate.id} className={isExpired ? 'bg-muted/30' : ''}>
+                                <TableRow key={rate.id} className={isExpired ? 'bg-muted/30 text-muted-foreground' : ''}>
                                     <TableCell className="font-medium truncate p-2" title={rate.carrier}>{rate.carrier}</TableCell>
                                     <TableCell className="p-2">
                                         <Input 
@@ -293,7 +318,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
                                     </TableCell>
                                     <TableCell className="truncate p-2">{rate.validity}</TableCell>
                                     <TableCell className="text-center p-2">
-                                        <Button variant="ghost" size="icon" onClick={() => onSelectRate(rate)} disabled={isExpired}>
+                                        <Button variant="ghost" size="icon" onClick={() => !isExpired && onSelectRate(rate)} disabled={isExpired}>
                                             <CheckCircle className="h-5 w-5 text-green-600" />
                                         </Button>
                                     </TableCell>

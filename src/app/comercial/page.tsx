@@ -215,53 +215,67 @@ export default function ComercialPage() {
   };
 
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
+    // A Set is used to efficiently track agents that have already been processed in this batch,
+    // preventing duplicate creations.
     const existingPartnerNames = new Set(partners.map(p => p.name.toLowerCase()));
-    let newAgentsCreated = false;
+    const newAgents: Partner[] = [];
 
-    // First, find and register any new agents from the imported rates
+    // First, iterate through the imported rates to find and prepare any new agents for creation.
     importedRates.forEach(rate => {
-      // The AI might return 'N/A' or an empty string for the agent if none is found.
-      // We only care about actual agent names that are not "Direct".
+      // We only care about actual agent names, not placeholders like "Direct" or "N/A".
       if (rate.agent && rate.agent !== 'Direct' && rate.agent !== 'N/A' && rate.agent.trim() !== '') {
         const agentName = rate.agent.trim();
+        // If the agent is not already in our system, create a new partner object for it.
         if (!existingPartnerNames.has(agentName.toLowerCase())) {
-          // This agent is new, so we create and save it.
           const newAgent: Partner = {
-            id: 0, // ID will be assigned by the parent state handler
+            id: 0, // A temporary ID; a real one will be assigned when saving to state.
             name: agentName,
             nomeFantasia: agentName,
             type: 'Agente',
-            // Pre-fill with sensible defaults for a new agent
+            // Pre-fill with sensible defaults for a newly discovered agent.
             tipoAgente: { fcl: true, lcl: true, air: true, projects: false },
             profitAgreement: { amount: 50, unit: 'por_container' },
             paymentTerm: 30,
+            exchangeRateAgio: 0,
             address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
             contacts: [{ name: 'Contato Principal', email: 'tbc@tbc.com', phone: '000000000', departments: ['Comercial', 'Operacional'] }],
           };
           
-          handlePartnerSaved(newAgent); // This function is already defined and handles state update
-          
-          // Add the new agent to our temporary set to avoid creating it multiple times in this one batch
+          newAgents.push(newAgent);
+          // Add the new agent to our temporary set to avoid creating it multiple times in this single batch.
           existingPartnerNames.add(agentName.toLowerCase());
-          newAgentsCreated = true;
         }
       }
     });
 
-    if (newAgentsCreated) {
+    // If we found any new agents, update the partners state.
+    if (newAgents.length > 0) {
+      setPartners(prevPartners => {
+        let currentMaxId = Math.max(0, ...prevPartners.map(p => p.id));
+        const agentsWithIds = newAgents.map(agent => ({
+          ...agent,
+          id: ++currentMaxId,
+        }));
+        return [...prevPartners, ...agentsWithIds];
+      });
+
       toast({
         title: "Novos Agentes Cadastrados",
-        description: "Agentes identificados nas tarifas foram adicionados automaticamente ao seu cadastro de parceiros.",
+        description: `${newAgents.length} agente(s) foram adicionados automaticamente ao seu cadastro.`,
         className: 'bg-success text-success-foreground'
       });
     }
 
-    // Now, add the imported rates to the rates table state
-    const newRates = importedRates.map((rate, index) => ({
-      ...rate,
-      id: rates.length + index + 1, // Simple ID generation
-    }));
-    setRates(prevRates => [...prevRates, ...newRates]);
+    // Now, add the imported rates to the main rates table state.
+    setRates(prevRates => {
+        // Use Math.max to find the highest existing ID to prevent duplicates.
+        let currentMaxId = Math.max(0, ...prevRates.map(r => r.id));
+        const newRates = importedRates.map((rate) => ({
+          ...rate,
+          id: ++currentMaxId,
+        }));
+        return [...prevRates, ...newRates];
+    });
   };
 
 

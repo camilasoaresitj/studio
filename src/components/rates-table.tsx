@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableHeader,
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plane, Ship, Save, CheckCircle } from 'lucide-react';
+import { Plane, Ship, CheckCircle } from 'lucide-react';
 import { parse, isBefore, isValid } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -43,58 +43,39 @@ interface RatesTableProps {
 const maritimeContainerTypes = ["20'GP", "40'GP", "40'HC", "40'NOR"];
 
 const groupMaritimeRates = (rates: Rate[]) => {
-  const groups = new Map();
-  rates.forEach(rate => {
-    if (rate.modal !== 'Marítimo') return;
+    const groups = new Map<string, any>();
+    rates.forEach(rate => {
+        if (rate.modal !== 'Marítimo') return;
 
-    const groupKey = `${rate.origin}|${rate.destination}|${rate.carrier}`;
-    if (!groups.has(groupKey)) {
-      groups.set(groupKey, {
-        origin: rate.origin,
-        destination: rate.destination,
-        carrier: rate.carrier,
-        modal: rate.modal,
-        rates: {},
-      });
-    }
+        const groupKey = `${rate.origin}|${rate.destination}|${rate.carrier}`;
+        if (!groups.has(groupKey)) {
+            // Set group properties from the first rate encountered for this group
+            groups.set(groupKey, {
+                origin: rate.origin,
+                destination: rate.destination,
+                carrier: rate.carrier,
+                modal: rate.modal,
+                transitTime: rate.transitTime,
+                validity: rate.validity,
+                freeTime: rate.freeTime,
+                agent: rate.agent,
+                rates: {}, // Initialize the rates for each container type
+            });
+        }
+        
+        const group = groups.get(groupKey)!;
+        // Add the specific rate for the container type
+        group.rates[rate.container] = rate.rate;
+    });
 
-    const group = groups.get(groupKey);
-
-    // Overwrite with current rate's info to ensure consistency.
-    // This is safe because handleMaritimeGroupChange ensures all rates in a group have the same freeTime/agent after an edit.
-    group.transitTime = rate.transitTime;
-    group.validity = rate.validity;
-    group.freeTime = rate.freeTime;
-    group.agent = rate.agent;
-
-    group.rates[rate.container] = rate.rate;
-  });
-  return Array.from(groups.values());
+    return Array.from(groups.values());
 };
 
-export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }: RatesTableProps) {
+export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTableProps) {
   const [filters, setFilters] = useState({ origin: '', destination: '' });
   const [modalFilter, setModalFilter] = useState('Marítimo');
   const [showExpired, setShowExpired] = useState(false);
-  const [editableRates, setEditableRates] = useState<Rate[]>(initialRates);
   const { toast } = useToast();
-
-  useEffect(() => {
-    setEditableRates(initialRates);
-  }, [initialRates]);
-
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleSave = () => {
-    onRatesChange(editableRates);
-    toast({
-      title: 'Tarifas Salvas!',
-      description: 'As suas alterações na tabela de tarifas foram salvas com sucesso.',
-      className: 'bg-success text-success-foreground',
-    });
-  };
 
   const today = useMemo(() => {
     const d = new Date();
@@ -107,7 +88,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
   }
 
   const commonFilteredRates = useMemo(() => {
-     return editableRates.filter(rate => {
+     return rates.filter(rate => {
       if (!showExpired) {
         if (!rate.validity || !isValidDateString(rate.validity)) return true;
         try {
@@ -127,7 +108,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
       }
       return true;
     });
-  }, [filters, showExpired, today, editableRates]);
+  }, [filters, showExpired, today, rates]);
   
   const maritimeRates = useMemo(() => {
       const filtered = commonFilteredRates.filter(r => r.modal === 'Marítimo');
@@ -139,25 +120,23 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
   }, [commonFilteredRates]);
 
   const handleMaritimeGroupChange = (group: any, field: 'freeTime' | 'agent', value: string) => {
-      setEditableRates(prevRates => 
-          prevRates.map(rate => {
-              if (rate.modal === 'Marítimo' && rate.origin === group.origin && rate.destination === group.destination && rate.carrier === group.carrier) {
-                  return { ...rate, [field]: value };
-              }
-              return rate;
-          })
-      );
+      const newRates = rates.map(rate => {
+          if (rate.modal === 'Marítimo' && rate.origin === group.origin && rate.destination === group.destination && rate.carrier === group.carrier) {
+              return { ...rate, [field]: value };
+          }
+          return rate;
+      });
+      onRatesChange(newRates);
   };
 
   const handleAirRateChange = (rateId: number, field: 'freeTime' | 'agent', value: string) => {
-      setEditableRates(prevRates => 
-          prevRates.map(rate => {
-              if (rate.id === rateId) {
-                  return { ...rate, [field]: value };
-              }
-              return rate;
-          })
-      );
+      const newRates = rates.map(rate => {
+          if (rate.id === rateId) {
+              return { ...rate, [field]: value };
+          }
+          return rate;
+      });
+      onRatesChange(newRates);
   };
 
   return (
@@ -181,10 +160,6 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
                 <Switch id="show-expired" checked={showExpired} onCheckedChange={setShowExpired} />
                 <Label htmlFor="show-expired">Mostrar vencidas</Label>
             </div>
-            <Button onClick={handleSave}>
-                <Save className="mr-2 h-4 w-4" />
-                Salvar Alterações
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -193,7 +168,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" /> Tarifas Marítimas (FCL)</CardTitle>
-                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite o Free Time e o Agente e salve as alterações.</CardDescription>
+                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. As alterações são salvas automaticamente.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="border rounded-lg">
@@ -268,7 +243,7 @@ export function RatesTable({ rates: initialRates, onRatesChange, onSelectRate }:
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Plane className="h-5 w-5 text-primary" /> Tarifas Aéreas</CardTitle>
-                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. Edite o Free Time e o Agente e salve as alterações.</CardDescription>
+                <CardDescription>Clique no ícone (✔) para iniciar uma cotação. As alterações são salvas automaticamente.</CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="border rounded-lg">

@@ -26,11 +26,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit, Trash2, Search, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { runExtractPartnerInfo } from '@/app/actions';
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Nome do contato é obrigatório'),
@@ -94,6 +97,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const [filterNomeFantasia, setFilterNomeFantasia] = useState('');
   const [filterType, setFilterType] = useState('Todos');
   const { toast } = useToast();
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiAutofillText, setAiAutofillText] = useState('');
 
   const form = useForm<PartnerFormData>({
     resolver: zodResolver(partnerSchema),
@@ -113,7 +118,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "contacts",
   });
@@ -131,6 +136,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const handleOpenDialog = (partner: Partner | null) => {
     setEditingPartner(partner);
+    setAiAutofillText('');
     form.reset(partner ? partner : {
       name: '',
       nomeFantasia: '',
@@ -195,6 +201,28 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     } finally {
       setIsFetchingCnpj(false);
     }
+  };
+
+  const handleAiAutofill = async () => {
+    if (!aiAutofillText.trim()) {
+      toast({ variant: 'destructive', title: 'Nenhum texto para analisar' });
+      return;
+    }
+    setIsAiLoading(true);
+    const response = await runExtractPartnerInfo(aiAutofillText);
+    if (response.success) {
+      const { data } = response;
+      form.setValue('name', data.name);
+      form.setValue('cnpj', data.cnpj);
+      form.setValue('address', data.address);
+      if (data.contacts && data.contacts.length > 0) {
+        replace(data.contacts); 
+      }
+      toast({ title: 'Dados preenchidos com sucesso!', className: 'bg-success text-success-foreground' });
+    } else {
+      toast({ variant: 'destructive', title: 'Erro na análise', description: response.error });
+    }
+    setIsAiLoading(false);
   };
 
   const getPartnerTypeVariant = (type: Partner['type']): 'default' | 'secondary' | 'outline' => {
@@ -282,6 +310,20 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+              <div>
+                  <Label>Autofill com IA</Label>
+                  <Textarea
+                      placeholder="Cole aqui a assinatura de e-mail ou os dados de contato do parceiro..."
+                      value={aiAutofillText}
+                      onChange={(e) => setAiAutofillText(e.target.value)}
+                      className="mt-1"
+                  />
+                  <Button type="button" variant="secondary" onClick={handleAiAutofill} disabled={isAiLoading} className="mt-2">
+                      {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4"/>}
+                      Preencher com IA
+                  </Button>
+              </div>
+              <Separator/>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField control={form.control} name="cnpj" render={({ field }) => (
                   <FormItem className="md:col-span-2">
@@ -463,7 +505,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
               <Separator className="my-4" />
               <div className="flex justify-between items-center">
                 <h4 className="text-md font-semibold">Contatos</h4>
-                <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', department: 'Comercial', department: 'Outro' })}>
+                <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', department: 'Comercial' })}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contato
                 </Button>
               </div>

@@ -220,6 +220,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                             <TableHead>Transportadora</TableHead>
                             <TableHead>Tarifa</TableHead>
                             <TableHead>Contêiner</TableHead>
+                            <TableHead>Transit Time</TableHead>
                             <TableHead>Validade</TableHead>
                         </TableRow>
                         </TableHeader>
@@ -237,6 +238,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                             <TableCell className="font-medium">{rate.carrier}</TableCell>
                             <TableCell className="font-semibold text-primary">{rate.rate}</TableCell>
                             <TableCell>{rate.container}</TableCell>
+                            <TableCell>{rate.transitTime}</TableCell>
                             <TableCell>{rate.validity}</TableCell>
                             </TableRow>
                         ))}

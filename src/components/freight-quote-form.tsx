@@ -365,6 +365,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
  const calculateCharges = (rate: FreightRate | null) => {
     const values = form.getValues();
+    const customer = partners.find(p => p.id.toString() === values.customerId);
     const originIsBR = (rate?.origin || values.origin).toUpperCase().includes('BR');
     const destinationIsBR = (rate?.destination || values.destination).toUpperCase().includes('BR');
     
@@ -380,10 +381,13 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     const charges: QuoteCharge[] = [];
 
     if (rate) {
+        let calculatedFreightCost: number;
+        let freightChargeType: string;
+        let freightCurrency: 'BRL' | 'USD' = rate.cost.includes('R$') ? 'BRL' : 'USD';
+        
         if (values.modal === 'air') {
             const ratePerKg = rate.costValue;
-            const volumetricFactor = 6000; // Standard IATA volumetric factor (cm³/kg)
-            
+            const volumetricFactor = 6000;
             let totalGrossWeight = 0;
             let totalVolumetricWeight = 0;
 
@@ -394,44 +398,33 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             });
 
             const chargeableWeight = Math.max(totalGrossWeight, totalVolumetricWeight);
-            
-            // In a real scenario, MIN charges might be part of the rate data.
-            // Here, we simulate it with a default or a value from a generic "Frete Aéreo" fee.
-            const airFreightFee = fees.find(f => f.name.toLowerCase().includes('frete aéreo') && (f.direction === direction || f.direction === 'Ambos'));
-            const minCharge = airFreightFee?.minValue ?? 150; // Defaulting to 150 of the rate's currency if not found.
+            const airFreightFee = fees.find(f => f.name.toUpperCase().includes('FRETE AÉREO') && (f.direction === direction || f.direction === 'Ambos'));
+            const minCharge = airFreightFee?.minValue ?? 150;
 
-            let calculatedCost = chargeableWeight * ratePerKg;
-            let chargeTypeDescription = `Por ${chargeableWeight.toFixed(2)} kg taxado`;
+            calculatedFreightCost = chargeableWeight * ratePerKg;
+            freightChargeType = `Por ${chargeableWeight.toFixed(2)} kg taxado`;
 
-            if (calculatedCost < minCharge) {
-                calculatedCost = minCharge;
-                chargeTypeDescription = `Mínimo (${chargeableWeight.toFixed(2)} kg)`
+            if (calculatedFreightCost < minCharge) {
+                calculatedFreightCost = minCharge;
+                freightChargeType = `Mínimo (${chargeableWeight.toFixed(2)} kg)`;
             }
-            
-            const currency = rate.cost.includes('R$') ? 'BRL' : 'USD';
-
-            charges.push({
-                id: `freight-${rate.id}`,
-                name: 'Frete Internacional Aéreo',
-                type: chargeTypeDescription,
-                cost: calculatedCost,
-                costCurrency: currency,
-                sale: calculatedCost, // Sale price logic can be more complex
-                saleCurrency: currency,
-                supplier: rate.carrier,
-            });
-        } else { // Ocean freight
-            charges.push({
-              id: `freight-${rate.id}`,
-              name: 'Frete Internacional',
-              type: 'Por Lote',
-              cost: rate.costValue,
-              costCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
-              sale: rate.costValue,
-              saleCurrency: rate.cost.includes('R$') ? 'BRL' : 'USD',
-              supplier: rate.carrier,
-            });
+        } else { // Ocean
+            calculatedFreightCost = rate.costValue;
+            freightChargeType = 'Por Lote';
         }
+
+        charges.push({
+            id: `freight-${rate.id}`,
+            name: 'FRETE INTERNACIONAL',
+            type: freightChargeType,
+            cost: calculatedFreightCost,
+            costCurrency: freightCurrency,
+            sale: calculatedFreightCost,
+            saleCurrency: freightCurrency,
+            supplier: rate.carrier,
+            sacado: customer?.name,
+            localPagamento: 'Frete',
+        });
     }
     
     const relevantFees = fees.filter(fee => {
@@ -440,10 +433,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       const chargeTypeMatch = !fee.chargeType || fee.chargeType === chargeType;
       
       const isOptionalSelected = 
-        (fee.name.toLowerCase().includes('despacho') && values.optionalServices.customsClearance) ||
-        (fee.name.toLowerCase().includes('seguro') && values.optionalServices.insurance) ||
-        (fee.name.toLowerCase().includes('trading') && values.optionalServices.trading) ||
-        (fee.name.toLowerCase().includes('redestina') && values.optionalServices.redestinacao);
+        (fee.name.toUpperCase().includes('DESPACHO') && values.optionalServices.customsClearance) ||
+        (fee.name.toUpperCase().includes('SEGURO') && values.optionalServices.insurance) ||
+        (fee.name.toUpperCase().includes('TRADING') && values.optionalServices.trading) ||
+        (fee.name.toUpperCase().includes('REDESTINA') && values.optionalServices.redestinacao);
 
       return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected)
     });
@@ -464,21 +457,35 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           const totalContainers = values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0);
           feeValue = (parseFloat(fee.value) || 0) * totalContainers;
           feeType = `${totalContainers} x ${fee.unit}`;
-      } else if (values.optionalServices.insurance && fee.name.toLowerCase().includes('seguro')) {
+      } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
           feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
           feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
       }
 
+      let localPagamento: 'Origem' | 'Frete' | 'Destino' = 'Frete';
+      const feeNameUpper = fee.name.toUpperCase();
+      if (feeNameUpper.includes('FRETE')) {
+          localPagamento = 'Frete';
+      } else if (direction === 'Importação' && (fee.direction === 'Importação' || fee.direction === 'Ambos')) {
+          localPagamento = 'Destino';
+      } else if (direction === 'Exportação' && (fee.direction === 'Exportação' || fee.direction === 'Ambos')) {
+          localPagamento = 'Origem';
+      }
+      if (fee.type === 'Opcional') {
+          localPagamento = 'Frete';
+      }
 
       charges.push({
         id: `fee-${fee.id}`,
-        name: fee.name,
+        name: fee.name.toUpperCase(),
         type: feeType,
         cost: feeValue,
         costCurrency: fee.currency,
         sale: feeValue,
         saleCurrency: fee.currency,
         supplier: 'CargaInteligente',
+        sacado: customer?.name,
+        localPagamento,
       });
     });
 
@@ -789,7 +796,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             </CardHeader>
             <CardContent>
                 <div>
-                    <QuoteCostSheet quote={activeQuote} onUpdate={handleUpdateQuote} />
+                    <QuoteCostSheet quote={activeQuote} partners={partners} onUpdate={handleUpdateQuote} />
                 </div>
                 <Separator className="my-6"/>
                 <div className="flex flex-col sm:flex-row gap-2 mt-6 justify-end">

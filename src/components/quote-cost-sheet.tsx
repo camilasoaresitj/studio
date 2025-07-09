@@ -14,37 +14,39 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Separator } from './ui/separator';
 import { Trash2 } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
+import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
 
 const quoteChargeSchema = z.object({
   id: z.string(),
   name: z.string(),
   type: z.string(),
+  localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
   cost: z.coerce.number().default(0),
   costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
   sale: z.coerce.number().default(0),
   saleCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
   supplier: z.string(),
-});
-
-const quoteCostSheetSchema = z.object({
-  charges: z.array(quoteChargeSchema),
+  sacado: z.string().optional(),
 });
 
 type QuoteCostSheetFormData = z.infer<typeof quoteCostSheetSchema>;
 
 interface QuoteCostSheetProps {
   quote: Quote;
+  partners: Partner[];
   onUpdate: (data: QuoteCostSheetFormData) => void;
 }
 
-export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
+export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProps) {
   const form = useForm<QuoteCostSheetFormData>({
     resolver: zodResolver(quoteCostSheetSchema),
     defaultValues: {
       charges: [],
     },
   });
+
+  const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
 
   React.useEffect(() => {
     form.reset({ charges: quote.charges });
@@ -102,14 +104,16 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
             <Table>
               <TableHeader className="sticky top-0 bg-secondary z-10">
                 <TableRow>
-                  <TableHead className="w-[20%]">Taxa</TableHead>
+                  <TableHead className="w-[15%]">Taxa</TableHead>
                   <TableHead>Tipo Cobrança</TableHead>
+                  <TableHead>Local Pagamento</TableHead>
                   <TableHead>Moeda Compra</TableHead>
                   <TableHead>Compra</TableHead>
                   <TableHead>Moeda Venda</TableHead>
                   <TableHead>Venda</TableHead>
                   <TableHead>Lucro</TableHead>
                   <TableHead>Fornecedor</TableHead>
+                  <TableHead>Sacado</TableHead>
                   <TableHead>Ação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -125,6 +129,18 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
                     <TableRow key={field.id}>
                       <TableCell>{charge.name}</TableCell>
                       <TableCell>{charge.type}</TableCell>
+                      <TableCell>
+                        <FormField control={form.control} name={`charges.${index}.localPagamento`} render={({ field }) => (
+                           <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Origem">Origem</SelectItem>
+                                <SelectItem value="Frete">Frete</SelectItem>
+                                <SelectItem value="Destino">Destino</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )} />
+                      </TableCell>
                       <TableCell>
                         <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                            <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -172,6 +188,18 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
                          <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
                            <Input {...field} />
                          )} />
+                       </TableCell>
+                       <TableCell>
+                        <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value || quote.customer}>
+                                <SelectTrigger className="w-40"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                <SelectContent>
+                                    {clientPartners.map(p => (
+                                      <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )} />
                        </TableCell>
                        <TableCell>
                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>

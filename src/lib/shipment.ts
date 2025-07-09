@@ -12,11 +12,13 @@ export type QuoteCharge = {
   id: string;
   name: string;
   type: string;
+  localPagamento?: 'Origem' | 'Frete' | 'Destino';
   cost: number;
   costCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   sale: number;
   saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   supplier: string;
+  sacado?: string;
 };
 
 export type QuoteDetails = {

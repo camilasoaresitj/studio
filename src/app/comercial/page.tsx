@@ -59,10 +59,10 @@ const initialQuotesData: Quote[] = [
     date: '15/07/2024',
     details: { cargo: '1x20GP', transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias', incoterm: 'FOB' },
     charges: [
-        { id: 'charge-1', name: 'Frete Marítimo', type: 'Por Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line' },
-        { id: 'charge-2', name: 'THC', type: 'Por Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã' },
-        { id: 'charge-3', name: 'BL Fee', type: 'Por BL', cost: 500, costCurrency: 'BRL', sale: 600, saleCurrency: 'BRL', supplier: 'CargaInteligente' },
-        { id: 'charge-4', name: 'Despacho Aduaneiro', type: 'Por Processo', cost: 800, costCurrency: 'BRL', sale: 1000, saleCurrency: 'BRL', supplier: 'CargaInteligente' },
+        { id: 'charge-1', name: 'FRETE MARÍTIMO', type: 'Por Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line', sacado: 'Nexus Imports', localPagamento: 'Frete' },
+        { id: 'charge-2', name: 'THC', type: 'Por Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã', sacado: 'Nexus Imports', localPagamento: 'Origem' },
+        { id: 'charge-3', name: 'BL FEE', type: 'Por BL', cost: 500, costCurrency: 'BRL', sale: 600, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', localPagamento: 'Origem' },
+        { id: 'charge-4', name: 'DESPACHO ADUANEIRO', type: 'Por Processo', cost: 800, costCurrency: 'BRL', sale: 1000, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', localPagamento: 'Origem' },
     ]
   },
   { 
@@ -74,8 +74,8 @@ const initialQuotesData: Quote[] = [
     date: '14/07/2024', 
     details: { cargo: '500kg', transitTime: '1 dia', validity: '31/10/2024', freeTime: 'N/A', incoterm: 'FCA' },
     charges: [
-        { id: 'charge-5', name: 'Frete Aéreo', type: 'Por KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo' },
-        { id: 'charge-6', name: 'Handling Fee', type: 'Por AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA' },
+        { id: 'charge-5', name: 'FRETE AÉREO', type: 'Por KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo', sacado: 'TechFront Solutions', localPagamento: 'Frete' },
+        { id: 'charge-6', name: 'HANDLING FEE', type: 'Por AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA', sacado: 'TechFront Solutions', localPagamento: 'Origem' },
     ]
   },
   { id: 'COT-00123', customer: 'Global Foods Ltda', origin: 'Paranaguá, BR', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', details: { cargo: '1x40HC', transitTime: '35-40 dias', validity: '31/12/2024', freeTime: '7 dias', incoterm: 'CFR' }, charges: [] },
@@ -151,31 +151,31 @@ const initialPartnersData: Partner[] = [
 const initialFeesData: Fee[] = [
     // Importação Marítima FCL
     { id: 1, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-    { id: 2, name: 'BL Fee', value: '600', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 2, name: 'BL FEE', value: '600', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
     { id: 3, name: 'ISPS', value: '35', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-    { id: 4, name: 'Desconsolidação', value: '150', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 4, name: 'DESCONSOLIDAÇÃO', value: '150', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
     { id: 20, name: 'IMPORT FEE (DEV CTNR)', value: '35', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL'},
     { id: 21, name: 'LOGISTIC FEE', value: '55', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL'},
     { id: 22, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL'},
     
     // Importação Marítima LCL
     { id: 5, name: 'THC', value: '50', currency: 'BRL', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
-    { id: 6, name: 'Desova', value: '50', currency: 'BRL', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
-    { id: 7, name: 'BL Fee', value: '200', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL' },
-    { id: 23, name: 'Desconsolidação', value: '100', currency: 'USD', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
+    { id: 6, name: 'DESOVA', value: '50', currency: 'BRL', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
+    { id: 7, name: 'BL FEE', value: '200', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL' },
+    { id: 23, name: 'DESCONSOLIDAÇÃO', value: '100', currency: 'USD', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
     { id: 24, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
     { id: 25, name: 'ISPS', value: '10', currency: 'USD', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
 
     // Exportação Marítima FCL
     { id: 8, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-    { id: 9, name: 'BL Fee', value: '600', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-    { id: 10, name: 'Lacre', value: '20', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 9, name: 'BL FEE', value: '600', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 10, name: 'LACRE', value: '20', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
     { id: 11, name: 'VGM', value: '20', currency: 'USD', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
     { id: 26, name: 'ISPS', value: '35', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
     
     // Importação Aérea
-    { id: 12, name: 'Desconsolidação', value: '80', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Importação' },
-    { id: 13, name: 'Collect Fee', value: '3', currency: 'USD', type: 'Percentual', unit: 'Sobre o Frete', modal: 'Aéreo', direction: 'Importação', minValue: 15 },
+    { id: 12, name: 'DESCONSOLIDAÇÃO', value: '80', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Importação' },
+    { id: 13, name: 'COLLECT FEE', value: '3', currency: 'USD', type: 'Percentual', unit: 'Sobre o Frete', modal: 'Aéreo', direction: 'Importação', minValue: 15 },
     { id: 27, name: 'DELIVERY', value: '45', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Importação' },
 
     // Exportação Aérea
@@ -185,9 +185,9 @@ const initialFeesData: Fee[] = [
     { id: 31, name: 'CUSTOMS CLEARANCE', value: '50', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Exportação' },
 
     // Serviços Opcionais
-    { id: 14, name: 'Despacho Aduaneiro', value: '1000', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Ambos', direction: 'Ambos' },
-    { id: 15, name: 'Seguro Internacional', value: '0.3', currency: 'BRL', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos' },
-    { id: 32, name: 'Redestinação de Carga', value: '1200', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Marítimo', direction: 'Importação' },
+    { id: 14, name: 'DESPACHO ADUANEIRO', value: '1000', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Ambos', direction: 'Ambos' },
+    { id: 15, name: 'SEGURO INTERNACIONAL', value: '0.3', currency: 'BRL', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos' },
+    { id: 32, name: 'REDESTINAÇÃO DE CARGA', value: '1200', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Marítimo', direction: 'Importação' },
 ];
 
 

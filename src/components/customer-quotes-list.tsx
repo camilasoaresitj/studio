@@ -30,11 +30,13 @@ export type QuoteCharge = {
   id: string;
   name: string;
   type: string;
+  localPagamento?: 'Origem' | 'Frete' | 'Destino';
   cost: number;
   costCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   sale: number;
   saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   supplier: string;
+  sacado?: string;
 };
 
 export type QuoteDetails = {
@@ -363,7 +365,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                             Gerencie os custos, receitas e lucro desta cotação. Status: <Badge variant={getStatusVariant(selectedQuote.status)} className="text-xs">{selectedQuote.status}</Badge>
                         </DialogDescription>
                     </DialogHeader>
-                    <QuoteCostSheet quote={selectedQuote} onUpdate={handleUpdateQuote} />
+                    <QuoteCostSheet quote={selectedQuote} partners={partners} onUpdate={handleUpdateQuote} />
                 </>
             )}
         </DialogContent>

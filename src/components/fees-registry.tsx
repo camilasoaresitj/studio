@@ -96,8 +96,10 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
   };
 
   const onSubmit = (data: FeeFormData) => {
+    const feeNameToSave = data.name.toUpperCase();
     onSave({
       ...data,
+      name: feeNameToSave,
       id: editingFee?.id ?? 0,
       chargeType: data.chargeType === 'NONE' ? undefined : data.chargeType as Fee['chargeType'],
     });
@@ -105,7 +107,7 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
     setEditingFee(null);
     toast({
       title: `Taxa ${editingFee ? 'atualizada' : 'adicionada'}!`,
-      description: `A taxa "${data.name}" foi salva com sucesso.`,
+      description: `A taxa "${feeNameToSave}" foi salva com sucesso.`,
       className: 'bg-success text-success-foreground'
     });
   };

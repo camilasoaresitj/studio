@@ -52,6 +52,8 @@ const groupMaritimeRates = (rates: Rate[]) => {
         
         if (!groups.has(groupKey)) {
             // If the group doesn't exist, create it with data from the current rate.
+            // Since all rates in a group should have the same common data after an edit,
+            // we can safely take the values from the first rate we encounter.
             groups.set(groupKey, {
                 origin: rate.origin,
                 destination: rate.destination,
@@ -59,16 +61,13 @@ const groupMaritimeRates = (rates: Rate[]) => {
                 modal: rate.modal,
                 transitTime: rate.transitTime,
                 validity: rate.validity,
+                freeTime: rate.freeTime,
+                agent: rate.agent,
                 rates: {},
             });
         }
         
         const group = groups.get(groupKey)!;
-        
-        // Crucially, update these fields for every rate in the group.
-        // Since the update handler ensures consistency, this correctly reflects the latest state.
-        group.freeTime = rate.freeTime; 
-        group.agent = rate.agent;
         
         if (rate.container) {
             group.rates[rate.container] = rate.rate;
@@ -339,7 +338,5 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
       )}
     </div>
   );
-
-    
 
     

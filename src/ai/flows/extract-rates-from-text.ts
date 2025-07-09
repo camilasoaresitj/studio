@@ -22,7 +22,7 @@ const AgentContactSchema = z.object({
   phone: z.string().describe("The agent's contact person's phone number."),
 });
 
-// Final, strict schema for the flow's output. All fields are mandatory.
+// Final, strict schema for a single rate object after processing.
 const ParsedRateSchema = z.object({
   origin: z.string().describe('The standardized origin location (e.g., "Santos, BR").'),
   destination: z.string().describe('The standardized destination location (e.g., "Roterdã, NL").'),
@@ -36,10 +36,13 @@ const ParsedRateSchema = z.object({
   agent: z.string().describe('The agent who provided the rate (e.g., "Global Logistics Agents").'),
   agentContact: AgentContactSchema.describe("The contact person for the agent, if mentioned in the text.").optional(),
 });
+
+// The final output of the flow is an array of these parsed rates.
+const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
 export type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutputSchema>;
 
 
-// A more lenient schema for the AI prompt. The AI will extract what it can,
+// A more lenient schema for the AI prompt's output. The AI will extract what it can,
 // and we will clean up the data in the code.
 const PartialRateSchemaForPrompt = z.object({
     origin: z.string().describe('The standardized origin location (e.g., "Santos, BR").').optional(),
@@ -69,15 +72,13 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 
 **Core Extraction Rules:**
 - Each object in the array represents ONE rate for ONE container type.
-- Extract as much information as you can for each rate. If some information is not present, you can omit the field from the JSON object for that rate.
-- **Agent Contact:** This is a critical rule. You MUST only generate the \`agentContact\` object if the text explicitly contains all three of the following pieces of information for a specific contact person: a full name, an email address, and a phone number. If even one of these three is missing for a contact, you **MUST OMIT the \`agentContact\` object and key entirely** for that rate's JSON object. Do not generate a partial or empty \`agentContact\` object under any circumstances.
+- Extract as much information as you can for each rate. If a field is not present, you can omit it.
+- **Agent Contact:** You MUST only generate the \`agentContact\` object if the text explicitly contains all three of the following pieces of information for a specific contact person: a full name, an email address, AND a phone number. If even one of these three is missing for a contact, you **MUST OMIT the \`agentContact\` object and key entirely** for that rate's JSON object. Do not generate a partial or empty \`agentContact\` object under any circumstances.
 - If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), create separate objects for 20'GP, 40'GP, and 40'HC.
 
 **Data Formatting Rules:**
 - **Location Standardization:** You MUST normalize all location names to their standardized name (e.g., "Santos" -> "Santos, BR"; "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN"; "Guarulhos" -> "Aeroporto de Guarulhos, BR").
 - **Multi-Port Rule:** If a rate is valid for multiple origins or destinations (e.g., "BR base ports", "Santos/Itapoa"), you MUST create separate, identical rate objects for EACH individual location. "BR base ports" refers to: Santos, Itapoá, Navegantes, Paranaguá, Rio Grande.
-
-**Final Check Rule:** Before finishing, review your generated JSON. Every single object in the array MUST be a complete JSON object. If the last object is incomplete or cut-off, DELETE IT. It is better to return fewer, complete rates than to return an invalid full list. If no valid rates can be extracted, return an empty array: \`[]\`.
 
 Analyze the following text and extract the rates:
 {{{textInput}}}
@@ -105,7 +106,7 @@ const extractRatesFromTextFlow = ai.defineFlow(
     const completeRates = output
       .map(partialRate => {
         // Filter out completely useless objects that don't have the bare minimum of information.
-        if (!partialRate.rate || (!partialRate.origin && !partialRate.destination)) {
+        if (!partialRate.rate || !partialRate.modal || (!partialRate.origin && !partialRate.destination)) {
           return null;
         }
 
@@ -114,7 +115,7 @@ const extractRatesFromTextFlow = ai.defineFlow(
           origin: partialRate.origin || 'N/A',
           destination: partialRate.destination || 'N/A',
           rate: partialRate.rate, // We've confirmed this exists.
-          modal: partialRate.modal || 'Marítimo', // Default to most common
+          modal: partialRate.modal, // We've confirmed this exists.
           carrier: partialRate.carrier || 'N/A',
           transitTime: partialRate.transitTime || 'N/A',
           container: partialRate.container || 'N/A',

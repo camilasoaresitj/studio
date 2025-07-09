@@ -49,7 +49,9 @@ const groupMaritimeRates = (rates: Rate[]) => {
         if (rate.modal !== 'Marítimo') return;
 
         const groupKey = `${rate.origin}|${rate.destination}|${rate.carrier}`;
+        
         if (!groups.has(groupKey)) {
+            // If the group doesn't exist, create it with data from the current rate.
             groups.set(groupKey, {
                 origin: rate.origin,
                 destination: rate.destination,
@@ -57,20 +59,20 @@ const groupMaritimeRates = (rates: Rate[]) => {
                 modal: rate.modal,
                 transitTime: rate.transitTime,
                 validity: rate.validity,
-                freeTime: rate.freeTime, 
-                agent: rate.agent,
                 rates: {},
             });
         }
         
         const group = groups.get(groupKey)!;
         
+        // Crucially, update these fields for every rate in the group.
+        // Since the update handler ensures consistency, this correctly reflects the latest state.
+        group.freeTime = rate.freeTime; 
+        group.agent = rate.agent;
+        
         if (rate.container) {
             group.rates[rate.container] = rate.rate;
         }
-
-        group.freeTime = rate.freeTime;
-        group.agent = rate.agent;
     });
 
     return Array.from(groups.values());
@@ -337,5 +339,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
       )}
     </div>
   );
+
+    
 
     

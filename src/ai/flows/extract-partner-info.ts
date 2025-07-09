@@ -10,11 +10,13 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
+const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
+
 const ContactSchema = z.object({
   name: z.string().describe('The full name of the contact person.'),
   email: z.string().email().describe('The email address of the contact.'),
   phone: z.string().describe('The phone number of the contact.'),
-  department: z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']).describe('The department of the contact. Infer if possible, otherwise use "Outro".'),
+  departments: z.array(departmentEnum).describe('A list of departments for the contact. Infer if possible, otherwise use "Outro".'),
 });
 
 const AddressSchema = z.object({
@@ -55,14 +57,15 @@ const extractPartnerInfoPrompt = ai.definePrompt({
 **Extraction Rules:**
 - Carefully parse the text to identify the company name, address details, and one or more contacts.
 - For each contact, you must find a name, email, and phone number.
+- A contact can be associated with multiple departments. Extract all relevant departments into the 'departments' array. Valid departments are: 'Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'.
 - For the address, extract all available components (street, city, country, etc.).
-- If a piece of information is not available in the text, return an empty string "" for that field. Do not use "N/A" or "unknown".
+- If a piece of information is not available in the text, return an empty string "" for that field, or an empty array [] for lists. Do not use "N/A" or "unknown".
 - Be precise. Extract the information exactly as it is written, but place it in the correct field.
 
 **Example Input Text:**
 "Please use our shipper:
 Global Exports LLC
-Attn: John Smith (Export Dept)
+Attn: John Smith (Export & Operations Dept)
 123 Global Way, Suite 500, Miami, FL, 33132, USA
 Phone: +1 (305) 555-1234, Email: john.s@globalexports.com"
 
@@ -86,7 +89,7 @@ Phone: +1 (305) 555-1234, Email: john.s@globalexports.com"
       "name": "John Smith",
       "email": "john.s@globalexports.com",
       "phone": "+1 (305) 555-1234",
-      "department": "Exportação"
+      "departments": ["Exportação", "Operacional"]
     }
   ]
 }

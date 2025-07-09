@@ -34,12 +34,16 @@ import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { runExtractPartnerInfo } from '@/app/actions';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+
+const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
+const departmentsArray = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Nome do contato é obrigatório'),
   email: z.string().email('E-mail inválido'),
   phone: z.string().min(10, 'Telefone inválido'),
-  department: z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']),
+  departments: z.array(departmentEnum).min(1, 'Selecione pelo menos um departamento'),
 });
 
 const partnerSchema = z.object({
@@ -47,10 +51,12 @@ const partnerSchema = z.object({
   nomeFantasia: z.string().optional(),
   type: z.enum(['Cliente', 'Fornecedor', 'Agente']),
   cnpj: z.string().optional(),
+  vat: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
   exchangeRateAgio: z.coerce.number().optional(),
   
   // Cliente specific
+  customerCategory: z.enum(['Nacional', 'Exterior']).optional(),
   limiteCredito: z.coerce.number().optional(),
   tipoCliente: z.object({
     importacao: z.boolean().default(false),
@@ -58,6 +64,10 @@ const partnerSchema = z.object({
   }).optional(),
 
   // Agente specific
+  profitAgreement: z.object({
+    amount: z.coerce.number().optional(),
+    unit: z.enum(['por_container', 'por_bl', 'por_kilo']).optional(),
+  }).optional(),
   tipoAgente: z.object({
     fcl: z.boolean().default(false),
     lcl: z.boolean().default(false),
@@ -110,14 +120,17 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       nomeFantasia: '',
       type: 'Cliente',
       cnpj: '',
+      vat: '',
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
+      customerCategory: 'Nacional',
       limiteCredito: undefined,
       tipoCliente: { importacao: false, exportacao: false },
+      profitAgreement: { amount: undefined, unit: 'por_container' },
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       tipoFornecedor: '',
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
-      contacts: [{ name: '', email: '', phone: '', department: 'Comercial' }],
+      contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
     },
   });
 
@@ -127,6 +140,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   });
   
   const partnerType = form.watch('type');
+  const customerCategory = form.watch('customerCategory');
 
   const filteredPartners = useMemo(() => {
     return partners.filter(partner => {
@@ -165,14 +179,17 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       nomeFantasia: '',
       type: 'Cliente',
       cnpj: '',
+      vat: '',
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
+      customerCategory: 'Nacional',
       limiteCredito: undefined,
       tipoCliente: { importacao: false, exportacao: false },
+      profitAgreement: { amount: undefined, unit: 'por_container' },
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       tipoFornecedor: '',
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
-      contacts: [{ name: '', email: '', phone: '', department: 'Comercial' }],
+      contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
     });
     setIsDialogOpen(true);
   };
@@ -335,7 +352,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
             </TableHeader>
             <TableBody>
               {filteredPartners.map((partner) => {
-                const primaryContact = partner.contacts.find(c => c.department === 'Comercial') || partner.contacts[0];
+                const primaryContact = partner.contacts.find(c => c.departments?.includes('Comercial')) || partner.contacts[0];
                 return (
                   <TableRow key={partner.id}>
                     <TableCell className="font-medium">{partner.name}</TableCell>
@@ -390,24 +407,10 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                   </Button>
               </div>
               <Separator/>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField control={form.control} name="cnpj" render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>CNPJ (Opcional)</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input placeholder="00.000.000/0000-00" {...field} value={field.value ?? ''} />
-                      </FormControl>
-                      <Button type="button" onClick={handleFetchCnpj} disabled={isFetchingCnpj}>
-                        {isFetchingCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                 )} />
-                <FormField control={form.control} name="type" render={({ field }) => (
+              
+              <FormField control={form.control} name="type" render={({ field }) => (
                   <FormItem>
-                      <FormLabel>Tipo</FormLabel>
+                      <FormLabel>Tipo de Parceiro</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
@@ -419,7 +422,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                       <FormMessage />
                   </FormItem>
                 )} />
-              </div>
+
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nome / Razão Social</FormLabel>
@@ -439,6 +442,44 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                 <Card className="bg-muted/30">
                   <CardHeader><CardTitle className="text-base">Detalhes do Cliente</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
+                    <FormField control={form.control} name="customerCategory" render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel>Categoria do Cliente</FormLabel>
+                        <FormControl>
+                          <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                              <FormControl><RadioGroupItem value="Nacional" /></FormControl>
+                              <FormLabel className="font-normal">Nacional</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                              <FormControl><RadioGroupItem value="Exterior" /></FormControl>
+                              <FormLabel className="font-normal">Empresa no Exterior</FormLabel>
+                            </FormItem>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    {customerCategory === 'Nacional' ? (
+                       <FormField control={form.control} name="cnpj" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CNPJ</FormLabel>
+                          <div className="flex gap-2">
+                            <FormControl><Input placeholder="00.000.000/0000-00" {...field} value={field.value ?? ''} /></FormControl>
+                            <Button type="button" onClick={handleFetchCnpj} disabled={isFetchingCnpj}>
+                              {isFetchingCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                       )} />
+                    ) : (
+                      <FormField control={form.control} name="vat" render={({ field }) => (
+                          <FormItem><FormLabel>VAT Number (Opcional)</FormLabel><FormControl><Input placeholder="VAT Number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                    )}
+                   
                     <FormField control={form.control} name="limiteCredito" render={({ field }) => (
                         <FormItem><FormLabel>Limite de Crédito (R$)</FormLabel>
                             <FormControl><Input type="number" placeholder="50000" {...field} value={field.value ?? ''}/></FormControl>
@@ -469,7 +510,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
               {partnerType === 'Agente' && (
                   <Card className="bg-muted/30">
                       <CardHeader><CardTitle className="text-base">Detalhes do Agente</CardTitle></CardHeader>
-                      <CardContent>
+                      <CardContent className="space-y-4">
                           <FormItem>
                               <FormLabel>Tipo de Agente</FormLabel>
                               <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-2">
@@ -487,6 +528,26 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                                   )}/>
                               </div>
                           </FormItem>
+                          <Separator/>
+                          <Label>Acordo de Profit</Label>
+                          <div className="grid grid-cols-2 gap-4">
+                              <FormField control={form.control} name="profitAgreement.amount" render={({ field }) => (
+                                  <FormItem><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" placeholder="50" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                              )}/>
+                              <FormField control={form.control} name="profitAgreement.unit" render={({ field }) => (
+                                  <FormItem><FormLabel>Unidade</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="por_container">Por Contêiner</SelectItem>
+                                            <SelectItem value="por_bl">Por BL</SelectItem>
+                                            <SelectItem value="por_kilo">Por Kilo</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                              )}/>
+                          </div>
                       </CardContent>
                   </Card>
               )}
@@ -571,7 +632,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
               <Separator className="my-4" />
               <div className="flex justify-between items-center">
                 <h4 className="text-md font-semibold">Contatos</h4>
-                <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', department: 'Comercial' })}>
+                <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', departments: ['Comercial'] })}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contato
                 </Button>
               </div>
@@ -593,19 +654,34 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         <FormItem><FormLabel>WhatsApp</FormLabel><FormControl><Input placeholder="11999998888" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                     </div>
-                    <FormField control={form.control} name={`contacts.${index}.department`} render={({ field }) => (
-                      <FormItem><FormLabel>Departamento</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                          <SelectContent>
-                              <SelectItem value="Comercial">Comercial</SelectItem>
-                              <SelectItem value="Operacional">Operacional</SelectItem>
-                              <SelectItem value="Financeiro">Financeiro</SelectItem>
-                              <SelectItem value="Importação">Importação</SelectItem>
-                              <SelectItem value="Exportação">Exportação</SelectItem>
-                              <SelectItem value="Outro">Outro</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    <FormField control={form.control} name={`contacts.${index}.departments`} render={() => (
+                      <FormItem>
+                          <FormLabel>Departamentos</FormLabel>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                            {departmentsArray.map((item) => (
+                              <FormField
+                                key={item}
+                                control={form.control}
+                                name={`contacts.${index}.departments`}
+                                render={({ field }) => (
+                                  <FormItem key={item} className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(item)}
+                                        onCheckedChange={(checked) => {
+                                          const currentValue = field.value || [];
+                                          return checked
+                                            ? field.onChange([...currentValue, item])
+                                            : field.onChange(currentValue.filter((value) => value !== item));
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal">{item}</FormLabel>
+                                  </FormItem>
+                                )}
+                              />
+                            ))}
+                          </div>
                         <FormMessage />
                       </FormItem>
                     )} />

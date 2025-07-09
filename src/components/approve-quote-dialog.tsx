@@ -30,13 +30,18 @@ import { cn } from '@/lib/utils';
 import type { Partner } from './partners-registry';
 import type { Quote } from './customer-quotes-list';
 import { Label } from './ui/label';
+import { Checkbox } from './ui/checkbox';
+
+const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
+const departmentsArray = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Nome do contato é obrigatório'),
   email: z.string().email('E-mail inválido'),
   phone: z.string().min(10, 'Telefone inválido'),
-  department: z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']),
+  departments: z.array(departmentEnum).min(1, 'Selecione pelo menos um departamento'),
 });
+
 
 const partnerSchema = z.object({
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
@@ -104,7 +109,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
-      contacts: [{ name: '', email: '', phone: '', department: 'Operacional' }],
+      contacts: [{ name: '', email: '', phone: '', departments: ['Operacional'] }],
     },
   });
 
@@ -125,7 +130,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
         type: 'Cliente',
         cnpj: '',
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
-        contacts: [{ name: '', email: '', phone: '', department: 'Operacional' }],
+        contacts: [{ name: '', email: '', phone: '', departments: ['Operacional'] }],
       });
     }
   }, [quote, form]);
@@ -287,7 +292,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                                 )} />
                                 <div className="flex justify-between items-center">
                                     <h4 className="text-md font-semibold">Contatos</h4>
-                                    <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', department: 'Operacional' })}>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', departments: ['Operacional'] })}>
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add Contato
                                     </Button>
                                 </div>
@@ -310,22 +315,37 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                                             <FormField control={form.control} name={`contacts.${index}.phone`} render={({ field }) => (
                                                 <FormItem><FormLabel>Telefone</FormLabel><FormControl><Input placeholder="+1 555-555-5555" {...field} /></FormControl><FormMessage /></FormItem>
                                             )}/>
-                                            <FormField control={form.control} name={`contacts.${index}.department`} render={({ field }) => (
-                                                <FormItem><FormLabel>Departamento</FormLabel>
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="Comercial">Comercial</SelectItem>
-                                                        <SelectItem value="Operacional">Operacional</SelectItem>
-                                                        <SelectItem value="Financeiro">Financeiro</SelectItem>
-                                                        <SelectItem value="Importação">Importação</SelectItem>
-                                                        <SelectItem value="Exportação">Exportação</SelectItem>
-                                                        <SelectItem value="Outro">Outro</SelectItem>
-                                                    </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}/>
+                                            <FormField control={form.control} name={`contacts.${index}.departments`} render={() => (
+                                              <FormItem>
+                                                  <FormLabel>Departamentos</FormLabel>
+                                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                                                    {departmentsArray.map((item) => (
+                                                      <FormField
+                                                        key={item}
+                                                        control={form.control}
+                                                        name={`contacts.${index}.departments`}
+                                                        render={({ field }) => (
+                                                          <FormItem key={item} className="flex flex-row items-center space-x-2 space-y-0">
+                                                            <FormControl>
+                                                              <Checkbox
+                                                                checked={field.value?.includes(item)}
+                                                                onCheckedChange={(checked) => {
+                                                                  const currentValue = field.value || [];
+                                                                  return checked
+                                                                    ? field.onChange([...currentValue, item])
+                                                                    : field.onChange(currentValue.filter((value) => value !== item));
+                                                                }}
+                                                              />
+                                                            </FormControl>
+                                                            <FormLabel className="text-sm font-normal">{item}</FormLabel>
+                                                          </FormItem>
+                                                        )}
+                                                      />
+                                                    ))}
+                                                  </div>
+                                                <FormMessage />
+                                              </FormItem>
+                                            )} />
                                         </div>
                                     </div>
                                 ))}

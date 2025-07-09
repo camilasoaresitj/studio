@@ -90,9 +90,10 @@ export function QuoteCostSheet({ quote, onUpdate }: QuoteCostSheetProps) {
                 <div><strong className="text-muted-foreground">Origem:</strong> {quote.origin}</div>
                 <div><strong className="text-muted-foreground">Destino:</strong> {quote.destination}</div>
                 <div><strong className="text-muted-foreground">Carga:</strong> {quote.details.cargo}</div>
+                <div><strong className="text-muted-foreground">Incoterm:</strong> {quote.details.incoterm}</div>
                 <div><strong className="text-muted-foreground">Trânsito:</strong> {quote.details.transitTime}</div>
                 <div><strong className="text-muted-foreground">Free Time:</strong> {quote.details.freeTime}</div>
-                <div><strong className="text-muted-foreground">Validade:</strong> {quote.details.validity}</div>
+                <div className="col-span-2"><strong className="text-muted-foreground">Validade:</strong> {quote.details.validity}</div>
             </CardContent>
         </Card>
       <Form {...form}>

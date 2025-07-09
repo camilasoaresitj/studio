@@ -35,6 +35,8 @@ import type { Fee } from './fees-registry';
 import { QuoteCostSheet } from './quote-cost-sheet';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 type FreightRate = {
@@ -441,7 +443,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         toast({
             variant: 'destructive',
             title: "Dados do cliente incompletos",
-            description: "Por favor, selecione um cliente da lista antes de selecionar uma tarifa.",
+            description: "Por favor, selecione um cliente antes de selecionar uma tarifa.",
         });
         return;
     }
@@ -461,6 +463,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             transitTime: rate.transitTime || 'N/A',
             validity: (rate as any).validity || 'N/A',
             freeTime: (rate as any).freeTime || 'N/A',
+            incoterm: form.getValues('incoterm'),
         }
     };
     onQuoteCreated(newQuote);
@@ -585,18 +588,30 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   }
 
   const handleGeneratePdf = async () => {
-    const { default: jsPDF } = await import('jspdf');
-    const { default: html2canvas } = await import('html2canvas');
+    if (!activeQuote) return;
 
-    const quoteElement = document.getElementById(`quote-sheet-${activeQuote?.id}`);
-    if (quoteElement && activeQuote) {
-        const canvas = await html2canvas(quoteElement, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`cotacao-${activeQuote.id}.pdf`);
+    try {
+        setIsSending(true);
+        toast({ title: "Gerando PDF...", description: "Aguarde um momento." });
+        const { default: jsPDF } = await import('jspdf');
+        const { default: html2canvas } = await import('html2canvas');
+
+        const quoteElement = document.getElementById(`quote-sheet-${activeQuote.id}`);
+        if (quoteElement) {
+            const canvas = await html2canvas(quoteElement, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`cotacao-${activeQuote.id}.pdf`);
+            toast({ title: "PDF Gerado!", className: "bg-success text-success-foreground" });
+        }
+    } catch (e) {
+        toast({ variant: "destructive", title: "Erro ao gerar PDF." });
+        console.error(e);
+    } finally {
+        setIsSending(false);
     }
   };
 

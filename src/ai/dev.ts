@@ -9,3 +9,4 @@ import '@/ai/flows/send-quote.ts';
 import '@/ai/flows/request-agent-quote.ts';
 import '@/ai/flows/extract-partner-info.ts';
 import '@/ai/flows/get-ship-schedules.ts';
+import '@/ai/flows/generate-quote-pdf-html.ts';

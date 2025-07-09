@@ -17,12 +17,14 @@ import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, Check
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { QuoteCostSheet } from './quote-cost-sheet';
-import { runSendQuote } from '@/app/actions';
+import { runSendQuote, runGenerateQuotePdfHtml } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Partner } from './partners-registry';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
 import { createShipment } from '@/lib/shipment';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export type QuoteCharge = {
   id: string;
@@ -40,6 +42,7 @@ export type QuoteDetails = {
     transitTime: string;
     validity: string;
     freeTime: string;
+    incoterm: string;
 };
 
 export type Quote = {
@@ -142,58 +145,73 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
       setIsSending(false);
     };
 
-     const handleGeneratePdf = async (quote: Quote) => {
+    const handleGeneratePdf = async (quote: Quote) => {
         setIsSending(true);
         toast({ title: 'Gerando PDF...', description: 'Aguarde um momento.' });
 
-        const customer = partners.find(p => p.name === quote.customer);
-        if (!customer) {
-            toast({ variant: 'destructive', title: 'Cliente não encontrado!' });
-            setIsSending(false);
-            return;
-        }
-        
-        const exchangeRates = await exchangeRateService.getRates();
-        const totalSaleBRL = quote.charges.reduce((acc, charge) => {
-            const rate = exchangeRates[charge.saleCurrency] || 1;
-            return acc + charge.sale * rate;
-        }, 0);
-        const finalPrice = `BRL ${totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        const supplier = quote.charges.find(c => c.name.toLowerCase().includes('frete'))?.supplier || 'N/A';
+        try {
+            const formatValue = (value: number) => {
+                 return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
 
-        const response = await runSendQuote({
-            customerName: quote.customer,
-            rateDetails: {
+            const freightCharges = quote.charges
+                .filter(c => c.name.toLowerCase().includes('frete'))
+                .map(c => ({
+                    name: c.name,
+                    type: c.type,
+                    currency: c.saleCurrency,
+                    total: formatValue(c.sale),
+                }));
+
+            const localCharges = quote.charges
+                .filter(c => !c.name.toLowerCase().includes('frete'))
+                .map(c => ({
+                    name: c.name,
+                    type: c.type,
+                    currency: c.saleCurrency,
+                    total: formatValue(c.sale),
+                }));
+
+            const totalsByCurrency: { [key: string]: number } = {};
+            quote.charges.forEach(charge => {
+                totalsByCurrency[charge.saleCurrency] = (totalsByCurrency[charge.saleCurrency] || 0) + charge.sale;
+            });
+
+            const totalAllIn = Object.entries(totalsByCurrency)
+                .map(([currency, total]) => `${currency} ${formatValue(total)}`)
+                .join(' + ');
+
+            const response = await runGenerateQuotePdfHtml({
+                quoteNumber: quote.id.replace('-DRAFT', ''),
+                customerName: quote.customer,
+                date: new Date().toLocaleDateString('pt-BR'),
+                validity: quote.details.validity,
                 origin: quote.origin,
                 destination: quote.destination,
-                carrier: supplier,
+                incoterm: quote.details.incoterm,
                 transitTime: quote.details.transitTime,
-                finalPrice,
-            },
-            approvalLink: 'N/A',
-            rejectionLink: 'N/A',
-        });
+                modal: quote.details.cargo.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo',
+                equipment: quote.details.cargo,
+                freightCharges,
+                localCharges,
+                totalAllIn,
+                observations: "Valores sujeitos a alteração sem aviso prévio. Taxas locais na origem e destino não inclusas, exceto quando mencionadas."
+            });
+            
+            if (!response.success) {
+                throw new Error(response.error);
+            }
+            
+            const element = document.createElement("div");
+            element.style.position = 'absolute';
+            element.style.left = '-9999px';
+            element.style.top = '0';
+            element.style.width = '800px'; 
+            element.innerHTML = response.data.html;
+            document.body.appendChild(element);
+            
+            await new Promise(resolve => setTimeout(resolve, 500)); 
 
-
-        if (!response.success) {
-            toast({ variant: 'destructive', title: 'Erro ao gerar PDF', description: response.error });
-            setIsSending(false);
-            return;
-        }
-
-        const { default: jsPDF } = await import('jspdf');
-        const { default: html2canvas } = await import('html2canvas');
-        
-        const element = document.createElement("div");
-        element.style.position = 'absolute';
-        element.style.left = '-9999px';
-        element.style.width = '800px';
-        element.innerHTML = response.data.emailBody;
-        document.body.appendChild(element);
-        
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-
-        try {
             const canvas = await html2canvas(element, { scale: 2 });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
@@ -202,11 +220,13 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
             pdf.save(`proposta-${quote.id.replace('-DRAFT', '')}.pdf`);
             toast({ title: 'PDF gerado com sucesso!', className: 'bg-success text-success-foreground' });
-        } catch (e) {
-            console.error("PDF generation error", e);
-            toast({ variant: "destructive", title: "Erro ao gerar PDF", description: "Ocorreu um erro ao converter o conteúdo." });
-        } finally {
+
             document.body.removeChild(element);
+
+        } catch (e: any) {
+            console.error("PDF generation error", e);
+            toast({ variant: "destructive", title: "Erro ao gerar PDF", description: e.message || "Ocorreu um erro ao converter o conteúdo." });
+        } finally {
             setIsSending(false);
         }
     };

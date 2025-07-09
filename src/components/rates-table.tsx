@@ -54,36 +54,20 @@ const groupMaritimeRates = (rates: Rate[]) => {
         destination: rate.destination,
         carrier: rate.carrier,
         modal: rate.modal,
-        transitTime: rate.transitTime,
-        validity: rate.validity,
-        freeTime: rate.freeTime,
-        agent: rate.agent,
         rates: {},
       });
     }
+
     const group = groups.get(groupKey);
+
+    // Overwrite with current rate's info to ensure consistency.
+    // This is safe because handleMaritimeGroupChange ensures all rates in a group have the same freeTime/agent after an edit.
+    group.transitTime = rate.transitTime;
+    group.validity = rate.validity;
+    group.freeTime = rate.freeTime;
+    group.agent = rate.agent;
+
     group.rates[rate.container] = rate.rate;
-
-    try {
-        const currentDateStr = group.validity;
-        const newDateStr = rate.validity;
-
-        const isCurrentDateValid = typeof currentDateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(currentDateStr);
-        const isNewDateValid = typeof newDateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(newDateStr);
-
-        if (isCurrentDateValid && isNewDateValid) {
-            const currentValidity = parse(currentDateStr, 'dd/MM/yyyy', new Date());
-            const rateValidity = parse(newDateStr, 'dd/MM/yyyy', new Date());
-
-            if (isValid(currentValidity) && isValid(rateValidity) && isBefore(currentValidity, rateValidity)) {
-                group.validity = newDateStr;
-            }
-        } else if (isNewDateValid) {
-            group.validity = newDateStr;
-        }
-    } catch (e) {
-      console.error("Error parsing date in groupMaritimeRates:", e);
-    }
   });
   return Array.from(groups.values());
 };

@@ -19,7 +19,7 @@ const AgentContactSchema = z.object({
   name: z.string().describe("The agent's contact person's full name."),
   email: z.string().describe("The agent's contact person's email."),
   phone: z.string().describe("The agent's contact person's phone number."),
-}).optional();
+});
 
 const ParsedRateSchema = z.object({
   origin: z.string().describe('The standardized origin location (e.g., "Santos, BR"). Mandatory.'),
@@ -32,7 +32,7 @@ const ParsedRateSchema = z.object({
   validity: z.string().describe('The validity date (e.g., "31/12/2024"). Use "N/A" if not found.'),
   freeTime: z.string().describe('The free time in days, only the number (e.g., "14"). Use "N/A" if not found.'),
   agent: z.string().describe('The agent who provided the rate (e.g., "Global Logistics Agents"). Use "Direct" if the rate is directly from the carrier.'),
-  agentContact: AgentContactSchema.describe("The contact person for the agent, if mentioned in the text."),
+  agentContact: AgentContactSchema.describe("The contact person for the agent, if mentioned in the text.").optional(),
 });
 
 const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
@@ -52,7 +52,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 **Extraction Rules:**
 - Each object in the array represents ONE rate for ONE container type.
 - The fields \`origin\`, \`destination\`, and \`rate\` are **MANDATORY**. If you cannot find all three for a given rate, DO NOT create an object for it.
-- **Agent Contact Details**: If the text mentions contact details for the agent (contact person's name, email, phone), you MUST extract this information into the \`agentContact\` object. If no contact is mentioned, leave the field empty.
+- **Agent Contact Details**: If the text mentions contact details for the agent (contact person's name, email, phone), you MUST extract this information into the \`agentContact\` object. If no contact is mentioned, **omit the \`agentContact\` field entirely** from the rate object.
 - **ETD as Validity**: If a rate is explicitly tied to a specific ETD (Estimated Time of Departure) or a specific vessel/voyage, you MUST use that departure date as the 'validity' for that rate. Format it as "DD/MM/YYYY". This rule takes precedence over general validity dates. For example, if the text says "Rate for vessel MSC LEO departing on 15/07/2024", the validity should be "15/07/2024".
 - If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), you MUST create separate objects for 20'GP, 40'GP, and 40'HC respectively.
 - The \`modal\` field must be either "Aéreo" or "Marítimo". Infer from context.

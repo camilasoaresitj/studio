@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Extracts structured freight rate data from unstructured text.
@@ -34,8 +33,9 @@ const ParsedRateSchema = z.object({
   validity: z.string().describe('The validity date (e.g., "31/12/2024").'),
   freeTime: z.string().describe('The free time in days, only the number (e.g., "14").'),
   agent: z.string().describe('The agent who provided the rate (e.g., "Global Logistics Agents").'),
-  agentContact: AgentContactSchema.describe("The contact person for the agent, if mentioned in the text.").optional(),
+  agentContact: AgentContactSchema.optional(),
 });
+const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
 export type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutputSchema>;
 
 
@@ -70,6 +70,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 **Core Extraction Rules:**
 - Each object in the array represents ONE rate for ONE container type.
 - Extract as much information as you can for each rate. If a field is not present, you can omit it from the JSON.
+- **Critical Final Check:** Before finishing, review your generated JSON. If you find any rate object that is incomplete (missing key fields like origin, destination, or rate), you MUST delete that entire malformed object from the array. It is better to return fewer, complete rates than an invalid list.
 - **Agent Contact:** You MUST only generate the \`agentContact\` object if the text explicitly contains all three of the following pieces of information for a specific contact person: a full name, an email address, AND a phone number. If even one of these three is missing for a contact, you **MUST OMIT the \`agentContact\` object and key entirely** for that rate's JSON object. Do not generate a partial or empty \`agentContact\` object under any circumstances.
 - If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), create separate objects for 20'GP, 40'GP, and 40'HC.
 
@@ -111,27 +112,28 @@ const extractRatesFromTextFlow = ai.defineFlow(
   {
     name: 'extractRatesFromTextFlow',
     inputSchema: ExtractRatesFromTextInputSchema,
+    // The flow's final output must match the strict, complete schema.
     outputSchema: ExtractRatesFromTextOutputSchema,
   },
   async (input) => {
+    // The prompt returns a list of potentially incomplete rate objects.
     const { output } = await extractRatesFromTextPrompt(input);
     
+    // It's possible the AI returns nothing if the text is very unclear.
     if (!output || output.length === 0) {
       return [];
     }
     
+    // Clean up and normalize the data, providing fallbacks for any optional fields the AI might have missed.
     const completeRates = output
+      // First, filter out any rate that is fundamentally useless (e.g., missing a price or a route).
+      .filter(partialRate => partialRate.rate && partialRate.origin && partialRate.destination)
+      // Then, map the remaining partial rates to the full, strict schema.
       .map(partialRate => {
-        // A rate is only truly useless if it has no price or no route. 
-        if (!partialRate.rate || !partialRate.origin || !partialRate.destination) {
-          return null;
-        }
-
-        // Create a new, complete rate object, providing "N/A" as a fallback.
         const completeRate: z.infer<typeof ParsedRateSchema> = {
-          origin: partialRate.origin,
-          destination: partialRate.destination,
-          rate: partialRate.rate,
+          origin: partialRate.origin!,
+          destination: partialRate.destination!,
+          rate: partialRate.rate!,
           modal: partialRate.modal || 'Marítimo', // Default to a sensible value
           carrier: partialRate.carrier || 'N/A',
           transitTime: partialRate.transitTime || 'N/A',
@@ -142,11 +144,8 @@ const extractRatesFromTextFlow = ai.defineFlow(
           agentContact: partialRate.agentContact,
         };
         return completeRate;
-      })
-      .filter((rate): rate is z.infer<typeof ParsedRateSchema> => rate !== null); // Remove the truly useless nulls
+      });
 
     return completeRates;
   }
 );
-
-    

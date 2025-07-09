@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Extracts structured freight rate data from unstructured text.
@@ -70,6 +71,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 **Core Extraction Rules:**
 - Each object in the array represents ONE rate for ONE container type.
 - Extract as much information as you can for each rate. If a field is not present, you can omit it from the JSON.
+- **Free Time:** Actively search the entire text for "free time", "demurrage", "detention" or similar terms associated with a carrier. Extract only the number of days (e.g., from "free time 21 days at dest", extract "21"). If different free times are mentioned for different container types (e.g., "21 days for dry, 18 for NOR"), you MUST apply the correct value to each corresponding rate object.
 - **Critical Final Check:** Before finishing, review your generated JSON. If you find any rate object that is incomplete (missing key fields like origin, destination, or rate), you MUST delete that entire malformed object from the array. It is better to return fewer, complete rates than an invalid list.
 - **Agent Contact:** You MUST only generate the \`agentContact\` object if the text explicitly contains all three of the following pieces of information for a specific contact person: a full name, an email address, AND a phone number. If even one of these three is missing for a contact, you **MUST OMIT the \`agentContact\` object and key entirely** for that rate's JSON object. Do not generate a partial or empty \`agentContact\` object under any circumstances.
 - If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), create separate objects for 20'GP, 40'GP, and 40'HC.

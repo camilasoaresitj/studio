@@ -7,6 +7,7 @@ import { extractRatesFromText, ExtractRatesFromTextOutput } from '@/ai/flows/ext
 import { sendQuote, SendQuoteInput, SendQuoteOutput } from '@/ai/flows/send-quote';
 import { requestAgentQuote, RequestAgentQuoteInput, RequestAgentQuoteOutput } from '@/ai/flows/request-agent-quote';
 import { extractPartnerInfo, ExtractPartnerInfoOutput } from '@/ai/flows/extract-partner-info';
+import { getShipSchedules, GetShipSchedulesInput, GetShipSchedulesOutput } from '@/ai/flows/get-ship-schedules';
 import type { Partner } from '@/components/partners-registry';
 
 export async function runCreateCrmEntry(emailContent: string): Promise<{ success: true; data: CreateCrmEntryFromEmailOutput } | { success: false; error: string }> {
@@ -121,6 +122,19 @@ export async function runExtractPartnerInfo(
   } catch (e) {
     console.error(e);
     const error = e instanceof Error ? e.message : 'An unknown error occurred while extracting partner info.';
+    return { success: false, error };
+  }
+}
+
+export async function runGetShipSchedules(
+  input: GetShipSchedulesInput
+): Promise<{ success: true; data: GetShipSchedulesOutput } | { success: false; error: string }> {
+  try {
+    const result = await getShipSchedules(input);
+    return { success: true, data: result };
+  } catch (e) {
+    console.error(e);
+    const error = e instanceof Error ? e.message : 'An unknown error occurred while fetching schedules.';
     return { success: false, error };
   }
 }

@@ -21,10 +21,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
-import { runGetFreightRates, runRequestAgentQuote, runSendQuote } from '@/app/actions';
+import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetShipSchedules } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import type { Quote, QuoteCharge, QuoteDetails } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
@@ -35,6 +35,8 @@ import type { Rate as LocalRate } from './rates-table';
 import type { Fee } from './fees-registry';
 import { QuoteCostSheet } from './quote-cost-sheet';
 import { exchangeRateService } from '@/services/exchange-rate-service';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+
 
 const DynamicJsPDF = dynamic(() => import('jspdf').then(mod => mod.default), { ssr: false });
 const DynamicHtml2Canvas = dynamic(() => import('html2canvas'), { ssr: false });
@@ -51,6 +53,14 @@ type FreightRate = {
     carrierLogo: string;
     dataAiHint: string;
     source: string;
+};
+
+type Schedule = {
+    vesselName: string;
+    voyage: string;
+    carrier: string;
+    etd: string;
+    eta: string;
 };
 
 interface FreightQuoteFormProps {
@@ -164,6 +174,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const [isRequestingAgentQuote, setIsRequestingAgentQuote] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [results, setResults] = useState<FreightRate[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [isFetchingSchedules, setIsFetchingSchedules] = useState(false);
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   const [activeQuote, setActiveQuote] = useState<Quote | null>(null);
   const { toast } = useToast();
@@ -299,6 +311,42 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
     setIsLoading(false);
   }
+
+  const handleFetchSchedules = async () => {
+    const origin = form.getValues('origin');
+    const destination = form.getValues('destination');
+
+    if (!origin || !destination) {
+        toast({
+            variant: "destructive",
+            title: "Rota incompleta",
+            description: "Por favor, preencha os campos de Origem e Destino para ver a programação.",
+        });
+        return;
+    }
+
+    setIsFetchingSchedules(true);
+    setSchedules([]);
+    const response = await runGetShipSchedules({ origin, destination });
+    if (response.success) {
+        setSchedules(response.data);
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Erro ao buscar programação",
+            description: response.error,
+        });
+    }
+    setIsFetchingSchedules(false);
+  };
+
+  const handleSelectSchedule = (schedule: Schedule) => {
+    form.setValue('departureDate', new Date(schedule.etd));
+    toast({
+        title: "Data de embarque selecionada!",
+        description: `ETD ${format(new Date(schedule.etd), "dd/MM/yyyy")} preenchido no formulário.`,
+    });
+  };
   
   const getCargoDetails = (values: FreightQuoteFormData): string => {
     if (values.modal === 'ocean') {
@@ -574,6 +622,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     return Array.from(locations).sort();
   }, [rates]);
 
+  const paymentType = useMemo(() => {
+    const prepaidTerms = ['CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
+    if (prepaidTerms.includes(incoterm)) {
+      return { text: 'Prepaid', variant: 'default' as const };
+    }
+    return { text: 'Collect', variant: 'secondary' as const };
+  }, [incoterm]);
+
   
   if (activeQuote) {
     return (
@@ -713,7 +769,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                   <TabsTrigger value="ocean"><Ship className="mr-2 h-4 w-4" />Marítimo</TabsTrigger>
                 </TabsList>
                 
-                <div className="grid md:grid-cols-3 gap-4 mt-6">
+                <div className="grid md:grid-cols-4 gap-4 mt-6">
                     <FormField control={form.control} name="origin" render={({ field }) => (
                         <FormItem><FormLabel>Origem (Porto/Aeroporto, País)</FormLabel>
                           <FormControl>
@@ -768,6 +824,12 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         </FormItem>
                       )}
                     />
+                     <div>
+                        <Label>Pagamento Frete</Label>
+                        <div className="flex h-10 items-center">
+                            <Badge variant={paymentType.variant}>{paymentType.text}</Badge>
+                        </div>
+                    </div>
                 </div>
 
                 {incoterm === 'EXW' && (
@@ -971,6 +1033,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando...</> : <><Search className="mr-2 h-4 w-4" /> Buscar Tarifas</>}
                     </Button>
                     <div className="flex gap-2">
+                        <Button type="button" variant="outline" onClick={handleFetchSchedules} disabled={isFetchingSchedules} className="flex-1 py-6">
+                            {isFetchingSchedules ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarDays className="mr-2 h-4 w-4" />}
+                            Ver Programação
+                        </Button>
                         <Button type="button" variant="secondary" onClick={handleRequestAgentQuote} disabled={isRequestingAgentQuote} className="flex-1 py-6">
                             {isRequestingAgentQuote ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                             Cotar com Agente
@@ -981,6 +1047,52 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           </Form>
         </CardContent>
       </Card>
+      
+      {isFetchingSchedules && (
+        <div className="text-center p-8 text-muted-foreground animate-pulse">
+            <Loader2 className="mx-auto h-12 w-12 mb-4 animate-spin" />
+            Buscando programação de navios...
+        </div>
+      )}
+
+      {!isFetchingSchedules && schedules.length > 0 && (
+          <Card className="animate-in fade-in-50 duration-500">
+              <CardHeader>
+                  <CardTitle>Programação de Navios</CardTitle>
+                  <CardDescription>Próximas saídas para a rota selecionada. Clique em "Selecionar" para usar o ETD.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <div className="border rounded-lg">
+                      <Table>
+                          <TableHeader>
+                              <TableRow>
+                                  <TableHead>Navio / Viagem</TableHead>
+                                  <TableHead>Armador</TableHead>
+                                  <TableHead>ETD</TableHead>
+                                  <TableHead>ETA</TableHead>
+                                  <TableHead className="text-right">Ação</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {schedules.map((schedule, index) => (
+                                  <TableRow key={index}>
+                                      <TableCell className="font-medium">{schedule.vesselName} / {schedule.voyage}</TableCell>
+                                      <TableCell>{schedule.carrier}</TableCell>
+                                      <TableCell>{format(new Date(schedule.etd), 'dd/MM/yyyy')}</TableCell>
+                                      <TableCell>{format(new Date(schedule.eta), 'dd/MM/yyyy')}</TableCell>
+                                      <TableCell className="text-right">
+                                          <Button variant="outline" size="sm" onClick={() => handleSelectSchedule(schedule)}>
+                                              Selecionar
+                                          </Button>
+                                      </TableCell>
+                                  </TableRow>
+                              ))}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </CardContent>
+          </Card>
+      )}
 
       {isLoading && 
           <div className="text-center p-8 text-muted-foreground animate-pulse">

@@ -43,15 +43,15 @@ export type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutp
 // A more lenient schema for the AI prompt's output. The AI will extract what it can,
 // and we will clean up the data in the code.
 const PartialRateSchemaForPrompt = z.object({
-    origin: z.string().describe('The standardized origin location (e.g., "Santos, BR").').optional(),
-    destination: z.string().describe('The standardized destination location (e.g., "Roterdã, NL").').optional(),
+    origin: z.string().describe('The origin location as written in the text.').optional(),
+    destination: z.string().describe('The destination location as written in the text.').optional(),
     rate: z.string().describe('The rate for a single container, including currency (e.g., "USD 2500").').optional(),
-    modal: z.string().describe("The transport modal. Must be exactly 'Aéreo' or 'Marítimo'.").optional(),
+    modal: z.string().describe("The transport modal. 'Aéreo' or 'Marítimo'.").optional(),
     carrier: z.string().describe('The carrier name (e.g., "Maersk").').optional(),
     transitTime: z.string().describe('The transit time (e.g., "25-30").').optional(),
     container: z.string().describe('The container type (e.g., "20\'GP").').optional(),
     validity: z.string().describe('The validity date (e.g., "31/12/2024").').optional(),
-    freeTime: z.string().describe('The free time in days, only the number (e.g., "14").').optional(),
+    freeTime: z.string().describe('The free time in days (e.g., "14" or "14 dias").').optional(),
     agent: z.string().describe('The agent who provided the rate (e.g., "Global Logistics Agents").').optional(),
     agentContact: AgentContactSchema.optional(),
 });
@@ -70,15 +70,16 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 
 **Extraction Process & Rules:**
 
-1.  **Find General Info First:** Before extracting rates, scan the entire text for carrier-specific "free time" rules (e.g., "CMA free time 28 days", "HMM free time 21 days for dry, 18 for nor") and agent contact details (name, email, phone).
-2.  **Extract Each Rate:** Create one JSON object for each rate/container combination.
-3.  **Apply Formatting & Rules:**
-    -   **Multi-Port/Multi-Container:** If a rate is for multiple ports ("BR base ports") or containers ("USD 5000/6000/6000"), you MUST create separate, identical rate objects for EACH port and container combination. "BR base ports" refers to: Santos, Itapoá, Navegantes, Paranaguá, Rio Grande.
-    -   **Free Time:** Extract ONLY the number. For "21 days", the value must be "21". This is a critical rule. Apply the general free time rules you found in step 1 to every relevant rate.
-    -   **Validity:** If a date range is given (e.g., "valid from 15/07 to 21/07/2025"), extract ONLY the end date ("21/07/2025"). Format all dates as dd/MM/yyyy.
-    -   **Agent Contact:** You MUST find a full name, email, AND phone number all together for a contact. If any of the three is missing, OMIT the \`agentContact\` object entirely.
-    -   **Location Standardization:** You MUST normalize all location names (e.g., "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN").
-4.  **Final Quality Check:** Before finishing, review your generated JSON. If any object is incomplete (missing key fields like origin, destination, or rate), delete that entire object from the array.
+1.  **General Info First:** Scan the entire text for general information that applies to multiple rates, like "free time" rules per carrier (e.g., "CMA free time 28 days", "HMM free time 21 days for dry, 18 for nor") or agent contact details. Keep this information in mind.
+2.  **Extract Each Rate:** Create one JSON object for each individual rate/container combination.
+3.  **Multi-Port/Multi-Container Rule:** If a single rate line applies to multiple ports or containers (e.g., "USD 5000/6000" for 20'/40' or a rate for "BR base ports"), you MUST create separate, identical rate objects for EACH combination. "BR base ports" refers to: Santos, Itapoá, Navegantes, Paranaguá, Rio Grande.
+4.  **Apply General Info:** When you create a rate object for a carrier, apply the general "free time" rules you found in step 1.
+5.  **Data Extraction:**
+    -   **Free Time:** Extract the value as you see it (e.g., "21", "14 dias").
+    -   **Validity:** If a date range is given (e.g., "valid from 15/07 to 21/07/2025"), extract ONLY the end date ("21/07/2025").
+    -   **Agent Contact:** Find a full name, email, AND phone number together. If any part is missing, don't include the \`agentContact\` object.
+    -   **Location Standardization:** Normalize location names (e.g., "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN").
+6.  **Final Quality Check:** Before finishing, review your generated JSON. If any object is fundamentally incomplete (missing an origin, destination, or rate), delete that entire object from the array. It is better to return fewer, complete rates than an incomplete list.
 
 Analyze the following text and extract the rates:
 {{{textInput}}}

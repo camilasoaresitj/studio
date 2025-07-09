@@ -175,6 +175,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [isFetchingSchedules, setIsFetchingSchedules] = useState(false);
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
+  const [isExporterPopoverOpen, setIsExporterPopoverOpen] = useState(false);
+  const [isImporterPopoverOpen, setIsImporterPopoverOpen] = useState(false);
   const [activeQuote, setActiveQuote] = useState<Quote | null>(null);
   const [isAutofilling, setIsAutofilling] = useState(false);
   const [autofillText, setAutofillText] = useState("");
@@ -184,6 +186,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     resolver: zodResolver(freightQuoteFormSchema),
     defaultValues: {
       customerId: '',
+      exporterId: '',
+      importerId: '',
       modal: 'ocean',
       incoterm: 'FOB',
       origin: '',
@@ -231,6 +235,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     name: "oceanShipment.containers",
   });
 
+  const customsFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('DESPACHO')), [fees]);
+  const insuranceFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('SEGURO')), [fees]);
+  const tradingFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('TRADING')), [fees]);
+  const redestinacaoFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('REDESTINA')), [fees]);
 
   async function onSubmit(values: FreightQuoteFormData) {
     setIsLoading(true);
@@ -842,12 +850,12 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           <Separator className="mb-6"/>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4 items-start">
+                <div className="grid md:grid-cols-2 gap-x-4 gap-y-6 items-start">
                    <FormField
                       control={form.control}
                       name="customerId"
                       render={({ field }) => (
-                        <FormItem className="flex flex-col">
+                        <FormItem>
                           <FormLabel>Nome do Cliente</FormLabel>
                            <div className="flex gap-2">
                                 <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
@@ -916,6 +924,76 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                             <FormMessage />
                         </FormItem>
                     )} />
+                </div>
+                 <div className="grid md:grid-cols-2 gap-x-4 gap-y-6 items-start">
+                   <FormField
+                      control={form.control}
+                      name="exporterId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Exportador</FormLabel>
+                            <Popover open={isExporterPopoverOpen} onOpenChange={setIsExporterPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
+                                    {field.value ? partners.find((p) => p.id.toString() === field.value)?.name : "Selecione o exportador"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command><CommandInput placeholder="Buscar parceiro..." />
+                                <CommandList><CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
+                                    <CommandGroup>
+                                    {partners.map((partner) => (
+                                        <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("exporterId", partner.id.toString()); setIsExporterPopoverOpen(false);}}>
+                                        <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
+                                        {partner.name}
+                                        </CommandItem>
+                                    ))}
+                                    </CommandGroup>
+                                </CommandList>
+                                </Command>
+                            </PopoverContent>
+                            </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="importerId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Importador</FormLabel>
+                            <Popover open={isImporterPopoverOpen} onOpenChange={setIsImporterPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
+                                    {field.value ? partners.find((p) => p.id.toString() === field.value)?.name : "Selecione o importador"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command><CommandInput placeholder="Buscar parceiro..." />
+                                <CommandList><CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
+                                    <CommandGroup>
+                                    {partners.map((partner) => (
+                                        <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("importerId", partner.id.toString()); setIsImporterPopoverOpen(false);}}>
+                                        <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
+                                        {partner.name}
+                                        </CommandItem>
+                                    ))}
+                                    </CommandGroup>
+                                </CommandList>
+                                </Command>
+                            </PopoverContent>
+                            </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                 </div>
 
               <Tabs 
@@ -1161,14 +1239,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                     <h3 className="text-lg font-medium mb-4">Serviços Opcionais</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <FormField control={form.control} name="optionalServices.customsClearance" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Despacho</FormLabel></div></FormItem>
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Despacho {customsFee ? `(${customsFee.currency} ${customsFee.value})` : ''}</FormLabel></div></FormItem>
                         )} />
                          <FormField control={form.control} name="optionalServices.trading" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Trading</FormLabel></div></FormItem>
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Trading {tradingFee ? `(${tradingFee.currency} ${tradingFee.value})` : ''}</FormLabel></div></FormItem>
                         )} />
                         <FormField control={form.control} name="optionalServices.redestinacao" render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none w-full"><FormLabel>Redestinação</FormLabel>
+                                <div className="space-y-1 leading-none w-full"><FormLabel>Redestinação {redestinacaoFee ? `(${redestinacaoFee.currency} ${redestinacaoFee.value})` : ''}</FormLabel>
                                 {optionalServices.redestinacao && (
                                     <FormField control={form.control} name="optionalServices.redestinacaoCost" render={({ field }) => (
                                         <FormItem className="mt-2"><FormControl><Input type="number" placeholder="Custo (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
@@ -1179,7 +1257,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         )} />
                         <FormField control={form.control} name="optionalServices.insurance" render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none w-full"><FormLabel>Seguro</FormLabel>
+                                <div className="space-y-1 leading-none w-full"><FormLabel>Seguro {insuranceFee ? `(${insuranceFee.value}% V. Carga)` : ''}</FormLabel>
                                 {optionalServices.insurance && (
                                     <FormField control={form.control} name="optionalServices.cargoValue" render={({ field }) => (
                                         <FormItem className="mt-2"><FormControl><Input type="number" placeholder="Valor Carga (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>

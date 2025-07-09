@@ -49,6 +49,7 @@ const contactSchema = z.object({
 const partnerSchema = z.object({
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
   nomeFantasia: z.string().optional(),
+  entityType: z.enum(['Pessoa Juridica', 'Pessoa Fisica']).default('Pessoa Juridica'),
   roles: z.object({
     cliente: z.boolean().default(false),
     fornecedor: z.boolean().default(false),
@@ -56,6 +57,7 @@ const partnerSchema = z.object({
     comissionado: z.boolean().default(false),
   }),
   cnpj: z.string().optional(),
+  cpf: z.string().optional(),
   vat: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
   exchangeRateAgio: z.coerce.number().optional(),
@@ -84,7 +86,6 @@ const partnerSchema = z.object({
   tipoFornecedor: z.string().optional(),
 
   // Comissionado specific
-  tipoPessoaComissionado: z.enum(['Pessoa Fisica', 'Pessoa Juridica']).optional(),
   comissao: z.object({
     amount: z.coerce.number().optional(),
     unit: z.enum(['percent_profit', 'por_container', 'por_bl', 'por_kg']).optional(),
@@ -141,8 +142,10 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     defaultValues: {
       name: '',
       nomeFantasia: '',
+      entityType: 'Pessoa Juridica',
       roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
       cnpj: '',
+      cpf: '',
       vat: '',
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
@@ -152,7 +155,6 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       profitAgreement: { amount: undefined, unit: 'por_container' },
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       tipoFornecedor: '',
-      tipoPessoaComissionado: 'Pessoa Juridica',
       comissao: { amount: undefined, unit: 'percent_profit' },
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
@@ -164,6 +166,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     name: "contacts",
   });
   
+  const watchedEntityType = form.watch('entityType');
   const watchedRoles = form.watch('roles');
   const customerCategory = form.watch('customerCategory');
 
@@ -210,8 +213,10 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     form.reset(partner ? partner : {
       name: '',
       nomeFantasia: '',
+      entityType: 'Pessoa Juridica',
       roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
       cnpj: '',
+      cpf: '',
       vat: '',
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
@@ -221,7 +226,6 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       profitAgreement: { amount: undefined, unit: 'por_container' },
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       tipoFornecedor: '',
-      tipoPessoaComissionado: 'Pessoa Juridica',
       comissao: { amount: undefined, unit: 'percent_profit' },
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
@@ -440,6 +444,25 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                   </Button>
               </div>
               <Separator/>
+
+              <FormField control={form.control} name="entityType" render={({ field }) => (
+                <FormItem className="space-y-3">
+                    <FormLabel>Tipo de Entidade</FormLabel>
+                    <FormControl>
+                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl><RadioGroupItem value="Pessoa Juridica" /></FormControl>
+                                <FormLabel className="font-normal">Pessoa Jurídica</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl><RadioGroupItem value="Pessoa Fisica" /></FormControl>
+                                <FormLabel className="font-normal">Pessoa Física</FormLabel>
+                            </FormItem>
+                        </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+              )} />
               
               <FormField
                 control={form.control}
@@ -468,19 +491,55 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome / Razão Social</FormLabel>
-                  <FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl>
+                  <FormLabel>{watchedEntityType === 'Pessoa Fisica' ? 'Nome Completo' : 'Nome / Razão Social'}</FormLabel>
+                  <FormControl><Input placeholder={watchedEntityType === 'Pessoa Fisica' ? 'Nome da pessoa' : 'Nome da empresa'} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="nomeFantasia" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome Fantasia (Opcional)</FormLabel>
-                  <FormControl><Input placeholder="Nome comercial da empresa" {...field} value={field.value ?? ''} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+
+              {watchedEntityType === 'Pessoa Juridica' && (
+                <FormField control={form.control} name="nomeFantasia" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Nome Fantasia (Opcional)</FormLabel>
+                        <FormControl><Input placeholder="Nome comercial da empresa" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+              )}
               
+              {watchedEntityType === 'Pessoa Fisica' ? (
+                 <FormField control={form.control} name="cpf" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CPF</FormLabel>
+                      <FormControl><Input placeholder="000.000.000-00" {...field} value={field.value ?? ''} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+              ) : (
+                (watchedRoles.cliente && customerCategory === 'Exterior') ? (
+                    <FormField control={form.control} name="vat" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>VAT Number (Opcional)</FormLabel>
+                            <FormControl><Input placeholder="VAT Number" {...field} value={field.value ?? ''} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                ) : (
+                     <FormField control={form.control} name="cnpj" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CNPJ</FormLabel>
+                          <div className="flex gap-2">
+                            <FormControl><Input placeholder="00.000.000/0000-00" {...field} value={field.value ?? ''} /></FormControl>
+                            <Button type="button" onClick={handleFetchCnpj} disabled={isFetchingCnpj}>
+                              {isFetchingCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                       )} />
+                )
+              )}
+
               {watchedRoles.cliente && (
                 <Card className="bg-muted/30">
                   <CardHeader><CardTitle className="text-base">Detalhes do Cliente</CardTitle></CardHeader>
@@ -503,25 +562,6 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         <FormMessage />
                       </FormItem>
                     )} />
-
-                    {customerCategory === 'Nacional' ? (
-                       <FormField control={form.control} name="cnpj" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>CNPJ</FormLabel>
-                          <div className="flex gap-2">
-                            <FormControl><Input placeholder="00.000.000/0000-00" {...field} value={field.value ?? ''} /></FormControl>
-                            <Button type="button" onClick={handleFetchCnpj} disabled={isFetchingCnpj}>
-                              {isFetchingCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                       )} />
-                    ) : (
-                      <FormField control={form.control} name="vat" render={({ field }) => (
-                          <FormItem><FormLabel>VAT Number (Opcional)</FormLabel><FormControl><Input placeholder="VAT Number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                      )} />
-                    )}
                    
                     <FormField control={form.control} name="limiteCredito" render={({ field }) => (
                         <FormItem><FormLabel>Limite de Crédito (R$)</FormLabel>
@@ -625,26 +665,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                   <Card className="bg-muted/30">
                       <CardHeader><CardTitle className="text-base">Detalhes do Comissionado</CardTitle></CardHeader>
                       <CardContent className="space-y-4">
-                          <FormField control={form.control} name="tipoPessoaComissionado" render={({ field }) => (
-                            <FormItem className="space-y-3">
-                                <FormLabel>Tipo de Pessoa</FormLabel>
-                                <FormControl>
-                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
-                                    <FormItem className="flex items-center space-x-3 space-y-0">
-                                    <FormControl><RadioGroupItem value="Pessoa Fisica" /></FormControl>
-                                    <FormLabel className="font-normal">Pessoa Física</FormLabel>
-                                    </FormItem>
-                                    <FormItem className="flex items-center space-x-3 space-y-0">
-                                    <FormControl><RadioGroupItem value="Pessoa Juridica" /></FormControl>
-                                    <FormLabel className="font-normal">Pessoa Jurídica</FormLabel>
-                                    </FormItem>
-                                </RadioGroup>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                          )}/>
-                          <Separator/>
-                           <Label>Acordo de Comissão</Label>
+                          <Label>Acordo de Comissão</Label>
                           <div className="grid grid-cols-2 gap-4">
                               <FormField control={form.control} name="comissao.amount" render={({ field }) => (
                                   <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" placeholder="50" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>

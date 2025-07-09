@@ -43,58 +43,55 @@ const getBookingInfoFlow = ai.defineFlow(
       throw new Error(`Booking number not provided.`);
     }
 
-    const etd = subDays(new Date(), 2);
-    const eta = addDays(new Date(), 15);
+    const etd = subDays(new Date(), 5);
+    const eta = addDays(new Date(), 8);
 
     const milestones: Milestone[] = [
-        { name: 'Confirmação de Booking', status: 'completed', predictedDate: subDays(new Date(), 9), effectiveDate: subDays(new Date(), 9), isTransshipment: false },
-        { name: 'Coleta da Carga', status: 'completed', predictedDate: subDays(new Date(), 6), effectiveDate: subDays(new Date(), 7), isTransshipment: false },
-        { name: 'Chegada no Porto/Aeroporto de Origem', status: 'completed', predictedDate: subDays(new Date(), 4), effectiveDate: subDays(new Date(), 5), isTransshipment: false },
-        { name: 'Embarque', status: 'completed', details: 'MAERSK PICO / 428N', predictedDate: subDays(new Date(), 2), effectiveDate: subDays(new Date(), 2), isTransshipment: false },
-        { name: 'Chegada no Porto/Aeroporto de Destino', status: 'in_progress', details: 'ROTTERDAM', predictedDate: addDays(new Date(), 15), effectiveDate: null, isTransshipment: false },
-        { name: 'Desembaraço Aduaneiro', status: 'pending', predictedDate: addDays(new Date(), 17), effectiveDate: null, isTransshipment: false },
-        { name: 'Carga Liberada', status: 'pending', predictedDate: addDays(new Date(), 19), effectiveDate: null, isTransshipment: false },
-        { name: 'Entrega Final', status: 'pending', predictedDate: addDays(new Date(), 21), effectiveDate: null, isTransshipment: false },
+        { name: 'Confirmação de Booking', status: 'completed', predictedDate: subDays(new Date(), 12), effectiveDate: subDays(new Date(), 12), isTransshipment: false },
+        { name: 'Coleta da Carga', status: 'completed', predictedDate: subDays(new Date(), 9), effectiveDate: subDays(new Date(), 9), isTransshipment: false },
+        { name: 'Chegada no Porto de Origem', status: 'completed', predictedDate: subDays(new Date(), 7), effectiveDate: subDays(new Date(), 7), isTransshipment: false },
+        { name: 'Embarque', status: 'completed', details: 'MAERSK HOUSTON / 430S', predictedDate: subDays(new Date(), 5), effectiveDate: subDays(new Date(), 5), isTransshipment: false },
+        { name: 'Chegada no Porto de Destino', status: 'in_progress', details: 'HOUSTON, TX, US', predictedDate: addDays(new Date(), 8), effectiveDate: null, isTransshipment: false },
+        { name: 'Desembaraço Aduaneiro', status: 'pending', predictedDate: addDays(new Date(), 10), effectiveDate: null, isTransshipment: false },
+        { name: 'Carga Liberada', status: 'pending', predictedDate: addDays(new Date(), 11), effectiveDate: null, isTransshipment: false },
+        { name: 'Entrega Final', status: 'pending', predictedDate: addDays(new Date(), 13), effectiveDate: null, isTransshipment: false },
     ];
 
 
     const mockedShipment: Shipment = {
       id: `PROC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      origin: 'Santos, BR',
-      destination: 'Roterdã, NL',
-      customer: 'Nexus Imports',
-      overseasPartner: {
+      origin: 'Veracruz, MX',
+      destination: 'Houston, TX, US',
+      customer: 'Nexus Imports', // This will be overwritten by the existing data in the sheet
+      overseasPartner: { // This will be overwritten
         id: 1, name: 'EuroExports BV', nomeFantasia: 'EuroExports', roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
         address: { street: 'Main Street', number: '1', complement: '', district: 'Downtown', city: 'Rotterdam', state: 'ZH', zip: '3011', country: 'Netherlands' },
         contacts: [{ name: 'Hans Zimmer', email: 'hans@euro.com', phone: '31101234567', departments: ['Comercial'] }]
       },
-      agent: undefined,
-      charges: [
-        { id: 'ch1', name: 'Frete Marítimo', type: 'Por Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line' },
-        { id: 'ch2', name: 'THC', type: 'Por Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã' },
-      ],
-      details: { cargo: "1x40'HC", transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias', incoterm: 'FOB' },
+      agent: undefined, // This will be overwritten
+      charges: [], // This will be overwritten
+      details: { cargo: "1x20'GP", transitTime: '13 dias', validity: '31/12/2024', freeTime: '7 dias', incoterm: 'FOB' },
       milestones,
       bookingNumber: bookingNumber,
-      vesselName: 'MAERSK PICO',
-      voyageNumber: '428N',
+      vesselName: 'MAERSK HOUSTON',
+      voyageNumber: '430S',
       masterBillNumber: `MAEU${Math.floor(Math.random() * 900000000) + 100000000}`,
       houseBillNumber: `MYHBL${Math.floor(Math.random() * 90000000) + 10000000}`,
       etd,
       eta,
       containers: [{
-          id: 'cont-MAEU1234567',
-          number: 'MAEU1234567',
-          seal: 'ML-BR123456',
-          tare: '2200 KG',
-          grossWeight: '18500 KG',
-          freeTime: '14 dias'
+          id: 'cont-MSCU1234567',
+          number: 'MSCU1234567',
+          seal: 'ML-MX54321',
+          tare: '2150 KG',
+          grossWeight: '20800 KG',
+          freeTime: '7 dias livres no destino'
       }],
-      commodityDescription: 'Peças Automotivas',
-      ncm: '8708.99.90',
-      netWeight: '16300 KG',
-      packageQuantity: '1x40HC',
-      freeTimeDemurrage: '14 dias',
+      commodityDescription: 'Equipamento Industrial',
+      ncm: '8479.89.99',
+      netWeight: '18650 KG',
+      packageQuantity: "1x20'GP",
+      freeTimeDemurrage: '7 dias',
       transshipments: [],
     };
 

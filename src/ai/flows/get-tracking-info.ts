@@ -51,8 +51,9 @@ const getTrackingInfoFlow = ai.defineFlow(
     let result: { status: string; events: TrackingEvent[] };
 
     // Simple routing based on common prefixes. A real app might have a more complex lookup.
-    if (upperCaseTrackingNumber.startsWith('MSCU') || upperCaseTrackingNumber.startsWith('MAEU')) {
-        result = await maersk.getTracking(upperCaseTrackingNumber);
+    if (upperCaseTrackingNumber.startsWith('MSCU') || upperCaseTrackingNumber.startsWith('MAEU') || /^\d{9}$/.test(upperCaseTrackingNumber)) {
+        const maerskResult = await maersk.getTracking(upperCaseTrackingNumber);
+        result = { status: maerskResult.status, events: maerskResult.events };
     } else {
         // Default to Hapag-Lloyd for this example
         result = await hapag.getTracking(upperCaseTrackingNumber);

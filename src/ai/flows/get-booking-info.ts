@@ -9,8 +9,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { addDays, subDays } from 'date-fns';
-import type { Shipment, Milestone } from '@/lib/shipment';
+import type { Shipment } from '@/lib/shipment';
+import * as maersk from '@/services/maersk-service';
+import * as hapag from '@/services/hapag-lloyd-service';
 
 // Using z.any() for the schema because the full Shipment type is complex and defined on the client side.
 // The wrapper function provides the strong typing.
@@ -33,68 +34,46 @@ const getBookingInfoFlow = ai.defineFlow(
     outputSchema: GetBookingInfoOutputSchema,
   },
   async ({ bookingNumber }) => {
-    // Simulate API call to carrier based on booking number
-    console.log(`Simulating API call to fetch details for booking: ${bookingNumber}`);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    console.log(`Fetching real carrier data for booking: ${bookingNumber}`);
+    
+    let shipmentDetails: Partial<Shipment> = {};
 
-    // For this simulation, we return a complete mocked shipment for any booking number.
-    // This allows the user to test the sync functionality.
-    if (!bookingNumber) {
-      throw new Error(`Booking number not provided.`);
+    const upperCaseBookingNumber = bookingNumber.toUpperCase();
+    // Route to the correct carrier service based on number format
+    if (upperCaseBookingNumber.startsWith('MSCU') || upperCaseBookingNumber.startsWith('MAEU') || /^\d{9}$/.test(upperCaseBookingNumber)) {
+        const maerskResult = await maersk.getTracking(upperCaseBookingNumber);
+        shipmentDetails = maerskResult.shipmentDetails;
+    } else {
+        // Here you could add logic for other carriers, like Hapag-Lloyd
+        // For now, we throw an error if the format is unrecognized.
+        throw new Error(`Formato de booking/contêiner não reconhecido: ${bookingNumber}. A integração real só funciona para Maersk.`);
     }
 
-    const etd = subDays(new Date(), 5);
-    const eta = addDays(new Date(), 8);
-
-    const milestones: Milestone[] = [
-        { name: 'Confirmação de Booking', status: 'completed', predictedDate: subDays(new Date(), 12), effectiveDate: subDays(new Date(), 12), isTransshipment: false },
-        { name: 'Coleta da Carga', status: 'completed', predictedDate: subDays(new Date(), 9), effectiveDate: subDays(new Date(), 9), isTransshipment: false },
-        { name: 'Chegada no Porto de Origem', status: 'completed', predictedDate: subDays(new Date(), 7), effectiveDate: subDays(new Date(), 7), isTransshipment: false },
-        { name: 'Embarque', status: 'completed', details: 'MAERSK HOUSTON / 430S', predictedDate: subDays(new Date(), 5), effectiveDate: subDays(new Date(), 5), isTransshipment: false },
-        { name: 'Chegada no Porto de Destino', status: 'in_progress', details: 'HOUSTON, TX, US', predictedDate: addDays(new Date(), 8), effectiveDate: null, isTransshipment: false },
-        { name: 'Desembaraço Aduaneiro', status: 'pending', predictedDate: addDays(new Date(), 10), effectiveDate: null, isTransshipment: false },
-        { name: 'Carga Liberada', status: 'pending', predictedDate: addDays(new Date(), 11), effectiveDate: null, isTransshipment: false },
-        { name: 'Entrega Final', status: 'pending', predictedDate: addDays(new Date(), 13), effectiveDate: null, isTransshipment: false },
-    ];
-
-
-    const mockedShipment: Shipment = {
-      id: `PROC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      origin: 'Veracruz, MX',
-      destination: 'Houston, TX, US',
-      customer: 'Nexus Imports', // This will be overwritten by the existing data in the sheet
-      overseasPartner: { // This will be overwritten
-        id: 1, name: 'EuroExports BV', nomeFantasia: 'EuroExports', roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
-        address: { street: 'Main Street', number: '1', complement: '', district: 'Downtown', city: 'Rotterdam', state: 'ZH', zip: '3011', country: 'Netherlands' },
-        contacts: [{ name: 'Hans Zimmer', email: 'hans@euro.com', phone: '31101234567', departments: ['Comercial'] }]
+    // The API gives us partial data. We need to create a full Shipment object.
+    // In a real app, you'd merge this with data from your database (e.g., from the approved quote).
+    // Here, we create a base object with placeholders and merge the API data on top.
+    const baseShipment: Shipment = {
+      id: `PROC-${bookingNumber.slice(-6)}`,
+      customer: 'Cliente a ser definido',
+      overseasPartner: { 
+        id: 0, name: 'Parceiro a ser definido', nomeFantasia: 'Parceiro', roles: { fornecedor: true, cliente: false, agente: false, comissionado: false },
+        address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
+        contacts: []
       },
-      agent: undefined, // This will be overwritten
-      charges: [], // This will be overwritten
-      details: { cargo: "1x20'GP", transitTime: '13 dias', validity: '31/12/2024', freeTime: '7 dias', incoterm: 'FOB' },
-      milestones,
-      bookingNumber: bookingNumber,
-      vesselName: 'MAERSK HOUSTON',
-      voyageNumber: '430S',
-      masterBillNumber: `MAEU${Math.floor(Math.random() * 900000000) + 100000000}`,
-      houseBillNumber: `MYHBL${Math.floor(Math.random() * 90000000) + 10000000}`,
-      etd,
-      eta,
-      containers: [{
-          id: 'cont-MSCU1234567',
-          number: 'MSCU1234567',
-          seal: 'ML-MX54321',
-          tare: '2150 KG',
-          grossWeight: '20800 KG',
-          freeTime: '7 dias livres no destino'
-      }],
-      commodityDescription: 'Equipamento Industrial',
-      ncm: '8479.89.99',
-      netWeight: '18650 KG',
-      packageQuantity: "1x20'GP",
-      freeTimeDemurrage: '7 dias',
-      transshipments: [],
+      charges: [],
+      details: { cargo: 'Detalhes da Carga', transitTime: 'A definir', validity: '', freeTime: '' },
+      milestones: [],
+      // Default values below will be overwritten by shipmentDetails if available
+      origin: 'Desconhecida',
+      destination: 'Desconhecida',
     };
 
-    return mockedShipment;
+    const finalShipment: Shipment = {
+        ...baseShipment,
+        ...shipmentDetails, // Overwrite defaults with real data
+        id: shipmentDetails.id || baseShipment.id, // Prioritize ID from carrier
+    };
+
+    return finalShipment;
   }
 );

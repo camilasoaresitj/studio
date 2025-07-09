@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -48,7 +49,8 @@ const groupMaritimeRates = (rates: Rate[]) => {
 
         const groupKey = `${rate.origin}|${rate.destination}|${rate.carrier}`;
         if (!groups.has(groupKey)) {
-            // Set group properties from the first rate encountered for this group
+            // Set group properties from the first rate encountered for this group.
+            // This is safe because the edit handlers ensure these properties are consistent across the group.
             groups.set(groupKey, {
                 origin: rate.origin,
                 destination: rate.destination,
@@ -64,11 +66,9 @@ const groupMaritimeRates = (rates: Rate[]) => {
         
         const group = groups.get(groupKey)!;
         // Add the specific rate for the container type
-        group.rates[rate.container] = rate.rate;
-        // Ensure the group reflects the latest freeTime/agent info from any of its rates
-        // This makes sure edits are reflected in the grouped view.
-        if (rate.freeTime) group.freeTime = rate.freeTime;
-        if (rate.agent) group.agent = rate.agent;
+        if (rate.container) {
+          group.rates[rate.container] = rate.rate;
+        }
     });
 
     return Array.from(groups.values());
@@ -215,10 +215,11 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
                                 <TableRow>
                                     <TableCell colSpan={maritimeContainerTypes.length + 6} className="h-24 text-center">Nenhuma tarifa marítima encontrada.</TableCell>
                                 </TableRow>
-                            ) : maritimeRates.map((item: any, index: number) => {
+                            ) : maritimeRates.map((item: any) => {
+                                const key = `${item.origin}-${item.destination}-${item.carrier}`;
                                 const isExpired = isValidDateString(item.validity) && isBefore(parse(item.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
-                                <TableRow key={index} className={isExpired ? 'bg-muted/30 text-muted-foreground' : ''}>
+                                <TableRow key={key} className={isExpired ? 'bg-muted/30 text-muted-foreground' : ''}>
                                     <TableCell className="font-medium truncate" title={item.carrier}>{item.carrier}</TableCell>
                                     <TableCell className="p-2">
                                         <Input
@@ -291,7 +292,7 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
                                 <TableRow>
                                     <TableCell colSpan={9} className="h-24 text-center">Nenhuma tarifa aérea encontrada.</TableCell>
                                 </TableRow>
-                             ) : airRates.map((rate, index) => {
+                             ) : airRates.map((rate) => {
                                 const isExpired = isValidDateString(rate.validity) && isBefore(parse(rate.validity, 'dd/MM/yyyy', new Date()), today);
                                 return (
                                 <TableRow key={rate.id} className={isExpired ? 'bg-muted/30 text-muted-foreground' : ''}>
@@ -333,4 +334,5 @@ export function RatesTable({ rates, onRatesChange, onSelectRate }: RatesTablePro
       )}
     </div>
   );
-}
+
+    

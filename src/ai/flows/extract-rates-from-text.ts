@@ -36,7 +36,6 @@ const ParsedRateSchema = z.object({
   agent: z.string().describe('The agent who provided the rate (e.g., "Global Logistics Agents").'),
   agentContact: AgentContactSchema.describe("The contact person for the agent, if mentioned in the text.").optional(),
 });
-const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
 export type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutputSchema>;
 
 
@@ -70,7 +69,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 
 **Core Extraction Rules:**
 - Each object in the array represents ONE rate for ONE container type.
-- Extract as much information as you can for each rate. If a field is not present, you can omit it.
+- Extract as much information as you can for each rate. If a field is not present, you can omit it from the JSON.
 - **Agent Contact:** You MUST only generate the \`agentContact\` object if the text explicitly contains all three of the following pieces of information for a specific contact person: a full name, an email address, AND a phone number. If even one of these three is missing for a contact, you **MUST OMIT the \`agentContact\` object and key entirely** for that rate's JSON object. Do not generate a partial or empty \`agentContact\` object under any circumstances.
 - If a rate is specified for multiple containers (e.g., "USD 5000/6000/6000"), create separate objects for 20'GP, 40'GP, and 40'HC.
 
@@ -83,6 +82,30 @@ Analyze the following text and extract the rates:
 `,
 });
 
+const normalizeContainerType = (containerStr: string | undefined): string => {
+    if (!containerStr || containerStr.trim().toLowerCase() === 'n/a' || containerStr.trim() === '') {
+        return 'N/A';
+    }
+    // Normalize by removing spaces, special chars except ' and converting to lowercase
+    const c = containerStr.toLowerCase().replace(/[^a-z0-9']/g, '');
+
+    if (c.includes('20')) {
+        if (c.includes('ot')) return "20'OT";
+        if (c.includes('fr')) return "20'FR";
+        if (c.includes('rf') || c.includes('reefer')) return "20'RF";
+        return "20'GP";
+    }
+    if (c.includes('40')) {
+        if (c.includes('hc') || c.includes('hq') || c.includes('highcube')) return "40'HC";
+        if (c.includes('ot')) return "40'OT";
+        if (c.includes('fr')) return "40'FR";
+        if (c.includes('rf') || c.includes('reefer')) return "40'RF";
+        if (c.includes('nor')) return "40'NOR";
+        return "40'GP";
+    }
+    // Fallback for unrecognized types
+    return containerStr.toUpperCase().trim();
+};
 
 const extractRatesFromTextFlow = ai.defineFlow(
   {
@@ -96,26 +119,23 @@ const extractRatesFromTextFlow = ai.defineFlow(
     if (!output || output.length === 0) {
       return [];
     }
-
-    // This is the new, robust post-processing logic.
-    // It trusts the AI's partial extraction and uses code to enforce data integrity.
+    
     const completeRates = output
       .map(partialRate => {
-        // A rate is only truly useless if it has no price. 
-        // All other fields can have sensible defaults.
-        if (!partialRate.rate) {
+        // A rate is only truly useless if it has no price or no route. 
+        if (!partialRate.rate || !partialRate.origin || !partialRate.destination) {
           return null;
         }
 
         // Create a new, complete rate object, providing "N/A" as a fallback.
         const completeRate: z.infer<typeof ParsedRateSchema> = {
-          origin: partialRate.origin || 'N/A',
-          destination: partialRate.destination || 'N/A',
+          origin: partialRate.origin,
+          destination: partialRate.destination,
           rate: partialRate.rate,
           modal: partialRate.modal || 'Marítimo', // Default to a sensible value
           carrier: partialRate.carrier || 'N/A',
           transitTime: partialRate.transitTime || 'N/A',
-          container: partialRate.container || 'N/A',
+          container: normalizeContainerType(partialRate.container),
           validity: partialRate.validity || 'N/A',
           freeTime: partialRate.freeTime || 'N/A',
           agent: partialRate.agent || 'Direct',
@@ -128,3 +148,5 @@ const extractRatesFromTextFlow = ai.defineFlow(
     return completeRates;
   }
 );
+
+    

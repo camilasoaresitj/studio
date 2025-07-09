@@ -4,6 +4,7 @@
  */
 import type { FreightQuoteFormData } from '@/lib/schemas';
 import type { GetFreightRatesOutput } from '@/ai/flows/get-freight-rates';
+import type { TrackingEvent } from '@/ai/flows/get-tracking-info';
 
 const API_BASE_URL = 'https://api.maersk.com/v2'; // Example URL
 
@@ -119,16 +120,25 @@ export async function submitVgm(vgmData: any): Promise<{ success: true; vgmConfi
 /**
  * Fetches tracking information from the Maersk API (simulated).
  * @param trackingNumber The Bill of Lading or container number.
+ * @returns A promise that resolves to an object containing the latest status and a list of events.
  */
-export async function getTracking(trackingNumber: string): Promise<{ status: string; events: any[] }> {
+export async function getTracking(trackingNumber: string): Promise<{ status: string; events: TrackingEvent[] }> {
     console.log(`Simulating tracking request to Maersk for: ${trackingNumber}`);
     await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Simulate a successful response for a different scenario
+    const events: TrackingEvent[] = [
+      { status: 'Booking confirmed', date: new Date(new Date().setDate(new Date().getDate() - 3)).toISOString(), location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
+      { status: 'Container picked up for export', date: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
+      { status: 'Loaded on vessel', date: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
+      { status: 'In Transit', date: new Date().toISOString(), location: 'GULF OF MEXICO', completed: false, carrier: 'Maersk' },
+      { status: 'Estimated arrival', date: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(), location: 'MIAMI', completed: false, carrier: 'Maersk' },
+    ];
+    
+    const latestCompletedEvent = [...events].reverse().find(e => e.completed);
+
     return {
-        status: 'Discharged',
-        events: [
-            { timestamp: new Date().toISOString(), location: 'ROTTERDAM', description: 'Discharged' },
-            { timestamp: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), location: 'ROTTERDAM', description: 'Available for pickup' },
-            { timestamp: new Date(new Date().setDate(new Date().getDate() - 28)).toISOString(), location: 'SANTOS', description: 'Loaded on board' },
-        ]
+        status: latestCompletedEvent?.status || 'Pending',
+        events: events
     };
 }

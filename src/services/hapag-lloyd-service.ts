@@ -4,6 +4,7 @@
  */
 import type { FreightQuoteFormData } from '@/lib/schemas';
 import type { GetFreightRatesOutput } from '@/ai/flows/get-freight-rates';
+import type { TrackingEvent } from '@/ai/flows/get-tracking-info';
 
 const API_BASE_URL = 'https://api.hapag-lloyd.com/v1'; // Example URL
 
@@ -116,15 +117,26 @@ export async function submitVgm(vgmData: any): Promise<{ success: true; confirma
 /**
  * Fetches tracking information from the Hapag-Lloyd API (simulated).
  * @param trackingNumber The Bill of Lading or container number.
+ * @returns A promise that resolves to an object containing the latest status and a list of events.
  */
-export async function getTracking(trackingNumber: string): Promise<{ status: string; events: any[] }> {
+export async function getTracking(trackingNumber: string): Promise<{ status: string; events: TrackingEvent[] }> {
     console.log(`Simulating tracking request to Hapag-Lloyd for: ${trackingNumber}`);
     await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Simulate a successful response
+    const events: TrackingEvent[] = [
+        { status: 'Booking Confirmed', date: new Date(new Date().setDate(new Date().getDate() - 20)).toISOString(), location: 'SANTOS', completed: true, carrier: 'Hapag-Lloyd' },
+        { status: 'Container Gated In', date: new Date(new Date().setDate(new Date().getDate() - 16)).toISOString(), location: 'SANTOS', completed: true, carrier: 'Hapag-Lloyd' },
+        { status: 'Loaded on board vessel', date: new Date(new Date().setDate(new Date().getDate() - 15)).toISOString(), location: 'SANTOS', completed: true, carrier: 'Hapag-Lloyd' },
+        { status: 'Vessel Departure', date: new Date(new Date().setDate(new Date().getDate() - 14)).toISOString(), location: 'SANTOS', completed: true, carrier: 'Hapag-Lloyd' },
+        { status: 'Vessel Arrival', date: new Date().toISOString(), location: 'ROTTERDAM', completed: false, carrier: 'Hapag-Lloyd' },
+        { status: 'Container Discharged', date: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(), location: 'ROTTERDAM', completed: false, carrier: 'Hapag-Lloyd' },
+    ];
+
+    const latestCompletedEvent = [...events].reverse().find(e => e.completed);
+
     return {
-        status: 'In Transit',
-        events: [
-            { timestamp: new Date().toISOString(), location: 'ROTTERDAM', description: 'Discharged' },
-            { timestamp: new Date(new Date().setDate(new Date().getDate() - 15)).toISOString(), location: 'SANTOS', description: 'Loaded on board' },
-        ]
+        status: latestCompletedEvent?.status || 'Pending',
+        events: events
     };
 }

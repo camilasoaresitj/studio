@@ -70,7 +70,6 @@ export default function OperacionalPage() {
           const existingIndex = shipments.findIndex(s => s.id === fetchedShipment.id || (s.bookingNumber && s.bookingNumber === fetchedShipment.bookingNumber));
           
           if (existingIndex > -1) {
-              // Update existing shipment
               updatedShipments = [...shipments];
               updatedShipments[existingIndex] = fetchedShipment;
               toast({
@@ -79,7 +78,6 @@ export default function OperacionalPage() {
                   className: 'bg-success text-success-foreground'
               });
           } else {
-              // Add new shipment
               updatedShipments = [fetchedShipment, ...shipments];
               toast({
                   title: "Processo Importado!",
@@ -88,9 +86,8 @@ export default function OperacionalPage() {
               });
           }
           
-          // Update state for both list and selected shipment
-          setShipments(updatedShipments);
-          updateShipment(fetchedShipment); // Save all to local storage
+          updateShipment(fetchedShipment); // Crucial: Save all changes to local storage
+          setShipments(updatedShipments); // Update the list in the state
           setSelectedShipment(fetchedShipment); // Select the new/updated shipment to show details
 
           setNewBookingNumber('');
@@ -300,3 +297,5 @@ export default function OperacionalPage() {
     </>
   );
 }
+
+      

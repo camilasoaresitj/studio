@@ -41,8 +41,8 @@ const getVesselSchedulesFlow = ai.defineFlow(
     outputSchema: GetVesselSchedulesOutputSchema,
   },
   async ({ origin, destination }) => {
-    const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || '9H31zRWYCGihV5U3th5JJXZI3h7LGen6';
+    const apiKey = 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
+    const orgToken = '9H31zRWYCGihV5U3th5JJXZI3h7LGen6';
     const baseUrl = 'https://flow.cargoes.com/api/v1';
 
     try {
@@ -71,3 +71,5 @@ const getVesselSchedulesFlow = ai.defineFlow(
     }
   }
 );
+
+    

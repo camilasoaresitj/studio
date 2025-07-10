@@ -82,6 +82,7 @@ export type Shipment = {
   // Existing operational fields
   bookingNumber?: string;
   mblPrintingAtDestination?: boolean;
+  mblPrintingAuthDate?: Date;
   courier?: 'DHL' | 'UPS' | 'FedEx' | 'Outro';
   courierNumber?: string;
   vesselName?: string;
@@ -189,6 +190,7 @@ export function getShipments(): Shipment[] {
         ...shipment,
         etd: shipment.etd ? new Date(shipment.etd) : undefined,
         eta: shipment.eta ? new Date(shipment.eta) : undefined,
+        mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
         transshipments: shipment.transshipments?.map((t: any) => ({
             ...t,
             etd: t.etd ? new Date(t.etd) : undefined,

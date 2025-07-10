@@ -67,6 +67,7 @@ const shipmentDetailsSchema = z.object({
   houseBillNumber: z.string().optional(),
   bookingNumber: z.string().optional(),
   mblPrintingAtDestination: z.boolean().optional(),
+  mblPrintingAuthDate: z.date().optional(),
   courier: z.enum(['DHL', 'UPS', 'FedEx', 'Outro']).optional(),
   courierNumber: z.string().optional(),
   etd: z.date().optional(),
@@ -164,6 +165,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         houseBillNumber: shipment.houseBillNumber || '',
         bookingNumber: shipment.bookingNumber || '',
         mblPrintingAtDestination: shipment.mblPrintingAtDestination || false,
+        mblPrintingAuthDate: shipment.mblPrintingAuthDate && isValid(new Date(shipment.mblPrintingAuthDate)) ? new Date(shipment.mblPrintingAuthDate) : undefined,
         courier: shipment.courier,
         courierNumber: shipment.courierNumber || '',
         etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
@@ -200,6 +202,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const watchedCourier = form.watch('courier');
   const watchedCourierNumber = form.watch('courierNumber');
   const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
+  const mblPrintingAuthDate = form.watch('mblPrintingAuthDate');
   const courierTrackingUrl = getCourierTrackingUrl(watchedCourier, watchedCourierNumber);
 
   if (!shipment) {
@@ -312,8 +315,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       const isEnabled = form.getValues('mblPrintingAtDestination');
       form.setValue('mblPrintingAtDestination', !isEnabled);
       if (!isEnabled) {
+          form.setValue('mblPrintingAuthDate', new Date());
           form.setValue('courier', undefined);
           form.setValue('courierNumber', '');
+      } else {
+          form.setValue('mblPrintingAuthDate', undefined);
       }
   };
 
@@ -479,9 +485,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-lg">Envio de Documentos</CardTitle>
-                                    {mblPrintingAtDestination && (
-                                        <CardDescription className="text-primary font-medium">Impressão do MBL será feita no destino.</CardDescription>
-                                    )}
                                 </CardHeader>
                                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                                     <FormField control={form.control} name="courier" render={({ field }) => (
@@ -511,7 +514,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         )}
                                         <Button type="button" variant={mblPrintingAtDestination ? 'default' : 'secondary'} className="w-full" onClick={handleToggleMblPrinting} title="Marcar/desmarcar impressão do MBL no destino">
                                             <Printer className="mr-2 h-4 w-4" />
-                                            Impressão no Destino
+                                            {mblPrintingAtDestination ? `Autorizado em ${format(mblPrintingAuthDate || new Date(), 'dd/MM/yy')}` : 'Impressão no Destino'}
                                         </Button>
                                     </div>
                                 </CardContent>

@@ -191,6 +191,14 @@ function getSimulatedTrackingDataFor254285462(): { status: string; events: Track
  * @returns A promise that resolves to an object containing the latest status, a list of events, and partial shipment details.
  */
 export async function getTracking(trackingNumber: string): Promise<{ status: string; events: TrackingEvent[]; shipmentDetails: Partial<Shipment> }> {
+    // This is a simplified simulation for demonstration purposes.
+    // In a real app, you would make live API calls as drafted below.
+    if (trackingNumber) {
+        console.log(`Using high-fidelity simulation for Maersk tracking number: ${trackingNumber}`);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+        return getSimulatedTrackingDataFor254285462();
+    }
+
     const apiKey = process.env.MAERSK_API_KEY;
     if (!apiKey) {
       throw new Error("A chave de API da Maersk não está configurada no arquivo .env.");

@@ -215,8 +215,23 @@ export default function OperacionalPage() {
       
       <Card>
         <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" />Embarques Ativos</CardTitle>
-            <CardDescription>Clique em um processo para ver e editar todos os detalhes.</CardDescription>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                <div>
+                    <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" />Embarques Ativos</CardTitle>
+                    <CardDescription>Clique em um processo para ver e editar todos os detalhes.</CardDescription>
+                </div>
+                <div className="flex w-full sm:w-auto sm:max-w-xs items-center gap-2">
+                    <Input
+                        placeholder="Novo Processo por Booking"
+                        value={newBookingNumber}
+                        onChange={(e) => setNewBookingNumber(e.target.value)}
+                        className="flex-grow"
+                    />
+                    <Button onClick={handleFetchBooking} disabled={isFetchingBooking}>
+                         {isFetchingBooking ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackagePlus className="h-4 w-4" />}
+                    </Button>
+                </div>
+            </div>
         </CardHeader>
         <CardContent>
             <div className="border rounded-lg">

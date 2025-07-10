@@ -72,7 +72,7 @@ export type TransshipmentDetail = {
 export type DocumentStatus = {
     name: 'Draft MBL' | 'Draft HBL' | 'Original MBL' | 'Original HBL' | 'Invoice' | 'Packing List' | 'Extrato DI';
     status: 'pending' | 'uploaded' | 'approved';
-    fileUrl?: string;
+    fileName?: string;
     uploadedAt?: Date;
 };
 
@@ -86,7 +86,7 @@ export type Shipment = {
   charges: QuoteCharge[];
   details: QuoteDetails;
   milestones: Milestone[];
-  documents?: DocumentStatus[];
+  documents: DocumentStatus[];
   // Existing operational fields
   bookingNumber?: string;
   mblPrintingAtDestination?: boolean;
@@ -200,6 +200,10 @@ export function getShipments(): Shipment[] {
         etd: shipment.etd ? new Date(shipment.etd) : undefined,
         eta: shipment.eta ? new Date(shipment.eta) : undefined,
         mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
+        documents: shipment.documents?.map((d: any) => ({
+            ...d,
+            uploadedAt: d.uploadedAt ? new Date(d.uploadedAt) : undefined,
+        })) || [],
         transshipments: shipment.transshipments?.map((t: any) => ({
             ...t,
             etd: t.etd ? new Date(t.etd) : undefined,

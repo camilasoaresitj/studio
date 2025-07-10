@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, Check, FileCheck, CircleDot } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -74,6 +74,12 @@ const shipmentDetailsSchema = z.object({
   etd: z.date().optional(),
   eta: z.date().optional(),
   containers: z.array(containerDetailSchema).optional(),
+  documents: z.array(z.object({
+      name: z.string(),
+      status: z.string(),
+      fileName: z.string().optional(),
+      uploadedAt: z.date().optional()
+  })).optional(),
   commodityDescription: z.string().optional(),
   ncm: z.string().optional(),
   netWeight: z.string().optional(),
@@ -116,6 +122,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCourierSyncing, setIsCourierSyncing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<ShipmentDetailsFormData>({
     resolver: zodResolver(shipmentDetailsSchema),
@@ -129,6 +136,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const { fields: transshipmentFields, append: appendTransshipment, remove: removeTransshipment } = useFieldArray({
     control: form.control,
     name: "transshipments"
+  });
+  
+  const { fields: documentFields } = useFieldArray({
+    control: form.control,
+    name: "documents"
   });
 
   const assembledMilestones = useMemo(() => {
@@ -174,6 +186,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
         eta: shipment.eta && isValid(new Date(shipment.eta)) ? new Date(shipment.eta) : undefined,
         containers: shipment.containers?.map(c => ({...c, freeTime: c.freeTime || ''})) || [],
+        documents: shipment.documents || [],
         commodityDescription: shipment.commodityDescription || '',
         ncm: shipment.ncm || '',
         netWeight: shipment.netWeight || '',
@@ -225,18 +238,43 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
   };
 
-  const getMilestoneStatusBadge = (status: Milestone['status']): { text: string; variant: 'default' | 'secondary' | 'outline' | 'success' } => {
-    switch (status) {
-        case 'completed':
-            return { text: 'Completed', variant: 'success' };
-        case 'in_progress':
-            return { text: 'In Progress', variant: 'default' };
-        case 'pending':
-        default:
-            return { text: 'Pending', variant: 'secondary' };
+  const handleDocumentChange = (index: number, newStatus: DocumentStatus['status'], fileName?: string) => {
+    if (!shipment) return;
+    const updatedDocuments = [...(form.getValues('documents') || [])];
+    if (updatedDocuments[index]) {
+        updatedDocuments[index].status = newStatus;
+        if (fileName) {
+            updatedDocuments[index].fileName = fileName;
+        }
+        if (newStatus === 'uploaded') {
+            updatedDocuments[index].uploadedAt = new Date();
+        }
+        form.setValue('documents', updatedDocuments);
+        onUpdate({
+            ...shipment,
+            documents: updatedDocuments as DocumentStatus[],
+        });
     }
   };
 
+  const handleUploadClick = (index: number) => {
+      if (fileInputRef.current) {
+          fileInputRef.current.onchange = (e) => {
+              const target = e.target as HTMLInputElement;
+              if (target.files && target.files[0]) {
+                  const file = target.files[0];
+                  handleDocumentChange(index, 'uploaded', file.name);
+                  toast({
+                      title: "Arquivo Selecionado!",
+                      description: `${file.name} foi carregado com sucesso.`,
+                      className: 'bg-success text-success-foreground'
+                  });
+              }
+          };
+          fileInputRef.current.click();
+      }
+  };
+  
   const handleBillingClick = (type: 'receber' | 'pagar') => {
     toast({
         title: `Função em Desenvolvimento`,
@@ -330,20 +368,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       }
   };
 
-  const handleDocumentUpload = (docName: DocumentStatus['name']) => {
-      toast({
-          title: "Funcionalidade em desenvolvimento",
-          description: `O upload para "${docName}" será implementado em breve.`,
-      });
+  const docStatusMap: Record<DocumentStatus['status'], { variant: 'secondary' | 'default' | 'success'; text: string; icon: React.ElementType }> = {
+    pending: { variant: 'secondary', text: 'Pendente', icon: Circle },
+    uploaded: { variant: 'default', text: 'Enviado', icon: CircleDot },
+    approved: { variant: 'success', text: 'Aprovado', icon: FileCheck },
   };
-
-  const docStatusVariant = (status: DocumentStatus['status']) => {
-    switch (status) {
-        case 'approved': return 'success';
-        case 'uploaded': return 'default';
-        default: return 'secondary';
-    }
-  }
 
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -356,6 +385,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                           Rota de {shipment.origin} para {shipment.destination} para <strong>{shipment.customer}</strong>
                       </SheetDescription>
                   </SheetHeader>
+                  <input type="file" ref={fileInputRef} className="hidden" />
 
                   <Tabs defaultValue="milestones" className="flex-grow flex flex-col overflow-hidden mt-4">
                     <TabsList className="grid w-full grid-cols-5 mb-4">
@@ -506,22 +536,51 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </Card>
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Upload de Documentos</CardTitle>
+                                    <CardTitle className="text-lg">Gerenciamento de Documentos</CardTitle>
                                 </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {shipment.documents && shipment.documents.map(doc => (
-                                            <div key={doc.name} className="p-3 border rounded-lg flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-medium">{doc.name}</p>
-                                                    <Badge variant={docStatusVariant(doc.status)} className="capitalize mt-1">{doc.status}</Badge>
-                                                </div>
-                                                <Button type="button" variant="outline" size="sm" onClick={() => handleDocumentUpload(doc.name)}>
-                                                    <Upload className="mr-2 h-4 w-4" /> Upload
-                                                </Button>
+                                <CardContent className="space-y-4">
+                                    {documentFields.map((doc, index) => {
+                                      const { name, status, fileName, uploadedAt } = form.getValues(`documents.${index}`) as DocumentStatus;
+                                      const statusInfo = docStatusMap[status] || docStatusMap.pending;
+                                      return (
+                                        <div key={doc.id} className="p-3 border rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                          <div className="flex-grow">
+                                            <div className="flex items-center gap-2">
+                                              <statusInfo.icon className={cn("h-5 w-5", status === 'approved' && 'text-success', status === 'uploaded' && 'text-primary' )} />
+                                              <p className="font-medium">{name}</p>
+                                              <Badge variant={statusInfo.variant}>{statusInfo.text}</Badge>
                                             </div>
-                                        ))}
-                                    </div>
+                                            {status !== 'pending' && fileName && (
+                                              <p className="text-xs text-muted-foreground mt-1 ml-7">
+                                                {fileName} {uploadedAt && ` - ${format(new Date(uploadedAt), 'dd/MM/yy HH:mm')}`}
+                                              </p>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-2 self-end sm:self-center">
+                                            {status === 'pending' && (
+                                              <Button type="button" variant="outline" size="sm" onClick={() => handleUploadClick(index)}>
+                                                <Upload className="mr-2 h-4 w-4" /> Upload
+                                              </Button>
+                                            )}
+                                            {status === 'uploaded' && (
+                                              <>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => handleUploadClick(index)}>
+                                                  <Upload className="mr-2 h-4 w-4" /> Substituir
+                                                </Button>
+                                                <Button type="button" size="sm" onClick={() => handleDocumentChange(index, 'approved')}>
+                                                  <Check className="mr-2 h-4 w-4" /> Aprovar
+                                                </Button>
+                                              </>
+                                            )}
+                                            {status === 'approved' && (
+                                              <Button type="button" variant="secondary" size="sm" onClick={() => handleUploadClick(index)}>
+                                                <Upload className="mr-2 h-4 w-4" /> Substituir
+                                              </Button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                 </CardContent>
                             </Card>
                             <Card>
@@ -586,7 +645,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     {assembledMilestones.map((milestone, index) => {
                                         const predictedDate = milestone.predictedDate && isValid(new Date(milestone.predictedDate)) ? new Date(milestone.predictedDate) : null;
                                         const effectiveDate = milestone.effectiveDate && isValid(new Date(milestone.effectiveDate)) ? new Date(milestone.effectiveDate) : null;
-                                        const statusBadge = getMilestoneStatusBadge(milestone.status);
 
                                         return (
                                         <Card key={`${milestone.name}-${index}`} className="p-4">

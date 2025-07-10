@@ -51,8 +51,8 @@ export default function OperacionalPage() {
     });
   };
   
-  const handleFetchBooking = async () => {
-      if (!newBookingNumber.trim()) {
+  const handleFetchBooking = async (bookingNumberToFetch: string) => {
+      if (!bookingNumberToFetch.trim()) {
           toast({
               variant: 'destructive',
               title: "Campo obrigatório",
@@ -61,36 +61,38 @@ export default function OperacionalPage() {
           return;
       }
       setIsFetchingBooking(true);
-      const response = await runGetBookingInfo(newBookingNumber);
+      const response = await runGetBookingInfo(bookingNumberToFetch);
 
       if (response.success) {
           const fetchedShipment = response.data;
           
+          let updatedShipments: Shipment[];
           const existingIndex = shipments.findIndex(s => s.id === fetchedShipment.id || (s.bookingNumber && s.bookingNumber === fetchedShipment.bookingNumber));
-
+          
           if (existingIndex > -1) {
-              // Update existing shipment and select it to show details
-              const updatedShipments = [...shipments];
+              // Update existing shipment
+              updatedShipments = [...shipments];
               updatedShipments[existingIndex] = fetchedShipment;
-              setShipments(updatedShipments);
-              setSelectedShipment(fetchedShipment); // This was the missing piece
               toast({
                   title: "Processo Atualizado!",
                   description: `Os dados do processo ${fetchedShipment.id} foram sincronizados.`,
                   className: 'bg-success text-success-foreground'
               });
           } else {
-              // Add new shipment to the top of the list
-              const newShipmentList = [fetchedShipment, ...shipments];
-              setShipments(newShipmentList);
-              updateShipment(fetchedShipment); // Save to local storage
-              setSelectedShipment(fetchedShipment); // Select the new shipment to show details
+              // Add new shipment
+              updatedShipments = [fetchedShipment, ...shipments];
               toast({
                   title: "Processo Importado!",
                   description: `O processo ${fetchedShipment.id} foi adicionado com sucesso.`,
                   className: 'bg-success text-success-foreground'
               });
           }
+          
+          // Update state for both list and selected shipment
+          setShipments(updatedShipments);
+          updateShipment(fetchedShipment); // Save all to local storage
+          setSelectedShipment(fetchedShipment); // Select the new/updated shipment to show details
+
           setNewBookingNumber('');
       } else {
           toast({
@@ -237,9 +239,10 @@ export default function OperacionalPage() {
                         placeholder="Novo Processo por Booking"
                         value={newBookingNumber}
                         onChange={(e) => setNewBookingNumber(e.target.value)}
+                        onKeyUp={(e) => { if (e.key === 'Enter') handleFetchBooking(newBookingNumber); }}
                         className="flex-grow"
                     />
-                    <Button onClick={handleFetchBooking} disabled={isFetchingBooking}>
+                    <Button onClick={() => handleFetchBooking(newBookingNumber)} disabled={isFetchingBooking}>
                          {isFetchingBooking ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackagePlus className="h-4 w-4" />}
                     </Button>
                 </div>
@@ -292,9 +295,8 @@ export default function OperacionalPage() {
         open={!!selectedShipment}
         onOpenChange={(isOpen) => !isOpen && setSelectedShipment(null)}
         onUpdate={handleShipmentUpdate}
+        onSync={handleFetchBooking}
     />
     </>
   );
 }
-
-    

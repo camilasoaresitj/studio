@@ -37,7 +37,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { runGetBookingInfo } from '@/app/actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 
@@ -86,6 +85,7 @@ interface ShipmentDetailsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: (updatedShipment: Shipment) => void;
+  onSync: (bookingNumber: string) => Promise<void>;
 }
 
 const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date }) => {
@@ -107,7 +107,7 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 };
 
 
-export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
+export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, onSync }: ShipmentDetailsSheetProps) {
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
   
@@ -261,14 +261,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         return;
     }
     setIsSyncing(true);
-    const response = await runGetBookingInfo(trackingNumber);
-
-    if (response.success) {
-        onUpdate(response.data); // Notify the parent component of the update
-        toast({ title: 'Dados Sincronizados!', description: 'As informações do embarque foram atualizadas.', className: 'bg-success text-success-foreground' });
-    } else {
-        toast({ variant: 'destructive', title: 'Erro na Sincronização', description: response.error });
-    }
+    await onSync(trackingNumber);
     setIsSyncing(false);
   };
 
@@ -648,5 +641,3 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       </Sheet>
   );
 }
-
-    

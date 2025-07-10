@@ -102,7 +102,7 @@ const getTrackingInfoFlow = ai.defineFlow(
     const maerskApiKey = process.env.MAERSK_API_KEY;
     
     // --- Primary Method: Maersk Direct API ---
-    if (input.carrier.toLowerCase().includes('maersk') && maerskApiKey) {
+    if (input.carrier.toLowerCase().includes('maersk') && maerskApiKey && maerskApiKey !== '<SUA_CHAVE_AQUI>') {
         try {
             console.log(`Attempting to fetch tracking from Maersk API for: ${input.trackingNumber}`);
             const maerskResponse = await fetch(`https://api.maersk.com/v2/track/shipments-summary?trackingNumber=${input.trackingNumber}`, {

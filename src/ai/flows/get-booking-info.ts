@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch full shipment details using a booking number.
+ * @fileOverview A Genkit flow to fetch full shipment details using a booking number from the Cargo-flows service.
  *
  * getBookingInfo - A function that fetches shipment info.
  * GetBookingInfoInput - The input type.
@@ -10,11 +10,8 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Shipment } from '@/lib/shipment';
-import * as maersk from '@/services/maersk-service';
-import * as hapag from '@/services/hapag-lloyd-service';
+import * as cargoFlows from '@/services/schedule-service';
 
-// Using z.any() for the schema because the full Shipment type is complex and defined on the client side.
-// The wrapper function provides the strong typing.
 const GetBookingInfoOutputSchema = z.any();
 
 const GetBookingInfoInputSchema = z.object({
@@ -34,24 +31,47 @@ const getBookingInfoFlow = ai.defineFlow(
     outputSchema: GetBookingInfoOutputSchema,
   },
   async ({ bookingNumber }) => {
-    console.log(`Fetching real carrier data for booking: ${bookingNumber}`);
+    console.log(`Fetching real carrier data from Cargo-flows for booking: ${bookingNumber}`);
     
-    let shipmentDetails: Partial<Shipment> = {};
+    // Cargo-flows tracking result provides all the necessary details
+    const trackingResult = await cargoFlows.cargoFlowsService.getTracking(bookingNumber);
+    
+    const { 
+        id, 
+        origin, 
+        destination, 
+        carrier, 
+        vesselName, 
+        voyageNumber, 
+        events 
+    } = trackingResult;
 
-    const upperCaseBookingNumber = bookingNumber.toUpperCase();
-    // Route to the correct carrier service based on number format
-    if (upperCaseBookingNumber.startsWith('MSCU') || upperCaseBookingNumber.startsWith('MAEU') || /^\d{9}$/.test(upperCaseBookingNumber)) {
-        const maerskResult = await maersk.getTracking(upperCaseBookingNumber);
-        shipmentDetails = maerskResult.shipmentDetails;
-    } else {
-        // Here you could add logic for other carriers, like Hapag-Lloyd
-        // For now, we throw an error if the format is unrecognized.
-        throw new Error(`Formato de booking/contêiner não reconhecido: ${bookingNumber}. A integração real só funciona para Maersk.`);
-    }
+    // Use the tracking events to create milestones
+    const milestones = events.map(event => ({
+        name: event.status,
+        status: event.completed ? 'completed' as const : 'pending' as const,
+        predictedDate: new Date(event.date),
+        effectiveDate: event.completed ? new Date(event.date) : null,
+        details: event.location,
+    }));
 
-    // The API gives us partial data. We need to create a full Shipment object.
-    // In a real app, you'd merge this with data from your database (e.g., from the approved quote).
-    // Here, we create a base object with placeholders and merge the API data on top.
+    // Find ETD and ETA from events
+    const etdEvent = events.find(e => e.status.toLowerCase().includes('departure'));
+    const etaEvent = [...events].reverse().find(e => e.status.toLowerCase().includes('arrival'));
+
+    const shipmentDetails: Partial<Shipment> = {
+        id,
+        origin,
+        destination,
+        bookingNumber: id,
+        masterBillNumber: id,
+        vesselName,
+        voyageNumber,
+        etd: etdEvent ? new Date(etdEvent.date) : undefined,
+        eta: etaEvent ? new Date(etaEvent.date) : undefined,
+        milestones
+    };
+    
     const baseShipment: Shipment = {
       id: `PROC-${bookingNumber.slice(-6)}`,
       customer: 'Cliente a ser definido',
@@ -63,15 +83,14 @@ const getBookingInfoFlow = ai.defineFlow(
       charges: [],
       details: { cargo: 'Detalhes da Carga', transitTime: 'A definir', validity: '', freeTime: '' },
       milestones: [],
-      // Default values below will be overwritten by shipmentDetails if available
       origin: 'Desconhecida',
       destination: 'Desconhecida',
     };
 
     const finalShipment: Shipment = {
         ...baseShipment,
-        ...shipmentDetails, // Overwrite defaults with real data
-        id: shipmentDetails.id || baseShipment.id, // Prioritize ID from carrier
+        ...shipmentDetails, 
+        id: shipmentDetails.id || baseShipment.id, 
     };
 
     return finalShipment;

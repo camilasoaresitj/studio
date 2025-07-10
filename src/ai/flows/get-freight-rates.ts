@@ -10,8 +10,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
-import * as hapag from '@/services/hapag-lloyd-service';
-import * as maersk from '@/services/maersk-service';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
 
@@ -93,27 +91,6 @@ const getFreightRatesFlow = ai.defineFlow(
     outputSchema: GetFreightRatesOutputSchema,
   },
   async (input) => {
-    // --- Hapag-Lloyd API Call (Simulated) ---
-    let hapagRates: GetFreightRatesOutput = [];
-    if (input.modal === 'ocean' && input.oceanShipmentType === 'FCL') {
-        try {
-            hapagRates = await hapag.getRates(input);
-        } catch (error) {
-            console.error("Error fetching rates from Hapag-Lloyd service:", error);
-            // Don't block the entire flow if Hapag fails
-        }
-    }
-
-    // --- Maersk API Call (Simulated) ---
-    let maerskRates: GetFreightRatesOutput = [];
-    if (input.modal === 'ocean' && input.oceanShipmentType === 'FCL') {
-        try {
-            maerskRates = await maersk.getRates(input);
-        } catch (error) {
-            console.error("Error fetching rates from Maersk service:", error);
-            // Don't block the entire flow if Maersk fails
-        }
-    }
     
     // --- CargoFive API Call ---
     const apiKey = process.env.CARGOFIVE_API_KEY;
@@ -125,10 +102,9 @@ const getFreightRatesFlow = ai.defineFlow(
     const destinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
 
     if (origins.length === 0 || destinations.length === 0) {
-        return [...hapagRates, ...maerskRates]; // Return carrier rates if any
+        return []; 
     }
     
-    // Create all combinations of origin/destination pairs
     const searchPairs = origins.flatMap(origin => 
         destinations.map(destination => ({ origin, destination }))
     );
@@ -181,7 +157,6 @@ const getFreightRatesFlow = ai.defineFlow(
       } catch (error) {
         console.error(`Error fetching rates for ${pair.origin} -> ${pair.destination}:`, error);
         if (error instanceof Error) {
-            // Log but don't rethrow to allow other promises to complete
             console.error(error.message);
         }
         return [];
@@ -191,6 +166,6 @@ const getFreightRatesFlow = ai.defineFlow(
     const allRatesArrays = await Promise.all(ratePromises);
     const combinedRates = allRatesArrays.flat();
     
-    return [...hapagRates, ...maerskRates, ...combinedRates];
+    return combinedRates;
   }
 );

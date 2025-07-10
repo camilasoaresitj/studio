@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -39,7 +40,7 @@ type PartnerFormData = z.infer<typeof newPartnerSchema>;
 interface ApproveQuoteDialogProps {
   quote: Quote | null;
   partners: Partner[];
-  onApprovalConfirmed: (quote: Quote, overseasPartner: Partner, agent?: Partner) => void;
+  onApprovalConfirmed: (quote: Quote, overseasPartner: Partner, agent: Partner | undefined, notifyName: string, invoiceNumber: string, poNumber: string) => void;
   onClose: () => void;
 }
 
@@ -50,6 +51,9 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiAutofillText, setAiAutofillText] = useState('');
+  const [notifyName, setNotifyName] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [poNumber, setPoNumber] = useState('');
   const { toast } = useToast();
 
   const form = useForm<PartnerFormData>({
@@ -75,6 +79,9 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
       setSelectedOverseasPartnerId(null);
       setSelectedAgentId('none');
       setAiAutofillText('');
+      setNotifyName(quote.customer);
+      setInvoiceNumber('');
+      setPoNumber('');
       form.reset({
         name: '',
         roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
@@ -121,7 +128,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
         ? partners.find(p => p.id?.toString() === selectedAgentId)
         : undefined;
 
-    onApprovalConfirmed(quote, overseasPartner, agent);
+    onApprovalConfirmed(quote, overseasPartner, agent, notifyName, invoiceNumber, poNumber);
   };
 
   const handleAiAutofill = async () => {
@@ -152,7 +159,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
         <DialogHeader>
           <DialogTitle>Confirmar Detalhes do Embarque</DialogTitle>
           <DialogDescription>
-            Informe o {partnerRole} e o Agente (opcional) para o embarque {quote.id.replace('-DRAFT', '')}.
+            Informe os dados do embarque {quote.id.replace('-DRAFT', '')}.
           </DialogDescription>
         </DialogHeader>
         
@@ -287,6 +294,26 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                            </Form>
                         </TabsContent>
                     </Tabs>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Outras Informações</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                        <Label htmlFor="notify-party">Notify Party</Label>
+                        <Input id="notify-party" placeholder="Nome do Notify" value={notifyName} onChange={e => setNotifyName(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="invoice-number">Invoice Nº</Label>
+                        <Input id="invoice-number" placeholder="INV-12345" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="po-number">Purchase Order (PO) Nº</Label>
+                        <Input id="po-number" placeholder="PO-67890" value={poNumber} onChange={e => setPoNumber(e.target.value)} />
+                    </div>
                 </CardContent>
             </Card>
 

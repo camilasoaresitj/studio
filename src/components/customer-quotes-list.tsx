@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -250,7 +251,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         setSelectedQuote(updatedQuote); 
     };
 
-    const handleApprovalConfirmed = async (quote: Quote, overseasPartner: Partner, agent?: Partner) => {
+    const handleApprovalConfirmed = async (quote: Quote, overseasPartner: Partner, agent: Partner | undefined, notifyName: string, invoiceNumber: string, poNumber: string) => {
         // If the partner is new (doesn't have an existing ID in the main list), save it.
         if (!partners.some(p => p.id === overseasPartner.id)) {
             onPartnerSaved(overseasPartner);
@@ -264,8 +265,11 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         await createShipment({
           ...quote,
           overseasPartner,
-          agent
-        }, overseasPartner, agent);
+          agent,
+          notifyName,
+          invoiceNumber,
+          purchaseOrderNumber: poNumber,
+        });
 
         toast({
             title: `Cotação ${quote.id.replace('-DRAFT', '')} Aprovada!`,

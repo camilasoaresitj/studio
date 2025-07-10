@@ -86,6 +86,9 @@ const shipmentDetailsSchema = z.object({
   packageQuantity: z.string().optional(),
   freeTimeDemurrage: z.string().optional(),
   transshipments: z.array(transshipmentDetailSchema).optional(),
+  notifyName: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  purchaseOrderNumber: z.string().optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -197,6 +200,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
           etd: t.etd && isValid(new Date(t.etd)) ? new Date(t.etd) : undefined,
           eta: t.eta && isValid(new Date(t.eta)) ? new Date(t.eta) : undefined,
         })) || [],
+        notifyName: shipment.notifyName || '',
+        invoiceNumber: shipment.invoiceNumber || '',
+        purchaseOrderNumber: shipment.purchaseOrderNumber || '',
       });
     }
   }, [shipment, form]);
@@ -239,19 +245,20 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   };
 
   const handleDocumentChange = (index: number, newStatus: DocumentStatus['status'], fileName?: string) => {
-    if (!shipment) return;
-    const currentValues = form.getValues();
-    const updatedDocuments = [...(currentValues.documents || [])];
-
-    if (updatedDocuments[index]) {
-        updatedDocuments[index].status = newStatus;
-        if (fileName) {
-            updatedDocuments[index].fileName = fileName;
-            updatedDocuments[index].uploadedAt = new Date();
-        }
-        const updatedShipment = { ...shipment, documents: updatedDocuments };
-        onUpdate(updatedShipment as Shipment);
-    }
+      if (!shipment) return;
+      
+      const currentDocuments = form.getValues('documents') || [];
+      const updatedDocuments = [...currentDocuments];
+  
+      if (updatedDocuments[index]) {
+          updatedDocuments[index].status = newStatus;
+          if (fileName) {
+              updatedDocuments[index].fileName = fileName;
+              updatedDocuments[index].uploadedAt = new Date();
+          }
+          const updatedShipment = { ...shipment, documents: updatedDocuments };
+          onUpdate(updatedShipment as Shipment);
+      }
   };
 
   const handleUploadClick = (index: number) => {
@@ -463,6 +470,20 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                                             </Popover>
                                         <FormMessage /></FormItem>
+                                    )}/>
+                                </CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader><CardTitle className="text-lg">Dados da Carga</CardTitle></CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                     <FormField control={form.control} name="notifyName" render={({ field }) => (
+                                        <FormItem><FormLabel>Notify Party</FormLabel><FormControl><Input placeholder="Nome do Notify" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                        <FormItem><FormLabel>Invoice Nº</FormLabel><FormControl><Input placeholder="INV-12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                                        <FormItem><FormLabel>Purchase Order (PO) Nº</FormLabel><FormControl><Input placeholder="PO-67890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </CardContent>
                             </Card>

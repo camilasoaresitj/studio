@@ -41,6 +41,9 @@ export type ShipmentCreationData = {
   // Add partners to the creation data
   overseasPartner: Partner;
   agent?: Partner;
+  notifyName: string;
+  invoiceNumber: string;
+  purchaseOrderNumber: string;
 };
 
 export type Milestone = {
@@ -107,6 +110,9 @@ export type Shipment = {
   packageQuantity?: string;
   freeTimeDemurrage?: string;
   transshipments?: TransshipmentDetail[];
+  notifyName?: string;
+  invoiceNumber?: string;
+  purchaseOrderNumber?: string;
 };
 
 // --- Milestone Templates & Due Date Calculation ---
@@ -241,16 +247,16 @@ function saveShipments(shipments: Shipment[]): void {
 /**
  * Creates a new shipment from an approved quote and saves it.
  */
-export async function createShipment(quote: ShipmentCreationData, overseasPartner: Partner, agent?: Partner): Promise<Shipment> {
-  const isImport = quote.destination.toUpperCase().includes('BR');
+export async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
+  const isImport = quoteData.destination.toUpperCase().includes('BR');
   const creationDate = new Date();
-  const milestones = generateInitialMilestones(isImport, quote.details.transitTime, creationDate);
+  const milestones = generateInitialMilestones(isImport, quoteData.details.transitTime, creationDate);
   
   if (milestones.length > 0) {
       milestones[0].status = 'in_progress';
   }
 
-  const transitTime = parseInt(quote.details.transitTime.split('-').pop() || '30', 10);
+  const transitTime = parseInt(quoteData.details.transitTime.split('-').pop() || '30', 10);
   const etdDays = isImport ? IMPORT_MILESTONE_DUE_DAYS['Confirmação de Embarque'] : EXPORT_MILESTONE_DUE_DAYS['Embarque'];
   const etd = addDays(creationDate, etdDays);
   const eta = addDays(etd, transitTime);
@@ -266,14 +272,14 @@ export async function createShipment(quote: ShipmentCreationData, overseasPartne
   ];
 
   const newShipment: Shipment = {
-    id: quote.id.replace('-DRAFT', ''),
-    origin: quote.origin,
-    destination: quote.destination,
-    customer: quote.customer,
-    overseasPartner,
-    agent,
-    charges: quote.charges,
-    details: quote.details,
+    id: quoteData.id.replace('-DRAFT', ''),
+    origin: quoteData.origin,
+    destination: quoteData.destination,
+    customer: quoteData.customer,
+    overseasPartner: quoteData.overseasPartner,
+    agent: quoteData.agent,
+    charges: quoteData.charges,
+    details: quoteData.details,
     milestones,
     documents,
     etd,
@@ -281,25 +287,28 @@ export async function createShipment(quote: ShipmentCreationData, overseasPartne
     bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     masterBillNumber: `MSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    packageQuantity: quote.details.cargo,
-    freeTimeDemurrage: quote.details.freeTime,
+    packageQuantity: quoteData.details.cargo,
+    freeTimeDemurrage: quoteData.details.freeTime,
     mblPrintingAtDestination: false,
+    notifyName: quoteData.notifyName,
+    invoiceNumber: quoteData.invoiceNumber,
+    purchaseOrderNumber: quoteData.purchaseOrderNumber,
   };
 
-  if (isImport && agent) {
-    const freightCharge = quote.charges.find(c => c.name.toLowerCase().includes('frete'));
-    const thcCharge = quote.charges.find(c => c.name.toLowerCase().includes('thc'));
+  if (isImport && quoteData.agent) {
+    const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
+    const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
     
     // Simulate sending email to agent
     await runSendShippingInstructions({
-      agentName: agent.name,
-      agentEmail: agent.contacts[0]?.email || 'agent@example.com',
-      shipper: overseasPartner,
-      consigneeName: quote.customer,
-      notifyName: quote.customer,
+      agentName: quoteData.agent.name,
+      agentEmail: quoteData.agent.contacts[0]?.email || 'agent@example.com',
+      shipper: quoteData.overseasPartner,
+      consigneeName: quoteData.customer,
+      notifyName: quoteData.notifyName,
       freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
       freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'N/A',
-      agentProfit: agent.profitAgreement?.amount ? `USD ${agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
+      agentProfit: quoteData.agent.profitAgreement?.amount ? `USD ${quoteData.agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
       thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
       commodity: newShipment.commodityDescription || 'General Cargo',
       ncm: newShipment.ncm || 'N/A',

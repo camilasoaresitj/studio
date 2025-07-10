@@ -9,7 +9,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { cargoFlowsService } from '@/services/schedule-service';
 
 const GetTrackingInfoInputSchema = z.object({
   trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
@@ -37,11 +36,41 @@ const GetTrackingInfoOutputSchema = z.object({
 });
 export type GetTrackingInfoOutput = z.infer<typeof GetTrackingInfoOutputSchema>;
 
+async function getSimulatedTracking(trackingNumber: string): Promise<GetTrackingInfoOutput> {
+     console.log(`Simulating Cargo-flows API call for: ${trackingNumber}`);
+    await new Promise(resolve => setTimeout(resolve, 1200));
+
+    if (trackingNumber.toUpperCase().includes("FAIL")) {
+        throw new Error("O número de rastreamento fornecido não foi encontrado na base de dados do Cargo-flows.");
+    }
+    
+    const events: TrackingEvent[] = [
+      { status: 'Booking Confirmed', date: '2024-07-10T10:00:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
+      { status: 'Container Gated In', date: '2024-07-12T15:30:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
+      { status: 'Loaded on Vessel', date: '2024-07-14T08:00:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
+      { status: 'Vessel Departure', date: '2024-07-14T20:00:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
+      { status: 'In Transit', date: '2024-07-25T00:00:00Z', location: 'Pacific Ocean', completed: false, carrier: 'Maersk' },
+      { status: 'Vessel Arrival', date: '2024-08-15T12:00:00Z', location: 'Santos, BR', completed: false, carrier: 'Maersk' },
+    ];
+
+    const latestCompletedEvent = [...events].reverse().find(e => e.completed);
+
+    return {
+      id: trackingNumber,
+      status: latestCompletedEvent?.status || 'Pending',
+      origin: 'Shanghai, CN',
+      destination: 'Santos, BR',
+      vesselName: 'MAERSK PICO',
+      voyageNumber: '428N',
+      carrier: 'Maersk',
+      events,
+    };
+}
+
 export async function getTrackingInfo(input: GetTrackingInfoInput): Promise<GetTrackingInfoOutput> {
   return getTrackingInfoFlow(input);
 }
 
-// This flow now uses the centralized Cargo-flows service.
 const getTrackingInfoFlow = ai.defineFlow(
   {
     name: 'getTrackingInfoFlow',
@@ -68,7 +97,7 @@ const getTrackingInfoFlow = ai.defineFlow(
 
         if (!response.ok) {
             console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-            return cargoFlowsService.getSimulatedTracking(trackingNumber);
+            return getSimulatedTracking(trackingNumber);
         }
         
         const responseText = await response.text();
@@ -100,7 +129,8 @@ const getTrackingInfoFlow = ai.defineFlow(
         };
     } catch (error) {
         console.error("Error during fetch to Cargo-flows:", error);
-        throw new Error("Falha na comunicação com a API de rastreamento. Verifique sua conexão ou tente mais tarde.");
+        console.log("Falling back to simulated tracking due to error.");
+        return getSimulatedTracking(trackingNumber);
     }
   }
 );

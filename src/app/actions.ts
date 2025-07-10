@@ -1,7 +1,7 @@
 
 'use server'
 
-import { ai } from "@/ai/genkit";
+import { detectCarrierFromBooking } from "@/ai/flows/detect-carrier-from-booking";
 import { createCrmEntryFromEmail } from "@/ai/flows/create-crm-entry-from-email";
 import { extractPartnerInfo } from "@/ai/flows/extract-partner-info";
 import { extractQuoteDetailsFromText } from "@/ai/flows/extract-quote-details-from-text";
@@ -84,8 +84,8 @@ export async function runGetTrackingInfo(input: any) {
 
 export async function runDetectCarrier(trackingNumber: string) {
     try {
-        const carrierResponse = await ai.run('detectCarrierFromBookingFlow', { input: { bookingNumber: trackingNumber } });
-        return { success: true, data: carrierResponse };
+        const data = await detectCarrierFromBooking({ bookingNumber: trackingNumber });
+        return { success: true, data };
 
     } catch (error: any) {
         console.error("Carrier Detection Failed", error);
@@ -183,5 +183,3 @@ export async function runMonitorTasks(emailSubject: string, emailContent: string
         return { success: false, error: error.message || "Failed to monitor tasks" };
     }
 }
-
-    

@@ -12,12 +12,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { runGetTrackingInfo } from '@/app/actions';
+import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
 import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
-import { detectCarrierFromBooking } from '@/ai/flows/detect-carrier-from-booking';
 
 type Task = {
     milestone: Milestone;
@@ -67,10 +66,15 @@ export default function OperacionalPage() {
       setIsFetchingBooking(true);
       
       try {
-        const { carrier } = await detectCarrierFromBooking({ bookingNumber: bookingNumberToFetch });
-
+        // Step 1: Detect Carrier
+        const carrierResponse = await runDetectCarrier(bookingNumberToFetch);
+        if (!carrierResponse.success || !carrierResponse.data?.carrier || carrierResponse.data.carrier === 'Unknown') {
+             throw new Error(carrierResponse.error || `Não foi possível identificar o armador para o tracking "${bookingNumberToFetch}".`);
+        }
+        const carrier = carrierResponse.data.carrier;
         toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
 
+        // Step 2: Get Tracking Info with the detected carrier
         const trackingResponse = await runGetTrackingInfo({ trackingNumber: bookingNumberToFetch, carrier });
 
         if (trackingResponse.success) {
@@ -385,5 +389,3 @@ export default function OperacionalPage() {
     </>
   );
 }
-
-    

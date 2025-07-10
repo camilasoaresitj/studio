@@ -43,8 +43,6 @@ export type ShipmentCreationData = {
   consignee: Partner;
   agent?: Partner;
   notifyName: string;
-  invoiceNumber: string;
-  purchaseOrderNumber: string;
 };
 
 export type Milestone = {
@@ -301,8 +299,6 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     freeTimeDemurrage: quoteData.details.freeTime,
     mblPrintingAtDestination: false,
     notifyName: quoteData.notifyName,
-    invoiceNumber: quoteData.invoiceNumber,
-    purchaseOrderNumber: quoteData.purchaseOrderNumber,
     // Keep 'customer' for backward compatibility on display, but shipper/cnee are primary
     customer: quoteData.customer, 
   };

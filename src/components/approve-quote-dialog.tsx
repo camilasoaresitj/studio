@@ -31,7 +31,6 @@ import { runExtractPartnerInfo } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import type { Quote } from './customer-quotes-list';
 import { Label } from './ui/label';
-import { Checkbox } from './ui/checkbox';
 
 const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 
@@ -43,9 +42,10 @@ interface PartnerFormBlockProps {
     onPartnerCreated: (partner: Partner) => void;
     selectedPartnerId: string | null;
     setSelectedPartnerId: (id: string | null) => void;
+    children?: React.ReactNode;
 }
 
-function PartnerFormBlock({ title, partners, onPartnerCreated, selectedPartnerId, setSelectedPartnerId }: PartnerFormBlockProps) {
+function PartnerFormBlock({ title, partners, onPartnerCreated, selectedPartnerId, setSelectedPartnerId, children }: PartnerFormBlockProps) {
     const [activeTab, setActiveTab] = useState('select');
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
@@ -103,7 +103,7 @@ function PartnerFormBlock({ title, partners, onPartnerCreated, selectedPartnerId
                         <TabsTrigger value="select">Selecionar Existente</TabsTrigger>
                         <TabsTrigger value="create">Cadastrar Novo</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="select" className="mt-4">
+                    <TabsContent value="select" className="mt-4 space-y-4">
                         <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" role="combobox" aria-expanded={isPopoverOpen} className="w-full justify-between font-normal">
@@ -128,6 +128,7 @@ function PartnerFormBlock({ title, partners, onPartnerCreated, selectedPartnerId
                                 </Command>
                             </PopoverContent>
                         </Popover>
+                        {children}
                     </TabsContent>
                     <TabsContent value="create" className="mt-4">
                         <Form {...form}>
@@ -162,7 +163,7 @@ function PartnerFormBlock({ title, partners, onPartnerCreated, selectedPartnerId
 interface ApproveQuoteDialogProps {
   quote: Quote | null;
   partners: Partner[];
-  onApprovalConfirmed: (quote: Quote, shipper: Partner, consignee: Partner, agent: Partner | undefined, notifyName: string, invoiceNumber: string, poNumber: string) => void;
+  onApprovalConfirmed: (quote: Quote, shipper: Partner, consignee: Partner, agent: Partner | undefined, notifyName: string) => void;
   onPartnerSaved: (partner: Partner) => void;
   onClose: () => void;
 }
@@ -173,8 +174,6 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
   const [selectedConsigneeId, setSelectedConsigneeId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('none');
   const [notifyName, setNotifyName] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [poNumber, setPoNumber] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -183,8 +182,6 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
       setSelectedConsigneeId(null);
       setSelectedAgentId('none');
       setNotifyName('');
-      setInvoiceNumber('');
-      setPoNumber('');
     }
   }, [quote]);
 
@@ -216,7 +213,7 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
     }
 
     const agent = selectedAgentId !== 'none' ? partners.find(p => p.id?.toString() === selectedAgentId) : undefined;
-    onApprovalConfirmed(quote, shipper, consignee, agent, notifyName, invoiceNumber, poNumber);
+    onApprovalConfirmed(quote, shipper, consignee, agent, notifyName);
   };
 
   return (
@@ -241,28 +238,15 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
                 onPartnerCreated={handlePartnerCreated}
                 selectedPartnerId={selectedConsigneeId}
                 setSelectedPartnerId={setSelectedConsigneeId}
-            />
+             >
+                <div className="space-y-1 mt-4">
+                    <Label htmlFor="notify-party">Notify Party (Obrigatório)</Label>
+                    <Input id="notify-party" placeholder="Nome do Notify" value={notifyName} onChange={e => setNotifyName(e.target.value)} />
+                </div>
+             </PartnerFormBlock>
         </div>
 
         <div className="space-y-4 pt-4 border-t">
-            <Card>
-                <CardHeader><CardTitle className="text-lg">Outras Informações</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                        <Label htmlFor="notify-party">Notify Party (Obrigatório)</Label>
-                        <Input id="notify-party" placeholder="Nome do Notify" value={notifyName} onChange={e => setNotifyName(e.target.value)} />
-                    </div>
-                    <div className="space-y-1">
-                        <Label htmlFor="invoice-number">Invoice Nº</Label>
-                        <Input id="invoice-number" placeholder="INV-12345" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} />
-                    </div>
-                    <div className="space-y-1">
-                        <Label htmlFor="po-number">Purchase Order (PO) Nº</Label>
-                        <Input id="po-number" placeholder="PO-67890" value={poNumber} onChange={e => setPoNumber(e.target.value)} />
-                    </div>
-                </CardContent>
-            </Card>
-
             <Card>
                 <CardHeader><CardTitle className="text-lg">Agente na Origem/Destino (Opcional)</CardTitle></CardHeader>
                 <CardContent>

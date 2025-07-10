@@ -256,9 +256,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         shipper: Partner, 
         consignee: Partner, 
         agent: Partner | undefined, 
-        notifyName: string, 
-        invoiceNumber: string, 
-        poNumber: string
+        notifyName: string
     ) => {
         // If the shipper is new, save it.
         if (!partners.some(p => p.id === shipper.id)) {
@@ -280,8 +278,6 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
           consignee,
           agent,
           notifyName,
-          invoiceNumber,
-          purchaseOrderNumber: poNumber,
         });
 
         toast({

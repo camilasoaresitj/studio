@@ -468,7 +468,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                                 <CardContent className="space-y-4">
                                     {assembledMilestones.map((milestone, index) => {
                                         const predictedDate = milestone.predictedDate && isValid(new Date(milestone.predictedDate)) ? new Date(milestone.predictedDate) : null;
-                                        const isOverdue = !!predictedDate && isPast(predictedDate) && milestone.status !== 'completed';
                                         
                                         return (
                                         <div key={`${milestone.name}-${index}`} className={cn(
@@ -508,9 +507,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                                                         <Popover>
                                                             <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
                                                                 <CalendarIcon className="mr-2 h-3 w-3"/>
-                                                                {milestone.effectiveDate ? format(milestone.effectiveDate, 'dd/MM/yyyy') : 'Pendente'}
+                                                                {milestone.effectiveDate ? format(new Date(milestone.effectiveDate), 'dd/MM/yyyy') : 'Pendente'}
                                                             </Button></PopoverTrigger>
-                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={milestone.effectiveDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
+                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={milestone.effectiveDate ? new Date(milestone.effectiveDate) : undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
                                                         </Popover>
                                                 </div>
                                             </div>

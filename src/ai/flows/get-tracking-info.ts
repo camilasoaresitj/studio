@@ -60,12 +60,15 @@ const getTrackingInfoFlow = ai.defineFlow(
     const maerskApiKey = process.env.MAERSK_API_KEY;
     
     // --- Primary Method: Maersk Direct API ---
-    if (input.carrier.toLowerCase().includes('maersk') && maerskApiKey && maerskApiKey !== '<SUA_CHAVE_AQUI>') {
+    if (input.carrier.toLowerCase().includes('maersk') && maerskApiKey) {
         try {
             console.log(`Attempting to fetch tracking from Maersk API for: ${input.trackingNumber}`);
             const maerskResponse = await fetch(`https://api.maersk.com/v2/track/shipments-summary?trackingNumber=${input.trackingNumber}`, {
                 method: 'GET',
-                headers: { 'Authorization': `Bearer ${maerskApiKey}` }
+                headers: { 
+                  'Authorization': `Bearer ${maerskApiKey}`,
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
             });
             
             if (!maerskResponse.ok) {
@@ -145,6 +148,7 @@ const getTrackingInfoFlow = ai.defineFlow(
                 'Content-Type': 'application/json',
                 'X-Api-Key': cargoFlowsApiKey,
                 'X-Org-Token': cargoFlowsOrgToken,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             },
             body: JSON.stringify({
                 bookingNumber: input.trackingNumber,
@@ -153,17 +157,15 @@ const getTrackingInfoFlow = ai.defineFlow(
         });
 
         if (!response.ok) {
-            // Now we explicitly throw the error message from the API
             const errorData = await response.json().catch(() => ({ message: `API returned status ${response.status}`}));
             throw new Error(`Cargo-flows API Error (${response.status}): ${errorData.message || 'Unknown error'}`);
         }
         
-        // Add a try-catch block specifically for the JSON parsing
         let data;
         try {
             data = await response.json();
         } catch (jsonError) {
-            // This will catch the "Unexpected token <" error if the response is HTML
+            console.error("Failed to parse JSON from Cargo-flows:", jsonError);
             throw new Error("A API retornou uma resposta inválida (não-JSON). Verifique o console do servidor para detalhes.");
         }
         
@@ -215,7 +217,6 @@ const getTrackingInfoFlow = ai.defineFlow(
         }
     } catch (error: any) {
         console.warn("Cargo-flows API call failed. Error:", error);
-        // Re-throw the error to be caught by the final catch block.
         throw new Error(error.message || "Erro desconhecido ao chamar a API da Cargo-flows.");
     }
     
@@ -225,5 +226,3 @@ const getTrackingInfoFlow = ai.defineFlow(
     throw new Error("Não foi possível obter os dados de rastreamento de nenhuma API. Verifique o número e o armador e tente novamente.");
   }
 );
-
-    

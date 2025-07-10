@@ -240,16 +240,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
   const handleDocumentChange = (index: number, newStatus: DocumentStatus['status'], fileName?: string) => {
     if (!shipment) return;
-    const updatedDocuments = JSON.parse(JSON.stringify(form.getValues('documents') || []));
+    const currentValues = form.getValues();
+    const updatedDocuments = [...(currentValues.documents || [])];
+
     if (updatedDocuments[index]) {
-      updatedDocuments[index].status = newStatus;
-      if (fileName) {
-        updatedDocuments[index].fileName = fileName;
-        updatedDocuments[index].uploadedAt = new Date().toISOString();
-      }
-      form.setValue('documents', updatedDocuments);
-      const updatedShipment = { ...shipment, documents: updatedDocuments };
-      onUpdate(updatedShipment as Shipment);
+        updatedDocuments[index].status = newStatus;
+        if (fileName) {
+            updatedDocuments[index].fileName = fileName;
+            updatedDocuments[index].uploadedAt = new Date();
+        }
+        const updatedShipment = { ...shipment, documents: updatedDocuments };
+        onUpdate(updatedShipment as Shipment);
     }
   };
 
@@ -550,7 +551,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             </div>
                                             {status !== 'pending' && fileName && (
                                               <p className="text-xs text-muted-foreground mt-1 ml-7">
-                                                {fileName} {uploadedAt && ` - ${format(new Date(uploadedAt), 'dd/MM/yy HH:mm')}`}
+                                                {fileName} {uploadedAt && isValid(new Date(uploadedAt)) ? ` - ${format(new Date(uploadedAt), 'dd/MM/yy HH:mm')}` : ''}
                                               </p>
                                             )}
                                           </div>
@@ -608,7 +609,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <div className="flex items-center gap-2">
                                         <Button type="button" variant={mblPrintingAtDestination ? 'default' : 'secondary'} className="w-full" onClick={handleToggleMblPrinting} title="Marcar/desmarcar impressão do MBL no destino">
                                             <Printer className="mr-2 h-4 w-4" />
-                                            {mblPrintingAtDestination ? `Autorizado em ${format(mblPrintingAuthDate || new Date(), 'dd/MM/yy')}` : 'Impressão no Destino'}
+                                            {mblPrintingAtDestination ? `Autorizado em ${mblPrintingAuthDate && isValid(mblPrintingAuthDate) ? format(mblPrintingAuthDate, 'dd/MM/yy') : format(new Date(), 'dd/MM/yy')}` : 'Impressão no Destino'}
                                         </Button>
                                     </div>
                                     <FormField control={form.control} name="courierLastStatus" render={({ field }) => (

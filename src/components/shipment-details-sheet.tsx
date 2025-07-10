@@ -88,10 +88,12 @@ interface ShipmentDetailsSheetProps {
   onSync: (bookingNumber: string) => Promise<void>;
 }
 
-const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date }) => {
+const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date | null }) => {
     if (!predictedDate || !isValid(predictedDate)) {
-         return <Circle className="h-5 w-5 text-muted-foreground" />;
+        return <Hourglass className="h-5 w-5 text-muted-foreground" />;
     }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const isOverdue = isPast(predictedDate) && status !== 'completed';
 
     if (isOverdue) {
@@ -255,7 +257,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
   };
 
   const handleSyncBookingInfo = async () => {
-    // Crucially, use the Master BL or Booking number for tracking, not the internal ID.
     const trackingNumber = form.getValues('masterBillNumber') || form.getValues('bookingNumber');
     if (!trackingNumber) {
         toast({ variant: 'destructive', title: 'Nenhum Número de Rastreio', description: 'Por favor, insira um número de Booking ou Master BL para sincronizar.' });
@@ -274,11 +275,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                   <SheetHeader>
                       <SheetTitle>Detalhes do Embarque: {shipment.id}</SheetTitle>
                       <SheetDescription>
-                          {shipment.origin} &rarr; {shipment.destination} para <strong>{shipment.customer}</strong>
+                          Rota de {shipment.origin} para {shipment.destination} para <strong>{shipment.customer}</strong>
                       </SheetDescription>
                   </SheetHeader>
 
-                  <Tabs defaultValue="dados_embarque" className="flex-grow flex flex-col overflow-hidden mt-4">
+                  <Tabs defaultValue="milestones" className="flex-grow flex flex-col overflow-hidden mt-4">
                     <TabsList className="grid w-full grid-cols-5 mb-4">
                         <TabsTrigger value="dados_embarque">Dados do Embarque</TabsTrigger>
                         <TabsTrigger value="documentos">Documentos</TabsTrigger>
@@ -456,7 +457,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                              <Card>
                                 <CardHeader>
                                     <div className="flex justify-between items-center">
-                                        <CardTitle className="text-lg">Milestones Operacionais</CardTitle>
+                                        <CardTitle className="text-lg">Milestones</CardTitle>
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm text-muted-foreground font-medium">{completedCount} de {totalCount} concluídos</span>
                                             <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
@@ -469,51 +470,50 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                                 <CardContent className="space-y-4">
                                     {assembledMilestones.map((milestone, index) => {
                                         const predictedDate = milestone.predictedDate && isValid(new Date(milestone.predictedDate)) ? new Date(milestone.predictedDate) : null;
-                                        
+                                        const effectiveDate = milestone.effectiveDate && isValid(new Date(milestone.effectiveDate)) ? new Date(milestone.effectiveDate) : null;
+
                                         return (
-                                        <div key={`${milestone.name}-${index}`} className={cn(
-                                            "p-3 rounded-lg border",
-                                            milestone.status === 'in_progress' ? 'bg-accent border-primary' : 'bg-background'
-                                        )}>
-                                            <div className="flex items-center gap-4">
-                                                <MilestoneIcon status={milestone.status} predictedDate={predictedDate || undefined} />
+                                        <div key={`${milestone.name}-${index}`} className="p-3 border rounded-lg">
+                                            <div className="flex items-start gap-4">
+                                                <MilestoneIcon status={milestone.status} predictedDate={predictedDate} />
                                                 <div className="flex-grow">
                                                     <p className="font-semibold">{milestone.name}</p>
-                                                    {milestone.details && <p className="text-xs text-muted-foreground">{milestone.details}</p>}
+                                                    <p className="text-xs text-muted-foreground">{milestone.details || milestone.name}</p>
                                                 </div>
                                                 <Badge variant={
                                                     milestone.status === 'completed' ? 'outline' :
                                                     milestone.status === 'in_progress' ? 'default' : 'secondary'
                                                 } className="capitalize w-24 justify-center">{milestone.status.replace('_', ' ')}</Badge>
-                                                {milestone.status === 'in_progress' && (
-                                                    <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)} className="w-36">
-                                                        Concluir Etapa <ArrowRight className="ml-2 h-4 w-4"/>
-                                                    </Button>
-                                                )}
-                                                {milestone.status !== 'in_progress' && <div className="w-36"/>}
                                             </div>
-                                            <div className="grid grid-cols-2 gap-4 mt-2 pl-10">
+                                            <div className="grid grid-cols-2 gap-4 mt-2 pl-9">
                                                 <div className="space-y-1">
-                                                        <Label className="text-xs">Data Prevista</Label>
-                                                        <Popover>
-                                                            <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
-                                                                <CalendarIcon className="mr-2 h-3 w-3"/>
-                                                                {predictedDate ? format(predictedDate, 'dd/MM/yyyy') : 'N/A'}
-                                                            </Button></PopoverTrigger>
-                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={predictedDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'predictedDate', d)}/></PopoverContent>
-                                                        </Popover>
+                                                    <Label className="text-xs text-muted-foreground">Data Prevista</Label>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                            <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                            {predictedDate ? format(predictedDate, 'dd/MM/yyyy') : 'N/A'}
+                                                        </Button></PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={predictedDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'predictedDate', d)}/></PopoverContent>
+                                                    </Popover>
                                                 </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-xs">Data Efetiva</Label>
-                                                        <Popover>
-                                                            <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
-                                                                <CalendarIcon className="mr-2 h-3 w-3"/>
-                                                                {milestone.effectiveDate ? format(new Date(milestone.effectiveDate), 'dd/MM/yyyy') : 'Pendente'}
-                                                            </Button></PopoverTrigger>
-                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={milestone.effectiveDate ? new Date(milestone.effectiveDate) : undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
-                                                        </Popover>
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs text-muted-foreground">Data Efetiva</Label>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                            <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                            {effectiveDate ? format(effectiveDate, 'dd/MM/yyyy') : 'N/A'}
+                                                        </Button></PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={effectiveDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
+                                                    </Popover>
                                                 </div>
                                             </div>
+                                            {milestone.status !== 'completed' && (
+                                                <div className="flex justify-end mt-2">
+                                                    <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)}>
+                                                        Marcar como Concluído
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     )})}
                                 </CardContent>

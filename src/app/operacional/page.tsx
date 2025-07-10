@@ -15,6 +15,8 @@ import { Input } from '@/components/ui/input';
 import { runGetBookingInfo } from '@/app/actions';
 import { AlertTriangle, ListTodo, Calendar as CalendarIcon, Ship, PackagePlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 type Task = {
     milestone: Milestone;
@@ -28,6 +30,7 @@ export default function OperacionalPage() {
   const [taskFilter, setTaskFilter] = useState<'today' | 'week' | 'all'>('today');
   const [newBookingNumber, setNewBookingNumber] = useState('');
   const [isFetchingBooking, setIsFetchingBooking] = useState(false);
+  const [isCreateBookingOpen, setIsCreateBookingOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -90,6 +93,7 @@ export default function OperacionalPage() {
           setSelectedShipment(fetchedShipment); // Select the new/updated shipment to show details
 
           setNewBookingNumber('');
+          setIsCreateBookingOpen(false);
       } else {
           toast({
               variant: 'destructive',
@@ -135,13 +139,24 @@ export default function OperacionalPage() {
         return { text: 'Não iniciado', variant: 'secondary' };
     }
     const inProgress = shipment.milestones.find(m => m.status === 'in_progress');
-    if (inProgress) return { text: inProgress.name, variant: 'default' };
+    if (inProgress) {
+        // More descriptive status
+        if (inProgress.name.toLowerCase().includes('booking')) return { text: 'Confirmação de Booking', variant: 'default' };
+        if (inProgress.name.toLowerCase().includes('embarque')) return { text: 'Aguardando Embarque', variant: 'default' };
+        const isAfterDeparture = shipment.milestones.findIndex(m => m.name.toLowerCase().includes('embarque') && m.status === 'completed') > -1;
+        if (isAfterDeparture) return { text: 'Pendente de Transit', variant: 'default' };
+        
+        return { text: inProgress.name, variant: 'default' };
+    };
 
     const allCompleted = shipment.milestones.every(m => m.status === 'completed');
     if (allCompleted) return { text: 'Finalizado', variant: 'outline' };
     
     const firstPending = shipment.milestones.find(m => m.status === 'pending');
-    if (firstPending) return { text: `Pendente: ${firstPending.name}`, variant: 'secondary' };
+    if (firstPending) {
+         if (firstPending.name.toLowerCase().includes('chegada no destino')) return { text: 'Chegada no Destino', variant: 'default' };
+         return { text: `Pendente: ${firstPending.name}`, variant: 'secondary' };
+    }
 
     return { text: 'Finalizado', variant: 'outline' };
   };
@@ -225,23 +240,46 @@ export default function OperacionalPage() {
       
       <Card>
         <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>
-                    <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5 text-primary" />Embarques Ativos</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5 text-primary" />Embarques Ativos</CardTitle>
                     <CardDescription>Clique em um processo para ver e editar todos os detalhes.</CardDescription>
                 </div>
-                <div className="flex w-full sm:w-auto sm:max-w-xs items-center gap-2">
-                    <Input
-                        placeholder="Novo Processo por Booking"
-                        value={newBookingNumber}
-                        onChange={(e) => setNewBookingNumber(e.target.value)}
-                        onKeyUp={(e) => { if (e.key === 'Enter') handleFetchBooking(newBookingNumber); }}
-                        className="flex-grow"
-                    />
-                    <Button onClick={() => handleFetchBooking(newBookingNumber)} disabled={isFetchingBooking}>
-                         {isFetchingBooking ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackagePlus className="h-4 w-4" />}
-                    </Button>
-                </div>
+                 <Dialog open={isCreateBookingOpen} onOpenChange={setIsCreateBookingOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                             <PackagePlus className="mr-2 h-4 w-4" /> Novo Processo por Booking
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>Importar Processo</DialogTitle>
+                            <DialogDescription>
+                                Insira o número do Booking ou Master BL para importar/sincronizar os dados.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="booking-number" className="text-right">
+                                    Booking / BL
+                                </Label>
+                                <Input
+                                    id="booking-number"
+                                    placeholder="Nº Booking ou Master BL"
+                                    value={newBookingNumber}
+                                    onChange={(e) => setNewBookingNumber(e.target.value)}
+                                    className="col-span-3"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={() => handleFetchBooking(newBookingNumber)} disabled={isFetchingBooking}>
+                                {isFetchingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
+                                Importar Processo
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </CardHeader>
         <CardContent>

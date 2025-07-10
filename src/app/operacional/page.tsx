@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { runGetBookingInfo } from '@/app/actions';
 import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 
 type Task = {
@@ -30,7 +30,6 @@ export default function OperacionalPage() {
   const [taskFilter, setTaskFilter] = useState<'today' | 'week' | 'all'>('today');
   const [newBookingNumber, setNewBookingNumber] = useState('');
   const [isFetchingBooking, setIsFetchingBooking] = useState(false);
-  const [isCreateBookingOpen, setIsCreateBookingOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -99,7 +98,6 @@ export default function OperacionalPage() {
           updateShipment(fetchedShipment); // Crucial: Save all changes to local storage
 
           setNewBookingNumber('');
-          setIsCreateBookingOpen(false);
       } else {
           toast({
               variant: 'destructive',
@@ -163,11 +161,17 @@ export default function OperacionalPage() {
       return { text: 'Confirmação de Booking', variant: 'default' };
     }
   
-    if (departureCompleted && (firstPendingName.includes('arrival') || firstPendingName.includes('chegada'))) {
+    if (departureCompleted) {
+        if (firstPendingName.includes('chegada') || firstPendingName.includes('arrival')) {
+            return { text: 'Chegada no Destino', variant: 'default' };
+        }
+        if (firstPendingName.includes('desembaraço') || firstPendingName.includes('liberada') || firstPendingName.includes('entrega')) {
+             return { text: 'Chegada no Destino', variant: 'default' };
+        }
         return { text: 'Pendente de Transit', variant: 'default' };
     }
   
-    return { text: `Pendente: ${firstPending.name}`, variant: 'secondary' };
+    return { text: `Aguardando Embarque`, variant: 'secondary' };
   };
 
   if (!isClient) {
@@ -249,24 +253,24 @@ export default function OperacionalPage() {
       
       <Card>
         <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                <div>
+            <div className="flex justify-between items-center gap-4">
+                <div className="flex-grow">
                     <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5 text-primary" />Embarques Ativos</CardTitle>
                     <CardDescription>Clique em um processo para ver e editar todos os detalhes.</CardDescription>
                 </div>
-                 <Dialog open={isCreateBookingOpen} onOpenChange={setIsCreateBookingOpen}>
-                    <DialogTrigger asChild>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
                         <Button>
                              <PackagePlus className="mr-2 h-4 w-4" /> Novo Processo por Booking
                         </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                            <DialogTitle>Importar Processo</DialogTitle>
-                            <DialogDescription>
-                                Insira o número do Booking ou Master BL para importar/sincronizar os dados.
-                            </DialogDescription>
-                        </DialogHeader>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="sm:max-w-md">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Importar/Sincronizar Processo</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Insira o número do Booking ou Master BL para buscar os dados mais recentes.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="booking-number" className="text-right">
@@ -281,14 +285,15 @@ export default function OperacionalPage() {
                                 />
                             </div>
                         </div>
-                        <DialogFooter>
-                            <Button onClick={() => handleFetchNewBooking(newBookingNumber)} disabled={isFetchingBooking}>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleFetchNewBooking(newBookingNumber)} disabled={isFetchingBooking}>
                                 {isFetchingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
-                                Importar Processo
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                                Importar
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </CardHeader>
         <CardContent>

@@ -492,17 +492,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <div className="pt-1">
                                                     <MilestoneIcon status={milestone.status} predictedDate={predictedDate} />
                                                 </div>
-                                                <div className="flex-grow">
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div>
+                                                <div className="flex-grow grid gap-4 grid-cols-1 md:grid-cols-2">
+                                                    <div>
+                                                        <div className="flex justify-between items-center">
                                                             <p className="font-semibold">{milestone.name}</p>
-                                                            <p className="text-xs text-muted-foreground">{milestone.details || 'Detalhes não disponíveis'}</p>
+                                                            {milestone.status === 'completed' && <Badge variant="success" className="capitalize">Completed</Badge>}
                                                         </div>
-                                                         {milestone.status === 'completed' && (
-                                                            <Badge variant={statusBadge.variant} className="capitalize">{statusBadge.text}</Badge>
-                                                        )}
+                                                        <p className="text-xs text-muted-foreground">{milestone.details || 'Detalhes não disponíveis'}</p>
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-3">
+                                                    <div className="grid grid-cols-2 gap-4">
                                                         <div className="space-y-1">
                                                             <Label className="text-xs text-muted-foreground">Data Prevista</Label>
                                                             <Popover>

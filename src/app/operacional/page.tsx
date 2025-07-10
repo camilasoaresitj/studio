@@ -75,6 +75,7 @@ export default function OperacionalPage() {
               const updatedShipments = [...shipments];
               updatedShipments[existingIndex] = fetchedShipment;
               setShipments(updatedShipments);
+              setSelectedShipment(fetchedShipment); // Select the updated shipment to show details
               toast({
                   title: "Processo Atualizado!",
                   description: `Os dados do processo ${fetchedShipment.id} foram sincronizados.`,
@@ -82,6 +83,7 @@ export default function OperacionalPage() {
               });
           } else {
               setShipments(prev => [fetchedShipment, ...prev]);
+              setSelectedShipment(fetchedShipment); // Select the new shipment to show details
               toast({
                   title: "Processo Importado!",
                   description: `O processo ${fetchedShipment.id} foi adicionado com sucesso.`,
@@ -90,7 +92,6 @@ export default function OperacionalPage() {
           }
           
           updateShipment(fetchedShipment); // Crucial: Save all changes to local storage
-          setSelectedShipment(fetchedShipment); // Select the new/updated shipment to show details
 
           setNewBookingNumber('');
           setIsCreateBookingOpen(false);

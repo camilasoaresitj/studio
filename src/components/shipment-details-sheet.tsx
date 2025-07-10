@@ -469,39 +469,40 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                                         const statusBadge = getMilestoneStatusBadge(milestone.status);
 
                                         return (
-                                        <Card key={`${milestone.name}-${index}`} className="p-3 flex items-start gap-4">
-                                            <div className="pt-1">
-                                                <MilestoneIcon status={milestone.status} predictedDate={predictedDate} />
-                                            </div>
-                                            <div className="flex-grow">
-                                                <div className="flex justify-between items-center">
-                                                    <p className="font-semibold">{milestone.name}</p>
-                                                    <Badge variant={statusBadge.variant} className="capitalize">{statusBadge.text}</Badge>
+                                        <Card key={`${milestone.name}-${index}`} className="p-4">
+                                            <div className="flex items-start gap-4">
+                                                <div className="pt-1">
+                                                    <MilestoneIcon status={milestone.status} predictedDate={predictedDate} />
                                                 </div>
-                                                <p className="text-xs text-muted-foreground">{milestone.details || 'Detalhes não disponíveis'}</p>
-                                                
-                                                <Separator className="my-3"/>
-                                                
-                                                <div className="grid grid-cols-2 gap-4 mt-2">
-                                                    <div className="space-y-1">
-                                                        <Label className="text-xs text-muted-foreground">Data Prevista</Label>
-                                                        <Popover>
-                                                            <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
-                                                                <CalendarIcon className="mr-2 h-3 w-3"/>
-                                                                {predictedDate ? format(predictedDate, 'dd/MM/yyyy') : 'N/A'}
-                                                            </Button></PopoverTrigger>
-                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={predictedDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'predictedDate', d)}/></PopoverContent>
-                                                        </Popover>
+                                                <div className="flex-grow">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <div>
+                                                            <p className="font-semibold">{milestone.name}</p>
+                                                            <p className="text-xs text-muted-foreground">{milestone.details || 'Detalhes não disponíveis'}</p>
+                                                        </div>
+                                                        <Badge variant={statusBadge.variant} className="capitalize">{statusBadge.text}</Badge>
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-xs text-muted-foreground">Data Efetiva</Label>
-                                                        <Popover>
-                                                            <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
-                                                                <CalendarIcon className="mr-2 h-3 w-3"/>
-                                                                {effectiveDate ? format(effectiveDate, 'dd/MM/yyyy') : 'N/A'}
-                                                            </Button></PopoverTrigger>
-                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={effectiveDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
-                                                        </Popover>
+                                                    <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-3">
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs text-muted-foreground">Data Prevista</Label>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                                    <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                                    {predictedDate ? format(predictedDate, 'dd/MM/yyyy') : 'N/A'}
+                                                                </Button></PopoverTrigger>
+                                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={predictedDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'predictedDate', d)}/></PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs text-muted-foreground">Data Efetiva</Label>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                                    <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                                    {effectiveDate ? format(effectiveDate, 'dd/MM/yyyy') : 'N/A'}
+                                                                </Button></PopoverTrigger>
+                                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={effectiveDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
+                                                            </Popover>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>

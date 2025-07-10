@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, Loader2, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import { updateShipmentFromAgent } from '@/app/actions';
 
 const agentUpdateSchema = z.object({
   estimatedReadinessDate: z.date().optional(),
@@ -40,20 +41,24 @@ export default function AgentPortalPage({ params }: { params: { id: string } }) 
 
   const onSubmit = async (data: AgentUpdateFormData) => {
     setIsSubmitting(true);
-    // In a real application, this would be a server action to update the shipment.
-    // For now, we simulate the submission.
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Agent Update Data:', {
-      shipmentId: params.id,
-      ...data,
-    });
+    const response = await updateShipmentFromAgent(params.id, data);
+    
+    if (response.success) {
+        setIsSubmitted(true);
+        toast({
+            title: 'Booking Details Submitted!',
+            description: 'Thank you for updating the shipment details.',
+            className: 'bg-success text-success-foreground',
+        });
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Submission Failed',
+            description: response.error,
+        });
+    }
+    
     setIsSubmitting(false);
-    setIsSubmitted(true);
-    toast({
-      title: 'Booking Details Submitted!',
-      description: 'Thank you for updating the shipment details.',
-      className: 'bg-success text-success-foreground',
-    });
   };
 
   if (isSubmitted) {

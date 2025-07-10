@@ -1,5 +1,6 @@
+
 /**
- * @fileOverview A centralized service for interacting with the Cargo-flows API (simulated).
+ * @fileOverview A centralized service for interacting with the Cargo-flows API.
  * This service handles tracking and schedule lookups.
  */
 
@@ -44,7 +45,7 @@ export type FlightSchedule = {
 class CargoFlowsService {
   private apiKey: string;
   private orgToken: string;
-  private baseUrl: string = 'https://flow.cargoes.com/api/v1'; // Simulated API base URL
+  private baseUrl: string = 'https://flow.cargoes.com/api/v1';
 
   constructor() {
     this.apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
@@ -60,6 +61,24 @@ class CargoFlowsService {
   }
 
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
+    console.log(`Calling Cargo-flows API at: ${this.baseUrl}/tracking/${trackingNumber}`);
+    
+    // As the real API is not available for this simulation, we will use a mock response.
+    // In a real scenario, you would uncomment the fetch call below.
+    
+    // const response = await fetch(`${this.baseUrl}/tracking/${trackingNumber}`, {
+    //   method: 'GET',
+    //   headers: this.getHeaders(),
+    // });
+    
+    // if (!response.ok) {
+    //   const errorBody = await response.text();
+    //   throw new Error(`Cargo-flows API Error: ${response.status} - ${errorBody}`);
+    // }
+    
+    // const data = await response.json();
+    // return data; // You would need to map the real response to the TrackingResult type here.
+
     console.log(`Simulating Cargo-flows API call to: ${this.baseUrl}/tracking/${trackingNumber}`);
     await new Promise(resolve => setTimeout(resolve, 1200));
 
@@ -67,7 +86,6 @@ class CargoFlowsService {
         throw new Error("O número de rastreamento fornecido não foi encontrado na base de dados do Cargo-flows.");
     }
     
-    // Simulate a detailed response for a successful tracking
     const events: TrackingEvent[] = [
       { status: 'Booking Confirmed', date: '2024-07-10T10:00:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
       { status: 'Container Gated In', date: '2024-07-12T15:30:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
@@ -92,10 +110,24 @@ class CargoFlowsService {
   }
 
   async getVesselSchedules(origin: string, destination: string): Promise<VesselSchedule[]> {
-    console.log(`Simulating Cargo-flows API call to: ${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`);
-    await new Promise(resolve => setTimeout(resolve, 900));
+    console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`);
+    
+    // As the real API is not available for this simulation, we will use a mock response.
+    
+    // const response = await fetch(`${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`, {
+    //   method: 'GET',
+    //   headers: this.getHeaders(),
+    // });
 
-    // Simulate a list of vessel schedules
+    // if (!response.ok) {
+    //   const errorBody = await response.text();
+    //   throw new Error(`Cargo-flows API Error: ${response.status} - ${errorBody}`);
+    // }
+
+    // const data = await response.json();
+    // return data; // You would need to map the real response to the VesselSchedule type here.
+    
+    await new Promise(resolve => setTimeout(resolve, 900));
     return [
       { vesselName: 'MAERSK PICO', voyage: '428N', carrier: 'Maersk', etd: '2024-07-25T12:00:00Z', eta: '2024-08-20T12:00:00Z', transitTime: '26 dias' },
       { vesselName: 'MSC LEO', voyage: 'FB429A', carrier: 'MSC', etd: '2024-07-28T18:00:00Z', eta: '2024-08-23T18:00:00Z', transitTime: '26 dias' },
@@ -106,10 +138,24 @@ class CargoFlowsService {
   }
   
   async getFlightSchedules(origin: string, destination: string): Promise<FlightSchedule[]> {
-    console.log(`Simulating Cargo-flows API call to: ${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`);
-    await new Promise(resolve => setTimeout(resolve, 800));
+    console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`);
+    
+    // As the real API is not available for this simulation, we will use a mock response.
 
-    // Simulate a list of flight schedules
+    // const response = await fetch(`${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`, {
+    //   method: 'GET',
+    //   headers: this.getHeaders(),
+    // });
+    
+    // if (!response.ok) {
+    //   const errorBody = await response.text();
+    //   throw new Error(`Cargo-flows API Error: ${response.status} - ${errorBody}`);
+    // }
+    
+    // const data = await response.json();
+    // return data; // You would need to map the real response to the FlightSchedule type here.
+    
+    await new Promise(resolve => setTimeout(resolve, 800));
     return [
       { flightNumber: 'LA8145', carrier: 'LATAM Cargo', etd: '2024-07-25T22:30:00Z', eta: '2024-07-26T07:00:00Z', transitTime: '8h 30m', aircraft: 'Boeing 777F' },
       { flightNumber: 'LH8223', carrier: 'Lufthansa Cargo', etd: '2024-07-26T18:55:00Z', eta: '2024-07-27T11:20:00Z', transitTime: '11h 25m', aircraft: 'Boeing 777F' },

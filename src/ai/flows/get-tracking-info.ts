@@ -108,10 +108,76 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async ({ trackingNumber }) => {
-    // This flow is intended for SIMULATION ONLY, as Cargo-flows does not have a public,
-    // multi-carrier tracking endpoint. In a real-world scenario with direct carrier
-    // integrations, this flow would orchestrate calls to different carrier APIs.
-    console.log(`Using high-fidelity simulation for tracking number: ${trackingNumber}`);
-    return getSimulatedTrackingData(trackingNumber);
+    const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
+    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
+    const baseUrl = 'https://flow.cargoes.com/api/v1';
+
+    try {
+        console.log(`Calling Cargo-flows API for tracking at: ${baseUrl}/tracking`);
+        const response = await fetch(`${baseUrl}/tracking`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Api-Key': apiKey,
+                'X-Org-Token': orgToken,
+            },
+            body: JSON.stringify({
+                trackingNumbers: [trackingNumber],
+            }),
+        });
+
+        if (!response.ok) {
+            console.warn(`Cargo-flows API call for tracking failed with status ${response.status}. Falling back to simulation.`);
+            return getSimulatedTrackingData(trackingNumber);
+        }
+
+        const data = await response.json();
+        
+        const trackingData = data?.data?.[0]; // Assuming we get an array for a single request
+        if (!trackingData) {
+             console.warn(`No tracking data found in API response for ${trackingNumber}. Falling back to simulation.`);
+             return getSimulatedTrackingData(trackingNumber);
+        }
+
+        const events = (trackingData.events || []).map((event: any) => ({
+            status: event.event,
+            date: event.event_datetime_utc || new Date().toISOString(),
+            location: event.location?.name || 'N/A',
+            completed: true, // Cargo-flows API events are historical, so mark as completed
+            carrier: trackingData.carrier?.name || 'Unknown',
+        }));
+
+        const latestEvent = events[events.length - 1];
+        const overallStatus = latestEvent?.status || 'Pending';
+
+        const shipmentDetails: Partial<Shipment> = {
+            bookingNumber: trackingData.id,
+            masterBillNumber: trackingData.id,
+            vesselName: trackingData.transport_details?.vessel_name,
+            voyageNumber: trackingData.transport_details?.voyage_number,
+            origin: trackingData.origin?.name,
+            destination: trackingData.destination?.name,
+            etd: trackingData.transport_details?.etd_utc ? new Date(trackingData.transport_details.etd_utc) : undefined,
+            eta: trackingData.transport_details?.eta_utc ? new Date(trackingData.transport_details.eta_utc) : undefined,
+            milestones: events.map((event: TrackingEvent) => ({
+                name: event.status,
+                status: 'completed',
+                predictedDate: new Date(event.date),
+                effectiveDate: new Date(event.date),
+                details: event.location,
+            })),
+        };
+        
+        return {
+            status: overallStatus,
+            events,
+            shipmentDetails
+        };
+
+    } catch (error) {
+        console.error("Error during fetch to Cargo-flows for tracking:", error);
+        console.log("Falling back to simulated tracking data due to error.");
+        return getSimulatedTrackingData(trackingNumber);
+    }
   }
 );

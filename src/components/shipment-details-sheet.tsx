@@ -255,6 +255,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
   };
 
   const handleSyncBookingInfo = async () => {
+    // Crucially, use the Master BL or Booking number for tracking, not the internal ID.
     const trackingNumber = form.getValues('masterBillNumber') || form.getValues('bookingNumber');
     if (!trackingNumber) {
         toast({ variant: 'destructive', title: 'Nenhum Número de Rastreio', description: 'Por favor, insira um número de Booking ou Master BL para sincronizar.' });

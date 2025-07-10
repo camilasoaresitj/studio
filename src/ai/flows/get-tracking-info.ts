@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow to fetch tracking information using the Cargo-flows service.
@@ -79,6 +80,11 @@ const getTrackingInfoFlow = ai.defineFlow(
   },
   async ({ trackingNumber }) => {
     
+    // Fallback to simulation if the tracking number is for the demo process
+    if (trackingNumber.startsWith('PROC-')) {
+        return getSimulatedTracking(trackingNumber);
+    }
+
     const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
     const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
     const baseUrl = 'https://flow.cargoes.com/api/v1';
@@ -112,7 +118,7 @@ const getTrackingInfoFlow = ai.defineFlow(
         const apiData = data.tracking;
 
         return {
-            id: apiData.trackingNumber || 'N/A',
+            id: apiData.trackingNumber || trackingNumber,
             status: apiData.latestStatus || 'Unknown',
             origin: apiData.origin || 'Unknown',
             destination: apiData.destination || 'Unknown',

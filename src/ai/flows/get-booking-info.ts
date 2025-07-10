@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch and merge shipment details using a tracking number from the Cargo-flows service.
+ * @fileOverview A Genkit flow to fetch and merge shipment details from the correct carrier API.
  *
  * getBookingInfo - A function that fetches shipment info and merges it with an existing shipment object.
  * GetBookingInfoInput - The input type.
@@ -10,17 +10,17 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Shipment, Milestone } from '@/lib/shipment';
-import { getTrackingInfo } from '@/ai/flows/get-tracking-info';
+import type { Shipment } from '@/lib/shipment';
+import * as maerskService from '@/services/maersk-service';
+import * as hapagLloydService from '@/services/hapag-lloyd-service';
 
-// The input now includes the existing shipment object to merge data into.
 const GetBookingInfoInputSchema = z.object({
   bookingNumber: z.string().describe('The carrier booking number or Master BL.'),
   carrier: z.string().describe('The carrier associated with the booking number (e.g., Maersk, MSC).'),
   existingShipment: z.any().describe('The existing shipment object to merge the fetched data into.'),
 });
 export type GetBookingInfoInput = z.infer<typeof GetBookingInfoInputSchema>;
-export type GetBookingInfoOutput = Shipment; // Export the actual TypeScript type for the action.
+export type GetBookingInfoOutput = Shipment;
 
 export async function getBookingInfo(input: GetBookingInfoInput): Promise<GetBookingInfoOutput> {
   return getBookingInfoFlow(input);
@@ -33,47 +33,30 @@ const getBookingInfoFlow = ai.defineFlow(
     outputSchema: z.any(),
   },
   async ({ bookingNumber, carrier, existingShipment }) => {
-    console.log(`Fetching real carrier data for booking: ${bookingNumber} with carrier: ${carrier}`);
+    console.log(`Fetching data for booking: ${bookingNumber} with carrier: ${carrier}`);
     
-    const trackingResult = await getTrackingInfo({ trackingNumber });
-    
-    const { 
-        id, 
-        origin, 
-        destination, 
-        vesselName, 
-        voyageNumber, 
-        events 
-    } = trackingResult;
+    let trackingResult;
 
-    const milestones: Milestone[] = events.map(event => ({
-        name: event.status,
-        status: event.completed ? 'completed' as const : 'pending' as const,
-        predictedDate: new Date(event.date),
-        effectiveDate: event.completed ? new Date(event.date) : null,
-        details: event.location,
-    }));
+    // Based on the detected carrier, call the appropriate service
+    switch (carrier.toUpperCase()) {
+      case 'MAERSK':
+        trackingResult = await maerskService.getTracking(bookingNumber);
+        break;
+      case 'HAPAG-LLOYD':
+        trackingResult = await hapagLloydService.getTracking(bookingNumber);
+        break;
+      default:
+        // Fallback or throw an error if the carrier is not supported
+        throw new Error(`Carrier '${carrier}' is not supported for automatic tracking.`);
+    }
 
-    const etdEvent = events.find(e => e.status.toLowerCase().includes('departure') || e.status.toLowerCase().includes('embarque'));
-    const etaEvent = [...events].reverse().find(e => e.status.toLowerCase().includes('arrival') || e.status.toLowerCase().includes('chegada'));
+    const { shipmentDetails } = trackingResult;
 
-    // **CRITICAL CHANGE**: Merge fetched data into the existing shipment object
+    // Merge the fetched details into the existing shipment object
     // This preserves manually entered data like customer, partners, charges, etc.
     const updatedShipment: Shipment = {
       ...existingShipment, // Start with the existing data
-      origin: origin, // Overwrite with fresh data from API
-      destination: destination, // Overwrite with fresh data from API
-      bookingNumber: id, // Overwrite with fresh data from API
-      masterBillNumber: id, // Assume BL is same as booking for this simulation
-      vesselName: vesselName, // Overwrite with fresh data from API
-      voyageNumber: voyageNumber, // Overwrite with fresh data from API
-      etd: etdEvent ? new Date(etdEvent.date) : existingShipment.etd, // Update if available
-      eta: etaEvent ? new Date(etaEvent.date) : existingShipment.eta, // Update if available
-      milestones, // Overwrite with the latest milestones
-      details: { // Update details section
-          ...existingShipment.details,
-          cargo: trackingResult.carrier === 'Aéreo' ? 'Carga Aérea' : 'FCL Container',
-      }
+      ...shipmentDetails, // Overwrite with all the new details from the API
     };
 
     return updatedShipment;

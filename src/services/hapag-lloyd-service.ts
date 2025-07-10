@@ -119,7 +119,7 @@ export async function submitVgm(vgmData: any): Promise<{ success: true; confirma
  * @param trackingNumber The Bill of Lading or container number.
  * @returns A promise that resolves to an object containing the latest status and a list of events.
  */
-export async function getTracking(trackingNumber: string): Promise<{ status: string; events: TrackingEvent[] }> {
+export async function getTracking(trackingNumber: string): Promise<{ status: string; events: TrackingEvent[], shipmentDetails: any }> {
     console.log(`Simulating tracking request to Hapag-Lloyd for: ${trackingNumber}`);
     await new Promise(resolve => setTimeout(resolve, 800));
     
@@ -135,8 +135,26 @@ export async function getTracking(trackingNumber: string): Promise<{ status: str
 
     const latestCompletedEvent = [...events].reverse().find(e => e.completed);
 
+    const shipmentDetails = {
+        id: trackingNumber,
+        origin: 'Santos, BR',
+        destination: 'Rotterdam, NL',
+        vesselName: 'HLCU Hamburg',
+        voyageNumber: '429E',
+        etd: new Date(new Date().setDate(new Date().getDate() - 14)),
+        eta: new Date(),
+        milestones: events.map(event => ({
+            name: event.status,
+            status: event.completed ? 'completed' : 'pending',
+            predictedDate: new Date(event.date),
+            effectiveDate: event.completed ? new Date(event.date) : null,
+            details: event.location,
+        }))
+    }
+
     return {
         status: latestCompletedEvent?.status || 'Pending',
-        events: events
+        events: events,
+        shipmentDetails,
     };
 }

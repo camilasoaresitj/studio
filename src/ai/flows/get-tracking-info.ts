@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch tracking information using a simulated Cargo-flows service.
+ * @fileOverview A Genkit flow to fetch tracking information from various carriers.
  *
  * getTrackingInfo - A function that fetches tracking events.
  * GetTrackingInfoInput - The input type for the function.
@@ -10,6 +10,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import * as maerskService from '@/services/maersk-service';
+import * as hapagLloydService from '@/services/hapag-lloyd-service';
+import { detectCarrierFromBooking } from './detect-carrier-from-booking';
 
 const GetTrackingInfoInputSchema = z.object({
   trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
@@ -37,36 +40,6 @@ const GetTrackingInfoOutputSchema = z.object({
 });
 export type GetTrackingInfoOutput = z.infer<typeof GetTrackingInfoOutputSchema>;
 
-async function getSimulatedTracking(trackingNumber: string): Promise<GetTrackingInfoOutput> {
-     console.log(`Simulating Cargo-flows API call for: ${trackingNumber}`);
-    await new Promise(resolve => setTimeout(resolve, 1200));
-
-    if (trackingNumber.toUpperCase().includes("FAIL")) {
-        throw new Error("O número de rastreamento fornecido não foi encontrado na base de dados do Cargo-flows.");
-    }
-    
-    const events: TrackingEvent[] = [
-      { status: 'Booking Confirmed', date: '2024-07-10T10:00:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
-      { status: 'Container Gated In', date: '2024-07-12T15:30:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
-      { status: 'Loaded on Vessel', date: '2024-07-14T08:00:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
-      { status: 'Vessel Departure', date: '2024-07-14T20:00:00Z', location: 'Shanghai, CN', completed: true, carrier: 'Maersk' },
-      { status: 'In Transit', date: '2024-07-25T00:00:00Z', location: 'Pacific Ocean', completed: false, carrier: 'Maersk' },
-      { status: 'Vessel Arrival', date: '2024-08-15T12:00:00Z', location: 'Santos, BR', completed: false, carrier: 'Maersk' },
-    ];
-
-    const latestCompletedEvent = [...events].reverse().find(e => e.completed);
-
-    return {
-      id: trackingNumber,
-      status: latestCompletedEvent?.status || 'Pending',
-      origin: 'Shanghai, CN',
-      destination: 'Santos, BR',
-      vesselName: 'MAERSK PICO',
-      voyageNumber: '428N',
-      carrier: 'Maersk',
-      events,
-    };
-}
 
 export async function getTrackingInfo(input: GetTrackingInfoInput): Promise<GetTrackingInfoOutput> {
   return getTrackingInfoFlow(input);
@@ -79,9 +52,41 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async ({ trackingNumber }) => {
-    // Due to lack of a public tracking endpoint on Cargo-flows, we will use a high-fidelity simulation.
-    // In a real-world scenario with a valid API, the fetch logic would be here.
-    console.log(`Using simulated tracking for tracking number: ${trackingNumber}`);
-    return getSimulatedTracking(trackingNumber);
+    // 1. Detect the carrier from the tracking number format.
+    const { carrier } = await detectCarrierFromBooking({ bookingNumber: trackingNumber });
+    
+    let trackingResult;
+    let shipmentData;
+    
+    // 2. Call the appropriate carrier-specific service.
+    switch (carrier.toUpperCase()) {
+        case 'MAERSK':
+            trackingResult = await maerskService.getTracking(trackingNumber);
+            shipmentData = trackingResult.shipmentDetails;
+            break;
+        case 'HAPAG-LLOYD':
+             trackingResult = await hapagLloydService.getTracking(trackingNumber);
+             shipmentData = {
+                id: trackingNumber,
+                origin: trackingResult.events[0]?.location || 'Unknown',
+                destination: [...trackingResult.events].reverse().find(e => e.location)?.location || 'Unknown',
+                carrier: 'Hapag-Lloyd'
+             };
+            break;
+        default:
+            throw new Error(`A detecção automática de transportadora falhou ou a transportadora '${carrier}' não é suportada.`);
+    }
+
+    // 3. Format the result into the standardized GetTrackingInfoOutput.
+    return {
+        id: trackingNumber,
+        status: trackingResult.status,
+        origin: shipmentData.origin || 'Unknown',
+        destination: shipmentData.destination || 'Unknown',
+        vesselName: shipmentData.vesselName,
+        voyageNumber: shipmentData.voyageNumber,
+        carrier: carrier,
+        events: trackingResult.events,
+    };
   }
 );

@@ -171,7 +171,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     };
   }, [shipment]);
   
-  const { overseasPartner, agent } = shipment || {};
+  const { shipper, consignee, agent } = shipment || {};
 
   useEffect(() => {
     if (shipment) {
@@ -248,17 +248,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
   const handleDocumentChange = (index: number, newStatus: DocumentStatus['status'], fileName?: string) => {
       if (!shipment) return;
-      const currentDocuments = form.getValues('documents') || [];
-      const updatedDocuments = [...currentDocuments];
+      
+      const currentDocuments = [...(form.getValues('documents') || [])];
   
-      if (updatedDocuments[index]) {
-          updatedDocuments[index].status = newStatus;
+      if (currentDocuments[index]) {
+          currentDocuments[index].status = newStatus;
           if (fileName) {
-              updatedDocuments[index].fileName = fileName;
-              updatedDocuments[index].uploadedAt = new Date();
+              currentDocuments[index].fileName = fileName;
+              currentDocuments[index].uploadedAt = new Date();
           }
-          const updatedShipment = { ...shipment, documents: updatedDocuments };
-          onUpdate(updatedShipment as Shipment);
+          const updatedShipment: Shipment = { ...shipment, documents: currentDocuments };
+          onUpdate(updatedShipment);
       }
   };
 
@@ -318,8 +318,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
           ...shipment,
           ...shipmentDetails,
           id: shipment.id,
-          customer: shipment.customer, 
-          overseasPartner: shipment.overseasPartner,
+          customer: shipment.customer,
+          shipper: shipment.shipper,
+          consignee: shipment.consignee,
           agent: shipment.agent,
           charges: shipment.charges,
           details: shipment.details,
@@ -407,18 +408,19 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         <TabsContent value="dados_embarque" className="mt-0 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <Card>
-                                    <CardHeader className="pb-2"><CardTitle className="text-base">Cliente</CardTitle></CardHeader>
+                                    <CardHeader className="pb-2"><CardTitle className="text-base">Shipper (Exportador)</CardTitle></CardHeader>
                                     <CardContent className="text-sm space-y-1">
-                                        <p className="font-semibold">{shipment.customer}</p>
+                                        <p className="font-semibold">{shipper?.name}</p>
+                                        <p className="text-muted-foreground">{shipper?.address?.street}, {shipper?.address?.number}</p>
+                                        <p className="text-muted-foreground">{shipper?.address?.city}, {shipper?.address?.state} - {shipper?.address?.country}</p>
                                     </CardContent>
                                 </Card>
                                 <Card>
-                                    <CardHeader className="pb-2"><CardTitle className="text-base">{shipment.destination.toUpperCase().includes('BR') ? 'Exportador (Shipper)' : 'Importador (Cnee)'}</CardTitle></CardHeader>
+                                    <CardHeader className="pb-2"><CardTitle className="text-base">Consignee (Importador)</CardTitle></CardHeader>
                                     <CardContent className="text-sm space-y-1">
-                                        <p className="font-semibold">{overseasPartner?.name}</p>
-                                        <p className="text-muted-foreground">{overseasPartner?.address?.street}, {overseasPartner?.address?.number}</p>
-                                        <p className="text-muted-foreground">{overseasPartner?.address?.city}, {overseasPartner?.address?.state} - {overseasPartner?.address?.zip}</p>
-                                        {overseasPartner?.cnpj && <p className="text-muted-foreground">CNPJ: {overseasPartner.cnpj}</p>}
+                                        <p className="font-semibold">{consignee?.name}</p>
+                                        <p className="text-muted-foreground">{consignee?.address?.street}, {consignee?.address?.number}</p>
+                                        <p className="text-muted-foreground">{consignee?.address?.city}, {consignee?.address?.state} - {consignee?.address?.country}</p>
                                     </CardContent>
                                 </Card>
                                 <Card>
@@ -427,9 +429,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         {agent ? (
                                             <>
                                                 <p className="font-semibold">{agent.name}</p>
-                                                <p className="text-muted-foreground">{agent.address.street}, {agent.address.number}</p>
                                                 <p className="text-muted-foreground">{agent.address.city}, {agent.address.country}</p>
-                                                {agent.cnpj && <p className="text-muted-foreground">CNPJ: {agent.cnpj}</p>}
                                             </>
                                         ) : (
                                             <p className="text-muted-foreground">Embarque Direto</p>

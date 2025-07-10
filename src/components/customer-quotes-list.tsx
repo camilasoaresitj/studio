@@ -19,7 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { QuoteCostSheet } from './quote-cost-sheet';
 import { runSendQuote, runGenerateQuotePdfHtml } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-import type { Partner } from './partners-registry';
+import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
 import { createShipment } from '@/lib/shipment';
@@ -251,10 +251,22 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         setSelectedQuote(updatedQuote); 
     };
 
-    const handleApprovalConfirmed = async (quote: Quote, overseasPartner: Partner, agent: Partner | undefined, notifyName: string, invoiceNumber: string, poNumber: string) => {
-        // If the partner is new (doesn't have an existing ID in the main list), save it.
-        if (!partners.some(p => p.id === overseasPartner.id)) {
-            onPartnerSaved(overseasPartner);
+    const handleApprovalConfirmed = async (
+        quote: Quote, 
+        shipper: Partner, 
+        consignee: Partner, 
+        agent: Partner | undefined, 
+        notifyName: string, 
+        invoiceNumber: string, 
+        poNumber: string
+    ) => {
+        // If the shipper is new, save it.
+        if (!partners.some(p => p.id === shipper.id)) {
+            onPartnerSaved(shipper);
+        }
+        // If the consignee is new, save it.
+        if (!partners.some(p => p.id === consignee.id)) {
+            onPartnerSaved(consignee);
         }
         
         // Update quote status
@@ -264,7 +276,8 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         // Create the new shipment, passing the full quote data and partners
         await createShipment({
           ...quote,
-          overseasPartner,
+          shipper,
+          consignee,
           agent,
           notifyName,
           invoiceNumber,
@@ -273,7 +286,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
 
         toast({
             title: `Cotação ${quote.id.replace('-DRAFT', '')} Aprovada!`,
-            description: `Embarque criado no Módulo Operacional e instruções enviadas ao agente.`,
+            description: `Embarque criado no Módulo Operacional.`,
             className: 'bg-success text-success-foreground'
         });
         setQuoteToApprove(null); // Close the dialog
@@ -401,6 +414,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         partners={partners}
         onClose={() => setQuoteToApprove(null)}
         onApprovalConfirmed={handleApprovalConfirmed}
+        onPartnerSaved={onPartnerSaved}
     />
     </>
   );

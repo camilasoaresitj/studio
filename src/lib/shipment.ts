@@ -39,7 +39,8 @@ export type ShipmentCreationData = {
   charges: QuoteCharge[];
   details: QuoteDetails;
   // Add partners to the creation data
-  overseasPartner: Partner;
+  shipper: Partner;
+  consignee: Partner;
   agent?: Partner;
   notifyName: string;
   invoiceNumber: string;
@@ -84,8 +85,8 @@ export type Shipment = {
   quoteId: string; // The original quote ID
   origin: string;
   destination: string;
-  customer: string;
-  overseasPartner: Partner;
+  shipper: Partner;
+  consignee: Partner;
   agent?: Partner;
   charges: QuoteCharge[];
   details: QuoteDetails;
@@ -115,6 +116,9 @@ export type Shipment = {
   notifyName?: string;
   invoiceNumber?: string;
   purchaseOrderNumber?: string;
+  // Deprecated field, shipper/consignee are now top-level
+  customer: string;
+  overseasPartner?: Partner;
 };
 
 // --- Milestone Templates & Due Date Calculation ---
@@ -280,8 +284,8 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     quoteId: quoteData.id,
     origin: quoteData.origin,
     destination: quoteData.destination,
-    customer: quoteData.customer,
-    overseasPartner: quoteData.overseasPartner,
+    shipper: quoteData.shipper,
+    consignee: quoteData.consignee,
     agent: quoteData.agent,
     charges: quoteData.charges,
     details: quoteData.details,
@@ -299,17 +303,19 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     notifyName: quoteData.notifyName,
     invoiceNumber: quoteData.invoiceNumber,
     purchaseOrderNumber: quoteData.purchaseOrderNumber,
+    // Keep 'customer' for backward compatibility on display, but shipper/cnee are primary
+    customer: quoteData.customer, 
   };
 
-  if (isImport && quoteData.agent) {
+  if (quoteData.agent) {
     const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
     
     // Simulate sending email to agent
     await runSendShippingInstructions({
       agentName: quoteData.agent.name,
       agentEmail: quoteData.agent.contacts[0]?.email || 'agent@example.com',
-      shipper: quoteData.overseasPartner,
-      consigneeName: quoteData.customer,
+      shipper: quoteData.shipper,
+      consigneeName: quoteData.consignee.name,
       notifyName: quoteData.notifyName,
       freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
       freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'N/A',
@@ -319,7 +325,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
       ncm: newShipment.ncm || 'N/A',
       updateLink: `https://cargainteligente.com/agent-portal/${newShipment.id}`,
     });
-    console.log(`Shipping instructions sent for import shipment ${newShipment.id}`);
+    console.log(`Shipping instructions sent for shipment ${newShipment.id}`);
   }
 
   const shipments = getShipments();

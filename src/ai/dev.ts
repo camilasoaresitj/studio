@@ -18,3 +18,4 @@ import '@/ai/flows/get-tracking-info.ts';
 import '@/ai/flows/get-booking-info.ts';
 import '@/ai/flows/detect-carrier-from-booking.ts';
 import '@/ai/flows/sync-df-alliance-agents.ts';
+import '@/ai/flows/send-shipping-instructions.ts';

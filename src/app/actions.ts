@@ -15,6 +15,7 @@ import { extractQuoteDetailsFromText, ExtractQuoteDetailsFromTextOutput } from '
 import { getTrackingInfo, GetTrackingInfoOutput, GetTrackingInfoInput } from '@/ai/flows/get-tracking-info';
 import { detectCarrierFromBooking, DetectCarrierFromBookingOutput } from '@/ai/flows/detect-carrier-from-booking';
 import { syncDFAgents, SyncDFAgentsOutput } from '@/ai/flows/sync-df-alliance-agents';
+import { sendShippingInstructions, SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/ai/flows/send-shipping-instructions';
 
 
 import type { Partner } from '@/components/partners-registry';
@@ -222,6 +223,19 @@ export async function runSyncDFAgents(): Promise<{ success: true; data: SyncDFAg
   } catch (e) {
     console.error(e);
     const error = e instanceof Error ? e.message : 'An unknown error occurred while syncing DF Alliance agents.';
+    return { success: false, error };
+  }
+}
+
+export async function runSendShippingInstructions(
+  input: SendShippingInstructionsInput
+): Promise<{ success: true; data: SendShippingInstructionsOutput } | { success: false; error: string }> {
+  try {
+    const result = await sendShippingInstructions(input);
+    return { success: true, data: result };
+  } catch (e) {
+    console.error(e);
+    const error = e instanceof Error ? e.message : 'An unknown error occurred while generating shipping instructions.';
     return { success: false, error };
   }
 }

@@ -39,7 +39,7 @@ import type { DFAgent } from '@/ai/flows/sync-df-alliance-agents';
 
 const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
 const departmentsArray = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
-const supplierTypes = ['Transportadora', 'Cia Maritima', 'Cia Aerea', 'Terminal', 'Fumigacao', 'Despachante', 'Representante'];
+const supplierTypes = ['Transportadora', 'Cia Maritima', 'Cia Aerea', 'Terminal', 'Fumigacao', 'Despachante', 'Representante', 'Agente de Carga'];
 
 
 const contactSchema = z.object({

@@ -1,8 +1,9 @@
 
 'use client';
 
-import type { Partner } from '@/components/partners-registry';
+import { Partner } from '@/components/partners-registry';
 import { addDays, isValid, parse } from 'date-fns';
+import { runSendShippingInstructions } from '@/app/actions';
 
 const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments';
 
@@ -26,6 +27,7 @@ export type QuoteDetails = {
     transitTime: string;
     validity: string;
     freeTime: string;
+    incoterm: string;
 };
 
 // The shape of the quote object needed to create a shipment
@@ -36,6 +38,9 @@ export type ShipmentCreationData = {
   customer: string;
   charges: QuoteCharge[];
   details: QuoteDetails;
+  // Add partners to the creation data
+  overseasPartner: Partner;
+  agent?: Partner;
 };
 
 export type Milestone = {
@@ -95,49 +100,65 @@ export type Shipment = {
 
 // --- Milestone Templates & Due Date Calculation ---
 
-const BASE_MILESTONE_DUE_DAYS: { [key: string]: number } = {
+const IMPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
+  'Instruções de Embarque Enviadas ao Agente': 0,
+  'Carga Pronta': 7,
+  'Booking Confirmado': 10,
+  'Documentos Aprovados': 12,
+  'Container Gate In (Entregue no Porto)': 13,
+  'Confirmação de Embarque': 14,
+  'Documentos Originais Emitidos': 16,
+  'Transbordo': 0, // Placeholder
+  'CE Mercante Lançado': 0, // Placeholder, calculated based on ETA
+  'Chegada ao Destino': 0, // Placeholder, calculated based on ETD + transit time
+};
+
+const EXPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Confirmação de Booking': 2,
-  'Coleta da Carga': 4,
   'Coleta da Carga (se aplicável)': 4,
-  'Chegada no Porto/Aeroporto de Origem': 6,
   'Chegada no Porto/Aeroporto': 6,
-  'Embarque': 8,
   'Desembaraço de Exportação': 7,
-  'Chegada no Porto/Aeroporto de Destino': 0, // Placeholder
+  'Embarque': 8,
   'Chegada no Destino': 0, // Placeholder
-  'Desembaraço Aduaneiro': 2, // Days after arrival
-  'Carga Liberada': 4, // Days after arrival
-  'Entrega Final': 6, // Days after arrival
   'Confirmação de Entrega': 2, // Days after arrival
 };
 
 function generateInitialMilestones(isImport: boolean, transitTimeStr: string, creationDate: Date): Milestone[] {
-    const baseMilestoneNames = isImport 
-        ? ['Confirmação de Booking', 'Coleta da Carga', 'Chegada no Porto/Aeroporto de Origem', 'Embarque', 'Chegada no Porto/Aeroporto de Destino', 'Desembaraço Aduaneiro', 'Carga Liberada', 'Entrega Final']
-        : ['Confirmação de Booking', 'Coleta da Carga (se aplicável)', 'Chegada no Porto/Aeroporto', 'Desembaraço de Exportação', 'Embarque', 'Chegada no Destino', 'Confirmação de Entrega'];
-
     const transitTime = parseInt(transitTimeStr.split('-').pop() || '30', 10);
-    const departureDate = addDays(creationDate, BASE_MILESTONE_DUE_DAYS['Embarque']);
-    const arrivalDate = addDays(departureDate, transitTime);
 
-    return baseMilestoneNames.map(name => {
-        let predictedDate: Date;
-        if (name.includes('Chegada no') && (name.includes('Destino') || name.includes('Aeroporto de Destino'))) {
-            predictedDate = arrivalDate;
-        } else if (name === 'Desembaraço Aduaneiro' || name === 'Carga Liberada' || name === 'Entrega Final' || name === 'Confirmação de Entrega') {
-            predictedDate = addDays(arrivalDate, BASE_MILESTONE_DUE_DAYS[name]);
-        } else {
-            predictedDate = addDays(creationDate, BASE_MILESTONE_DUE_DAYS[name]);
-        }
-        
-        return {
-            name,
-            status: 'pending',
-            predictedDate,
-            effectiveDate: null,
-            isTransshipment: false,
-        };
-    });
+    if (isImport) {
+        const milestoneNames = Object.keys(IMPORT_MILESTONE_DUE_DAYS);
+        const etd = addDays(creationDate, IMPORT_MILESTONE_DUE_DAYS['Confirmação de Embarque']);
+        const eta = addDays(etd, transitTime);
+
+        return milestoneNames.map(name => {
+            let predictedDate: Date;
+            if (name === 'Chegada ao Destino') {
+                predictedDate = eta;
+            } else if (name === 'CE Mercante Lançado') {
+                predictedDate = addDays(eta, -10);
+            } else {
+                predictedDate = addDays(creationDate, IMPORT_MILESTONE_DUE_DAYS[name]);
+            }
+            return { name, status: 'pending', predictedDate, effectiveDate: null, isTransshipment: false };
+        });
+    } else { // Export
+        const milestoneNames = Object.keys(EXPORT_MILESTONE_DUE_DAYS);
+        const etd = addDays(creationDate, EXPORT_MILESTONE_DUE_DAYS['Embarque']);
+        const eta = addDays(etd, transitTime);
+
+         return milestoneNames.map(name => {
+            let predictedDate: Date;
+            if (name.includes('Chegada no Destino')) {
+                predictedDate = eta;
+            } else if (name === 'Confirmação de Entrega') {
+                 predictedDate = addDays(eta, EXPORT_MILESTONE_DUE_DAYS[name]);
+            } else {
+                predictedDate = addDays(creationDate, EXPORT_MILESTONE_DUE_DAYS[name]);
+            }
+            return { name, status: 'pending', predictedDate, effectiveDate: null, isTransshipment: false };
+        });
+    }
 }
 
 
@@ -204,7 +225,7 @@ function saveShipments(shipments: Shipment[]): void {
 /**
  * Creates a new shipment from an approved quote and saves it.
  */
-export function createShipment(quote: ShipmentCreationData, overseasPartner: Partner, agent?: Partner): Shipment {
+export async function createShipment(quote: ShipmentCreationData, overseasPartner: Partner, agent?: Partner): Promise<Shipment> {
   const isImport = quote.destination.toUpperCase().includes('BR');
   const creationDate = new Date();
   const milestones = generateInitialMilestones(isImport, quote.details.transitTime, creationDate);
@@ -214,7 +235,8 @@ export function createShipment(quote: ShipmentCreationData, overseasPartner: Par
   }
 
   const transitTime = parseInt(quote.details.transitTime.split('-').pop() || '30', 10);
-  const etd = addDays(creationDate, BASE_MILESTONE_DUE_DAYS['Embarque']);
+  const etdDays = isImport ? IMPORT_MILESTONE_DUE_DAYS['Confirmação de Embarque'] : EXPORT_MILESTONE_DUE_DAYS['Embarque'];
+  const etd = addDays(creationDate, etdDays);
   const eta = addDays(etd, transitTime);
   
   const newShipment: Shipment = {
@@ -227,29 +249,36 @@ export function createShipment(quote: ShipmentCreationData, overseasPartner: Par
     charges: quote.charges,
     details: quote.details,
     milestones,
-    // Initialize operational fields
-    bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     etd,
     eta,
-    vesselName: '',
-    voyageNumber: '',
+    bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     masterBillNumber: `MSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    containers: quote.details.cargo.toLowerCase().includes('fcl') ? [{
-      id: `cont-1`,
-      number: 'TBC',
-      seal: 'TBC',
-      tare: 'TBC',
-      grossWeight: 'TBC',
-      freeTime: '14 dias',
-    }] : [],
-    commodityDescription: '',
-    ncm: '',
-    netWeight: '',
     packageQuantity: quote.details.cargo,
     freeTimeDemurrage: quote.details.freeTime,
-    transshipments: [],
   };
+
+  if (isImport && agent) {
+    const freightCharge = quote.charges.find(c => c.name.toLowerCase().includes('frete'));
+    const thcCharge = quote.charges.find(c => c.name.toLowerCase().includes('thc'));
+    
+    // Simulate sending email to agent
+    await runSendShippingInstructions({
+      agentName: agent.name,
+      agentEmail: agent.contacts[0]?.email || 'agent@example.com',
+      shipper: overseasPartner,
+      consigneeName: quote.customer,
+      notifyName: quote.customer,
+      freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
+      freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'N/A',
+      agentProfit: agent.profitAgreement?.amount ? `USD ${agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
+      thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
+      commodity: newShipment.commodityDescription || 'General Cargo',
+      ncm: newShipment.ncm || 'N/A',
+      updateLink: `https://cargainteligente.com/agent-portal/${newShipment.id}`,
+    });
+    console.log(`Shipping instructions sent for import shipment ${newShipment.id}`);
+  }
 
   const shipments = getShipments();
   shipments.unshift(newShipment);

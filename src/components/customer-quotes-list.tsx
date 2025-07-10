@@ -251,7 +251,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         setSelectedQuote(updatedQuote); 
     };
 
-    const handleApprovalConfirmed = (quote: Quote, overseasPartner: Partner, agent?: Partner) => {
+    const handleApprovalConfirmed = async (quote: Quote, overseasPartner: Partner, agent?: Partner) => {
         // If the partner is new (doesn't have an existing ID in the main list), save it.
         if (!partners.some(p => p.id === overseasPartner.id)) {
             onPartnerSaved(overseasPartner);
@@ -261,12 +261,16 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         const approvedQuote = { ...quote, status: 'Aprovada' as const };
         onQuoteUpdate(approvedQuote);
 
-        // Create the new shipment, passing the full quote data
-        createShipment(approvedQuote, overseasPartner, agent);
+        // Create the new shipment, passing the full quote data and partners
+        await createShipment({
+          ...quote,
+          overseasPartner,
+          agent
+        }, overseasPartner, agent);
 
         toast({
             title: `Cotação ${quote.id.replace('-DRAFT', '')} Aprovada!`,
-            description: `Embarque criado no Módulo Operacional.`,
+            description: `Embarque criado no Módulo Operacional e instruções enviadas ao agente.`,
             className: 'bg-success text-success-foreground'
         });
         setQuoteToApprove(null); // Close the dialog

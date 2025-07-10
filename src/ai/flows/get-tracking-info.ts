@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch tracking information using the Cargo-flows service.
+ * @fileOverview A Genkit flow to fetch tracking information using a simulated Cargo-flows service.
  *
  * getTrackingInfo - A function that fetches tracking events.
  * GetTrackingInfoInput - The input type for the function.
@@ -79,63 +79,9 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async ({ trackingNumber }) => {
-    
-    const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
-    const baseUrl = 'https://flow.cargoes.com/api/v1';
-
-    try {
-        // Always try to call the real API first.
-        console.log(`Calling Cargo-flows API from backend: ${baseUrl}/tracking/${trackingNumber}`);
-        
-        const response = await fetch(`${baseUrl}/tracking/${trackingNumber}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Api-Key': apiKey,
-            'X-Org-Token': orgToken,
-          },
-        });
-
-        if (!response.ok) {
-            // If the API call fails, throw an error which will be caught below.
-            const errorText = await response.text();
-            console.warn(`Cargo-flows API call failed with status ${response.status}: ${errorText}`);
-            throw new Error(`API returned status ${response.status}`);
-        }
-        
-        const responseText = await response.text();
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (e) {
-            console.error("Failed to parse Cargo-flows response as JSON.", responseText);
-            throw new Error("A API retornou uma resposta inesperada. Tente novamente mais tarde.");
-        }
-
-        const apiData = data.tracking;
-
-        return {
-            id: apiData.trackingNumber || trackingNumber,
-            status: apiData.latestStatus || 'Unknown',
-            origin: apiData.origin || 'Unknown',
-            destination: apiData.destination || 'Unknown',
-            carrier: apiData.carrier || 'Unknown',
-            events: (apiData.events || []).map((event: any) => ({
-                status: event.description,
-                date: event.timestamp,
-                location: event.location,
-                completed: event.isCompleted,
-                carrier: apiData.carrier || 'Unknown'
-            })),
-            vesselName: apiData.vesselName,
-            voyageNumber: apiData.voyageNumber,
-        };
-    } catch (error) {
-        // If the fetch fails for any reason (network error, API error thrown above), fall back to simulation.
-        console.error("Error during fetch to Cargo-flows:", error);
-        console.log("Falling back to simulated tracking due to error.");
-        return getSimulatedTracking(trackingNumber);
-    }
+    // Due to lack of a public tracking endpoint on Cargo-flows, we will use a high-fidelity simulation.
+    // In a real-world scenario with a valid API, the fetch logic would be here.
+    console.log(`Using simulated tracking for tracking number: ${trackingNumber}`);
+    return getSimulatedTracking(trackingNumber);
   }
 );

@@ -36,17 +36,19 @@ export default function OperacionalPage() {
   }, []);
 
   const handleShipmentUpdate = (updatedShipmentData: Shipment) => {
-      const newShipments = updateShipment(updatedShipmentData);
-      setShipments(newShipments);
-      // If the updated shipment is the one currently selected, update the selection as well
-      if (selectedShipment && selectedShipment.id === updatedShipmentData.id) {
-          setSelectedShipment(updatedShipmentData);
-      }
-      toast({
-        title: "Embarque Atualizado",
-        description: `Os dados do embarque ${updatedShipmentData.id} foram salvos com sucesso.`,
-        className: 'bg-success text-success-foreground'
-      });
+    const updatedShipments = updateShipment(updatedShipmentData);
+    setShipments(updatedShipments);
+    
+    // If the updated shipment is the one currently selected, update the selection as well
+    if (selectedShipment && selectedShipment.id === updatedShipmentData.id) {
+        setSelectedShipment(updatedShipmentData);
+    }
+
+    toast({
+      title: "Embarque Atualizado",
+      description: `Os dados do embarque ${updatedShipmentData.id} foram salvos com sucesso.`,
+      className: 'bg-success text-success-foreground'
+    });
   };
   
   const handleFetchBooking = async () => {
@@ -63,28 +65,31 @@ export default function OperacionalPage() {
 
       if (response.success) {
           const fetchedShipment = response.data;
-          setShipments(prevShipments => {
-              const existingIndex = prevShipments.findIndex(s => s.id === fetchedShipment.id || s.bookingNumber === fetchedShipment.bookingNumber);
-              if (existingIndex > -1) {
-                  // Update existing shipment
-                  const updatedShipments = [...prevShipments];
-                  updatedShipments[existingIndex] = fetchedShipment;
-                  toast({
-                      title: "Processo Atualizado!",
-                      description: `Os dados do processo ${fetchedShipment.id} foram sincronizados.`,
-                      className: 'bg-success text-success-foreground'
-                  });
-                  return updatedShipments;
-              } else {
-                  // Add new shipment
-                  toast({
-                      title: "Processo Importado!",
-                      description: `O processo ${fetchedShipment.id} foi adicionado com sucesso.`,
-                      className: 'bg-success text-success-foreground'
-                  });
-                  return [fetchedShipment, ...prevShipments];
-              }
-          });
+          
+          const existingIndex = shipments.findIndex(s => s.id === fetchedShipment.id || (s.bookingNumber && s.bookingNumber === fetchedShipment.bookingNumber));
+
+          if (existingIndex > -1) {
+              // Update existing shipment and select it to show details
+              const updatedShipments = [...shipments];
+              updatedShipments[existingIndex] = fetchedShipment;
+              setShipments(updatedShipments);
+              setSelectedShipment(fetchedShipment); // <-- This is the key change to show the updated data
+              toast({
+                  title: "Processo Atualizado!",
+                  description: `Os dados do processo ${fetchedShipment.id} foram sincronizados.`,
+                  className: 'bg-success text-success-foreground'
+              });
+          } else {
+              // Add new shipment to the top of the list
+              const newShipmentList = [fetchedShipment, ...shipments];
+              setShipments(newShipmentList);
+              updateShipment(fetchedShipment); // Save to local storage
+              toast({
+                  title: "Processo Importado!",
+                  description: `O processo ${fetchedShipment.id} foi adicionado com sucesso.`,
+                  className: 'bg-success text-success-foreground'
+              });
+          }
           setNewBookingNumber('');
       } else {
           toast({

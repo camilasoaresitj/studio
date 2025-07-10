@@ -33,9 +33,19 @@ const TrackingEventSchema = z.object({
     carrier: z.string(),
 });
 
+const ContainerDetailSchema = z.object({
+  id: z.string(),
+  number: z.string().describe("The full container number (e.g., MSUC1234567)."),
+  seal: z.string().describe("The container's seal number."),
+  tare: z.string().describe("The container's tare weight in kg (e.g., '2200 KG')."),
+  grossWeight: z.string().describe("The container's gross weight in kg (e.g., '24000 KG')."),
+  freeTime: z.string().optional().describe("The free time in days (e.g., '14 dias')."),
+});
+
 const GetTrackingInfoOutputSchema = z.object({
     status: z.string(),
     events: z.array(TrackingEventSchema),
+    containers: z.array(ContainerDetailSchema).optional().describe("A list of containers associated with this shipment."),
     shipmentDetails: z.any().optional(), // Using any() for the partial shipment object
 });
 export type GetTrackingInfoOutput = z.infer<typeof GetTrackingInfoOutputSchema>;
@@ -50,7 +60,7 @@ const prompt = ai.definePrompt({
     input: { schema: GetTrackingInfoInputSchema },
     output: { schema: GetTrackingInfoOutputSchema },
     prompt: `You are an expert logistics AI that generates realistic shipment tracking data.
-Given a tracking number, you will create a plausible history of tracking events and shipment details.
+Given a tracking number, you will create a plausible history of tracking events and shipment details, including container information.
 
 **Instructions:**
 1.  **Carrier Identification:** Based on the tracking number format, identify the most likely carrier (e.g., Maersk, MSC, Hapag-Lloyd, etc.).
@@ -62,13 +72,19 @@ Given a tracking number, you will create a plausible history of tracking events 
     - **origin/destination:** Create a realistic long-haul route (e.g., a port in Asia to a port in South America).
     - **etd/eta:** Generate realistic ETD and ETA dates that are about 30-40 days apart.
     - **masterBillNumber:** Should be the same as the input tracking number.
-3.  **Generate Tracking Events:** Create a sequence of 8-12 logical tracking events, from "Booking Confirmed" to "Delivered".
+3.  **Generate Container Details:**
+    - Create details for one or more containers.
+    - **number**: Must be a valid format (e.g., MSCU1234567).
+    - **seal**: Invent a seal number.
+    - **tare/grossWeight**: Provide realistic weights in KG.
+    - **freeTime**: Provide a standard free time (e.g., '14 dias').
+4.  **Generate Tracking Events:** Create a sequence of 8-12 logical tracking events, from "Booking Confirmed" to "Delivered".
     - Events must be in chronological order.
     - A portion of the events should be marked as \`completed: true\`, and the rest \`completed: false\`.
     - The dates should be logical and span the time between ETD and ETA.
     - Include at least one transshipment port event if it's a long route.
     - The 'carrier' for each event should be the one you identified.
-4.  **Overall Status:** The top-level 'status' field should be the status of the *last completed event*.
+5.  **Overall Status:** The top-level 'status' field should be the status of the *last completed event*.
 
 **CRITICAL:** Do NOT return the same data every time. Generate a unique and realistic scenario for each request.
 
@@ -95,6 +111,7 @@ const getTrackingInfoFlow = ai.defineFlow(
             ...output.shipmentDetails,
             etd: output.shipmentDetails.etd ? new Date(output.shipmentDetails.etd) : undefined,
             eta: output.shipmentDetails.eta ? new Date(output.shipmentDetails.eta) : undefined,
+            containers: output.containers,
             milestones: output.events.map((event: TrackingEvent) => ({
                 name: event.status,
                 status: event.completed ? 'completed' : 'pending',

@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { runGetBookingInfo } from '@/app/actions';
-import { AlertTriangle, ListTodo, Calendar as CalendarIcon, Ship, PackagePlus, Loader2 } from 'lucide-react';
+import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -136,29 +136,35 @@ export default function OperacionalPage() {
   
   const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'outline' } => {
     if (!shipment.milestones || shipment.milestones.length === 0) {
-        return { text: 'Não iniciado', variant: 'secondary' };
+      return { text: 'Não iniciado', variant: 'secondary' };
     }
-    const inProgress = shipment.milestones.find(m => m.status === 'in_progress');
-    if (inProgress) {
-        // More descriptive status
-        if (inProgress.name.toLowerCase().includes('booking')) return { text: 'Confirmação de Booking', variant: 'default' };
-        if (inProgress.name.toLowerCase().includes('embarque')) return { text: 'Aguardando Embarque', variant: 'default' };
-        const isAfterDeparture = shipment.milestones.findIndex(m => m.name.toLowerCase().includes('embarque') && m.status === 'completed') > -1;
-        if (isAfterDeparture) return { text: 'Pendente de Transit', variant: 'default' };
-        
-        return { text: inProgress.name, variant: 'default' };
-    };
-
-    const allCompleted = shipment.milestones.every(m => m.status === 'completed');
-    if (allCompleted) return { text: 'Finalizado', variant: 'outline' };
+  
+    const firstPending = shipment.milestones.find(m => m.status === 'pending' || m.status === 'in_progress');
+    const departureCompleted = shipment.milestones.some(m => m.name.toLowerCase().includes('embarque') && m.status === 'completed');
+  
+    if (!firstPending) {
+      return { text: 'Finalizado', variant: 'outline' };
+    }
+  
+    const firstPendingName = firstPending.name.toLowerCase();
     
-    const firstPending = shipment.milestones.find(m => m.status === 'pending');
-    if (firstPending) {
-         if (firstPending.name.toLowerCase().includes('chegada no destino')) return { text: 'Chegada no Destino', variant: 'default' };
-         return { text: `Pendente: ${firstPending.name}`, variant: 'secondary' };
+    if (firstPendingName.includes('booking')) {
+      return { text: 'Confirmação de Booking', variant: 'default' };
+    }
+  
+    if (firstPendingName.includes('embarque')) {
+      return { text: 'Pendente de Booking', variant: 'default' };
     }
 
-    return { text: 'Finalizado', variant: 'outline' };
+    if (departureCompleted && firstPendingName.includes('chegada')) {
+        return { text: 'Pendente de Transit', variant: 'default' };
+    }
+  
+    if (firstPendingName.includes('chegada')) {
+      return { text: 'Chegada no Destino', variant: 'default' };
+    }
+  
+    return { text: `Pendente: ${firstPending.name}`, variant: 'secondary' };
   };
 
   if (!isClient) {
@@ -307,7 +313,9 @@ export default function OperacionalPage() {
                                 const status = getShipmentStatus(shipment);
                                 return (
                                 <TableRow key={shipment.id} onClick={() => setSelectedShipment(shipment)} className="cursor-pointer text-xs">
-                                    <TableCell className="font-semibold text-primary p-2">{shipment.id}</TableCell>
+                                    <TableCell className="font-semibold text-primary p-2">
+                                        <a className="hover:underline">{shipment.id}</a>
+                                    </TableCell>
                                     <TableCell className="p-2">{shipment.customer}</TableCell>
                                     <TableCell className="p-2">{shipment.origin} &rarr; {shipment.destination}</TableCell>
                                     <TableCell className="p-2">{shipment.etd && isValid(new Date(shipment.etd)) ? format(new Date(shipment.etd), 'dd/MM/yy') : 'N/A'}</TableCell>

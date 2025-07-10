@@ -103,7 +103,7 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
         return <CheckCircle className="h-5 w-5 text-green-600" />;
     }
     if (status === 'in_progress') {
-        return <Hourglass className="h-5 w-5 text-blue-600 animate-spin" />;
+        return <Hourglass className="h-5 w-5 text-blue-600 animate-pulse" />;
     }
     return <Circle className="h-5 w-5 text-muted-foreground" />;
 };
@@ -219,6 +219,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
     const targetMilestone = updatedMilestones[milestoneIndex];
     if(targetMilestone) {
         (targetMilestone as any)[field] = value;
+
+        if (field === 'effectiveDate' && value) {
+            targetMilestone.status = 'completed';
+        }
+        
         onUpdate({
             ...shipment,
             milestones: updatedMilestones
@@ -227,26 +232,16 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
   };
 
 
-  const handleCompleteMilestone = (milestoneIndex: number) => {
-    if (!shipment) return;
-
-    const updatedMilestones = shipment.milestones.map((m, index) => {
-        if (index === milestoneIndex) {
-            return { ...m, status: 'completed' as const, effectiveDate: new Date() };
-        }
-        return m;
-    });
-
-    // Set next pending milestone to 'in_progress'
-    const nextPendingIndex = updatedMilestones.findIndex(m => m.status === 'pending');
-    if (nextPendingIndex > -1) {
-        updatedMilestones[nextPendingIndex].status = 'in_progress';
+  const getMilestoneStatusBadge = (status: Milestone['status']): { text: string; variant: 'default' | 'secondary' | 'outline' | 'success' } => {
+    switch (status) {
+        case 'completed':
+            return { text: 'Completed', variant: 'success' };
+        case 'in_progress':
+            return { text: 'In Progress', variant: 'default' };
+        case 'pending':
+        default:
+            return { text: 'Pending', variant: 'secondary' };
     }
-
-    onUpdate({
-        ...shipment,
-        milestones: updatedMilestones,
-    });
   };
 
   const handleBillingClick = (type: 'receber' | 'pagar') => {
@@ -471,49 +466,43 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                                     {assembledMilestones.map((milestone, index) => {
                                         const predictedDate = milestone.predictedDate && isValid(new Date(milestone.predictedDate)) ? new Date(milestone.predictedDate) : null;
                                         const effectiveDate = milestone.effectiveDate && isValid(new Date(milestone.effectiveDate)) ? new Date(milestone.effectiveDate) : null;
+                                        const statusBadge = getMilestoneStatusBadge(milestone.status);
 
                                         return (
-                                        <div key={`${milestone.name}-${index}`} className="p-3 border rounded-lg">
-                                            <div className="flex items-start gap-4">
+                                        <div key={`${milestone.name}-${index}`} className="p-3 border rounded-lg flex items-start gap-4">
+                                            <div className="pt-1">
                                                 <MilestoneIcon status={milestone.status} predictedDate={predictedDate} />
-                                                <div className="flex-grow">
+                                            </div>
+                                            <div className="flex-grow">
+                                                <div className="flex justify-between items-center">
                                                     <p className="font-semibold">{milestone.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{milestone.details || milestone.name}</p>
+                                                    <Badge variant={statusBadge.variant} className="capitalize">{statusBadge.text}</Badge>
                                                 </div>
-                                                <Badge variant={
-                                                    milestone.status === 'completed' ? 'outline' :
-                                                    milestone.status === 'in_progress' ? 'default' : 'secondary'
-                                                } className="capitalize w-24 justify-center">{milestone.status.replace('_', ' ')}</Badge>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4 mt-2 pl-9">
-                                                <div className="space-y-1">
-                                                    <Label className="text-xs text-muted-foreground">Data Prevista</Label>
-                                                    <Popover>
-                                                        <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
-                                                            <CalendarIcon className="mr-2 h-3 w-3"/>
-                                                            {predictedDate ? format(predictedDate, 'dd/MM/yyyy') : 'N/A'}
-                                                        </Button></PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={predictedDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'predictedDate', d)}/></PopoverContent>
-                                                    </Popover>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <Label className="text-xs text-muted-foreground">Data Efetiva</Label>
-                                                    <Popover>
-                                                        <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
-                                                            <CalendarIcon className="mr-2 h-3 w-3"/>
-                                                            {effectiveDate ? format(effectiveDate, 'dd/MM/yyyy') : 'N/A'}
-                                                        </Button></PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={effectiveDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
-                                                    </Popover>
+                                                <p className="text-xs text-muted-foreground">{milestone.details || milestone.name}</p>
+                                                
+                                                <div className="grid grid-cols-2 gap-4 mt-2">
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs text-muted-foreground">Data Prevista</Label>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                                <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                                {predictedDate ? format(predictedDate, 'dd/MM/yyyy') : 'N/A'}
+                                                            </Button></PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={predictedDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'predictedDate', d)}/></PopoverContent>
+                                                        </Popover>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs text-muted-foreground">Data Efetiva</Label>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                                <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                                {effectiveDate ? format(effectiveDate, 'dd/MM/yyyy') : 'N/A'}
+                                                            </Button></PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={effectiveDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
+                                                        </Popover>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            {milestone.status !== 'completed' && (
-                                                <div className="flex justify-end mt-2">
-                                                    <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)}>
-                                                        Marcar como Concluído
-                                                    </Button>
-                                                </div>
-                                            )}
                                         </div>
                                     )})}
                                 </CardContent>

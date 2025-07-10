@@ -85,6 +85,7 @@ export type Shipment = {
   mblPrintingAuthDate?: Date;
   courier?: 'DHL' | 'UPS' | 'FedEx' | 'Outro';
   courierNumber?: string;
+  courierLastStatus?: string;
   vesselName?: string;
   voyageNumber?: string;
   masterBillNumber?: string;

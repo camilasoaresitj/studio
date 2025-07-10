@@ -70,6 +70,7 @@ const shipmentDetailsSchema = z.object({
   mblPrintingAuthDate: z.date().optional(),
   courier: z.enum(['DHL', 'UPS', 'FedEx', 'Outro']).optional(),
   courierNumber: z.string().optional(),
+  courierLastStatus: z.string().optional(),
   etd: z.date().optional(),
   eta: z.date().optional(),
   containers: z.array(containerDetailSchema).optional(),
@@ -168,6 +169,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         mblPrintingAuthDate: shipment.mblPrintingAuthDate && isValid(new Date(shipment.mblPrintingAuthDate)) ? new Date(shipment.mblPrintingAuthDate) : undefined,
         courier: shipment.courier,
         courierNumber: shipment.courierNumber || '',
+        courierLastStatus: shipment.courierLastStatus || '',
         etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
         eta: shipment.eta && isValid(new Date(shipment.eta)) ? new Date(shipment.eta) : undefined,
         containers: shipment.containers?.map(c => ({...c, freeTime: c.freeTime || ''})) || [],
@@ -318,6 +320,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
           form.setValue('mblPrintingAuthDate', new Date());
           form.setValue('courier', undefined);
           form.setValue('courierNumber', '');
+          form.setValue('courierLastStatus', '');
       } else {
           form.setValue('mblPrintingAuthDate', undefined);
       }
@@ -485,6 +488,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-lg">Envio de Documentos</CardTitle>
+                                    {mblPrintingAtDestination && (
+                                        <CardDescription className="text-primary font-medium">Impressão do MBL será feita no destino.</CardDescription>
+                                    )}
                                 </CardHeader>
                                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                                     <FormField control={form.control} name="courier" render={({ field }) => (
@@ -505,10 +511,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     )}/>
                                     <div className="flex items-center gap-2">
                                         {courierTrackingUrl && !mblPrintingAtDestination && (
-                                            <Button asChild variant="outline" className="w-full">
+                                            <Button asChild variant="outline" size="icon" title="Rastrear no site do courrier">
                                                 <a href={courierTrackingUrl} target="_blank" rel="noopener noreferrer">
-                                                    Rastrear
-                                                    <LinkIcon className="ml-2 h-4 w-4" />
+                                                    <LinkIcon className="h-4 w-4" />
                                                 </a>
                                             </Button>
                                         )}
@@ -517,6 +522,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             {mblPrintingAtDestination ? `Autorizado em ${format(mblPrintingAuthDate || new Date(), 'dd/MM/yy')}` : 'Impressão no Destino'}
                                         </Button>
                                     </div>
+                                    <FormField control={form.control} name="courierLastStatus" render={({ field }) => (
+                                        <FormItem className="md:col-span-3"><FormLabel>Último Status do Courrier</FormLabel><FormControl><Input placeholder="Aguardando retirada..." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
                                 </CardContent>
                             </Card>
                          </TabsContent>

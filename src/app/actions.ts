@@ -1,10 +1,58 @@
 'use server'
 
 import { ai } from "@/ai/genkit";
+import { createCrmEntryFromEmail } from "@/ai/flows/create-crm-entry-from-email";
+import { extractPartnerInfo } from "@/ai/flows/extract-partner-info";
+import { extractQuoteDetailsFromText } from "@/ai/flows/extract-quote-details-from-text";
+import { extractRatesFromText } from "@/ai/flows/extract-rates-from-text";
+import { generateQuotePdfHtml } from "@/ai/flows/generate-quote-pdf-html";
+import { getFreightRates } from "@/ai/flows/get-freight-rates";
+import { monitorEmailForTasks } from "@/ai/flows/monitor-email-for-tasks";
+import { requestAgentQuote } from "@/ai/flows/request-agent-quote";
+import { sendQuote } from "@/ai/flows/send-quote";
+import { getVesselSchedules } from "@/ai/flows/get-ship-schedules";
+import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
+import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
+import { getCourierStatus } from "@/ai/flows/get-courier-status";
+
+
+export async function runGetFreightRates(input: any) {
+    try {
+        const data = await getFreightRates(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Freight Rates Action Failed", error);
+        return { success: false, error: error.message || "Failed to run flow" };
+    }
+}
+
+export async function runRequestAgentQuote(input: any, partners: any[]) {
+    try {
+        const agents = partners.filter(p => p.roles.agente);
+        if (agents.length === 0) {
+            return { success: false, error: "Nenhum agente cadastrado." };
+        }
+
+        for (const agent of agents) {
+            const agentInput = {
+                ...input,
+                agentName: agent.name,
+                agentEmail: agent.contacts[0].email, // Assuming first contact is primary
+            };
+            await requestAgentQuote(agentInput);
+        }
+
+        return { success: true, agentsContacted: agents };
+    } catch (error: any) {
+        console.error("Request Agent Quote Action Failed", error);
+        return { success: false, error: error.message || "Failed to run flow" };
+    }
+}
+
 
 export async function runSendQuote(input: any) {
   try {
-    const output = await ai.run('send-quote', { input });
+    const output = await sendQuote(input);
     return { success: true, data: output };
   } catch (error: any) {
     console.error("Server Action Failed", error);
@@ -14,7 +62,7 @@ export async function runSendQuote(input: any) {
 
 export async function runGenerateQuotePdfHtml(input: any) {
   try {
-    const output = await ai.run('generate-quote-pdf-html', { input });
+    const output = await generateQuotePdfHtml(input);
     return { success: true, data: output };
   } catch (error: any) {
     console.error("Server Action Failed", error);
@@ -34,19 +82,8 @@ export async function runGetTrackingInfo(input: any) {
 
 export async function runDetectCarrier(trackingNumber: string) {
     try {
-        const carrierResponse = await fetch(`https://api.ultratools.com/tools/getCarrierFromTrackingNumber?trackingNumber=${trackingNumber}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-UltraTools-Api-Key': process.env.ULTRA_TOOLS_API_KEY || '',
-            }
-        });
-
-        if (!carrierResponse.ok) {
-            throw new Error(`HTTP error! status: ${carrierResponse.status}`);
-        }
-
-        const carrierData = await carrierResponse.json();
-        return { success: true, data: carrierData };
+        const carrierResponse = await ai.run('detectCarrierFromBookingFlow', { input: { bookingNumber: trackingNumber } });
+        return { success: true, data: carrierResponse };
 
     } catch (error: any) {
         console.error("Carrier Detection Failed", error);
@@ -55,35 +92,19 @@ export async function runDetectCarrier(trackingNumber: string) {
 }
 
 export async function runGetCourierStatus(input: any) {
-    const { courier, trackingNumber } = input;
     try {
-        const courierResponse = await fetch(`https://api.ultratools.com/tools/courierTracking?trackingNumber=${trackingNumber}&courier=${courier}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-UltraTools-Api-Key': process.env.ULTRA_TOOLS_API_KEY || '',
-            }
-        });
-
-        if (!courierResponse.ok) {
-            throw new Error(`HTTP error! status: ${courierResponse.status}`);
-        }
-
-        const courierData = await courierResponse.json();
-        if (!courierData || !courierData.events || courierData.events.length === 0) {
-            return { success: false, error: "Nenhum status encontrado para este tracking." };
-        }
-        return { success: true, data: { lastStatus: courierData.events[0].description } };
-
+        const data = await getCourierStatus(input);
+        return { success: true, data };
     } catch (error: any) {
         console.error("Courier Status Fetch Failed", error);
         return { success: false, error: error.message || "Failed to fetch courier status" };
     }
 }
 
-export async function runExtractPartnerInfo(input: string) {
+export async function runExtractPartnerInfo(textInput: string) {
   try {
-    const output = await ai.run('extract-partner-info', { input });
-    return { success: true, data: output };
+    const data = await extractPartnerInfo({ textInput });
+    return { success: true, data };
   } catch (error: any) {
     console.error("Server Action Failed", error);
     return { success: false, error: error.message || "Failed to run flow" };
@@ -92,10 +113,71 @@ export async function runExtractPartnerInfo(input: string) {
 
 export async function runSendShippingInstructions(input: any) {
   try {
-    // Simulate success
-    return { success: true, data: { message: `Shipping instructions sent to ${input.agentEmail}` } };
+    const data = await sendShippingInstructions(input);
+    return { success: true, data };
   } catch (error: any) {
     console.error("Server Action Failed", error);
     return { success: false, error: error.message || "Failed to run flow" };
   }
+}
+
+export async function runExtractRatesFromText(textInput: string) {
+    try {
+        const data = await extractRatesFromText({ textInput });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Extract Rates Action Failed", error);
+        return { success: false, error: error.message || "Failed to extract rates" };
+    }
+}
+
+export async function runExtractQuoteDetailsFromText(textInput: string) {
+    try {
+        const data = await extractQuoteDetailsFromText({ textInput });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Extract Quote Details Action Failed", error);
+        return { success: false, error: error.message || "Failed to extract details" };
+    }
+}
+
+
+export async function runGetVesselSchedules(input: { origin: string, destination: string }) {
+    try {
+        const data = await getVesselSchedules(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Get Vessel Schedules Action Failed", error);
+        return { success: false, error: error.message || "Failed to get schedules" };
+    }
+}
+
+export async function runGetFlightSchedules(input: { origin: string, destination: string }) {
+    try {
+        const data = await getFlightSchedules(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Get Flight Schedules Action Failed", error);
+        return { success: false, error: error.message || "Failed to get schedules" };
+    }
+}
+
+export async function runCreateCrmEntry(emailContent: string) {
+    try {
+        const data = await createCrmEntryFromEmail({ emailContent });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Create CRM Entry Action Failed", error);
+        return { success: false, error: error.message || "Failed to create CRM entry" };
+    }
+}
+
+export async function runMonitorTasks(emailSubject: string, emailContent: string, sender: string) {
+    try {
+        const data = await monitorEmailForTasks({ emailSubject, emailContent, sender });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Monitor Tasks Action Failed", error);
+        return { success: false, error: error.message || "Failed to monitor tasks" };
+    }
 }

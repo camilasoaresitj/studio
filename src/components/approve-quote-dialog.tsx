@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { partnerSchema as newPartnerSchema } from '@/lib/partners-data';
+import type { Partner } from '@/lib/partners-data';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,49 +28,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { runExtractPartnerInfo } from '@/app/actions';
 import { cn } from '@/lib/utils';
-import type { Partner } from './partners-registry';
 import type { Quote } from './customer-quotes-list';
 import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
 
-const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
-const departmentsArray = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
+const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 
-const contactSchema = z.object({
-  name: z.string().min(1, 'Nome do contato é obrigatório'),
-  email: z.string().email('E-mail inválido'),
-  phone: z.string().min(10, 'Telefone inválido'),
-  departments: z.array(departmentEnum).min(1, 'Selecione pelo menos um departamento'),
-});
-
-
-const partnerSchema = z.object({
-  name: z.string().min(2, 'O nome do parceiro é obrigatório'),
-  nomeFantasia: z.string().optional(),
-  roles: z.object({
-    cliente: z.boolean().default(false),
-    fornecedor: z.boolean().default(true), // Default to supplier in this context
-    agente: z.boolean().default(false),
-    comissionado: z.boolean().default(false),
-  }),
-  cnpj: z.string().optional(),
-  paymentTerm: z.coerce.number().optional(),
-  exchangeRateAgio: z.coerce.number().optional(),
-  
-  address: z.object({
-    street: z.string().optional(),
-    number: z.string().optional(),
-    complement: z.string().optional(),
-    district: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    zip: z.string().optional(),
-    country: z.string().optional(),
-  }),
-  contacts: z.array(contactSchema).min(1, 'Adicione pelo menos um contato'),
-});
-
-type PartnerFormData = z.infer<typeof partnerSchema>;
+type PartnerFormData = z.infer<typeof newPartnerSchema>;
 
 interface ApproveQuoteDialogProps {
   quote: Quote | null;
@@ -87,7 +53,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
   const { toast } = useToast();
 
   const form = useForm<PartnerFormData>({
-    resolver: zodResolver(partnerSchema),
+    resolver: zodResolver(newPartnerSchema),
     defaultValues: {
       name: '',
       roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
@@ -132,7 +98,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
         toast({ variant: 'destructive', title: `Nenhum ${partnerRole} selecionado` });
         return;
       }
-      overseasPartner = partners.find(p => p.id.toString() === selectedOverseasPartnerId) || null;
+      overseasPartner = partners.find(p => p.id?.toString() === selectedOverseasPartnerId) || null;
     } else { // 'create' tab
       const isValid = await form.trigger();
       if (!isValid) {
@@ -142,7 +108,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
       const newPartnerData = form.getValues();
       overseasPartner = {
         ...newPartnerData,
-        id: Math.max(...partners.map(p => p.id), 0) + 1, // Create a new temporary ID
+        id: Math.max(...partners.map(p => p.id ?? 0), 0) + 1, // Create a new temporary ID
       };
     }
 
@@ -152,7 +118,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
     }
 
     const agent = selectedAgentId !== 'none' 
-        ? partners.find(p => p.id.toString() === selectedAgentId)
+        ? partners.find(p => p.id?.toString() === selectedAgentId)
         : undefined;
 
     onApprovalConfirmed(quote, overseasPartner, agent);
@@ -171,7 +137,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
       form.setValue('cnpj', data.cnpj || '');
       form.setValue('address', data.address);
       if (data.contacts && data.contacts.length > 0) {
-        replace(data.contacts);
+        replace(data.contacts.map(c => ({...c, departments: c.departments || ['Operacional']})));
       }
       toast({ title: 'Dados preenchidos com sucesso!', className: 'bg-success text-success-foreground' });
     } else {
@@ -206,7 +172,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" role="combobox" aria-expanded={isPopoverOpen} className="w-full justify-between font-normal mt-1">
-                                        {selectedOverseasPartnerId ? partners.find(p => p.id.toString() === selectedOverseasPartnerId)?.name : `Selecione um parceiro...`}
+                                        {selectedOverseasPartnerId ? partners.find(p => p.id?.toString() === selectedOverseasPartnerId)?.name : `Selecione um parceiro...`}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
@@ -221,11 +187,11 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                                                     value={partner.name}
                                                     key={partner.id}
                                                     onSelect={() => {
-                                                        setSelectedOverseasPartnerId(partner.id.toString());
+                                                        setSelectedOverseasPartnerId(partner.id?.toString() ?? null);
                                                         setIsPopoverOpen(false);
                                                     }}
                                                     >
-                                                <Check className={cn("mr-2 h-4 w-4", selectedOverseasPartnerId === partner.id.toString() ? "opacity-100" : "opacity-0")}/>
+                                                <Check className={cn("mr-2 h-4 w-4", selectedOverseasPartnerId === partner.id?.toString() ? "opacity-100" : "opacity-0")}/>
                                                 {partner.name}
                                                 </CommandItem>
                                             ))}
@@ -287,7 +253,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                                               <FormItem>
                                                   <FormLabel>Departamentos</FormLabel>
                                                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                                                    {departmentsArray.map((item) => (
+                                                    {departmentEnum.map((item) => (
                                                       <FormField
                                                         key={item}
                                                         control={form.control}
@@ -337,7 +303,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                         <SelectContent>
                             <SelectItem value="none">Nenhum (Embarque Direto)</SelectItem>
                             {agentPartners.map(agent => (
-                                <SelectItem key={agent.id} value={agent.id.toString()}>
+                                <SelectItem key={agent.id} value={agent.id?.toString() ?? ''}>
                                     {agent.name}
                                 </SelectItem>
                             ))}

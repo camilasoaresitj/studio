@@ -1,6 +1,6 @@
 'use client';
 
-import type { Partner } from '@/components/partners-registry';
+import type { Partner } from '@/lib/partners-data';
 import { addDays, isValid } from 'date-fns';
 import { runSendShippingInstructions } from '@/app/actions';
 

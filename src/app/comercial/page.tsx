@@ -10,7 +10,8 @@ import { CustomerQuotesList, Quote, QuoteCharge } from '@/components/customer-qu
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
-import { PartnersRegistry, Partner } from '@/components/partners-registry';
+import { PartnersRegistry } from '@/components/partners-registry';
+import { type Partner, getPartners, savePartners } from '@/lib/partners-data';
 import { FeesRegistry, Fee } from '@/components/fees-registry';
 import type { Rate } from '@/components/rates-table';
 import type { FreightQuoteFormData } from '@/lib/schemas';
@@ -83,86 +84,6 @@ const initialQuotesData: Quote[] = [
   { id: 'COT-00121', customer: 'AutoParts Express', origin: 'Guarulhos, BR', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', details: { cargo: '100kg', transitTime: '1-2 dias', validity: '30/11/2024', freeTime: 'N/A', incoterm: 'CPT' }, charges: [] },
 ];
 
-const initialPartnersData: Partner[] = [
-    { 
-        id: 1, 
-        name: 'Nexus Imports', 
-        nomeFantasia: 'Nexus',
-        roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
-        cnpj: '12345678000199',
-        limiteCredito: 100000,
-        tipoCliente: { importacao: true, exportacao: true },
-        paymentTerm: 30,
-        exchangeRateAgio: 2.0,
-        address: { street: 'Av. das Nações', number: '100', complement: 'Torre B, 5º Andar', district: 'Centro', city: 'São Paulo', state: 'SP', zip: '01234-000', country: 'Brasil' },
-        contacts: [
-            { name: 'Ana Costa', email: 'ana.costa@nexus.com', phone: '5511987654321', departments: ['Comercial'] },
-            { name: 'Roberto Lima', email: 'roberto.lima@nexus.com', phone: '5511987654322', departments: ['Operacional'] }
-        ]
-    },
-    { 
-        id: 2, 
-        name: 'Maersk Line Brasil', 
-        nomeFantasia: 'Maersk',
-        roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
-        tipoFornecedor: 'Cia Maritima',
-        cnpj: '98765432000100',
-        paymentTerm: 15,
-        exchangeRateAgio: 0,
-        address: { street: 'Rua do Porto', number: '555', complement: '', district: 'Paquetá', city: 'Santos', state: 'SP', zip: '11010-151', country: 'Brasil' },
-        contacts: [
-            { name: 'Carlos Pereira', email: 'comercial.br@maersk.com', phone: '551332268500', departments: ['Comercial'] }
-        ]
-    },
-    { 
-        id: 3, 
-        name: 'Global Logistics Agents', 
-        nomeFantasia: 'GLA',
-        roles: { cliente: false, fornecedor: false, agente: true, comissionado: false },
-        tipoAgente: { fcl: true, lcl: false, air: true, projects: true },
-        profitAgreement: { amount: 50, unit: 'por_container' },
-        paymentTerm: 45,
-        exchangeRateAgio: 0,
-        address: { street: 'Ocean Drive', number: '123', complement: 'Suite 200', district: 'South Beach', city: 'Miami', state: 'FL', zip: '33139', country: 'EUA' },
-        contacts: [
-            { name: 'John Smith', email: 'ops@gla.com', phone: '13055551234', departments: ['Operacional'] }
-        ]
-    },
-    { 
-        id: 4, 
-        name: 'TechFront Solutions', 
-        nomeFantasia: 'TechFront',
-        roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
-        cnpj: '11223344000155',
-        customerCategory: 'Nacional',
-        limiteCredito: 50000,
-        tipoCliente: { importacao: true, exportacao: false },
-        paymentTerm: 21,
-        exchangeRateAgio: 2.5,
-        address: { street: 'Rua da Inovação', number: '404', complement: '', district: 'Centro', city: 'Florianópolis', state: 'SC', zip: '88010-000', country: 'Brasil' },
-        contacts: [
-            { name: 'Sofia Mendes', email: 'sofia@techfront.com', phone: '5548999887766', departments: ['Comercial'] },
-            { name: 'Lucas Ferreira', email: 'financeiro@techfront.com', phone: '5548999887755', departments: ['Financeiro'] },
-            { name: 'Carla Dias', email: 'impo@techfront.com', phone: '5548999887744', departments: ['Importação'] },
-        ]
-    },
-    { 
-        id: 5, 
-        name: 'LTI DO BRASIL LTDA', 
-        nomeFantasia: 'LTI BRASIL',
-        roles: { cliente: false, fornecedor: false, agente: true, comissionado: false },
-        cnpj: '00000000000100', // Placeholder
-        tipoAgente: { fcl: true, lcl: true, air: true, projects: true },
-        profitAgreement: { amount: 75, unit: 'por_container' },
-        paymentTerm: 30,
-        exchangeRateAgio: 0,
-        address: { street: 'Av. Paulista', number: '1000', complement: 'Andar 10', district: 'Bela Vista', city: 'São Paulo', state: 'SP', zip: '01310-100', country: 'Brasil' },
-        contacts: [
-            { name: 'Equipe Operacional', email: 'ops@ltiglobal.com.br', phone: '551133334444', departments: ['Operacional', 'Comercial'] }
-        ]
-    }
-];
-
 const initialFeesData: Fee[] = [
     // Importação Marítima FCL
     { id: 1, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
@@ -209,72 +130,61 @@ const initialFeesData: Fee[] = [
 export default function ComercialPage() {
   const [rates, setRates] = useState<Rate[]>(initialRatesData);
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotesData);
-  const [partners, setPartners] = useState(initialPartnersData);
+  const [partners, setPartners] = useState<Partner[]>(getPartners);
   const [fees, setFees] = useState(initialFeesData);
   const [activeTab, setActiveTab] = useState('quote');
   const [quoteFormData, setQuoteFormData] = useState<Partial<FreightQuoteFormData> | null>(null);
   const { toast } = useToast();
 
   const handlePartnerSaved = (partnerToSave: Partner) => {
-      setPartners(prevPartners => {
-          const index = prevPartners.findIndex(p => p.id === partnerToSave.id && p.id !== 0);
-          if (index > -1) {
-              const newPartners = [...prevPartners];
-              newPartners[index] = partnerToSave;
-              return newPartners;
-          } else {
-              // It's a new partner, give it a new ID
-              const newId = Math.max(...prevPartners.map(p => p.id), 0) + 1;
-              return [...prevPartners, { ...partnerToSave, id: newId }];
-          }
-      });
+    let updatedPartners;
+    if (partnerToSave.id && partnerToSave.id !== 0) {
+      // It's an update
+      updatedPartners = partners.map(p => p.id === partnerToSave.id ? partnerToSave : p);
+    } else {
+      // It's a new partner
+      const newId = Math.max(0, ...partners.map(p => p.id ?? 0)) + 1;
+      updatedPartners = [...partners, { ...partnerToSave, id: newId }];
+    }
+    setPartners(updatedPartners);
+    savePartners(updatedPartners);
   };
 
   const handleRatesImported = (importedRates: ExtractRatesFromTextOutput) => {
-    // A Set is used to efficiently track agents that have already been processed in this batch,
-    // preventing duplicate creations.
     const existingPartnerNames = new Set(partners.map(p => p.name.toLowerCase()));
     const newAgents: Partner[] = [];
 
-    // First, iterate through the imported rates to find and prepare any new agents for creation.
     importedRates.forEach(rate => {
-      // We only care about actual agent names, not placeholders like "Direct" or "N/A".
       if (rate.agent && rate.agent !== 'Direct' && rate.agent !== 'N/A' && rate.agent.trim() !== '') {
         const agentName = rate.agent.trim();
-        // If the agent is not already in our system, create a new partner object for it.
         if (!existingPartnerNames.has(agentName.toLowerCase())) {
           const newAgent: Partner = {
-            id: 0, // A temporary ID; a real one will be assigned when saving to state.
+            id: 0,
             name: agentName,
             nomeFantasia: agentName,
             roles: { agente: true, cliente: false, fornecedor: false, comissionado: false },
-            // Pre-fill with sensible defaults for a newly discovered agent.
-            tipoAgente: { fcl: true, lcl: true, air: true, projects: false },
             profitAgreement: { amount: 50, unit: 'por_container' },
             paymentTerm: 30,
             exchangeRateAgio: 0,
             address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
             contacts: [{ name: 'Contato Principal', email: 'tbc@tbc.com', phone: '000000000', departments: ['Comercial', 'Operacional'] }],
           };
-          
           newAgents.push(newAgent);
-          // Add the new agent to our temporary set to avoid creating it multiple times in this single batch.
           existingPartnerNames.add(agentName.toLowerCase());
         }
       }
     });
 
-    // If we found any new agents, update the partners state.
     if (newAgents.length > 0) {
-      setPartners(prevPartners => {
-        let currentMaxId = Math.max(0, ...prevPartners.map(p => p.id));
-        const agentsWithIds = newAgents.map(agent => ({
-          ...agent,
-          id: ++currentMaxId,
-        }));
-        return [...prevPartners, ...agentsWithIds];
-      });
-
+      const currentPartners = getPartners();
+      let currentMaxId = Math.max(0, ...currentPartners.map(p => p.id ?? 0));
+      const agentsWithIds = newAgents.map(agent => ({
+        ...agent,
+        id: ++currentMaxId,
+      }));
+      const updatedPartners = [...currentPartners, ...agentsWithIds];
+      setPartners(updatedPartners);
+      savePartners(updatedPartners);
       toast({
         title: "Novos Agentes Cadastrados",
         description: `${newAgents.length} agente(s) foram adicionados automaticamente ao seu cadastro.`,
@@ -282,9 +192,7 @@ export default function ComercialPage() {
       });
     }
 
-    // Now, add the imported rates to the main rates table state.
     setRates(prevRates => {
-        // Use Math.max to find the highest existing ID to prevent duplicates.
         let currentMaxId = Math.max(0, ...prevRates.map(r => r.id));
         const newRates = importedRates.map((rate) => ({
           ...rate,
@@ -302,7 +210,6 @@ export default function ComercialPage() {
   
   const handleQuoteCreated = (newQuoteData: Quote) => {
     setQuotes(prevQuotes => {
-        // Check if a quote with the same ID already exists (e.g., from manual creation)
         const existingIndex = prevQuotes.findIndex(q => q.id === newQuoteData.id);
         if (existingIndex > -1) {
             const updatedQuotes = [...prevQuotes];

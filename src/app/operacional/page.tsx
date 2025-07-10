@@ -12,11 +12,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { runDetectCarrier, runGetTrackingInfo } from '@/app/actions';
+import { runGetTrackingInfo } from '@/app/actions';
 import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
+import { detectCarrierFromBooking } from '@/ai/flows/detect-carrier-from-booking';
 
 type Task = {
     milestone: Milestone;
@@ -65,89 +66,83 @@ export default function OperacionalPage() {
       }
       setIsFetchingBooking(true);
       
-      // Step 1: Detect Carrier
-      const carrierResponse = await runDetectCarrier(bookingNumberToFetch);
-      if (!carrierResponse.success || carrierResponse.data.carrier === 'Unknown') {
-          toast({
-              variant: 'destructive',
-              title: "Armador não identificado",
-              description: carrierResponse.error || `Não foi possível identificar o armador para o booking "${bookingNumberToFetch}".`,
-          });
-          setIsFetchingBooking(false);
-          return;
-      }
-      const carrier = carrierResponse.data.carrier;
-      toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
+      try {
+        const { carrier } = await detectCarrierFromBooking({ bookingNumber: bookingNumberToFetch });
 
-      // Step 2: Get Tracking Info
-      const trackingResponse = await runGetTrackingInfo({ trackingNumber: bookingNumberToFetch, carrier });
+        toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
 
-      if (trackingResponse.success) {
-          const fetchedData = trackingResponse.data;
-          const shipmentDetails = fetchedData.shipmentDetails || {};
-          
-          const existingShipmentIndex = shipments.findIndex(s => 
-              (s.bookingNumber && s.bookingNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) || 
-              (s.masterBillNumber && s.masterBillNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) ||
-              (s.id.toUpperCase() === `PROC-${bookingNumberToFetch.toUpperCase()}`)
-          );
-          
-          let updatedShipment: Shipment;
+        const trackingResponse = await runGetTrackingInfo({ trackingNumber: bookingNumberToFetch, carrier });
 
-          if (existingShipmentIndex > -1) {
-              const existingShipment = shipments[existingShipmentIndex];
-              // Merge fetched data into existing shipment
-              updatedShipment = {
-                  ...existingShipment,
-                  ...shipmentDetails,
-                  id: existingShipment.id,
-                  customer: existingShipment.customer, 
-                  overseasPartner: existingShipment.overseasPartner,
-                  agent: existingShipment.agent,
-                  charges: existingShipment.charges,
-                  details: existingShipment.details,
-              };
-              
-              setShipments(prev => {
-                  const newShipments = [...prev];
-                  newShipments[existingShipmentIndex] = updatedShipment;
-                  return newShipments;
-              });
-              setSelectedShipment(updatedShipment);
-              toast({
-                  title: "Processo Atualizado!",
-                  description: `Os dados do processo ${updatedShipment.id} foram sincronizados.`,
-                  className: 'bg-success text-success-foreground'
-              });
-          } else {
-              // Create a new shipment if it doesn't exist
-              updatedShipment = {
-                  id: `PROC-${bookingNumberToFetch}`,
-                  customer: 'Novo Processo',
-                  charges: [],
-                  details: { cargo: '', transitTime: '', validity: '', freeTime: '', incoterm: 'FOB' },
-                  overseasPartner: { id: 0, name: 'Parceiro a definir', roles: { fornecedor: true } } as any,
-                  ...shipmentDetails,
-              } as Shipment;
-              setShipments(prev => [updatedShipment, ...prev]);
-              setSelectedShipment(updatedShipment);
-              toast({
-                  title: "Processo Importado!",
-                  description: `O processo ${updatedShipment.id} foi adicionado com sucesso.`,
-                  className: 'bg-success text-success-foreground'
-              });
-          }
-          
-          updateShipment(updatedShipment);
-          setNewBookingNumber('');
-      } else {
-          toast({
-              variant: 'destructive',
-              title: "Erro ao buscar processo",
-              description: trackingResponse.error,
-          });
-      }
-      setIsFetchingBooking(false);
+        if (trackingResponse.success) {
+            const fetchedData = trackingResponse.data;
+            const shipmentDetails = fetchedData.shipmentDetails || {};
+            
+            const existingShipmentIndex = shipments.findIndex(s => 
+                (s.bookingNumber && s.bookingNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) || 
+                (s.masterBillNumber && s.masterBillNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) ||
+                (s.id.toUpperCase() === `PROC-${bookingNumberToFetch.toUpperCase()}`)
+            );
+            
+            let updatedShipment: Shipment;
+
+            if (existingShipmentIndex > -1) {
+                const existingShipment = shipments[existingShipmentIndex];
+                // Merge fetched data into existing shipment
+                updatedShipment = {
+                    ...existingShipment,
+                    ...shipmentDetails,
+                    id: existingShipment.id,
+                    customer: existingShipment.customer, 
+                    overseasPartner: existingShipment.overseasPartner,
+                    agent: existingShipment.agent,
+                    charges: existingShipment.charges,
+                    details: existingShipment.details,
+                };
+                
+                setShipments(prev => {
+                    const newShipments = [...prev];
+                    newShipments[existingShipmentIndex] = updatedShipment;
+                    return newShipments;
+                });
+                setSelectedShipment(updatedShipment);
+                toast({
+                    title: "Processo Atualizado!",
+                    description: `Os dados do processo ${updatedShipment.id} foram sincronizados.`,
+                    className: 'bg-success text-success-foreground'
+                });
+            } else {
+                // Create a new shipment if it doesn't exist
+                updatedShipment = {
+                    id: `PROC-${bookingNumberToFetch}`,
+                    customer: 'Novo Processo',
+                    charges: [],
+                    details: { cargo: '', transitTime: '', validity: '', freeTime: '', incoterm: 'FOB' },
+                    overseasPartner: { id: 0, name: 'Parceiro a definir', roles: { fornecedor: true } } as any,
+                    ...shipmentDetails,
+                } as Shipment;
+                setShipments(prev => [updatedShipment, ...prev]);
+                setSelectedShipment(updatedShipment);
+                toast({
+                    title: "Processo Importado!",
+                    description: `O processo ${updatedShipment.id} foi adicionado com sucesso.`,
+                    className: 'bg-success text-success-foreground'
+                });
+            }
+            
+            updateShipment(updatedShipment);
+            setNewBookingNumber('');
+        } else {
+            throw new Error(trackingResponse.error);
+        }
+    } catch(e: any) {
+        toast({
+            variant: 'destructive',
+            title: "Erro ao buscar processo",
+            description: e.message || "Não foi possível obter os dados do embarque.",
+        });
+    } finally {
+        setIsFetchingBooking(false);
+    }
   };
 
 
@@ -390,3 +385,5 @@ export default function OperacionalPage() {
     </>
   );
 }
+
+    

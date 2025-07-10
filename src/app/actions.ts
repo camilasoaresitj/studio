@@ -1,3 +1,4 @@
+
 'use server'
 
 import { ai } from "@/ai/genkit";
@@ -14,6 +15,7 @@ import { getVesselSchedules } from "@/ai/flows/get-ship-schedules";
 import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
+import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 
 
 export async function runGetFreightRates(input: any) {
@@ -72,10 +74,10 @@ export async function runGenerateQuotePdfHtml(input: any) {
 
 export async function runGetTrackingInfo(input: any) {
   try {
-    const output = await ai.run('getTrackingInfoFlow', { input });
+    const output = await getTrackingInfo(input);
     return { success: true, data: output };
   } catch (error: any) {
-    console.error("Server Action Failed", error);
+    console.error("Server Action Failed for getTrackingInfo", error);
     return { success: false, error: error.message || "Failed to run flow" };
   }
 }
@@ -181,3 +183,5 @@ export async function runMonitorTasks(emailSubject: string, emailContent: string
         return { success: false, error: error.message || "Failed to monitor tasks" };
     }
 }
+
+    

@@ -5,7 +5,7 @@ import type { Partner } from '@/lib/partners-data';
 import { addDays, isValid } from 'date-fns';
 import { runSendShippingInstructions } from '@/app/actions';
 
-const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments';
+const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v2';
 
 // --- Type Definitions ---
 
@@ -80,7 +80,8 @@ export type DocumentStatus = {
 };
 
 export type Shipment = {
-  id: string;
+  id: string; // The process number, derived from quote ID
+  quoteId: string; // The original quote ID
   origin: string;
   destination: string;
   customer: string;
@@ -91,6 +92,7 @@ export type Shipment = {
   milestones: Milestone[];
   documents: DocumentStatus[];
   // Existing operational fields
+  carrier?: string;
   bookingNumber?: string;
   mblPrintingAtDestination?: boolean;
   mblPrintingAuthDate?: Date;
@@ -271,8 +273,11 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     { name: 'Extrato DI', status: 'pending' },
   ];
 
+  const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
+
   const newShipment: Shipment = {
-    id: quoteData.id.replace('-DRAFT', ''),
+    id: `PROC-${quoteData.id.replace('COT-', '')}`,
+    quoteId: quoteData.id,
     origin: quoteData.origin,
     destination: quoteData.destination,
     customer: quoteData.customer,
@@ -280,6 +285,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     agent: quoteData.agent,
     charges: quoteData.charges,
     details: quoteData.details,
+    carrier: freightCharge?.supplier,
     milestones,
     documents,
     etd,
@@ -296,7 +302,6 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   };
 
   if (isImport && quoteData.agent) {
-    const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
     const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
     
     // Simulate sending email to agent

@@ -23,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, Check, FileCheck, CircleDot } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, Check, FileCheck, CircleDot, FileText } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -61,6 +61,7 @@ const transshipmentDetailSchema = z.object({
 
 const shipmentDetailsSchema = z.object({
   id: z.string(),
+  carrier: z.string().optional(),
   vesselName: z.string().optional(),
   voyageNumber: z.string().optional(),
   masterBillNumber: z.string().optional(),
@@ -176,6 +177,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     if (shipment) {
       form.reset({
         id: shipment.id,
+        carrier: shipment.carrier || '',
         vesselName: shipment.vesselName || '',
         voyageNumber: shipment.voyageNumber || '',
         masterBillNumber: shipment.masterBillNumber || '',
@@ -246,7 +248,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
   const handleDocumentChange = (index: number, newStatus: DocumentStatus['status'], fileName?: string) => {
       if (!shipment) return;
-      
       const currentDocuments = form.getValues('documents') || [];
       const updatedDocuments = [...currentDocuments];
   
@@ -438,7 +439,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </div>
                             <Card>
                                 <CardHeader><CardTitle className="text-lg">Dados da Viagem/Voo</CardTitle></CardHeader>
-                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                                    <FormField control={form.control} name="carrier" render={({ field }) => (
+                                        <FormItem><FormLabel>Armador</FormLabel><FormControl><Input placeholder="Maersk" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
                                     <FormField control={form.control} name="vesselName" render={({ field }) => (
                                         <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="MSC LEO" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                     )}/>
@@ -535,8 +539,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </Card>
                         </TabsContent>
                          <TabsContent value="documentos" className="mt-0 space-y-6">
-                            <Card>
-                                <CardHeader><CardTitle className="text-lg">Documentos e Rastreio</CardTitle></CardHeader>
+                             <Card>
+                                <CardHeader className="flex flex-row justify-between items-start">
+                                    <div>
+                                        <CardTitle className="text-lg">Rastreio e Numerações</CardTitle>
+                                        <CardDescription>Cotação de origem: <span className="font-semibold text-primary">{shipment.quoteId}</span></CardDescription>
+                                    </div>
+                                </CardHeader>
                                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <FormField control={form.control} name="bookingNumber" render={({ field }) => (
                                     <FormItem><FormLabel>Booking Reference</FormLabel>

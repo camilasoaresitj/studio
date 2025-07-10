@@ -123,6 +123,11 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
         toast({ variant: 'destructive', title: `Erro ao definir o ${partnerRole}` });
         return;
     }
+    
+    if (!notifyName.trim()) {
+        toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, informe o Notify Party.' });
+        return;
+    }
 
     const agent = selectedAgentId !== 'none' 
         ? partners.find(p => p.id?.toString() === selectedAgentId)
@@ -303,7 +308,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1">
-                        <Label htmlFor="notify-party">Notify Party</Label>
+                        <Label htmlFor="notify-party">Notify Party (Obrigatório)</Label>
                         <Input id="notify-party" placeholder="Nome do Notify" value={notifyName} onChange={e => setNotifyName(e.target.value)} />
                     </div>
                     <div className="space-y-1">

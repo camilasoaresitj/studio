@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle2, Circle, Loader, Search, Ship, Warehouse, Anchor, AlertTriangle, PackageSearch, Plane } from 'lucide-react';
-import { runGetTrackingInfo } from '@/app/actions';
+import { CheckCircle2, Circle, Loader, Search, Ship, Warehouse, Anchor, AlertTriangle, PackageSearch } from 'lucide-react';
+import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
 import { GetTrackingInfoOutput, TrackingEvent } from '@/ai/flows/get-tracking-info';
+import { useToast } from '@/hooks/use-toast';
 
 type TrackingResult = GetTrackingInfoOutput | null;
 
@@ -15,6 +16,7 @@ export function TrackingStatus() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<TrackingResult>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleSearch = async () => {
     if (!trackingId) return;
@@ -22,7 +24,18 @@ export function TrackingStatus() {
     setResult(null);
     setError(null);
 
-    const response = await runGetTrackingInfo(trackingId);
+    // Step 1: Detect Carrier
+    const carrierResponse = await runDetectCarrier(trackingId);
+    if (!carrierResponse.success || carrierResponse.data.carrier === 'Unknown') {
+        setError(`Não foi possível identificar o armador para o código "${trackingId}".`);
+        setIsLoading(false);
+        return;
+    }
+    const carrier = carrierResponse.data.carrier;
+    toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
+
+    // Step 2: Get Tracking Info with carrier
+    const response = await runGetTrackingInfo({ trackingNumber: trackingId, carrier });
 
     if (response.success) {
       setResult(response.data);
@@ -37,14 +50,14 @@ export function TrackingStatus() {
     const lowerStatus = status.toLowerCase();
     if (completed) return <CheckCircle2 className="w-5 h-5" />;
     if (lowerStatus.includes('retido')) return <AlertTriangle className="w-5 h-5 text-destructive" />;
-    if (lowerStatus.includes('embarcado') || lowerStatus.includes('loaded')) return <Ship className="w-5 h-5" />;
-    if (lowerStatus.includes('coletada') || lowerStatus.includes('recebida')) return <Warehouse className="w-5 h-5" />;
-    if (lowerStatus.includes('chegada') || lowerStatus.includes('discharged')) return <Anchor className="w-5 h-5" />;
+    if (lowerStatus.includes('embarcado') || lowerStatus.includes('loaded') || lowerStatus.includes('vessel departure')) return <Ship className="w-5 h-5" />;
+    if (lowerStatus.includes('coletada') || lowerStatus.includes('recebida') || lowerStatus.includes('gated in')) return <Warehouse className="w-5 h-5" />;
+    if (lowerStatus.includes('chegada') || lowerStatus.includes('discharged') || lowerStatus.includes('arrival')) return <Anchor className="w-5 h-5" />;
     return <Circle className="w-5 h-5" />;
   }
 
-  // Determine the overall status from the last non-pending event
-  const currentStatus = result?.events.filter(e => e.completed).pop()?.status || result?.status || 'Aguardando informações';
+  const currentStatus = result?.status || 'Aguardando informações';
+  const shipmentDetails = result?.shipmentDetails as any;
 
   return (
     <Card>
@@ -85,16 +98,16 @@ export function TrackingStatus() {
                 <p>{error}</p>
             </div>
         }
-        {result && (
+        {result && shipmentDetails && (
           <div className="w-full mt-6 animate-in fade-in-50 duration-500">
             <div className="mb-6 p-4 border rounded-lg bg-secondary/50">
-                <h3 className="font-bold text-lg text-primary">Status da Carga: {result.id}</h3>
+                <h3 className="font-bold text-lg text-primary">Status da Carga: {shipmentDetails.masterBillNumber || trackingId}</h3>
                 <div className="flex flex-wrap gap-x-6 gap-y-2 mt-2 text-sm">
-                    <p><span className="font-semibold text-muted-foreground">Origem:</span> {result.origin}</p>
-                    <p><span className="font-semibold text-muted-foreground">Destino:</span> {result.destination}</p>
+                    <p><span className="font-semibold text-muted-foreground">Origem:</span> {shipmentDetails.origin}</p>
+                    <p><span className="font-semibold text-muted-foreground">Destino:</span> {shipmentDetails.destination}</p>
                     <p><span className="font-semibold text-muted-foreground">Status Atual:</span> <span className="font-bold">{currentStatus}</span></p>
-                    <p><span className="font-semibold text-muted-foreground">Transportadora:</span> <span className="font-bold">{result.carrier}</span></p>
-                    {result.vesselName && <p><span className="font-semibold text-muted-foreground">Navio/Voo:</span> <span className="font-bold">{result.vesselName} / {result.voyageNumber}</span></p>}
+                    <p><span className="font-semibold text-muted-foreground">Transportadora:</span> <span className="font-bold">{result.events?.[0].carrier}</span></p>
+                    {shipmentDetails.vesselName && <p><span className="font-semibold text-muted-foreground">Navio/Voo:</span> <span className="font-bold">{shipmentDetails.vesselName} / {shipmentDetails.voyageNumber}</span></p>}
                 </div>
             </div>
             <div className="relative pl-8">

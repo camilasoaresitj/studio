@@ -59,7 +59,8 @@ const getTrackingInfoFlow = ai.defineFlow(
   async (input) => {
     const maerskApiKey = process.env.MAERSK_API_KEY;
     
-    // --- Primary Method: Maersk Direct API ---
+    // --- Primary Method: Maersk Direct API (Temporarily Disabled for Testing) ---
+    /*
     if (input.carrier.toLowerCase().includes('maersk') && maerskApiKey && maerskApiKey !== '<SUA_CHAVE_AQUI>') {
         try {
             console.log(`Attempting to fetch tracking from Maersk API for: ${input.trackingNumber}`);
@@ -127,11 +128,12 @@ const getTrackingInfoFlow = ai.defineFlow(
              console.warn("Maersk API call failed, falling back. Error:", error);
         }
     }
+    */
 
 
     // --- Fallback Method: Cargo-flows API ---
-    const cargoFlowsApiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const cargoFlowsOrgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
+    const cargoFlowsApiKey = process.env.CARGOFLOWS_API_KEY;
+    const cargoFlowsOrgToken = process.env.CARGOFLOWS_ORG_TOKEN;
     const baseUrl = 'https://flow.cargoes.com/api/v1';
 
     if (cargoFlowsApiKey && cargoFlowsOrgToken) {

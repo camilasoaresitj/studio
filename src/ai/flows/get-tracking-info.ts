@@ -153,11 +153,19 @@ const getTrackingInfoFlow = ai.defineFlow(
                 }),
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
                 // Now we explicitly throw the error message from the API
-                throw new Error(`Cargo-flows API Error (${response.status}): ${data.message || 'Unknown error'}`);
+                const errorData = await response.json().catch(() => ({ message: `API returned status ${response.status}`}));
+                throw new Error(`Cargo-flows API Error (${response.status}): ${errorData.message || 'Unknown error'}`);
+            }
+            
+            // Add a try-catch block specifically for the JSON parsing
+            let data;
+            try {
+                data = await response.json();
+            } catch (jsonError) {
+                // This will catch the "Unexpected token <" error if the response is HTML
+                throw new Error("A API retornou uma resposta inválida (não-JSON). Verifique o console do servidor para detalhes.");
             }
             
             if (data.tracking && data.tracking.events && data.tracking.events.length > 0) {
@@ -206,10 +214,10 @@ const getTrackingInfoFlow = ai.defineFlow(
                     shipmentDetails: shipmentDetails,
                 };
             }
-        } catch (error) {
+        } catch (error: any) {
             console.warn("Cargo-flows API call failed. Error:", error);
             // Re-throw the error to be caught by the final catch block.
-            throw error;
+            throw new Error(error.message || "Erro desconhecido ao chamar a API da Cargo-flows.");
         }
     }
 

@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch full shipment details using a booking number from the Cargo-flows service.
+ * @fileOverview A Genkit flow to fetch full shipment details using a tracking number from the Cargo-flows service.
  *
  * getBookingInfo - A function that fetches shipment info.
  * GetBookingInfoInput - The input type.
@@ -10,13 +10,13 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Shipment } from '@/lib/shipment';
+import type { Shipment, Milestone } from '@/lib/shipment';
 import { getTrackingInfo } from '@/ai/flows/get-tracking-info';
 
 const GetBookingInfoOutputSchema = z.any();
 
 const GetBookingInfoInputSchema = z.object({
-  bookingNumber: z.string().describe('The carrier booking number.'),
+  bookingNumber: z.string().describe('The carrier booking number or Master BL.'),
   carrier: z.string().describe('The carrier associated with the booking number (e.g., Maersk, MSC).'),
 });
 export type GetBookingInfoInput = z.infer<typeof GetBookingInfoInputSchema>;
@@ -36,7 +36,7 @@ const getBookingInfoFlow = ai.defineFlow(
     console.log(`Fetching real carrier data from Cargo-flows for booking: ${bookingNumber} with carrier: ${carrier}`);
     
     // Cargo-flows tracking result provides all the necessary details
-    const trackingResult = await getTrackingInfo({ trackingNumber });
+    const trackingResult = await getTrackingInfo({ trackingNumber: bookingNumber });
     
     const { 
         id, 
@@ -48,7 +48,7 @@ const getBookingInfoFlow = ai.defineFlow(
     } = trackingResult;
 
     // Use the tracking events to create milestones
-    const milestones = events.map(event => ({
+    const milestones: Milestone[] = events.map(event => ({
         name: event.status,
         status: event.completed ? 'completed' as const : 'pending' as const,
         predictedDate: new Date(event.date),
@@ -57,12 +57,12 @@ const getBookingInfoFlow = ai.defineFlow(
     }));
 
     // Find ETD and ETA from events
-    const etdEvent = events.find(e => e.status.toLowerCase().includes('departure'));
-    const etaEvent = [...events].reverse().find(e => e.status.toLowerCase().includes('arrival'));
+    const etdEvent = events.find(e => e.status.toLowerCase().includes('departure') || e.status.toLowerCase().includes('embarque'));
+    const etaEvent = [...events].reverse().find(e => e.status.toLowerCase().includes('arrival') || e.status.toLowerCase().includes('chegada'));
 
     // Create a new shipment structure with the fetched data
     const finalShipment: Shipment = {
-      id: `PROC-${bookingNumber.slice(-6)}`,
+      id: `PROC-${id.slice(-6)}`,
       customer: 'Cliente a ser definido', 
       overseasPartner: { 
         id: 0, name: 'Parceiro a ser definido', nomeFantasia: 'Parceiro', roles: { fornecedor: true, cliente: false, agente: false, comissionado: false },

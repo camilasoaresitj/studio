@@ -35,7 +35,8 @@ export default function OperacionalPage() {
 
   useEffect(() => {
     setIsClient(true);
-    setShipments(getShipments());
+    const initialShipments = getShipments();
+    setShipments(initialShipments);
   }, []);
 
   const handleShipmentUpdate = (updatedShipmentData: Shipment) => {

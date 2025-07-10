@@ -475,12 +475,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                                                     <MilestoneIcon status={milestone.status} predictedDate={predictedDate} />
                                                 </div>
                                                 <div className="flex-grow">
-                                                    <div className="flex justify-between items-center mb-2">
+                                                    <div className="flex justify-between items-start mb-2">
                                                         <div>
                                                             <p className="font-semibold">{milestone.name}</p>
                                                             <p className="text-xs text-muted-foreground">{milestone.details || 'Detalhes não disponíveis'}</p>
                                                         </div>
-                                                        <Badge variant={statusBadge.variant} className="capitalize">{statusBadge.text}</Badge>
+                                                         {milestone.status === 'completed' && (
+                                                            <Badge variant={statusBadge.variant} className="capitalize">{statusBadge.text}</Badge>
+                                                        )}
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-3">
                                                         <div className="space-y-1">

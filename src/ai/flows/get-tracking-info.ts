@@ -131,7 +131,7 @@ const getTrackingInfoFlow = ai.defineFlow(
 
     // --- Fallback Method: Cargo-flows API ---
     const cargoFlowsApiKey = process.env.CARGOFLOWS_API_KEY;
-    const cargoFlowsOrgToken = process.env.CARGOFLOWS_ORG_TOKEN;
+    const cargoFlowsOrgToken = process.env.CARGOFLOWS_ORG_TOKEN || '9H31zRWYCGihV5U3th5JJXZI3h7LGen6';
     const baseUrl = 'https://flow.cargoes.com/api/v1';
 
     if (cargoFlowsApiKey && cargoFlowsOrgToken) {

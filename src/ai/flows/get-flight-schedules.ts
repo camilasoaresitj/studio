@@ -42,7 +42,7 @@ const getFlightSchedulesFlow = ai.defineFlow(
   },
   async ({ origin, destination }) => {
     const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
+    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || '9H31zRWYCGihV5U3th5JJXZI3h7LGen6';
     const baseUrl = 'https://flow.cargoes.com/api/v1';
 
     try {

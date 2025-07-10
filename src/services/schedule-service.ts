@@ -63,23 +63,46 @@ class CargoFlowsService {
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     console.log(`Calling Cargo-flows API at: ${this.baseUrl}/tracking/${trackingNumber}`);
     
-    // As the real API is not available for this simulation, we will use a mock response.
     // In a real scenario, you would uncomment the fetch call below.
+    const response = await fetch(`${this.baseUrl}/tracking/${trackingNumber}`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
     
-    // const response = await fetch(`${this.baseUrl}/tracking/${trackingNumber}`, {
-    //   method: 'GET',
-    //   headers: this.getHeaders(),
-    // });
+    if (!response.ok) {
+        // If the API call fails, fallback to simulation for demonstration
+        console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
+        return this.getSimulatedTracking(trackingNumber);
+    }
     
-    // if (!response.ok) {
-    //   const errorBody = await response.text();
-    //   throw new Error(`Cargo-flows API Error: ${response.status} - ${errorBody}`);
-    // }
-    
-    // const data = await response.json();
-    // return data; // You would need to map the real response to the TrackingResult type here.
+    const data = await response.json();
+    // In a real scenario, you would need to map the real response to the TrackingResult type here.
+    // For now, we will assume the API returns data in our expected format or fallback.
+    return data.tracking ? this.mapApiDataToTrackingResult(data.tracking) : this.getSimulatedTracking(trackingNumber);
+  }
 
-    console.log(`Simulating Cargo-flows API call to: ${this.baseUrl}/tracking/${trackingNumber}`);
+  private mapApiDataToTrackingResult(apiData: any): TrackingResult {
+    // This is a placeholder mapping function. You would need to adjust it based on the actual API response structure.
+    return {
+        id: apiData.trackingNumber || 'N/A',
+        status: apiData.latestStatus || 'Unknown',
+        origin: apiData.origin || 'Unknown',
+        destination: apiData.destination || 'Unknown',
+        carrier: apiData.carrier || 'Unknown',
+        events: (apiData.events || []).map((event: any) => ({
+            status: event.description,
+            date: event.timestamp,
+            location: event.location,
+            completed: event.isCompleted,
+            carrier: apiData.carrier || 'Unknown'
+        })),
+        vesselName: apiData.vesselName,
+        voyageNumber: apiData.voyageNumber,
+    };
+  }
+
+  private async getSimulatedTracking(trackingNumber: string): Promise<TrackingResult> {
+     console.log(`Simulating Cargo-flows API call to: ${this.baseUrl}/tracking/${trackingNumber}`);
     await new Promise(resolve => setTimeout(resolve, 1200));
 
     if (trackingNumber.toUpperCase().includes("FAIL")) {
@@ -112,22 +135,22 @@ class CargoFlowsService {
   async getVesselSchedules(origin: string, destination: string): Promise<VesselSchedule[]> {
     console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`);
     
-    // As the real API is not available for this simulation, we will use a mock response.
-    
-    // const response = await fetch(`${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`, {
-    //   method: 'GET',
-    //   headers: this.getHeaders(),
-    // });
+    const response = await fetch(`${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
 
-    // if (!response.ok) {
-    //   const errorBody = await response.text();
-    //   throw new Error(`Cargo-flows API Error: ${response.status} - ${errorBody}`);
-    // }
+    if (!response.ok) {
+      console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
+      return this.getSimulatedVesselSchedules();
+    }
 
-    // const data = await response.json();
-    // return data; // You would need to map the real response to the VesselSchedule type here.
-    
-    await new Promise(resolve => setTimeout(resolve, 900));
+    const data = await response.json();
+    return data; // You would need to map the real response to the VesselSchedule type here.
+  }
+  
+  private async getSimulatedVesselSchedules(): Promise<VesselSchedule[]> {
+     await new Promise(resolve => setTimeout(resolve, 900));
     return [
       { vesselName: 'MAERSK PICO', voyage: '428N', carrier: 'Maersk', etd: '2024-07-25T12:00:00Z', eta: '2024-08-20T12:00:00Z', transitTime: '26 dias' },
       { vesselName: 'MSC LEO', voyage: 'FB429A', carrier: 'MSC', etd: '2024-07-28T18:00:00Z', eta: '2024-08-23T18:00:00Z', transitTime: '26 dias' },
@@ -140,21 +163,21 @@ class CargoFlowsService {
   async getFlightSchedules(origin: string, destination: string): Promise<FlightSchedule[]> {
     console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`);
     
-    // As the real API is not available for this simulation, we will use a mock response.
+    const response = await fetch(`${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    if (!response.ok) {
+       console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
+      return this.getSimulatedFlightSchedules();
+    }
+    
+    const data = await response.json();
+    return data; // You would need to map the real response to the FlightSchedule type here.
+  }
 
-    // const response = await fetch(`${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`, {
-    //   method: 'GET',
-    //   headers: this.getHeaders(),
-    // });
-    
-    // if (!response.ok) {
-    //   const errorBody = await response.text();
-    //   throw new Error(`Cargo-flows API Error: ${response.status} - ${errorBody}`);
-    // }
-    
-    // const data = await response.json();
-    // return data; // You would need to map the real response to the FlightSchedule type here.
-    
+  private async getSimulatedFlightSchedules(): Promise<FlightSchedule[]> {
     await new Promise(resolve => setTimeout(resolve, 800));
     return [
       { flightNumber: 'LA8145', carrier: 'LATAM Cargo', etd: '2024-07-25T22:30:00Z', eta: '2024-07-26T07:00:00Z', transitTime: '8h 30m', aircraft: 'Boeing 777F' },

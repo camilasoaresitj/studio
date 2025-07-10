@@ -106,6 +106,10 @@ const getTrackingInfoFlow = ai.defineFlow(
     if (apiKey && orgToken) {
         try {
             console.log(`Attempting to fetch tracking from Cargo-flows API for: ${input.trackingNumber}`);
+            
+            // Normalize carrier name to slug format for the API
+            const carrierSlug = input.carrier.toLowerCase().replace(/[^a-z0-9]/g, '');
+
             const response = await fetch(`${baseUrl}/tracking/track`, {
                 method: 'POST',
                 headers: { 
@@ -115,7 +119,7 @@ const getTrackingInfoFlow = ai.defineFlow(
                 },
                 body: JSON.stringify({
                     bookingNumber: input.trackingNumber,
-                    carrier: input.carrier
+                    carrier: carrierSlug
                 }),
             });
 
@@ -212,5 +216,3 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
-
-    

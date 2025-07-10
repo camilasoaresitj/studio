@@ -290,7 +290,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   };
 
   const handleSyncBookingInfo = async () => {
-    const trackingNumber = form.getValues('masterBillNumber') || form.getValues('bookingNumber');
+    const trackingNumber = form.getValues('bookingNumber') || form.getValues('masterBillNumber');
     if (!trackingNumber) {
         toast({ variant: 'destructive', title: 'Nenhum Número de Rastreio', description: 'Por favor, insira um número de Booking ou Master BL para sincronizar.' });
         return;
@@ -439,9 +439,20 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </div>
                             <Card>
                                 <CardHeader><CardTitle className="text-lg">Dados da Viagem/Voo</CardTitle></CardHeader>
-                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                                     <FormField control={form.control} name="carrier" render={({ field }) => (
                                         <FormItem><FormLabel>Armador</FormLabel><FormControl><Input placeholder="Maersk" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="bookingNumber" render={({ field }) => (
+                                        <FormItem><FormLabel>Booking Reference</FormLabel>
+                                            <div className="flex items-center gap-2">
+                                            <FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl>
+                                            <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
+                                                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                            </Button>
+                                            </div>
+                                        <FormMessage />
+                                        </FormItem>
                                     )}/>
                                     <FormField control={form.control} name="vesselName" render={({ field }) => (
                                         <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="MSC LEO" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
@@ -537,14 +548,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     </div>
                                 </CardHeader>
                                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="bookingNumber" render={({ field }) => (
-                                    <FormItem><FormLabel>Booking Reference</FormLabel>
-                                        <div className="flex items-center gap-2">
-                                        <FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl>
-                                        </div>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}/>
                                 <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
                                     <FormItem><FormLabel>Master Bill of Lading / MAWB</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                 )}/>
@@ -659,9 +662,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <CardTitle className="text-lg">Milestones</CardTitle>
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm text-muted-foreground font-medium">{completedCount} de {totalCount} concluídos</span>
-                                            <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
-                                                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                                            </Button>
                                         </div>
                                     </div>
                                     <Progress value={progressPercentage} className="w-full mt-2" />

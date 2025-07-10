@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A Genkit flow to generate tracking information using the SeaRates API or an AI model as fallback.
+ * @fileOverview A Genkit flow to generate tracking information using the Cargo-flows API or an AI model as fallback.
  *
  * getTrackingInfo - A function that generates tracking events.
  * GetTrackingInfoInput - The input type for the function.
@@ -97,37 +97,42 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async (input) => {
-    const seaRatesApiKey = process.env.SEARATES_API_KEY;
+    const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
+    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
+    const baseUrl = 'https://flow.cargoes.com/api/v1';
 
-    // Primary method: SeaRates API
-    if (seaRatesApiKey) {
+    // Primary method: Cargo-flows API
+    if (apiKey && orgToken) {
         try {
-            console.log(`Attempting to fetch tracking from SeaRates API for: ${input.trackingNumber}`);
-            const response = await fetch('https://developers.searates.com/api/v1/tracking/track', {
+            console.log(`Attempting to fetch tracking from Cargo-flows API for: ${input.trackingNumber}`);
+            const response = await fetch(`${baseUrl}/tracking/track`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'api-key': seaRatesApiKey },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': apiKey,
+                    'X-Org-Token': orgToken,
+                },
                 body: JSON.stringify({
-                    number: input.trackingNumber,
-                    carrier: input.carrier // Providing carrier name helps SeaRates
+                    bookingNumber: input.trackingNumber,
+                    carrier: input.carrier
                 }),
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`SeaRates API Error (${response.status}): ${errorText}`);
+                throw new Error(`Cargo-flows API Error (${response.status}): ${errorText}`);
             }
 
             const data = await response.json();
             
-            // Check if the API returned valid tracking data
-            if (data.success && data.data && data.data.events && data.data.events.length > 0) {
-                console.log("SeaRates API call successful. Processing real data.");
-                const trackingData = data.data;
+            if (data.tracking && data.tracking.events && data.tracking.events.length > 0) {
+                console.log("Cargo-flows API call successful. Processing real data.");
+                const trackingData = data.tracking;
                 const events: TrackingEvent[] = trackingData.events.map((event: any) => ({
                     status: event.description || 'N/A',
-                    date: event.datetime,
+                    date: event.timestamp,
                     location: event.location?.name || 'N/A',
-                    completed: new Date(event.datetime) <= new Date(),
+                    completed: new Date(event.timestamp) <= new Date(),
                     carrier: input.carrier,
                 }));
 
@@ -137,9 +142,9 @@ const getTrackingInfoFlow = ai.defineFlow(
                     carrier: input.carrier,
                     origin: trackingData.origin_port?.name || 'N/A',
                     destination: trackingData.destination_port?.name || 'N/A',
-                    vesselName: trackingData.vessel?.name,
-                    voyageNumber: trackingData.voyage,
-                    etd: trackingData.departure_date ? new Date(trackingData.departure_date) : undefined,
+                    vesselName: trackingData.vessel_name,
+                    voyageNumber: trackingData.voyage_number,
+                    etd: trackingData.departure_date_estimated ? new Date(trackingData.departure_date_estimated) : undefined,
                     eta: trackingData.arrival_date_estimated ? new Date(trackingData.arrival_date_estimated) : undefined,
                     masterBillNumber: input.trackingNumber,
                     containers: trackingData.containers?.map((c: any) => ({
@@ -166,9 +171,9 @@ const getTrackingInfoFlow = ai.defineFlow(
                     shipmentDetails: shipmentDetails,
                 };
             }
-            console.log("SeaRates API call successful, but no tracking events found. Falling back to AI.");
+            console.log("Cargo-flows API call successful, but no tracking events found. Falling back to AI.");
         } catch (error) {
-            console.warn("SeaRates API call failed, falling back to AI simulation. Error:", error);
+            console.warn("Cargo-flows API call failed, falling back to AI simulation. Error:", error);
         }
     }
 

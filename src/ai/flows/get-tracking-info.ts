@@ -11,8 +11,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Shipment, TrackingEvent } from '@/lib/shipment';
-import { cargoFlowsService } from '@/services/schedule-service';
-
 
 const GetTrackingInfoInputSchema = z.object({
   trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
@@ -76,8 +74,15 @@ const getTrackingInfoFlow = ai.defineFlow(
                 throw new Error(`Maersk API Error (${maerskResponse.status}): ${errorText}`);
             }
 
-            const data = await maerskResponse.json();
-            const shipment = data.shipments[0]; // Assuming we get at least one shipment
+            let data;
+            try {
+                data = await maerskResponse.json();
+            } catch (jsonError) {
+                console.error("Maersk API did not return valid JSON:", await maerskResponse.text());
+                throw new Error("A API da Maersk retornou uma resposta inesperada (não-JSON). Verifique a chave de API.");
+            }
+            
+            const shipment = data.shipments?.[0];
 
             if (shipment) {
                 console.log("Maersk API call successful. Processing real data.");
@@ -126,8 +131,9 @@ const getTrackingInfoFlow = ai.defineFlow(
                 };
             }
              console.warn("Maersk API call successful, but no shipment data found. Falling back.");
-        } catch (error) {
-             console.warn("Maersk API call failed, falling back. Error:", error);
+        } catch (error: any) {
+             console.warn("Maersk API call failed. Error:", error);
+             throw new Error(error.message || "A chamada para a API da Maersk falhou.");
         }
     }
     

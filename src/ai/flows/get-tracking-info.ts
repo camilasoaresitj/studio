@@ -10,22 +10,15 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Shipment } from '@/lib/shipment';
-import { format } from 'date-fns';
+import type { Shipment, TrackingEvent } from '@/lib/shipment';
+import { cargoFlowsService } from '@/services/schedule-service';
+
 
 const GetTrackingInfoInputSchema = z.object({
   trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
   carrier: z.string().describe('The identified shipping carrier (e.g., Maersk, MSC).'),
 });
 export type GetTrackingInfoInput = z.infer<typeof GetTrackingInfoInputSchema>;
-
-export type TrackingEvent = {
-  status: string;
-  date: string;
-  location: string;
-  completed: boolean;
-  carrier: string;
-};
 
 const TrackingEventSchema = z.object({
     status: z.string(),
@@ -218,7 +211,39 @@ const getTrackingInfoFlow = ai.defineFlow(
         }
     }
 
-    // --- Final Fallback: ERROR ---
-    throw new Error("Não foi possível obter os dados de rastreamento de nenhuma API. Verifique o número e o armador e tente novamente.");
+    // --- Final Fallback: Simulated Data ---
+    console.log("All APIs failed. Falling back to local simulated data.");
+    try {
+        const simulatedData = await cargoFlowsService.getSimulatedTracking(input.trackingNumber);
+        
+        const shipmentDetails: Partial<Shipment> = {
+            carrier: simulatedData.carrier,
+            origin: simulatedData.origin,
+            destination: simulatedData.destination,
+            vesselName: simulatedData.vesselName,
+            voyageNumber: simulatedData.voyageNumber,
+            masterBillNumber: input.trackingNumber,
+            etd: new Date(simulatedData.events.find(e => e.status.includes('Departure'))?.date || Date.now()),
+            eta: new Date(simulatedData.events.find(e => e.status.includes('Arrival'))?.date || Date.now()),
+            milestones: simulatedData.events.map(event => ({
+                name: event.status,
+                status: event.completed ? 'completed' : 'pending',
+                predictedDate: new Date(event.date),
+                effectiveDate: event.completed ? new Date(event.date) : null,
+                details: event.location,
+                isTransshipment: event.status.toLowerCase().includes('transhipment')
+            })),
+        };
+        
+        return {
+            status: simulatedData.status,
+            events: simulatedData.events,
+            containers: [],
+            shipmentDetails: shipmentDetails,
+        };
+    } catch(error) {
+        console.error("Error generating simulated tracking info:", error);
+        throw new Error("Não foi possível obter os dados de rastreamento de nenhuma API. Verifique o número e o armador e tente novamente.");
+    }
   }
 );

@@ -10,6 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { cargoFlowsService } from '@/services/schedule-service';
 
 const GetVesselSchedulesInputSchema = z.object({
   origin: z.string().describe('The origin port code (e.g., CNSHA).'),
@@ -28,17 +29,6 @@ const VesselScheduleSchema = z.object({
 
 const GetVesselSchedulesOutputSchema = z.array(VesselScheduleSchema);
 export type GetVesselSchedulesOutput = z.infer<typeof GetVesselSchedulesOutputSchema>;
-
-async function getSimulatedVesselSchedules(): Promise<GetVesselSchedulesOutput> {
-     await new Promise(resolve => setTimeout(resolve, 900));
-    return [
-      { vesselName: 'MAERSK PICO', voyage: '428N', carrier: 'Maersk', etd: '2025-07-25T12:00:00Z', eta: '2025-08-20T12:00:00Z', transitTime: '26 dias' },
-      { vesselName: 'MSC LEO', voyage: 'FB429A', carrier: 'MSC', etd: '2025-07-28T18:00:00Z', eta: '2025-08-23T18:00:00Z', transitTime: '26 dias' },
-      { vesselName: 'CMA CGM SYMI', voyage: '0PE5HN1MA', carrier: 'CMA CGM', etd: '2025-08-01T09:00:00Z', eta: '2025-08-27T09:00:00Z', transitTime: '26 dias' },
-      { vesselName: 'EVER ACE', voyage: '1192-001W', carrier: 'Evergreen', etd: '2025-08-02T11:00:00Z', eta: '2025-08-29T11:00:00Z', transitTime: '27 dias'},
-      { vesselName: 'HMM STOCKHOLM', voyage: '001W', carrier: 'HMM', etd: '2025-08-03T15:00:00Z', eta: '2025-08-30T15:00:00Z', transitTime: '27 dias' },
-    ];
-}
 
 export async function getVesselSchedules(input: GetVesselSchedulesInput): Promise<GetVesselSchedulesOutput> {
   return getVesselSchedulesFlow(input);
@@ -69,7 +59,7 @@ const getVesselSchedulesFlow = ai.defineFlow(
 
         if (!response.ok) {
           console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-          return getSimulatedVesselSchedules();
+          return cargoFlowsService.getSimulatedVesselSchedules();
         }
 
         const data = await response.json();
@@ -77,7 +67,7 @@ const getVesselSchedulesFlow = ai.defineFlow(
     } catch (error) {
         console.error("Error during fetch to Cargo-flows for vessel schedules:", error);
         console.log("Falling back to simulated vessel schedules due to error.");
-        return getSimulatedVesselSchedules();
+        return cargoFlowsService.getSimulatedVesselSchedules();
     }
   }
 );

@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch tracking information from the Cargo-flows API.
+ * @fileOverview A Genkit flow to generate tracking information using an AI model.
  *
- * getTrackingInfo - A function that fetches tracking events.
+ * getTrackingInfo - A function that generates tracking events.
  * GetTrackingInfoInput - The input type for the function.
  * GetTrackingInfoOutput - The return type for the function.
  */
@@ -45,61 +45,36 @@ export async function getTrackingInfo(input: GetTrackingInfoInput): Promise<GetT
   return getTrackingInfoFlow(input);
 }
 
-async function getSimulatedTrackingData(trackingNumber: string): Promise<GetTrackingInfoOutput> {
-    await new Promise(resolve => setTimeout(resolve, 800));
+const prompt = ai.definePrompt({
+    name: 'generateTrackingInfoPrompt',
+    input: { schema: GetTrackingInfoInputSchema },
+    output: { schema: GetTrackingInfoOutputSchema },
+    prompt: `You are an expert logistics AI that generates realistic shipment tracking data.
+Given a tracking number, you will create a plausible history of tracking events and shipment details.
 
-    if (trackingNumber.toUpperCase().includes("FAIL")) {
-        throw new Error("O número de rastreamento fornecido não foi encontrado na base de dados do Cargo-flows.");
-    }
-    
-    // Simulate a successful response for a Maersk shipment
-    const events: TrackingEvent[] = [
-        { status: 'Booking confirmed', date: '2024-05-13T12:00:00Z', location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
-        { status: 'Container stuffing', date: '2024-05-14T15:00:00Z', location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
-        { status: 'Received at origin port', date: '2024-05-15T10:00:00Z', location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
-        { status: 'Loaded on board', date: '2024-05-17T08:00:00Z', location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
-        { status: 'Vessel departure', date: '2024-05-17T18:00:00Z', location: 'VERACRUZ', completed: true, carrier: 'Maersk' },
-        { status: 'Discharged at transhipment port', date: '2024-05-20T11:00:00Z', location: 'FREEPORT', completed: true, carrier: 'Maersk' },
-        { status: 'Loaded at transhipment port', date: '2024-05-21T09:00:00Z', location: 'FREEPORT', completed: true, carrier: 'Maersk' },
-        { status: 'Vessel departure from transhipment', date: '2024-05-21T20:00:00Z', location: 'FREEPORT', completed: true, carrier: 'Maersk' },
-        { status: 'Vessel arrival at destination port', date: '2024-05-23T16:00:00Z', location: 'HOUSTON', completed: true, carrier: 'Maersk' },
-        { status: 'Container discharged', date: '2024-05-24T06:00:00Z', location: 'HOUSTON', completed: true, carrier: 'Maersk' },
-        { status: 'Gate out for delivery', date: '2024-05-25T14:00:00Z', location: 'HOUSTON', completed: true, carrier: 'Maersk' },
-        { status: 'Delivered to consignee', date: '2024-05-26T10:00:00Z', location: 'HOUSTON', completed: true, carrier: 'Maersk' }
-    ];
+**Instructions:**
+1.  **Carrier Identification:** Based on the tracking number format, identify the most likely carrier (e.g., Maersk, MSC, Hapag-Lloyd, etc.).
+    - Maersk: Starts with numbers (e.g., 254285462) or "MAEU".
+    - MSC: Starts with "MSCU".
+    - Hapag-Lloyd: Often a long numeric string, or starts with "HLCU".
+2.  **Generate Shipment Details:** Create realistic shipment details based on the carrier.
+    - **vesselName/voyageNumber:** Invent a plausible vessel name and voyage number.
+    - **origin/destination:** Create a realistic long-haul route (e.g., a port in Asia to a port in South America).
+    - **etd/eta:** Generate realistic ETD and ETA dates that are about 30-40 days apart.
+    - **masterBillNumber:** Should be the same as the input tracking number.
+3.  **Generate Tracking Events:** Create a sequence of 8-12 logical tracking events, from "Booking Confirmed" to "Delivered".
+    - Events must be in chronological order.
+    - A portion of the events should be marked as \`completed: true\`, and the rest \`completed: false\`.
+    - The dates should be logical and span the time between ETD and ETA.
+    - Include at least one transshipment port event if it's a long route.
+    - The 'carrier' for each event should be the one you identified.
+4.  **Overall Status:** The top-level 'status' field should be the status of the *last completed event*.
 
-    const latestCompletedEvent = [...events].reverse().find(e => e.completed);
-    const overallStatus = latestCompletedEvent?.status || 'Pending';
+**CRITICAL:** Do NOT return the same data every time. Generate a unique and realistic scenario for each request.
 
-    const shipmentDetails: Partial<Shipment> = {
-        bookingNumber: trackingNumber, // Use the provided tracking number
-        masterBillNumber: 'MAEU514773513',
-        vesselName: 'MAERSK SEOUL',
-        voyageNumber: '419N',
-        origin: 'Veracruz, MX', // Add origin
-        destination: 'Houston, US', // Add destination
-        etd: new Date('2024-05-17T18:00:00Z'),
-        eta: new Date('2024-05-23T16:00:00Z'),
-        milestones: events.map(event => ({
-            name: event.status,
-            status: event.completed ? 'completed' : 'pending',
-            predictedDate: new Date(event.date),
-            effectiveDate: event.completed ? new Date(event.date) : null,
-            details: event.location,
-            isTransshipment: event.location === 'FREEPORT'
-        })),
-        transshipments: [
-            { id: 'ts-1', port: 'Freeport', vessel: 'MAERSK GENOA/420N', etd: new Date('2024-05-21T20:00:00Z'), eta: new Date('2024-05-20T11:00:00Z') }
-        ]
-    };
-
-    return {
-        status: overallStatus,
-        events,
-        shipmentDetails
-    };
-}
-
+**Input Tracking Number:** {{{trackingNumber}}}
+`,
+});
 
 const getTrackingInfoFlow = ai.defineFlow(
   {
@@ -108,76 +83,35 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async ({ trackingNumber }) => {
-    const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
-    const baseUrl = 'https://flow.cargoes.com/api/v1';
-
     try {
-        console.log(`Calling Cargo-flows API for tracking at: ${baseUrl}/tracking`);
-        const response = await fetch(`${baseUrl}/tracking`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Api-Key': apiKey,
-                'X-Org-Token': orgToken,
-            },
-            body: JSON.stringify({
-                trackingNumbers: [trackingNumber],
-            }),
-        });
-
-        if (!response.ok) {
-            console.warn(`Cargo-flows API call for tracking failed with status ${response.status}. Falling back to simulation.`);
-            return getSimulatedTrackingData(trackingNumber);
+        const { output } = await prompt({ trackingNumber });
+        if (!output) {
+            throw new Error('AI failed to generate tracking information.');
         }
 
-        const data = await response.json();
-        
-        const trackingData = data?.data?.[0]; // Assuming we get an array for a single request
-        if (!trackingData) {
-             console.warn(`No tracking data found in API response for ${trackingNumber}. Falling back to simulation.`);
-             return getSimulatedTrackingData(trackingNumber);
-        }
-
-        const events = (trackingData.events || []).map((event: any) => ({
-            status: event.event,
-            date: event.event_datetime_utc || new Date().toISOString(),
-            location: event.location?.name || 'N/A',
-            completed: true, // Cargo-flows API events are historical, so mark as completed
-            carrier: trackingData.carrier?.name || 'Unknown',
-        }));
-
-        const latestEvent = events[events.length - 1];
-        const overallStatus = latestEvent?.status || 'Pending';
-
+        // To make it more realistic, format the AI-generated dates into proper Date objects
+        // and structure the milestones for the client.
         const shipmentDetails: Partial<Shipment> = {
-            bookingNumber: trackingData.id,
-            masterBillNumber: trackingData.id,
-            vesselName: trackingData.transport_details?.vessel_name,
-            voyageNumber: trackingData.transport_details?.voyage_number,
-            origin: trackingData.origin?.name,
-            destination: trackingData.destination?.name,
-            etd: trackingData.transport_details?.etd_utc ? new Date(trackingData.transport_details.etd_utc) : undefined,
-            eta: trackingData.transport_details?.eta_utc ? new Date(trackingData.transport_details.eta_utc) : undefined,
-            milestones: events.map((event: TrackingEvent) => ({
+            ...output.shipmentDetails,
+            etd: output.shipmentDetails.etd ? new Date(output.shipmentDetails.etd) : undefined,
+            eta: output.shipmentDetails.eta ? new Date(output.shipmentDetails.eta) : undefined,
+            milestones: output.events.map((event: TrackingEvent) => ({
                 name: event.status,
-                status: 'completed',
+                status: event.completed ? 'completed' : 'pending',
                 predictedDate: new Date(event.date),
-                effectiveDate: new Date(event.date),
+                effectiveDate: event.completed ? new Date(event.date) : null,
                 details: event.location,
+                isTransshipment: event.location.toLowerCase().includes('transhipment') || event.status.toLowerCase().includes('transhipment')
             })),
         };
-        
-        return {
-            status: overallStatus,
-            events,
-            shipmentDetails
-        };
 
+        return {
+            ...output,
+            shipmentDetails,
+        };
     } catch (error) {
-        console.error("Error during fetch to Cargo-flows for tracking:", error);
-        console.log("Falling back to simulated tracking data due to error.");
-        return getSimulatedTrackingData(trackingNumber);
+        console.error("Error generating tracking info with AI:", error);
+        throw new Error("Failed to generate tracking information. Please try again.");
     }
   }
 );

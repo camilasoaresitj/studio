@@ -18,7 +18,7 @@ export type GetBookingInfoInput = z.infer<typeof GetBookingInfoInputSchema>;
 export type GetBookingInfoOutput = Shipment;
 
 export async function getBookingInfo(input: GetBookingInfoInput): Promise<GetBookingInfoOutput> {
-  throw new Error("This flow is deprecated. Use get-tracking-info and merge on the client-side.");
+  throw new Error("This flow is deprecated and should not be used. Use get-tracking-info and merge on the client-side.");
 }
 
 const getBookingInfoFlow = ai.defineFlow(
@@ -28,6 +28,6 @@ const getBookingInfoFlow = ai.defineFlow(
     outputSchema: z.any(),
   },
   async ({ bookingNumber, existingShipment }) => {
-     throw new Error("This flow is deprecated. Use get-tracking-info and merge on the client-side.");
+     throw new Error("This flow is deprecated and should not be used. Use get-tracking-info and merge on the client-side.");
   }
 );

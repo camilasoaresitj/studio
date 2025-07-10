@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -21,9 +20,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone, TransshipmentDetail } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -330,6 +329,21 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       }
   };
 
+  const handleDocumentUpload = (docName: DocumentStatus['name']) => {
+      toast({
+          title: "Funcionalidade em desenvolvimento",
+          description: `O upload para "${docName}" será implementado em breve.`,
+      });
+  };
+
+  const docStatusVariant = (status: DocumentStatus['status']) => {
+    switch (status) {
+        case 'approved': return 'success';
+        case 'uploaded': return 'default';
+        default: return 'secondary';
+    }
+  }
+
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>
           <SheetContent className="sm:max-w-6xl w-full flex flex-col">
@@ -491,7 +505,27 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </Card>
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Envio de Documentos</CardTitle>
+                                    <CardTitle className="text-lg">Upload de Documentos</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {shipment.documents && shipment.documents.map(doc => (
+                                            <div key={doc.name} className="p-3 border rounded-lg flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-medium">{doc.name}</p>
+                                                    <Badge variant={docStatusVariant(doc.status)} className="capitalize mt-1">{doc.status}</Badge>
+                                                </div>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => handleDocumentUpload(doc.name)}>
+                                                    <Upload className="mr-2 h-4 w-4" /> Upload
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Envio de Documentos Originais</CardTitle>
                                     {mblPrintingAtDestination && (
                                         <CardDescription className="text-primary font-medium">Impressão do MBL será feita no destino.</CardDescription>
                                     )}

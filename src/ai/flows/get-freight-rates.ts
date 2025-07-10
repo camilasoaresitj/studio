@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Fetches freight rates from the CargoFive and SeaRates APIs.
@@ -44,8 +43,8 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
     if (input.modal === 'ocean') {
         const originParts = input.origin.split(',').map(s => s.trim());
         const destParts = input.destination.split(',').map(s => s.trim());
-        shipment.origin_port_code = originParts[0]; // Assume first part is the code
-        shipment.destination_port_code = destParts[0]; // Assume first part is the code
+        shipment.origin_port_code = originParts[0]; 
+        shipment.destination_port_code = destParts[0];
 
         if (input.oceanShipmentType === 'FCL') {
             shipment.package_type = 'container';
@@ -55,15 +54,17 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
             }));
         } else { // LCL
             shipment.package_type = 'packages';
-            shipment.total_volume_in_cbm = input.lclDetails.cbm;
-            shipment.total_weight_in_kg = input.lclDetails.weight;
+            shipment.packages = [{
+                total_volume_in_cbm: input.lclDetails.cbm,
+                total_weight_in_kg: input.lclDetails.weight,
+            }];
         }
 
     } else { // air
         const originParts = input.origin.split(',').map(s => s.trim());
         const destParts = input.destination.split(',').map(s => s.trim());
-        shipment.origin_airport_code = originParts[0]; // Assume first part is the code
-        shipment.destination_airport_code = destParts[0]; // Assume first part is the code
+        shipment.origin_airport_code = originParts[0]; 
+        shipment.destination_airport_code = destParts[0];
         shipment.package_type = 'packages';
         shipment.packages = input.airShipment.pieces.map(p => ({
             quantity: p.quantity,

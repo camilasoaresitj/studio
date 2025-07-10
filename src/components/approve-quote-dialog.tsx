@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -93,8 +92,6 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
       name: '',
       roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
       cnpj: '',
-      paymentTerm: undefined,
-      exchangeRateAgio: undefined,
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', departments: ['Operacional'] }],
     },
@@ -171,7 +168,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onClo
     if (response.success) {
       const { data } = response;
       form.setValue('name', data.name);
-      form.setValue('cnpj', data.cnpj);
+      form.setValue('cnpj', data.cnpj || '');
       form.setValue('address', data.address);
       if (data.contacts && data.contacts.length > 0) {
         replace(data.contacts);

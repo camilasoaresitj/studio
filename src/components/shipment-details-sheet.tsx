@@ -469,12 +469,23 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 </Popover>
                                             <FormMessage /></FormItem>
                                         )}/>
-                                        <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
-                                            <FormItem><FormLabel>MBL</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        <FormField control={form.control} name="eta" render={({ field }) => (
+                                            <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
+                                                <Popover>
+                                                    <PopoverTrigger asChild><FormControl>
+                                                        <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                            {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
+                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                        </Button>
+                                                    </FormControl></PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                                                </Popover>
+                                            <FormMessage /></FormItem>
                                         )}/>
-                                        <FormField control={form.control} name="notifyName" render={({ field }) => (
-                                            <FormItem className="md:col-span-2"><FormLabel>Notify Party</FormLabel><FormControl><Input placeholder="Nome do Notify" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
+                                        <div className="md:col-span-2">
+                                            <Label>Transit Time</Label>
+                                            <Input value={shipment.details.transitTime} disabled className="mt-2" />
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -546,6 +557,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 )}/>
                                 <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
                                     <FormItem><FormLabel>Purchase Order (PO) Nº</FormLabel><FormControl><Input placeholder="PO-67890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                 <FormField control={form.control} name="notifyName" render={({ field }) => (
+                                    <FormItem className="md:col-span-2"><FormLabel>Notify Party</FormLabel><FormControl><Input placeholder="Nome do Notify" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                                 </CardContent>
                             </Card>

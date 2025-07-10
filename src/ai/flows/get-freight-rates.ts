@@ -42,8 +42,10 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
     };
 
     if (input.modal === 'ocean') {
-        shipment.origin_port_code = input.origin.toUpperCase();
-        shipment.destination_port_code = input.destination.toUpperCase();
+        const originParts = input.origin.split(',').map(s => s.trim());
+        const destParts = input.destination.split(',').map(s => s.trim());
+        shipment.origin_port_code = originParts[0]; // Assume first part is the code
+        shipment.destination_port_code = destParts[0]; // Assume first part is the code
 
         if (input.oceanShipmentType === 'FCL') {
             shipment.package_type = 'container';
@@ -58,8 +60,10 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
         }
 
     } else { // air
-        shipment.origin_airport_code = input.origin.toUpperCase();
-        shipment.destination_airport_code = input.destination.toUpperCase();
+        const originParts = input.origin.split(',').map(s => s.trim());
+        const destParts = input.destination.split(',').map(s => s.trim());
+        shipment.origin_airport_code = originParts[0]; // Assume first part is the code
+        shipment.destination_airport_code = destParts[0]; // Assume first part is the code
         shipment.package_type = 'packages';
         shipment.packages = input.airShipment.pieces.map(p => ({
             quantity: p.quantity,
@@ -85,18 +89,19 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
 }
 
 function buildSeaRatesPayload(input: GetFreightRatesInput) {
+    const originCode = input.origin.split(',')[0].trim().toUpperCase();
+    const destinationCode = input.destination.split(',')[0].trim().toUpperCase();
+
     const payload: any = {
         type: input.modal === 'ocean' ? 'sea' : 'air',
         transportation_type: input.oceanShipmentType === 'FCL' ? 'port_to_port' : 'door_to_door', // Simplified assumption
         incoterm: input.incoterm,
-        // SeaRates API requires UN/LOCODEs, we assume the input is in that format
-        from_location_code: input.origin.toUpperCase(),
-        to_location_code: input.destination.toUpperCase(),
+        from_location_code: originCode,
+        to_location_code: destinationCode,
     };
 
     if (input.modal === 'ocean' && input.oceanShipmentType === 'FCL') {
         payload.containers = input.oceanShipment.containers.map(c => ({
-            // Map our container types to SeaRates' specific enums
             size: c.type.replace(/[^0-9]/g, ''), // "20", "40"
             type: c.type.includes('HC') ? 'HC' : 'DV', // Simplified: DV or HC
             quantity: c.quantity,

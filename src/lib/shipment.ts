@@ -1,8 +1,8 @@
 
 'use client';
 
-import { Partner } from '@/components/partners-registry';
-import { addDays, isValid, parse } from 'date-fns';
+import type { Partner } from '@/components/partners-registry';
+import { addDays, isValid } from 'date-fns';
 import { runSendShippingInstructions } from '@/app/actions';
 
 const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments';
@@ -34,7 +34,7 @@ export type QuoteDetails = {
 export type ShipmentCreationData = {
   id: string;
   origin: string;
-  destination: string;
+  destination:string;
   customer: string;
   charges: QuoteCharge[];
   details: QuoteDetails;
@@ -69,6 +69,13 @@ export type TransshipmentDetail = {
   eta?: Date;
 };
 
+export type DocumentStatus = {
+    name: 'Draft MBL' | 'Draft HBL' | 'Original MBL' | 'Original HBL' | 'Invoice' | 'Packing List' | 'Extrato DI';
+    status: 'pending' | 'uploaded' | 'approved';
+    fileUrl?: string;
+    uploadedAt?: Date;
+};
+
 export type Shipment = {
   id: string;
   origin: string;
@@ -79,6 +86,7 @@ export type Shipment = {
   charges: QuoteCharge[];
   details: QuoteDetails;
   milestones: Milestone[];
+  documents?: DocumentStatus[];
   // Existing operational fields
   bookingNumber?: string;
   mblPrintingAtDestination?: boolean;
@@ -243,6 +251,16 @@ export async function createShipment(quote: ShipmentCreationData, overseasPartne
   const etd = addDays(creationDate, etdDays);
   const eta = addDays(etd, transitTime);
   
+  const documents: DocumentStatus[] = [
+    { name: 'Draft MBL', status: 'pending' },
+    { name: 'Draft HBL', status: 'pending' },
+    { name: 'Original MBL', status: 'pending' },
+    { name: 'Original HBL', status: 'pending' },
+    { name: 'Invoice', status: 'pending' },
+    { name: 'Packing List', status: 'pending' },
+    { name: 'Extrato DI', status: 'pending' },
+  ];
+
   const newShipment: Shipment = {
     id: quote.id.replace('-DRAFT', ''),
     origin: quote.origin,
@@ -253,6 +271,7 @@ export async function createShipment(quote: ShipmentCreationData, overseasPartne
     charges: quote.charges,
     details: quote.details,
     milestones,
+    documents,
     etd,
     eta,
     bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,

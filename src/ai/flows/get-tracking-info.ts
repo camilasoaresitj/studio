@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to generate tracking information using an AI model.
+ * @fileOverview A Genkit flow to generate tracking information using the SeaRates API or an AI model as fallback.
  *
  * getTrackingInfo - A function that generates tracking events.
  * GetTrackingInfoInput - The input type for the function.
@@ -56,7 +56,7 @@ export async function getTrackingInfo(input: GetTrackingInfoInput): Promise<GetT
   return getTrackingInfoFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const generateTrackingInfoWithAI = ai.definePrompt({
     name: 'generateTrackingInfoPrompt',
     input: { schema: GetTrackingInfoInputSchema },
     output: { schema: GetTrackingInfoOutputSchema },
@@ -97,17 +97,90 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async (input) => {
+    const seaRatesApiKey = process.env.SEARATES_API_KEY;
+
+    // Primary method: SeaRates API
+    if (seaRatesApiKey) {
+        try {
+            console.log(`Attempting to fetch tracking from SeaRates API for: ${input.trackingNumber}`);
+            const response = await fetch('https://developers.searates.com/api/v1/tracking', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': seaRatesApiKey },
+                body: JSON.stringify({
+                    tracking_number: input.trackingNumber,
+                    carrier_name: input.carrier // Providing carrier name helps SeaRates
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`SeaRates API Error (${response.status}): ${errorText}`);
+            }
+
+            const data = await response.json();
+            
+            // Check if the API returned valid tracking data
+            if (data.success && data.data) {
+                const trackingData = data.data;
+                const events: TrackingEvent[] = trackingData.events.map((event: any) => ({
+                    status: event.description || 'N/A',
+                    date: event.datetime,
+                    location: event.location?.name || 'N/A',
+                    completed: new Date(event.datetime) <= new Date(),
+                    carrier: input.carrier,
+                }));
+
+                const lastCompletedEvent = events.slice().reverse().find(e => e.completed) || events[events.length - 1];
+
+                const shipmentDetails: Partial<Shipment> = {
+                    carrier: input.carrier,
+                    origin: trackingData.origin_port?.name || 'N/A',
+                    destination: trackingData.destination_port?.name || 'N/A',
+                    vesselName: trackingData.vessel?.name,
+                    voyageNumber: trackingData.voyage,
+                    etd: trackingData.departure_date ? new Date(trackingData.departure_date) : undefined,
+                    eta: trackingData.arrival_date_estimated ? new Date(trackingData.arrival_date_estimated) : undefined,
+                    masterBillNumber: input.trackingNumber,
+                    containers: trackingData.containers?.map((c: any) => ({
+                        id: c.container_number,
+                        number: c.container_number,
+                        seal: c.seal_number || 'N/A',
+                        tare: `${c.tare_weight || 0} KG`,
+                        grossWeight: `${c.gross_weight || 0} KG`,
+                    })) || [],
+                    milestones: events.map((event: TrackingEvent) => ({
+                        name: event.status,
+                        status: event.completed ? 'completed' : 'pending',
+                        predictedDate: new Date(event.date),
+                        effectiveDate: event.completed ? new Date(event.date) : null,
+                        details: event.location,
+                        isTransshipment: event.status.toLowerCase().includes('transhipment')
+                    })),
+                };
+
+                return {
+                    status: lastCompletedEvent?.status || 'Pending',
+                    events,
+                    containers: shipmentDetails.containers,
+                    shipmentDetails: shipmentDetails,
+                };
+            }
+        } catch (error) {
+            console.warn("SeaRates API call failed, falling back to AI simulation. Error:", error);
+        }
+    }
+
+    // Fallback method: AI Simulation
+    console.log("Fallback: Generating tracking info with AI.");
     try {
-        const { output } = await prompt(input);
+        const { output } = await generateTrackingInfoWithAI(input);
         if (!output) {
             throw new Error('AI failed to generate tracking information.');
         }
 
-        // To make it more realistic, format the AI-generated dates into proper Date objects
-        // and structure the milestones for the client.
         const shipmentDetails: Partial<Shipment> = {
             ...output.shipmentDetails,
-            carrier: input.carrier, // Ensure the correct carrier is passed through
+            carrier: input.carrier,
             etd: output.shipmentDetails.etd ? new Date(output.shipmentDetails.etd) : undefined,
             eta: output.shipmentDetails.eta ? new Date(output.shipmentDetails.eta) : undefined,
             containers: output.containers,
@@ -131,3 +204,5 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
+
+    

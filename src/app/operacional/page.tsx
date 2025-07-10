@@ -178,7 +178,6 @@ export default function OperacionalPage() {
   
     const firstPendingName = firstPending.name.toLowerCase();
     
-    // Check if departure has happened by looking for a completed 'departure' or 'embarque'
     const departureCompleted = shipment.milestones.some(m => 
       (m.name.toLowerCase().includes('departure') || m.name.toLowerCase().includes('vessel departure') || m.name.toLowerCase().includes('embarque')) 
       && m.status === 'completed'

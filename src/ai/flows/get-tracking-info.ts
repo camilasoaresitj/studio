@@ -108,33 +108,10 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async ({ trackingNumber }) => {
-    const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
-    const baseUrl = 'https://flow.cargoes.com/api/v1';
-
-    try {
-        console.log(`Calling Cargo-flows API at: ${baseUrl}/tracking?trackingNumber=${trackingNumber}`);
-        
-        // This is a placeholder for the actual API call, as Cargo-flows does not have a public tracking endpoint.
-        // The call is simulated to show intent and provide a fallback.
-        const response = { ok: false, status: 404 }; // Simulate API call failure to trigger fallback
-        
-        if (!response.ok) {
-           console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-           return getSimulatedTrackingData(trackingNumber);
-        }
-        
-        // If the API call were successful, the logic would be here:
-        // const data = await response.json();
-        // return formatApiDataToOutput(data); 
-
-        // This line is unreachable in the current state but shows what would happen.
-        return getSimulatedTrackingData(trackingNumber);
-
-    } catch (error) {
-        console.error("Error during fetch to Cargo-flows for tracking:", error);
-        console.log("Falling back to simulated tracking data due to error.");
-        return getSimulatedTrackingData(trackingNumber);
-    }
+    // This flow is intended for SIMULATION ONLY, as Cargo-flows does not have a public,
+    // multi-carrier tracking endpoint. In a real-world scenario with direct carrier
+    // integrations, this flow would orchestrate calls to different carrier APIs.
+    console.log(`Using high-fidelity simulation for tracking number: ${trackingNumber}`);
+    return getSimulatedTrackingData(trackingNumber);
   }
 );

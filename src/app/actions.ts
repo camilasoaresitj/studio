@@ -16,8 +16,8 @@ import { getTrackingInfo, GetTrackingInfoOutput, GetTrackingInfoInput } from '@/
 import { detectCarrierFromBooking, DetectCarrierFromBookingOutput } from '@/ai/flows/detect-carrier-from-booking';
 import { syncDFAgents, SyncDFAgentsOutput } from '@/ai/flows/sync-df-alliance-agents';
 import { sendShippingInstructions } from '@/ai/flows/send-shipping-instructions';
-import { getCourierStatus, GetCourierStatusInput, GetCourierStatusOutput } from '@/ai/flows/get-courier-status';
-import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
+import { getCourierStatus } from '@/ai/flows/get-courier-status';
+import type { SendShippingInstructionsInput, SendShippingInstructionsOutput, GetCourierStatusInput, GetCourierStatusOutput } from '@/lib/schemas';
 
 
 import type { Partner } from '@/components/partners-registry';

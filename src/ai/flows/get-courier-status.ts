@@ -8,18 +8,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-export const GetCourierStatusInputSchema = z.object({
-  courier: z.string().describe('The name of the courier company (e.g., DHL, FedEx, UPS).'),
-  trackingNumber: z.string().describe('The tracking number for the courier.'),
-});
-export type GetCourierStatusInput = z.infer<typeof GetCourierStatusInputSchema>;
-
-export const GetCourierStatusOutputSchema = z.object({
-  lastStatus: z.string().describe('A plausible, single-line last known status for the shipment.'),
-});
-export type GetCourierStatusOutput = z.infer<typeof GetCourierStatusOutputSchema>;
+import { GetCourierStatusInputSchema, GetCourierStatusOutputSchema, GetCourierStatusInput, GetCourierStatusOutput } from '@/lib/schemas';
 
 export async function getCourierStatus(input: GetCourierStatusInput): Promise<GetCourierStatusOutput> {
   return getCourierStatusFlow(input);

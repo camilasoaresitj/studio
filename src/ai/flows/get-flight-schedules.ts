@@ -32,10 +32,10 @@ export type GetFlightSchedulesOutput = z.infer<typeof GetFlightSchedulesOutputSc
 async function getSimulatedFlightSchedules(): Promise<GetFlightSchedulesOutput> {
     await new Promise(resolve => setTimeout(resolve, 800));
     return [
-      { flightNumber: 'LA8145', carrier: 'LATAM Cargo', etd: '2024-07-25T22:30:00Z', eta: '2024-07-26T07:00:00Z', transitTime: '8h 30m', aircraft: 'Boeing 777F' },
-      { flightNumber: 'LH8223', carrier: 'Lufthansa Cargo', etd: '2024-07-26T18:55:00Z', eta: '2024-07-27T11:20:00Z', transitTime: '11h 25m', aircraft: 'Boeing 777F' },
-      { flightNumber: 'AA930', carrier: 'American Airlines Cargo', etd: '2024-07-26T21:05:00Z', eta: '2024-07-27T05:35:00Z', transitTime: '9h 30m', aircraft: 'Boeing 787-8' },
-      { flightNumber: 'AF693', carrier: 'Air France Cargo', etd: '2024-07-27T16:10:00Z', eta: '2024-07-28T08:20:00Z', transitTime: '11h 10m', aircraft: 'Boeing 777F' },
+      { flightNumber: 'LA8145', carrier: 'LATAM Cargo', etd: '2025-07-25T22:30:00Z', eta: '2025-07-26T07:00:00Z', transitTime: '8h 30m', aircraft: 'Boeing 777F' },
+      { flightNumber: 'LH8223', carrier: 'Lufthansa Cargo', etd: '2025-07-26T18:55:00Z', eta: '2025-07-27T11:20:00Z', transitTime: '11h 25m', aircraft: 'Boeing 777F' },
+      { flightNumber: 'AA930', carrier: 'American Airlines Cargo', etd: '2025-07-26T21:05:00Z', eta: '2025-07-27T05:35:00Z', transitTime: '9h 30m', aircraft: 'Boeing 787-8' },
+      { flightNumber: 'AF693', carrier: 'Air France Cargo', etd: '2025-07-27T16:10:00Z', eta: '2025-07-28T08:20:00Z', transitTime: '11h 10m', aircraft: 'Boeing 777F' },
     ];
 }
 

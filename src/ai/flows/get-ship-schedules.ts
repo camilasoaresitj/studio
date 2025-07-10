@@ -32,11 +32,11 @@ export type GetVesselSchedulesOutput = z.infer<typeof GetVesselSchedulesOutputSc
 async function getSimulatedVesselSchedules(): Promise<GetVesselSchedulesOutput> {
      await new Promise(resolve => setTimeout(resolve, 900));
     return [
-      { vesselName: 'MAERSK PICO', voyage: '428N', carrier: 'Maersk', etd: '2024-07-25T12:00:00Z', eta: '2024-08-20T12:00:00Z', transitTime: '26 dias' },
-      { vesselName: 'MSC LEO', voyage: 'FB429A', carrier: 'MSC', etd: '2024-07-28T18:00:00Z', eta: '2024-08-23T18:00:00Z', transitTime: '26 dias' },
-      { vesselName: 'CMA CGM SYMI', voyage: '0PE5HN1MA', carrier: 'CMA CGM', etd: '2024-08-01T09:00:00Z', eta: '2024-08-27T09:00:00Z', transitTime: '26 dias' },
-      { vesselName: 'EVER ACE', voyage: '1192-001W', carrier: 'Evergreen', etd: '2024-08-02T11:00:00Z', eta: '2024-08-29T11:00:00Z', transitTime: '27 dias'},
-      { vesselName: 'HMM STOCKHOLM', voyage: '001W', carrier: 'HMM', etd: '2024-08-03T15:00:00Z', eta: '2024-08-30T15:00:00Z', transitTime: '27 dias' },
+      { vesselName: 'MAERSK PICO', voyage: '428N', carrier: 'Maersk', etd: '2025-07-25T12:00:00Z', eta: '2025-08-20T12:00:00Z', transitTime: '26 dias' },
+      { vesselName: 'MSC LEO', voyage: 'FB429A', carrier: 'MSC', etd: '2025-07-28T18:00:00Z', eta: '2025-08-23T18:00:00Z', transitTime: '26 dias' },
+      { vesselName: 'CMA CGM SYMI', voyage: '0PE5HN1MA', carrier: 'CMA CGM', etd: '2025-08-01T09:00:00Z', eta: '2025-08-27T09:00:00Z', transitTime: '26 dias' },
+      { vesselName: 'EVER ACE', voyage: '1192-001W', carrier: 'Evergreen', etd: '2025-08-02T11:00:00Z', eta: '2025-08-29T11:00:00Z', transitTime: '27 dias'},
+      { vesselName: 'HMM STOCKHOLM', voyage: '001W', carrier: 'HMM', etd: '2025-08-03T15:00:00Z', eta: '2025-08-30T15:00:00Z', transitTime: '27 dias' },
     ];
 }
 

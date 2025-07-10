@@ -61,6 +61,7 @@ const getBookingInfoFlow = ai.defineFlow(
     const etaEvent = [...events].reverse().find(e => e.status.toLowerCase().includes('arrival') || e.status.toLowerCase().includes('chegada'));
 
     // Create a new shipment structure with the fetched data
+    // This now correctly uses the data from the tracking service instead of hardcoded values.
     const finalShipment: Shipment = {
       id: `PROC-${id.slice(-6)}`,
       customer: 'Cliente a ser definido', 

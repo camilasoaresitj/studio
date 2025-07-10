@@ -1,4 +1,5 @@
 
+
 /**
  * @fileOverview A centralized service for interacting with the Cargo-flows API.
  * This service handles tracking and schedule lookups.
@@ -63,26 +64,30 @@ class CargoFlowsService {
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
     console.log(`Calling Cargo-flows API at: ${this.baseUrl}/tracking/${trackingNumber}`);
     
-    // In a real scenario, you would uncomment the fetch call below.
     const response = await fetch(`${this.baseUrl}/tracking/${trackingNumber}`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
-    
+
     if (!response.ok) {
-        // If the API call fails, fallback to simulation for demonstration
         console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
         return this.getSimulatedTracking(trackingNumber);
     }
     
-    const data = await response.json();
-    // In a real scenario, you would need to map the real response to the TrackingResult type here.
-    // For now, we will assume the API returns data in our expected format or fallback.
+    // Defensive JSON parsing
+    const responseText = await response.text();
+    let data;
+    try {
+        data = JSON.parse(responseText);
+    } catch (e) {
+        console.error("Failed to parse Cargo-flows response as JSON.", responseText);
+        throw new Error("A API retornou uma resposta inesperada. Tente novamente mais tarde.");
+    }
+
     return data.tracking ? this.mapApiDataToTrackingResult(data.tracking) : this.getSimulatedTracking(trackingNumber);
   }
 
   private mapApiDataToTrackingResult(apiData: any): TrackingResult {
-    // This is a placeholder mapping function. You would need to adjust it based on the actual API response structure.
     return {
         id: apiData.trackingNumber || 'N/A',
         status: apiData.latestStatus || 'Unknown',
@@ -146,7 +151,7 @@ class CargoFlowsService {
     }
 
     const data = await response.json();
-    return data; // You would need to map the real response to the VesselSchedule type here.
+    return data;
   }
   
   private async getSimulatedVesselSchedules(): Promise<VesselSchedule[]> {
@@ -174,7 +179,7 @@ class CargoFlowsService {
     }
     
     const data = await response.json();
-    return data; // You would need to map the real response to the FlightSchedule type here.
+    return data;
   }
 
   private async getSimulatedFlightSchedules(): Promise<FlightSchedule[]> {

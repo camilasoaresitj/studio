@@ -13,7 +13,6 @@ import { getFlightSchedules, GetFlightSchedulesInput, GetFlightSchedulesOutput }
 import { generateQuotePdfHtml, GenerateQuotePdfHtmlInput, GenerateQuotePdfHtmlOutput } from '@/ai/flows/generate-quote-pdf-html';
 import { extractQuoteDetailsFromText, ExtractQuoteDetailsFromTextOutput } from '@/ai/flows/extract-quote-details-from-text';
 import { getTrackingInfo, GetTrackingInfoOutput } from '@/ai/flows/get-tracking-info';
-import { getBookingInfo } from '@/ai/flows/get-booking-info';
 import type { Partner } from '@/components/partners-registry';
 import type { Shipment } from '@/lib/shipment';
 
@@ -194,20 +193,6 @@ export async function runGetTrackingInfo(
   } catch (e) {
     console.error(e);
     const error = e instanceof Error ? e.message : 'An unknown error occurred while fetching tracking info.';
-    return { success: false, error };
-  }
-}
-
-export async function runGetBookingInfo(
-  bookingNumber: string,
-  existingShipment: Shipment
-): Promise<{ success: true; data: Shipment } | { success: false; error: string }> {
-  try {
-    const result = (await getBookingInfo({ bookingNumber, existingShipment })) as Shipment;
-    return { success: true, data: result };
-  } catch (e) {
-    console.error(e);
-    const error = e instanceof Error ? e.message : 'An unknown error occurred while fetching booking info.';
     return { success: false, error };
   }
 }

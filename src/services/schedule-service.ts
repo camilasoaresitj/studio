@@ -62,29 +62,33 @@ class CargoFlowsService {
   }
 
   async getTracking(trackingNumber: string): Promise<TrackingResult> {
-    console.log(`Calling Cargo-flows API at: ${this.baseUrl}/tracking/${trackingNumber}`);
-    
-    const response = await fetch(`${this.baseUrl}/tracking/${trackingNumber}`, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
-
-    if (!response.ok) {
-        console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-        return this.getSimulatedTracking(trackingNumber);
-    }
-    
-    // Defensive JSON parsing
-    const responseText = await response.text();
-    let data;
     try {
-        data = JSON.parse(responseText);
-    } catch (e) {
-        console.error("Failed to parse Cargo-flows response as JSON.", responseText);
-        throw new Error("A API retornou uma resposta inesperada. Tente novamente mais tarde.");
-    }
+        console.log(`Calling Cargo-flows API at: ${this.baseUrl}/tracking/${trackingNumber}`);
+        
+        const response = await fetch(`${this.baseUrl}/tracking/${trackingNumber}`, {
+          method: 'GET',
+          headers: this.getHeaders(),
+        });
 
-    return data.tracking ? this.mapApiDataToTrackingResult(data.tracking) : this.getSimulatedTracking(trackingNumber);
+        if (!response.ok) {
+            console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
+            return this.getSimulatedTracking(trackingNumber);
+        }
+        
+        const responseText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Failed to parse Cargo-flows response as JSON.", responseText);
+            throw new Error("A API retornou uma resposta inesperada. Tente novamente mais tarde.");
+        }
+
+        return data.tracking ? this.mapApiDataToTrackingResult(data.tracking) : this.getSimulatedTracking(trackingNumber);
+    } catch (error) {
+        console.error("Error during fetch to Cargo-flows:", error);
+        throw new Error("Falha na comunicação com a API de rastreamento. Verifique sua conexão ou tente mais tarde.");
+    }
   }
 
   private mapApiDataToTrackingResult(apiData: any): TrackingResult {
@@ -138,20 +142,25 @@ class CargoFlowsService {
   }
 
   async getVesselSchedules(origin: string, destination: string): Promise<VesselSchedule[]> {
-    console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`);
-    
-    const response = await fetch(`${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
+    try {
+        console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`);
+        
+        const response = await fetch(`${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`, {
+          method: 'GET',
+          headers: this.getHeaders(),
+        });
 
-    if (!response.ok) {
-      console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-      return this.getSimulatedVesselSchedules();
+        if (!response.ok) {
+          console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
+          return this.getSimulatedVesselSchedules();
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error during fetch to Cargo-flows for vessel schedules:", error);
+        throw new Error("Falha na comunicação com a API de schedules. Verifique sua conexão ou tente mais tarde.");
     }
-
-    const data = await response.json();
-    return data;
   }
   
   private async getSimulatedVesselSchedules(): Promise<VesselSchedule[]> {
@@ -166,20 +175,25 @@ class CargoFlowsService {
   }
   
   async getFlightSchedules(origin: string, destination: string): Promise<FlightSchedule[]> {
-    console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`);
-    
-    const response = await fetch(`${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
-    
-    if (!response.ok) {
-       console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-      return this.getSimulatedFlightSchedules();
+    try {
+        console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`);
+        
+        const response = await fetch(`${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`, {
+          method: 'GET',
+          headers: this.getHeaders(),
+        });
+        
+        if (!response.ok) {
+           console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
+          return this.getSimulatedFlightSchedules();
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error during fetch to Cargo-flows for flight schedules:", error);
+        throw new Error("Falha na comunicação com a API de schedules. Verifique sua conexão ou tente mais tarde.");
     }
-    
-    const data = await response.json();
-    return data;
   }
 
   private async getSimulatedFlightSchedules(): Promise<FlightSchedule[]> {

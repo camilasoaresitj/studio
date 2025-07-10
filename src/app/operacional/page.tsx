@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Shipment, Milestone } from '@/lib/shipment';
-import { getShipments, updateShipment, rebuildMilestones } from '@/lib/shipment';
+import { getShipments, updateShipment } from '@/lib/shipment';
 import { format, isPast, isToday, isWithinInterval, addDays, isValid } from 'date-fns';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
 import { useToast } from '@/hooks/use-toast';
@@ -64,7 +64,7 @@ export default function OperacionalPage() {
       if (response.success) {
           const fetchedShipment = response.data;
           setShipments(prevShipments => {
-              const existingIndex = prevShipments.findIndex(s => s.id === fetchedShipment.id);
+              const existingIndex = prevShipments.findIndex(s => s.id === fetchedShipment.id || s.bookingNumber === fetchedShipment.bookingNumber);
               if (existingIndex > -1) {
                   // Update existing shipment
                   const updatedShipments = [...prevShipments];

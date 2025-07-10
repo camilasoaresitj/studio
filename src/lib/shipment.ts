@@ -278,7 +278,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
 
   const newShipment: Shipment = {
-    id: `PROC-${quoteData.id.replace('COT-', '')}`,
+    id: `PROC-${quoteData.id.replace('COT-', '')}-${Date.now()}`,
     quoteId: quoteData.id,
     origin: quoteData.origin,
     destination: quoteData.destination,

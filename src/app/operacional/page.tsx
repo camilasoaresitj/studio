@@ -357,10 +357,10 @@ export default function OperacionalPage() {
                                 <TableCell colSpan={8} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell>
                             </TableRow>
                         ) : (
-                            shipments.filter(s => getShipmentStatus(s).text !== 'Finalizado').map(shipment => {
+                            shipments.filter(s => getShipmentStatus(s).text !== 'Finalizado').map((shipment, index) => {
                                 const status = getShipmentStatus(shipment);
                                 return (
-                                <TableRow key={shipment.id} onClick={() => setSelectedShipment(shipment)} className="cursor-pointer text-xs">
+                                <TableRow key={`${shipment.id}-${shipment.bookingNumber || index}`} onClick={() => setSelectedShipment(shipment)} className="cursor-pointer text-xs">
                                     <TableCell className="font-semibold text-primary p-2">
                                         <a className="hover:underline">{shipment.id}</a>
                                     </TableCell>

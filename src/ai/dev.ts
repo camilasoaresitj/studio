@@ -3,6 +3,14 @@
 import { config } from 'dotenv';
 config();
 
+import {genkit} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai';
+
+genkit({
+  plugins: [googleAI()],
+  model: 'googleai/gemini-2.0-flash',
+});
+
 import '@/ai/flows/create-crm-entry-from-email.ts';
 import '@/ai/flows/monitor-email-for-tasks.ts';
 import '@/ai/flows/get-freight-rates.ts';

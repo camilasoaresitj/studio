@@ -16,6 +16,7 @@ import { getTrackingInfo, GetTrackingInfoOutput, GetTrackingInfoInput } from '@/
 import { detectCarrierFromBooking, DetectCarrierFromBookingOutput } from '@/ai/flows/detect-carrier-from-booking';
 import { syncDFAgents, SyncDFAgentsOutput } from '@/ai/flows/sync-df-alliance-agents';
 import { sendShippingInstructions } from '@/ai/flows/send-shipping-instructions';
+import { getCourierStatus, GetCourierStatusInput, GetCourierStatusOutput } from '@/ai/flows/get-courier-status';
 import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
 
 
@@ -237,6 +238,19 @@ export async function runSendShippingInstructions(
   } catch (e) {
     console.error(e);
     const error = e instanceof Error ? e.message : 'An unknown error occurred while generating shipping instructions.';
+    return { success: false, error };
+  }
+}
+
+export async function runGetCourierStatus(
+  input: GetCourierStatusInput
+): Promise<{ success: true; data: GetCourierStatusOutput } | { success: false; error: string }> {
+  try {
+    const result = await getCourierStatus(input);
+    return { success: true, data: result };
+  } catch (e) {
+    console.error(e);
+    const error = e instanceof Error ? e.message : 'An unknown error occurred while getting courier status.';
     return { success: false, error };
   }
 }

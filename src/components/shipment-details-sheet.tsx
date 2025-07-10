@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
+import { runGetTrackingInfo, runDetectCarrier, runGetCourierStatus } from '@/app/actions';
 
 
 const containerDetailSchema = z.object({
@@ -115,6 +115,7 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isCourierSyncing, setIsCourierSyncing] = useState(false);
   
   const form = useForm<ShipmentDetailsFormData>({
     resolver: zodResolver(shipmentDetailsSchema),
@@ -187,25 +188,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
   }, [shipment, form]);
 
-  const getCourierTrackingUrl = (courier?: string, trackingNumber?: string) => {
-      if (!courier || !trackingNumber) return null;
-      switch (courier) {
-          case 'DHL':
-              return `https://www.dhl.com/br-pt/home/tracking/tracking-express.html?submit=1&tracking-id=${trackingNumber}`;
-          case 'UPS':
-              return `https://www.ups.com/track?tracknum=${trackingNumber}`;
-          case 'FedEx':
-              return `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`;
-          default:
-              return null;
-      }
-  };
-
   const watchedCourier = form.watch('courier');
   const watchedCourierNumber = form.watch('courierNumber');
   const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
   const mblPrintingAuthDate = form.watch('mblPrintingAuthDate');
-  const courierTrackingUrl = getCourierTrackingUrl(watchedCourier, watchedCourierNumber);
 
   if (!shipment) {
       return null;
@@ -238,7 +224,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         });
     }
   };
-
 
   const getMilestoneStatusBadge = (status: Milestone['status']): { text: string; variant: 'default' | 'secondary' | 'outline' | 'success' } => {
     switch (status) {
@@ -311,6 +296,25 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
     
     setIsSyncing(false);
+  };
+
+  const handleSyncCourierStatus = async () => {
+      const courier = form.getValues('courier');
+      const trackingNumber = form.getValues('courierNumber');
+
+      if (!courier || !trackingNumber) {
+          toast({ variant: 'destructive', title: 'Dados Incompletos', description: 'Por favor, selecione um courrier e insira o número de rastreio.' });
+          return;
+      }
+      setIsCourierSyncing(true);
+      const response = await runGetCourierStatus({ courier, trackingNumber });
+      if (response.success) {
+          form.setValue('courierLastStatus', response.data.lastStatus);
+          toast({ title: 'Status do Courrier Sincronizado!', className: 'bg-success text-success-foreground' });
+      } else {
+          toast({ variant: 'destructive', title: 'Erro ao Sincronizar', description: response.error });
+      }
+      setIsCourierSyncing(false);
   };
 
   const handleToggleMblPrinting = () => {
@@ -510,20 +514,21 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <FormItem><FormLabel>Nº Rastreio Courrier</FormLabel><FormControl><Input placeholder="1234567890" {...field} value={field.value ?? ''} disabled={mblPrintingAtDestination} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <div className="flex items-center gap-2">
-                                        {courierTrackingUrl && !mblPrintingAtDestination && (
-                                            <Button asChild variant="outline" size="icon" title="Rastrear no site do courrier">
-                                                <a href={courierTrackingUrl} target="_blank" rel="noopener noreferrer">
-                                                    <LinkIcon className="h-4 w-4" />
-                                                </a>
-                                            </Button>
-                                        )}
                                         <Button type="button" variant={mblPrintingAtDestination ? 'default' : 'secondary'} className="w-full" onClick={handleToggleMblPrinting} title="Marcar/desmarcar impressão do MBL no destino">
                                             <Printer className="mr-2 h-4 w-4" />
                                             {mblPrintingAtDestination ? `Autorizado em ${format(mblPrintingAuthDate || new Date(), 'dd/MM/yy')}` : 'Impressão no Destino'}
                                         </Button>
                                     </div>
                                     <FormField control={form.control} name="courierLastStatus" render={({ field }) => (
-                                        <FormItem className="md:col-span-3"><FormLabel>Último Status do Courrier</FormLabel><FormControl><Input placeholder="Aguardando retirada..." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem className="md:col-span-3"><FormLabel>Último Status do Courrier</FormLabel>
+                                            <div className="flex items-center gap-2">
+                                                <FormControl><Input placeholder="Aguardando sincronização..." {...field} value={field.value ?? ''} /></FormControl>
+                                                <Button type="button" variant="outline" size="icon" onClick={handleSyncCourierStatus} disabled={isCourierSyncing || mblPrintingAtDestination} title="Sincronizar último status">
+                                                    {isCourierSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                                </Button>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}/>
                                 </CardContent>
                             </Card>

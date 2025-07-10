@@ -14,6 +14,8 @@ import { generateQuotePdfHtml, GenerateQuotePdfHtmlInput, GenerateQuotePdfHtmlOu
 import { extractQuoteDetailsFromText, ExtractQuoteDetailsFromTextOutput } from '@/ai/flows/extract-quote-details-from-text';
 import { getTrackingInfo, GetTrackingInfoOutput, GetTrackingInfoInput } from '@/ai/flows/get-tracking-info';
 import { detectCarrierFromBooking, DetectCarrierFromBookingOutput } from '@/ai/flows/detect-carrier-from-booking';
+import { syncDFAgents, SyncDFAgentsOutput } from '@/ai/flows/sync-df-alliance-agents';
+
 
 import type { Partner } from '@/components/partners-registry';
 import type { Shipment } from '@/lib/shipment';
@@ -76,7 +78,8 @@ export async function runSendQuote(
   try {
     const result = await sendQuote(input);
     return { success: true, data: result };
-  } catch (e) {
+  } catch (e)
+{
     console.error(e);
     const error = e instanceof Error ? e.message : 'An unknown error occurred while generating the quote.';
     return { success: false, error };
@@ -208,6 +211,17 @@ export async function runDetectCarrier(
   } catch (e) {
     console.error(e);
     const error = e instanceof Error ? e.message : 'An unknown error occurred while detecting the carrier.';
+    return { success: false, error };
+  }
+}
+
+export async function runSyncDFAgents(): Promise<{ success: true; data: SyncDFAgentsOutput } | { success: false; error: string }> {
+  try {
+    const result = await syncDFAgents();
+    return { success: true, data: result };
+  } catch (e) {
+    console.error(e);
+    const error = e instanceof Error ? e.message : 'An unknown error occurred while syncing DF Alliance agents.';
     return { success: false, error };
   }
 }

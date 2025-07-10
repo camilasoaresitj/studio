@@ -26,15 +26,16 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit, Trash2, Search, Loader2, Wand2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2, Wand2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { runExtractPartnerInfo } from '@/app/actions';
+import { runExtractPartnerInfo, runSyncDFAgents } from '@/app/actions';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import type { DFAgent } from '@/ai/flows/sync-df-alliance-agents';
 
 const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
 const departmentsArray = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
@@ -127,6 +128,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
+  const [isSyncingAgents, setIsSyncingAgents] = useState(false);
   const [filterName, setFilterName] = useState('');
   const [filterNomeFantasia, setFilterNomeFantasia] = useState('');
   const [filterType, setFilterType] = useState('Todos');
@@ -306,6 +308,62 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     setIsAiLoading(false);
   };
   
+  const handleSyncDFAgents = async () => {
+    setIsSyncingAgents(true);
+    toast({ title: 'Iniciando sincronização...', description: 'Buscando agentes no diretório DF Alliance. Isso pode levar um momento.' });
+    
+    const response = await runSyncDFAgents();
+
+    if (response.success) {
+        const existingPartnerNames = new Set(partners.map(p => p.name.toLowerCase()));
+        let newAgentsCount = 0;
+        
+        response.data.forEach((agent: DFAgent) => {
+            if (!existingPartnerNames.has(agent.name.toLowerCase())) {
+                const newPartner: Partner = {
+                    id: 0, // temp ID
+                    name: agent.name,
+                    nomeFantasia: agent.name,
+                    entityType: 'Pessoa Juridica',
+                    roles: { cliente: false, fornecedor: false, agente: true, comissionado: false },
+                    address: { country: agent.country },
+                    contacts: [{
+                        name: 'Contato Principal',
+                        email: `contact@${agent.website.replace(/^(https?:\/\/)?(www\.)?/, '')}`,
+                        phone: 'N/A',
+                        departments: ['Comercial', 'Operacional'],
+                    }],
+                    tipoAgente: { fcl: true, lcl: true, air: true, projects: true },
+                };
+                onPartnerSaved(newPartner);
+                newAgentsCount++;
+            }
+        });
+
+        if (newAgentsCount > 0) {
+            toast({
+                title: 'Sincronização Concluída!',
+                description: `${newAgentsCount} novo(s) agente(s) foram adicionados ao seu cadastro.`,
+                className: 'bg-success text-success-foreground'
+            });
+        } else {
+            toast({
+                title: 'Sincronização Concluída!',
+                description: 'Nenhum novo agente encontrado para adicionar.',
+            });
+        }
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Erro na Sincronização',
+            description: response.error
+        });
+    }
+
+    setIsSyncingAgents(false);
+  };
+
+
   const roleDisplay: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' } } = {
     cliente: { label: 'Cliente', variant: 'default' },
     fornecedor: { label: 'Fornecedor', variant: 'secondary' },
@@ -372,10 +430,16 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                     </Select>
                  )}
             </div>
-            <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto self-end">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Adicionar Parceiro
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 self-start">
+                <Button onClick={handleSyncDFAgents} variant="secondary" className="w-full sm:w-auto" disabled={isSyncingAgents}>
+                    {isSyncingAgents ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Sincronizar DF Alliance
+                </Button>
+                <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Adicionar Parceiro
+                </Button>
+            </div>
         </div>
         <div className="border rounded-lg">
           <Table>

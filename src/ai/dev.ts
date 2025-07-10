@@ -17,3 +17,4 @@ import '@/ai/flows/extract-quote-details-from-text.ts';
 import '@/ai/flows/get-tracking-info.ts';
 import '@/ai/flows/get-booking-info.ts';
 import '@/ai/flows/detect-carrier-from-booking.ts';
+import '@/ai/flows/sync-df-alliance-agents.ts';

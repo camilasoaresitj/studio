@@ -160,32 +160,6 @@ export default function OperacionalPage() {
       </header>
       
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><PackagePlus /> Importar Processo por Booking</CardTitle>
-          <CardDescription>Insira um número de booking de uma transportadora para criar e preencher um novo processo automaticamente.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input
-              placeholder="Ex: BKG123456"
-              value={newBookingNumber}
-              onChange={(e) => setNewBookingNumber(e.target.value)}
-              disabled={isFetchingBooking}
-              onKeyUp={(e) => e.key === 'Enter' && handleFetchBooking()}
-            />
-            <Button onClick={handleFetchBooking} disabled={isFetchingBooking} className="w-full sm:w-auto">
-              {isFetchingBooking ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando...</>
-              ) : (
-                'Importar Processo'
-              )}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">Dica: Tente o número "BKG123456" para ver um exemplo.</p>
-        </CardContent>
-      </Card>
-
-      <Card>
           <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>

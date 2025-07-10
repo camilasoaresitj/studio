@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { runGetBookingInfo } from '@/app/actions';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 
 const containerDetailSchema = z.object({
@@ -292,7 +293,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-          <SheetContent className="sm:max-w-4xl w-full flex flex-col">
+          <SheetContent className="sm:max-w-6xl w-full flex flex-col">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
                   <SheetHeader>
@@ -301,352 +302,358 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                           {shipment.origin} &rarr; {shipment.destination} para <strong>{shipment.customer}</strong>
                       </SheetDescription>
                   </SheetHeader>
-                  <Separator className="my-4" />
-                  <div className="flex-grow overflow-y-auto pr-6 -mr-6 space-y-6">
-                      {/* Partners Info */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <Card>
-                              <CardHeader className="pb-2"><CardTitle className="text-base">Cliente</CardTitle></CardHeader>
-                              <CardContent className="text-sm space-y-1">
-                                  <p className="font-semibold">{shipment.customer}</p>
-                              </CardContent>
-                          </Card>
-                          <Card>
-                              <CardHeader className="pb-2"><CardTitle className="text-base">{shipment.destination.toUpperCase().includes('BR') ? 'Exportador (Shipper)' : 'Importador (Cnee)'}</CardTitle></CardHeader>
-                              <CardContent className="text-sm space-y-1">
-                                  <p className="font-semibold">{overseasPartner?.name}</p>
-                                  <p className="text-muted-foreground">{overseasPartner?.address?.street}, {overseasPartner?.address?.number}</p>
-                                  <p className="text-muted-foreground">{overseasPartner?.address?.city}, {overseasPartner?.address?.state} - {overseasPartner?.address?.zip}</p>
-                                  {overseasPartner?.cnpj && <p className="text-muted-foreground">CNPJ: {overseasPartner.cnpj}</p>}
-                              </CardContent>
-                          </Card>
-                          <Card>
-                              <CardHeader className="pb-2"><CardTitle className="text-base">Agente</CardTitle></CardHeader>
-                              <CardContent className="text-sm space-y-1">
-                                  {agent ? (
-                                      <>
-                                          <p className="font-semibold">{agent.name}</p>
-                                          <p className="text-muted-foreground">{agent.address.street}, {agent.address.number}</p>
-                                          <p className="text-muted-foreground">{agent.address.city}, {agent.address.country}</p>
-                                          {agent.cnpj && <p className="text-muted-foreground">CNPJ: {agent.cnpj}</p>}
-                                      </>
-                                  ) : (
-                                      <p className="text-muted-foreground">Embarque Direto</p>
-                                  )}
-                              </CardContent>
-                          </Card>
-                      </div>
 
-                      {/* Voyage Details */}
-                      <Card>
-                        <CardHeader><CardTitle className="text-lg">Dados da Viagem/Voo</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <FormField control={form.control} name="vesselName" render={({ field }) => (
-                                <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="MSC LEO" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="voyageNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Viagem / Nº Voo</FormLabel><FormControl><Input placeholder="AB123C" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="etd" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild><FormControl>
-                                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl></PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
-                                    </Popover>
-                                <FormMessage /></FormItem>
-                            )}/>
-                             <FormField control={form.control} name="eta" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild><FormControl>
-                                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl></PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
-                                    </Popover>
-                                <FormMessage /></FormItem>
-                            )}/>
-                        </CardContent>
-                      </Card>
+                  <Tabs defaultValue="dados_embarque" className="flex-grow flex flex-col overflow-hidden mt-4">
+                    <TabsList className="grid w-full grid-cols-5 mb-4">
+                        <TabsTrigger value="dados_embarque">Dados do Embarque</TabsTrigger>
+                        <TabsTrigger value="documentos">Documentos</TabsTrigger>
+                        <TabsTrigger value="milestones">Milestones & Tracking</TabsTrigger>
+                        <TabsTrigger value="mercadoria">Mercadoria & Containers</TabsTrigger>
+                        <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+                    </TabsList>
 
-                      {/* Bill Numbers & Booking */}
-                      <Card>
-                        <CardHeader><CardTitle className="text-lg">Documentos e Rastreio</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                           <FormField control={form.control} name="bookingNumber" render={({ field }) => (
-                               <FormItem><FormLabel>Booking Reference</FormLabel>
-                                <div className="flex items-center gap-2">
-                                  <FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl>
-                                  <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
-                                      {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                                  </Button>
-                                </div>
-                               <FormMessage />
-                               </FormItem>
-                           )}/>
-                           <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
-                               <FormItem><FormLabel>Master Bill of Lading / MAWB</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                           )}/>
-                           <FormField control={form.control} name="houseBillNumber" render={({ field }) => (
-                               <FormItem><FormLabel>House Bill of Lading / HAWB</FormLabel><FormControl><Input placeholder="MYHBL12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                           )}/>
-                           <FormField control={form.control} name="courier" render={({ field }) => (
-                               <FormItem><FormLabel>Courrier (Documentos)</FormLabel>
-                                   <Select onValueChange={field.onChange} value={field.value}>
-                                       <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
-                                       <SelectContent>
-                                           <SelectItem value="DHL">DHL</SelectItem>
-                                           <SelectItem value="UPS">UPS</SelectItem>
-                                           <SelectItem value="FedEx">FedEx</SelectItem>
-                                           <SelectItem value="Outro">Outro</SelectItem>
-                                       </SelectContent>
-                                   </Select>
-                               <FormMessage /></FormItem>
-                           )}/>
-                           <FormField control={form.control} name="courierNumber" render={({ field }) => (
-                               <FormItem><FormLabel>Nº Rastreio Courrier</FormLabel><FormControl><Input placeholder="1234567890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                           )}/>
-                           <div className="flex items-end">
-                               {courierTrackingUrl && (
-                                   <Button asChild variant="outline" className="w-full">
-                                       <a href={courierTrackingUrl} target="_blank" rel="noopener noreferrer">
-                                           Rastrear Courrier
-                                           <LinkIcon className="ml-2 h-4 w-4" />
-                                       </a>
-                                   </Button>
-                               )}
-                           </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Transshipments */}
-                      <Card>
-                          <CardHeader>
-                              <div className="flex justify-between items-center">
-                                <CardTitle className="text-lg flex items-center gap-2"><GanttChart />Transbordos / Conexões</CardTitle>
-                                <Button type="button" size="sm" variant="outline" onClick={() => appendTransshipment({ id: `new-${transshipmentFields.length}`, port: '', vessel: '' })}>
-                                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
-                                </Button>
-                              </div>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {transshipmentFields.map((field, index) => (
-                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 border rounded-lg items-end relative">
-                                    <FormField control={form.control} name={`transshipments.${index}.port`} render={({ field }) => (
-                                        <FormItem className="col-span-1 md:col-span-2"><FormLabel>Porto / Aeroporto</FormLabel><FormControl><Input placeholder="Ex: Antuérpia" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name={`transshipments.${index}.vessel`} render={({ field }) => (
-                                        <FormItem className="col-span-1 md:col-span-1"><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="Ex: MAERSK HONAM" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name={`transshipments.${index}.etd`} render={({ field }) => (
-                                        <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
-                                            <Popover><PopoverTrigger asChild><FormControl>
-                                                <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                    {field.value && isValid(field.value) ? format(field.value, "dd/MM/yy") : <span>Data</span>}
-                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
-                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
-                                        <FormMessage /></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name={`transshipments.${index}.eta`} render={({ field }) => (
-                                        <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
-                                            <Popover><PopoverTrigger asChild><FormControl>
-                                                <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                    {field.value && isValid(field.value) ? format(field.value, "dd/MM/yy") : <span>Data</span>}
-                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
-                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
-                                        <FormMessage /></FormItem>
-                                    )}/>
-                                    <div className="absolute top-1 right-1">
-                                      <Button type="button" variant="ghost" size="icon" onClick={() => removeTransshipment(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                    </div>
-                                </div>
-                            ))}
-                            {transshipmentFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum transbordo adicionado.</p>}
-                          </CardContent>
-                      </Card>
-
-                      {/* Milestones */}
-                      <Card>
-                          <CardHeader>
-                              <div className="flex justify-between items-center">
-                                  <CardTitle className="text-lg">Milestones Operacionais</CardTitle>
-                                  <span className="text-sm text-muted-foreground font-medium">{completedCount} de {totalCount} concluídos</span>
-                              </div>
-                              <Progress value={progressPercentage} className="w-full mt-2" />
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                              {assembledMilestones.map((milestone, index) => {
-                                const predictedDate = milestone.predictedDate && isValid(new Date(milestone.predictedDate)) ? new Date(milestone.predictedDate) : null;
-                                const isOverdue = !!predictedDate && isPast(predictedDate) && milestone.status !== 'completed';
-                                
-                                return (
-                                  <div key={`${milestone.name}-${index}`} className={cn(
-                                      "p-3 rounded-lg border",
-                                      milestone.status === 'in_progress' ? 'bg-accent border-primary' : 'bg-background'
-                                  )}>
-                                      <div className="flex items-center gap-4">
-                                          <MilestoneIcon status={milestone.status} predictedDate={predictedDate || undefined} />
-                                          <div className="flex-grow">
-                                              <p className="font-semibold">{milestone.name}</p>
-                                              {milestone.details && <p className="text-xs text-muted-foreground">{milestone.details}</p>}
-                                          </div>
-                                          <Badge variant={
-                                              milestone.status === 'completed' ? 'outline' :
-                                              milestone.status === 'in_progress' ? 'default' : 'secondary'
-                                          } className="capitalize w-24 justify-center">{milestone.status.replace('_', ' ')}</Badge>
-                                          {milestone.status === 'in_progress' && (
-                                              <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)} className="w-36">
-                                                  Concluir Etapa <ArrowRight className="ml-2 h-4 w-4"/>
-                                              </Button>
-                                          )}
-                                          {milestone.status !== 'in_progress' && <div className="w-36"/>}
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-4 mt-2 pl-10">
-                                           <div className="space-y-1">
-                                                <Label className="text-xs">Data Prevista</Label>
-                                                <Popover>
-                                                    <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
-                                                        <CalendarIcon className="mr-2 h-3 w-3"/>
-                                                        {predictedDate ? format(predictedDate, 'dd/MM/yyyy') : 'N/A'}
-                                                    </Button></PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={predictedDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'predictedDate', d)}/></PopoverContent>
-                                                </Popover>
-                                           </div>
-                                            <div className="space-y-1">
-                                                <Label className="text-xs">Data Efetiva</Label>
-                                                <Popover>
-                                                    <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
-                                                        <CalendarIcon className="mr-2 h-3 w-3"/>
-                                                        {milestone.effectiveDate ? format(milestone.effectiveDate, 'dd/MM/yyyy') : 'Pendente'}
-                                                    </Button></PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={milestone.effectiveDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
-                                                </Popover>
-                                           </div>
-                                      </div>
-                                  </div>
-                              )})}
-                          </CardContent>
-                      </Card>
-
-                      {/* Cargo Details */}
-                      <Card>
-                        <CardHeader><CardTitle className="text-lg">Detalhes da Mercadoria</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <FormField control={form.control} name="commodityDescription" render={({ field }) => (
-                                <FormItem><FormLabel className="flex items-center gap-2"><CaseSensitive />Descrição da Mercadoria</FormLabel><FormControl><Input placeholder="Peças automotivas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                            )}/>
+                    <div className="flex-grow overflow-y-auto pr-6 -mr-6 space-y-6">
+                        <TabsContent value="dados_embarque" className="mt-0 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="ncm" render={({ field }) => (
-                                    <FormItem><FormLabel className="flex items-center gap-2">NCM</FormLabel><FormControl><Input placeholder="8708.99.90" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="packageQuantity" render={({ field }) => (
-                                    <FormItem><FormLabel className="flex items-center gap-2"><Package /> Quantidade de Volumes</FormLabel><FormControl><Input placeholder="10 caixas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="netWeight" render={({ field }) => (
-                                    <FormItem><FormLabel className="flex items-center gap-2"><Weight/> Peso Líquido</FormLabel><FormControl><Input placeholder="1200 KG" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                            </div>
-                            <FormField control={form.control} name="freeTimeDemurrage" render={({ field }) => (
-                                <FormItem><FormLabel className="flex items-center gap-2"><Clock /> Free Time Demurrage / Detention</FormLabel><FormControl><Input placeholder="14 dias" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card>
-                        <CardHeader>
-                          <div className="flex justify-between items-center">
-                            <CardTitle className="text-lg">Contêineres</CardTitle>
-                             <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `new-${containerFields.length}`, number: '', seal: '', tare: '', grossWeight: '', freeTime: '' })}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                           <div className="border rounded-lg">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Nº Contêiner</TableHead>
-                                            <TableHead>Lacre</TableHead>
-                                            <TableHead>Tara</TableHead>
-                                            <TableHead>Peso Bruto</TableHead>
-                                            <TableHead>Free Time</TableHead>
-                                            <TableHead></TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {containerFields && containerFields.length > 0 ? containerFields.map((field, index) => (
-                                            <TableRow key={field.id}>
-                                                <TableCell><FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
-                                                <TableCell><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
-                                                <TableCell><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
-                                                <TableCell><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
-                                                <TableCell><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => (<Input placeholder="14 dias" {...field}/>)}/></TableCell>
-                                                <TableCell>
-                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        )) : (
-                                            <TableRow><TableCell colSpan={6} className="text-center h-24">Nenhum contêiner adicionado.</TableCell></TableRow>
+                                <Card>
+                                    <CardHeader className="pb-2"><CardTitle className="text-base">Cliente</CardTitle></CardHeader>
+                                    <CardContent className="text-sm space-y-1">
+                                        <p className="font-semibold">{shipment.customer}</p>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader className="pb-2"><CardTitle className="text-base">{shipment.destination.toUpperCase().includes('BR') ? 'Exportador (Shipper)' : 'Importador (Cnee)'}</CardTitle></CardHeader>
+                                    <CardContent className="text-sm space-y-1">
+                                        <p className="font-semibold">{overseasPartner?.name}</p>
+                                        <p className="text-muted-foreground">{overseasPartner?.address?.street}, {overseasPartner?.address?.number}</p>
+                                        <p className="text-muted-foreground">{overseasPartner?.address?.city}, {overseasPartner?.address?.state} - {overseasPartner?.address?.zip}</p>
+                                        {overseasPartner?.cnpj && <p className="text-muted-foreground">CNPJ: {overseasPartner.cnpj}</p>}
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader className="pb-2"><CardTitle className="text-base">Agente</CardTitle></CardHeader>
+                                    <CardContent className="text-sm space-y-1">
+                                        {agent ? (
+                                            <>
+                                                <p className="font-semibold">{agent.name}</p>
+                                                <p className="text-muted-foreground">{agent.address.street}, {agent.address.number}</p>
+                                                <p className="text-muted-foreground">{agent.address.city}, {agent.address.country}</p>
+                                                {agent.cnpj && <p className="text-muted-foreground">CNPJ: {agent.cnpj}</p>}
+                                            </>
+                                        ) : (
+                                            <p className="text-muted-foreground">Embarque Direto</p>
                                         )}
-                                    </TableBody>
-                                </Table>
+                                    </CardContent>
+                                </Card>
                             </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Financial Details */}
-                      <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Detalhes Financeiros</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="border rounded-lg overflow-hidden">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Taxa</TableHead>
-                                            <TableHead>Fornecedor</TableHead>
-                                            <TableHead className="text-right">Custo</TableHead>
-                                            <TableHead className="text-right">Venda</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {shipment.charges && shipment.charges.map(charge => (
-                                            <TableRow key={charge.id}>
-                                                <TableCell>{charge.name}</TableCell>
-                                                <TableCell className="text-muted-foreground">{charge.supplier}</TableCell>
-                                                <TableCell className="text-right font-mono">{charge.costCurrency} {charge.cost.toFixed(2)}</TableCell>
-                                                <TableCell className="text-right font-mono">{charge.saleCurrency} {charge.sale.toFixed(2)}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                            <div className="flex justify-end gap-2 mt-4">
-                                <Button variant="outline" type="button" onClick={() => handleBillingClick('pagar')}>
-                                    <Receipt className="mr-2 h-4 w-4" />
-                                    Faturar Contas a Pagar
-                                </Button>
-                                <Button variant="outline" type="button" onClick={() => handleBillingClick('receber')}>
-                                    <Wallet className="mr-2 h-4 w-4" />
-                                    Faturar Contas a Receber
-                                </Button>
-                            </div>
-                        </CardContent>
-                      </Card>
-
-                  </div>
-                  <SheetFooter className="pt-4 mt-4 border-t">
+                            <Card>
+                                <CardHeader><CardTitle className="text-lg">Dados da Viagem/Voo</CardTitle></CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <FormField control={form.control} name="vesselName" render={({ field }) => (
+                                        <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="MSC LEO" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="voyageNumber" render={({ field }) => (
+                                        <FormItem><FormLabel>Viagem / Nº Voo</FormLabel><FormControl><Input placeholder="AB123C" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="etd" render={({ field }) => (
+                                        <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild><FormControl>
+                                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                        {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl></PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                                            </Popover>
+                                        <FormMessage /></FormItem>
+                                    )}/>
+                                     <FormField control={form.control} name="eta" render={({ field }) => (
+                                        <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild><FormControl>
+                                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                        {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl></PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                                            </Popover>
+                                        <FormMessage /></FormItem>
+                                    )}/>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex justify-between items-center">
+                                        <CardTitle className="text-lg flex items-center gap-2"><GanttChart />Transbordos / Conexões</CardTitle>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => appendTransshipment({ id: `new-${transshipmentFields.length}`, port: '', vessel: '' })}>
+                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {transshipmentFields.map((field, index) => (
+                                        <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 border rounded-lg items-end relative">
+                                            <FormField control={form.control} name={`transshipments.${index}.port`} render={({ field }) => (
+                                                <FormItem className="col-span-1 md:col-span-2"><FormLabel>Porto / Aeroporto</FormLabel><FormControl><Input placeholder="Ex: Antuérpia" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name={`transshipments.${index}.vessel`} render={({ field }) => (
+                                                <FormItem className="col-span-1 md:col-span-1"><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="Ex: MAERSK HONAM" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name={`transshipments.${index}.etd`} render={({ field }) => (
+                                                <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
+                                                    <Popover><PopoverTrigger asChild><FormControl>
+                                                        <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                            {field.value && isValid(field.value) ? format(field.value, "dd/MM/yy") : <span>Data</span>}
+                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                        </Button>
+                                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                <FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name={`transshipments.${index}.eta`} render={({ field }) => (
+                                                <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
+                                                    <Popover><PopoverTrigger asChild><FormControl>
+                                                        <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                            {field.value && isValid(field.value) ? format(field.value, "dd/MM/yy") : <span>Data</span>}
+                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                        </Button>
+                                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                <FormMessage /></FormItem>
+                                            )}/>
+                                            <div className="absolute top-1 right-1">
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeTransshipment(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {transshipmentFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum transbordo adicionado.</p>}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                         <TabsContent value="documentos" className="mt-0 space-y-6">
+                            <Card>
+                                <CardHeader><CardTitle className="text-lg">Documentos e Rastreio</CardTitle></CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <FormField control={form.control} name="bookingNumber" render={({ field }) => (
+                                    <FormItem><FormLabel>Booking Reference</FormLabel>
+                                        <div className="flex items-center gap-2">
+                                        <FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl>
+                                        <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
+                                            {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                        </Button>
+                                        </div>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
+                                    <FormItem><FormLabel>Master Bill of Lading / MAWB</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="houseBillNumber" render={({ field }) => (
+                                    <FormItem><FormLabel>House Bill of Lading / HAWB</FormLabel><FormControl><Input placeholder="MYHBL12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="courier" render={({ field }) => (
+                                    <FormItem><FormLabel>Courrier (Documentos)</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="DHL">DHL</SelectItem>
+                                                <SelectItem value="UPS">UPS</SelectItem>
+                                                <SelectItem value="FedEx">FedEx</SelectItem>
+                                                <SelectItem value="Outro">Outro</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    <FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="courierNumber" render={({ field }) => (
+                                    <FormItem><FormLabel>Nº Rastreio Courrier</FormLabel><FormControl><Input placeholder="1234567890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <div className="flex items-end">
+                                    {courierTrackingUrl && (
+                                        <Button asChild variant="outline" className="w-full">
+                                            <a href={courierTrackingUrl} target="_blank" rel="noopener noreferrer">
+                                                Rastrear Courrier
+                                                <LinkIcon className="ml-2 h-4 w-4" />
+                                            </a>
+                                        </Button>
+                                    )}
+                                </div>
+                                </CardContent>
+                            </Card>
+                         </TabsContent>
+                         <TabsContent value="milestones" className="mt-0 space-y-6">
+                             <Card>
+                                <CardHeader>
+                                    <div className="flex justify-between items-center">
+                                        <CardTitle className="text-lg">Milestones Operacionais</CardTitle>
+                                        <span className="text-sm text-muted-foreground font-medium">{completedCount} de {totalCount} concluídos</span>
+                                    </div>
+                                    <Progress value={progressPercentage} className="w-full mt-2" />
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {assembledMilestones.map((milestone, index) => {
+                                        const predictedDate = milestone.predictedDate && isValid(new Date(milestone.predictedDate)) ? new Date(milestone.predictedDate) : null;
+                                        const isOverdue = !!predictedDate && isPast(predictedDate) && milestone.status !== 'completed';
+                                        
+                                        return (
+                                        <div key={`${milestone.name}-${index}`} className={cn(
+                                            "p-3 rounded-lg border",
+                                            milestone.status === 'in_progress' ? 'bg-accent border-primary' : 'bg-background'
+                                        )}>
+                                            <div className="flex items-center gap-4">
+                                                <MilestoneIcon status={milestone.status} predictedDate={predictedDate || undefined} />
+                                                <div className="flex-grow">
+                                                    <p className="font-semibold">{milestone.name}</p>
+                                                    {milestone.details && <p className="text-xs text-muted-foreground">{milestone.details}</p>}
+                                                </div>
+                                                <Badge variant={
+                                                    milestone.status === 'completed' ? 'outline' :
+                                                    milestone.status === 'in_progress' ? 'default' : 'secondary'
+                                                } className="capitalize w-24 justify-center">{milestone.status.replace('_', ' ')}</Badge>
+                                                {milestone.status === 'in_progress' && (
+                                                    <Button type="button" size="sm" onClick={() => handleCompleteMilestone(index)} className="w-36">
+                                                        Concluir Etapa <ArrowRight className="ml-2 h-4 w-4"/>
+                                                    </Button>
+                                                )}
+                                                {milestone.status !== 'in_progress' && <div className="w-36"/>}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4 mt-2 pl-10">
+                                                <div className="space-y-1">
+                                                        <Label className="text-xs">Data Prevista</Label>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                                <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                                {predictedDate ? format(predictedDate, 'dd/MM/yyyy') : 'N/A'}
+                                                            </Button></PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={predictedDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'predictedDate', d)}/></PopoverContent>
+                                                        </Popover>
+                                                </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs">Data Efetiva</Label>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild><Button variant="outline" size="sm" className="w-full justify-start font-normal text-xs">
+                                                                <CalendarIcon className="mr-2 h-3 w-3"/>
+                                                                {milestone.effectiveDate ? format(milestone.effectiveDate, 'dd/MM/yyyy') : 'Pendente'}
+                                                            </Button></PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={milestone.effectiveDate || undefined} onSelect={(d) => handleMilestoneUpdate(index, 'effectiveDate', d)}/></PopoverContent>
+                                                        </Popover>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )})}
+                                </CardContent>
+                            </Card>
+                         </TabsContent>
+                         <TabsContent value="mercadoria" className="mt-0 space-y-6">
+                            <Card>
+                                <CardHeader><CardTitle className="text-lg">Detalhes da Mercadoria</CardTitle></CardHeader>
+                                <CardContent className="space-y-4">
+                                    <FormField control={form.control} name="commodityDescription" render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center gap-2"><CaseSensitive />Descrição da Mercadoria</FormLabel><FormControl><Input placeholder="Peças automotivas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <FormField control={form.control} name="ncm" render={({ field }) => (
+                                            <FormItem><FormLabel className="flex items-center gap-2">NCM</FormLabel><FormControl><Input placeholder="8708.99.90" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="packageQuantity" render={({ field }) => (
+                                            <FormItem><FormLabel className="flex items-center gap-2"><Package /> Quantidade de Volumes</FormLabel><FormControl><Input placeholder="10 caixas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="netWeight" render={({ field }) => (
+                                            <FormItem><FormLabel className="flex items-center gap-2"><Weight/> Peso Líquido</FormLabel><FormControl><Input placeholder="1200 KG" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                    </div>
+                                    <FormField control={form.control} name="freeTimeDemurrage" render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center gap-2"><Clock /> Free Time Demurrage / Detention</FormLabel><FormControl><Input placeholder="14 dias" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle className="text-lg">Contêineres</CardTitle>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `new-${containerFields.length}`, number: '', seal: '', tare: '', grossWeight: '', freeTime: '' })}>
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                                    </Button>
+                                </div>
+                                </CardHeader>
+                                <CardContent>
+                                <div className="border rounded-lg">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Nº Contêiner</TableHead>
+                                                    <TableHead>Lacre</TableHead>
+                                                    <TableHead>Tara</TableHead>
+                                                    <TableHead>Peso Bruto</TableHead>
+                                                    <TableHead>Free Time</TableHead>
+                                                    <TableHead></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {containerFields && containerFields.length > 0 ? containerFields.map((field, index) => (
+                                                    <TableRow key={field.id}>
+                                                        <TableCell><FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
+                                                        <TableCell><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
+                                                        <TableCell><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
+                                                        <TableCell><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
+                                                        <TableCell><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => (<Input placeholder="14 dias" {...field}/>)}/></TableCell>
+                                                        <TableCell>
+                                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )) : (
+                                                    <TableRow><TableCell colSpan={6} className="text-center h-24">Nenhum contêiner adicionado.</TableCell></TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                         </TabsContent>
+                         <TabsContent value="financeiro" className="mt-0 space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Detalhes Financeiros</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="border rounded-lg overflow-hidden">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Taxa</TableHead>
+                                                    <TableHead>Fornecedor</TableHead>
+                                                    <TableHead className="text-right">Custo</TableHead>
+                                                    <TableHead className="text-right">Venda</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {shipment.charges && shipment.charges.map(charge => (
+                                                    <TableRow key={charge.id}>
+                                                        <TableCell>{charge.name}</TableCell>
+                                                        <TableCell className="text-muted-foreground">{charge.supplier}</TableCell>
+                                                        <TableCell className="text-right font-mono">{charge.costCurrency} {charge.cost.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right font-mono">{charge.saleCurrency} {charge.sale.toFixed(2)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                    <div className="flex justify-end gap-2 mt-4">
+                                        <Button variant="outline" type="button" onClick={() => handleBillingClick('pagar')}>
+                                            <Receipt className="mr-2 h-4 w-4" />
+                                            Faturar Contas a Pagar
+                                        </Button>
+                                        <Button variant="outline" type="button" onClick={() => handleBillingClick('receber')}>
+                                            <Wallet className="mr-2 h-4 w-4" />
+                                            Faturar Contas a Receber
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                         </TabsContent>
+                    </div>
+                  </Tabs>
+                  
+                  <SheetFooter className="pt-4 mt-auto border-t">
                       <Button type="submit">
                         <Save className="mr-2 h-4 w-4" />
                         Salvar Alterações

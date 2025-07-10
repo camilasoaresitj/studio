@@ -73,6 +73,24 @@ Then, carefully analyze the HTML structure to find the repeating blocks of HTML 
 -   **Website:** Find the URL from the button or link for the agent's website.
 
 Return a JSON array where each object represents one agent and contains the extracted 'name', 'country', and 'website'. Be thorough and extract all agents from the page. Do not invent information.
+
+**Example of expected JSON output:**
+\`\`\`json
+[
+  {
+    "name": "Example Agent Inc.",
+    "country": "Exampleland",
+    "website": "https://www.example.com"
+  },
+  {
+    "name": "Another Agent Co.",
+    "country": "Testland",
+    "website": "https://www.another.com"
+  }
+]
+\`\`\`
+
+Return an empty array [] if no agents can be extracted.
 `,
     });
 
@@ -88,4 +106,3 @@ Return a JSON array where each object represents one agent and contains the extr
 export async function syncDFAgents(): Promise<SyncDFAgentsOutput> {
   return syncDFAgentsFlow();
 }
-

@@ -279,6 +279,8 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
 
   const shipmentId = `PROC-${quoteData.id.replace('COT-', '')}-${Date.now().toString().slice(-5)}`;
+  const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
+  const purchaseOrderNumber = `PO-${Date.now().toString().slice(-6)}`;
 
   const newShipment: Shipment = {
     id: shipmentId,
@@ -298,8 +300,12 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     masterBillNumber: `MSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+    invoiceNumber: invoiceNumber,
+    purchaseOrderNumber: purchaseOrderNumber,
     packageQuantity: quoteData.details.cargo,
     freeTimeDemurrage: quoteData.details.freeTime,
+    commodityDescription: 'Generic Commodity Description',
+    ncm: '0000.00.00',
     mblPrintingAtDestination: false,
     notifyName: quoteData.notifyName,
     // Keep 'customer' for backward compatibility on display, but shipper/cnee are primary
@@ -315,17 +321,21 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
 
     // Simulate sending email to agent
     await runSendShippingInstructions({
+      shipmentId: newShipment.id,
       agentName: quoteData.agent.name,
       agentEmail: quoteData.agent.contacts[0]?.email || 'agent@example.com',
       shipper: quoteData.shipper,
       consigneeName: quoteData.consignee.name,
       notifyName: quoteData.notifyName,
       freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
-      freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'N/A',
+      freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'AS AGREED',
       agentProfit: quoteData.agent.profitAgreement?.amount ? `USD ${quoteData.agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
       thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
       commodity: newShipment.commodityDescription || 'General Cargo',
+      equipmentDescription: newShipment.packageQuantity || 'N/A',
       ncm: newShipment.ncm || 'N/A',
+      invoiceNumber: newShipment.invoiceNumber || 'N/A',
+      purchaseOrderNumber: newShipment.purchaseOrderNumber || 'N/A',
       updateLink: agentPortalUrl,
     });
     console.log(`Shipping instructions sent for shipment ${newShipment.id}`);

@@ -30,7 +30,7 @@ const prompt = ai.definePrompt({
 
 **Email Structure:**
 
-1.  **Subject:** "SHIPPING INSTRUCTIONS - CargaInteligente // Shipper: {{shipper.name}} // Cnee: {{consigneeName}}"
+1.  **Subject:** "SHIPPING INSTRUCTIONS - Process: {{shipmentId}} // Shipper: {{shipper.name}} // Cnee: {{consigneeName}} // Invoice: {{invoiceNumber}}"
 2.  **Body (HTML Layout):**
 
 <!DOCTYPE html>
@@ -74,15 +74,18 @@ const prompt = ai.definePrompt({
                 </tr>
                  <tr>
                     <td colspan="2" style="padding: 10px; border: 1px solid #ddd;">
-                        <strong style="color: #F97316;">Cargo Details</strong><br>
+                        <strong style="color: #F97316;">Cargo & Equipment Details</strong><br>
                         <strong>Description:</strong> {{commodity}}<br>
-                        <strong>NCM/HS Code:</strong> {{ncm}}
+                        <strong>Equipment:</strong> {{equipmentDescription}}<br>
+                        <strong>NCM/HS Code:</strong> {{ncm}}<br>
+                        <strong>Invoice No.:</strong> {{invoiceNumber}}<br>
+                        <strong>Purchase Order No.:</strong> {{purchaseOrderNumber}}
                     </td>
                 </tr>
                  <tr>
                     <td colspan="2" style="padding: 10px; border: 1px solid #ddd;">
                         <strong style="color: #F97316;">Freight & Charges to be declared on BL</strong><br>
-                        <strong>Freight:</strong> AS AGREED<br>
+                        <strong>Freight:</strong> {{freightSale}}<br>
                         <strong>THC:</strong> {{thcValue}}
                     </td>
                 </tr>

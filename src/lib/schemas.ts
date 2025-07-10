@@ -120,17 +120,21 @@ const PartnerSchemaForPrompt = z.object({
 });
 
 export const SendShippingInstructionsInputSchema = z.object({
+  shipmentId: z.string().describe("The internal process/shipment ID."),
   agentName: z.string().describe("The recipient agent's name."),
   agentEmail: z.string().email().describe("The recipient agent's email address."),
   shipper: PartnerSchemaForPrompt.describe("The shipper's full details."),
   consigneeName: z.string().describe("The consignee's company name."),
   notifyName: z.string().describe("The notify party's name."),
   freightCost: z.string().describe("The agreed freight cost (e.g., 'USD 2500.00')."),
-  freightSale: z.string().describe("The freight sale value (e.g., 'USD 2800.00')."),
+  freightSale: z.string().describe("The freight sale value to be declared on the BL (e.g., 'USD 2800.00')."),
   agentProfit: z.string().describe("The agent's profit share (e.g., 'USD 50.00')."),
   thcValue: z.string().describe("The THC value to be declared on the BL (e.g., 'BRL 1350.00')."),
   commodity: z.string().describe("Description of the goods."),
+  equipmentDescription: z.string().describe("Full description of equipment, including container type and quantity."),
   ncm: z.string().describe("The NCM/HS Code for the goods."),
+  invoiceNumber: z.string().describe("The commercial invoice number."),
+  purchaseOrderNumber: z.string().describe("The purchase order number."),
   updateLink: z.string().url().describe("The unique link for the agent to update shipment details."),
 });
 export type SendShippingInstructionsInput = z.infer<typeof SendShippingInstructionsInputSchema>;

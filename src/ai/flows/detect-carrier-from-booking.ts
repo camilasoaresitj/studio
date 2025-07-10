@@ -42,7 +42,7 @@ Analyze the following number and determine the carrier.
 - **ONE (Ocean Network Express):** Starts with "ONEY".
 - **ZIM:** Starts with "ZIMU".
 
-If the carrier is not identifiable from this list, return "Unknown".
+Based on these patterns and your knowledge, identify the single most likely carrier. If the carrier is not identifiable from this list or your knowledge, return "Unknown".
 
 Booking/BL Number: {{{bookingNumber}}}
 `,
@@ -55,14 +55,6 @@ const detectCarrierFromBookingFlow = ai.defineFlow(
     outputSchema: DetectCarrierFromBookingOutputSchema,
   },
   async (input) => {
-    // For specific cases and reliability, we can add a simple rules-based check before calling the AI.
-    const upperCaseNumber = input.bookingNumber.toUpperCase();
-    if (upperCaseNumber.startsWith('MSCU')) return { carrier: 'MSC' };
-    if (upperCaseNumber.startsWith('MAEU') || /^\d{9}$/.test(upperCaseNumber)) return { carrier: 'Maersk' };
-    if (upperCaseNumber.startsWith('HLCU')) return { carrier: 'Hapag-Lloyd' };
-    if (upperCaseNumber.startsWith('CMDU')) return { carrier: 'CMA CGM' };
-
-    // Fallback to AI for more complex or unknown cases
     const { output } = await prompt(input);
     return output!;
   }

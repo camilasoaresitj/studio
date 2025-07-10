@@ -49,7 +49,58 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async ({ trackingNumber }) => {
-    const result = await cargoFlowsService.getTracking(trackingNumber);
-    return result;
+    
+    const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
+    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
+    const baseUrl = 'https://flow.cargoes.com/api/v1';
+
+    try {
+        console.log(`Calling Cargo-flows API from backend: ${baseUrl}/tracking/${trackingNumber}`);
+        
+        const response = await fetch(`${baseUrl}/tracking/${trackingNumber}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': apiKey,
+            'X-Org-Token': orgToken,
+          },
+        });
+
+        if (!response.ok) {
+            console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
+            return cargoFlowsService.getSimulatedTracking(trackingNumber);
+        }
+        
+        const responseText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Failed to parse Cargo-flows response as JSON.", responseText);
+            throw new Error("A API retornou uma resposta inesperada. Tente novamente mais tarde.");
+        }
+
+        const apiData = data.tracking;
+
+        return {
+            id: apiData.trackingNumber || 'N/A',
+            status: apiData.latestStatus || 'Unknown',
+            origin: apiData.origin || 'Unknown',
+            destination: apiData.destination || 'Unknown',
+            carrier: apiData.carrier || 'Unknown',
+            events: (apiData.events || []).map((event: any) => ({
+                status: event.description,
+                date: event.timestamp,
+                location: event.location,
+                completed: event.isCompleted,
+                carrier: apiData.carrier || 'Unknown'
+            })),
+            vesselName: apiData.vesselName,
+            voyageNumber: apiData.voyageNumber,
+        };
+    } catch (error) {
+        console.error("Error during fetch to Cargo-flows:", error);
+        throw new Error("Falha na comunicação com a API de rastreamento. Verifique sua conexão ou tente mais tarde.");
+    }
   }
 );

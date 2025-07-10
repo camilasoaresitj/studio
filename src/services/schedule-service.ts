@@ -61,57 +61,8 @@ class CargoFlowsService {
     };
   }
 
-  async getTracking(trackingNumber: string): Promise<TrackingResult> {
-    try {
-        console.log(`Calling Cargo-flows API at: ${this.baseUrl}/tracking/${trackingNumber}`);
-        
-        const response = await fetch(`${this.baseUrl}/tracking/${trackingNumber}`, {
-          method: 'GET',
-          headers: this.getHeaders(),
-        });
-
-        if (!response.ok) {
-            console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-            return this.getSimulatedTracking(trackingNumber);
-        }
-        
-        const responseText = await response.text();
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (e) {
-            console.error("Failed to parse Cargo-flows response as JSON.", responseText);
-            throw new Error("A API retornou uma resposta inesperada. Tente novamente mais tarde.");
-        }
-
-        return data.tracking ? this.mapApiDataToTrackingResult(data.tracking) : this.getSimulatedTracking(trackingNumber);
-    } catch (error) {
-        console.error("Error during fetch to Cargo-flows:", error);
-        throw new Error("Falha na comunicação com a API de rastreamento. Verifique sua conexão ou tente mais tarde.");
-    }
-  }
-
-  private mapApiDataToTrackingResult(apiData: any): TrackingResult {
-    return {
-        id: apiData.trackingNumber || 'N/A',
-        status: apiData.latestStatus || 'Unknown',
-        origin: apiData.origin || 'Unknown',
-        destination: apiData.destination || 'Unknown',
-        carrier: apiData.carrier || 'Unknown',
-        events: (apiData.events || []).map((event: any) => ({
-            status: event.description,
-            date: event.timestamp,
-            location: event.location,
-            completed: event.isCompleted,
-            carrier: apiData.carrier || 'Unknown'
-        })),
-        vesselName: apiData.vesselName,
-        voyageNumber: apiData.voyageNumber,
-    };
-  }
-
-  private async getSimulatedTracking(trackingNumber: string): Promise<TrackingResult> {
-     console.log(`Simulating Cargo-flows API call to: ${this.baseUrl}/tracking/${trackingNumber}`);
+  async getSimulatedTracking(trackingNumber: string): Promise<TrackingResult> {
+     console.log(`Simulating Cargo-flows API call for: ${trackingNumber}`);
     await new Promise(resolve => setTimeout(resolve, 1200));
 
     if (trackingNumber.toUpperCase().includes("FAIL")) {

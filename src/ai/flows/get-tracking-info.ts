@@ -59,8 +59,7 @@ const getTrackingInfoFlow = ai.defineFlow(
   async (input) => {
     const maerskApiKey = process.env.MAERSK_API_KEY;
     
-    // --- Primary Method: Maersk Direct API (Temporarily Disabled for Testing) ---
-    /*
+    // --- Primary Method: Maersk Direct API ---
     if (input.carrier.toLowerCase().includes('maersk') && maerskApiKey && maerskApiKey !== '<SUA_CHAVE_AQUI>') {
         try {
             console.log(`Attempting to fetch tracking from Maersk API for: ${input.trackingNumber}`);
@@ -123,12 +122,11 @@ const getTrackingInfoFlow = ai.defineFlow(
                     shipmentDetails: shipmentDetails,
                 };
             }
-             console.log("Maersk API call successful, but no shipment data found. Falling back.");
+             console.warn("Maersk API call successful, but no shipment data found. Falling back.");
         } catch (error) {
              console.warn("Maersk API call failed, falling back. Error:", error);
         }
     }
-    */
 
 
     // --- Fallback Method: Cargo-flows API ---
@@ -155,12 +153,12 @@ const getTrackingInfoFlow = ai.defineFlow(
                 }),
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Cargo-flows API Error (${response.status}): ${errorText}`);
-            }
-
             const data = await response.json();
+
+            if (!response.ok) {
+                // Now we explicitly throw the error message from the API
+                throw new Error(`Cargo-flows API Error (${response.status}): ${data.message || 'Unknown error'}`);
+            }
             
             if (data.tracking && data.tracking.events && data.tracking.events.length > 0) {
                 console.log("Cargo-flows API call successful. Processing real data.");
@@ -210,6 +208,8 @@ const getTrackingInfoFlow = ai.defineFlow(
             }
         } catch (error) {
             console.warn("Cargo-flows API call failed. Error:", error);
+            // Re-throw the error to be caught by the final catch block.
+            throw error;
         }
     }
 

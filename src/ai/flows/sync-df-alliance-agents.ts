@@ -67,12 +67,12 @@ const syncDFAgentsFlow = ai.defineFlow(
 
 First, call the \`fetchDirectoryPageContent\` tool to get the HTML.
 
-Then, carefully analyze the HTML structure. You will find each agent within elements with the class 'jet-listing-grid__item'. Inside each item, extract the following information:
--   **Company Name:** Found within an 'h5' tag with the class 'elementor-heading-title'.
--   **Country:** Found within an 'a' tag with 'jet-listing-dynamic-terms__link' class. It's the text content of the link.
--   **Website:** Found in the 'href' attribute of an 'a' tag with the class 'elementor-button-link'.
+Then, carefully analyze the HTML structure to find the repeating blocks of HTML that represent each agent listing. For each agent, extract the following information:
+-   **Company Name:** This is the most prominent heading for each agent.
+-   **Country:** This is typically a link associated with the agent's location.
+-   **Website:** Find the URL from the button or link for the agent's website.
 
-Return an array of JSON objects, where each object represents an agent and contains the extracted 'name', 'country', and 'website'. Be thorough and extract all agents from the page. Do not invent information.
+Return a JSON array where each object represents one agent and contains the extracted 'name', 'country', and 'website'. Be thorough and extract all agents from the page. Do not invent information.
 `,
     });
 
@@ -88,3 +88,4 @@ Return an array of JSON objects, where each object represents an agent and conta
 export async function syncDFAgents(): Promise<SyncDFAgentsOutput> {
   return syncDFAgentsFlow();
 }
+

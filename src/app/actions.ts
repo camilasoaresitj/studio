@@ -12,7 +12,9 @@ import { getVesselSchedules, GetVesselSchedulesInput, GetVesselSchedulesOutput }
 import { getFlightSchedules, GetFlightSchedulesInput, GetFlightSchedulesOutput } from '@/ai/flows/get-flight-schedules';
 import { generateQuotePdfHtml, GenerateQuotePdfHtmlInput, GenerateQuotePdfHtmlOutput } from '@/ai/flows/generate-quote-pdf-html';
 import { extractQuoteDetailsFromText, ExtractQuoteDetailsFromTextOutput } from '@/ai/flows/extract-quote-details-from-text';
-import { getTrackingInfo, GetTrackingInfoOutput } from '@/ai/flows/get-tracking-info';
+import { getTrackingInfo, GetTrackingInfoOutput, GetTrackingInfoInput } from '@/ai/flows/get-tracking-info';
+import { detectCarrierFromBooking, DetectCarrierFromBookingOutput } from '@/ai/flows/detect-carrier-from-booking';
+
 import type { Partner } from '@/components/partners-registry';
 import type { Shipment } from '@/lib/shipment';
 
@@ -185,14 +187,27 @@ export async function runExtractQuoteDetailsFromText(
 }
 
 export async function runGetTrackingInfo(
-  trackingNumber: string
+  input: GetTrackingInfoInput
 ): Promise<{ success: true; data: GetTrackingInfoOutput } | { success: false; error: string }> {
   try {
-    const result = await getTrackingInfo({ trackingNumber });
+    const result = await getTrackingInfo(input);
     return { success: true, data: result };
   } catch (e) {
     console.error(e);
     const error = e instanceof Error ? e.message : 'An unknown error occurred while fetching tracking info.';
+    return { success: false, error };
+  }
+}
+
+export async function runDetectCarrier(
+  bookingNumber: string
+): Promise<{ success: true; data: DetectCarrierFromBookingOutput } | { success: false; error: string }> {
+  try {
+    const result = await detectCarrierFromBooking({ bookingNumber });
+    return { success: true, data: result };
+  } catch (e) {
+    console.error(e);
+    const error = e instanceof Error ? e.message : 'An unknown error occurred while detecting the carrier.';
     return { success: false, error };
   }
 }

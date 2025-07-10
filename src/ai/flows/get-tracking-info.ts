@@ -14,6 +14,7 @@ import type { Shipment } from '@/lib/shipment';
 
 const GetTrackingInfoInputSchema = z.object({
   trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
+  carrier: z.string().describe('The identified shipping carrier (e.g., Maersk, MSC).'),
 });
 export type GetTrackingInfoInput = z.infer<typeof GetTrackingInfoInputSchema>;
 
@@ -60,21 +61,18 @@ const prompt = ai.definePrompt({
     input: { schema: GetTrackingInfoInputSchema },
     output: { schema: GetTrackingInfoOutputSchema },
     prompt: `You are an expert logistics AI that generates realistic shipment tracking data.
-Given a tracking number, you will create a plausible history of tracking events and shipment details, including container information.
+Given a tracking number and a specific carrier, you will create a plausible history of tracking events and shipment details.
 
 **Instructions:**
-1.  **Carrier Identification:** Based on the tracking number format, identify the most likely carrier (e.g., Maersk, MSC, Hapag-Lloyd, etc.).
-    - Maersk: Starts with numbers (e.g., 254285462) or "MAEU".
-    - MSC: Starts with "MSCU".
-    - Hapag-Lloyd: Often a long numeric string, or starts with "HLCU".
-2.  **Generate Shipment Details:** Create realistic shipment details based on the carrier.
-    - **vesselName/voyageNumber:** Invent a plausible vessel name and voyage number.
+1.  **Use the Provided Carrier:** All generated data (vessel names, voyage numbers, events) must be consistent with the provided carrier: {{{carrier}}}.
+2.  **Generate Shipment Details:** Create realistic shipment details for this carrier.
+    - **vesselName/voyageNumber:** Invent a plausible vessel name and voyage number suitable for the carrier.
     - **origin/destination:** Create a realistic long-haul route (e.g., a port in Asia to a port in South America).
     - **etd/eta:** Generate realistic ETD and ETA dates that are about 30-40 days apart.
     - **masterBillNumber:** Should be the same as the input tracking number.
 3.  **Generate Container Details:**
     - Create details for one or more containers.
-    - **number**: Must be a valid format (e.g., MSCU1234567).
+    - **number**: Must be a valid format for the specified carrier (e.g., MSCU1234567 for MSC).
     - **seal**: Invent a seal number.
     - **tare/grossWeight**: Provide realistic weights in KG.
     - **freeTime**: Provide a standard free time (e.g., '14 dias').
@@ -82,13 +80,13 @@ Given a tracking number, you will create a plausible history of tracking events 
     - Events must be in chronological order.
     - A portion of the events should be marked as \`completed: true\`, and the rest \`completed: false\`.
     - The dates should be logical and span the time between ETD and ETA.
-    - Include at least one transshipment port event if it's a long route.
-    - The 'carrier' for each event should be the one you identified.
+    - The 'carrier' for each event should be the one you were given.
 5.  **Overall Status:** The top-level 'status' field should be the status of the *last completed event*.
 
 **CRITICAL:** Do NOT return the same data every time. Generate a unique and realistic scenario for each request.
 
 **Input Tracking Number:** {{{trackingNumber}}}
+**Input Carrier:** {{{carrier}}}
 `,
 });
 
@@ -98,9 +96,9 @@ const getTrackingInfoFlow = ai.defineFlow(
     inputSchema: GetTrackingInfoInputSchema,
     outputSchema: GetTrackingInfoOutputSchema,
   },
-  async ({ trackingNumber }) => {
+  async (input) => {
     try {
-        const { output } = await prompt({ trackingNumber });
+        const { output } = await prompt(input);
         if (!output) {
             throw new Error('AI failed to generate tracking information.');
         }
@@ -109,6 +107,7 @@ const getTrackingInfoFlow = ai.defineFlow(
         // and structure the milestones for the client.
         const shipmentDetails: Partial<Shipment> = {
             ...output.shipmentDetails,
+            carrier: input.carrier, // Ensure the correct carrier is passed through
             etd: output.shipmentDetails.etd ? new Date(output.shipmentDetails.etd) : undefined,
             eta: output.shipmentDetails.eta ? new Date(output.shipmentDetails.eta) : undefined,
             containers: output.containers,

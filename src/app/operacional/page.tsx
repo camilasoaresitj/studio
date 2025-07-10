@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { runGetTrackingInfo } from '@/app/actions';
+import { runDetectCarrier, runGetTrackingInfo } from '@/app/actions';
 import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -65,10 +65,25 @@ export default function OperacionalPage() {
       }
       setIsFetchingBooking(true);
       
-      const response = await runGetTrackingInfo(bookingNumberToFetch);
+      // Step 1: Detect Carrier
+      const carrierResponse = await runDetectCarrier(bookingNumberToFetch);
+      if (!carrierResponse.success || carrierResponse.data.carrier === 'Unknown') {
+          toast({
+              variant: 'destructive',
+              title: "Armador não identificado",
+              description: carrierResponse.error || `Não foi possível identificar o armador para o booking "${bookingNumberToFetch}".`,
+          });
+          setIsFetchingBooking(false);
+          return;
+      }
+      const carrier = carrierResponse.data.carrier;
+      toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
 
-      if (response.success) {
-          const fetchedData = response.data;
+      // Step 2: Get Tracking Info
+      const trackingResponse = await runGetTrackingInfo({ trackingNumber: bookingNumberToFetch, carrier });
+
+      if (trackingResponse.success) {
+          const fetchedData = trackingResponse.data;
           const shipmentDetails = fetchedData.shipmentDetails || {};
           
           const existingShipmentIndex = shipments.findIndex(s => 
@@ -129,7 +144,7 @@ export default function OperacionalPage() {
           toast({
               variant: 'destructive',
               title: "Erro ao buscar processo",
-              description: response.error,
+              description: trackingResponse.error,
           });
       }
       setIsFetchingBooking(false);

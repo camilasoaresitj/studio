@@ -66,7 +66,7 @@ Given a tracking number and a specific carrier, you will create a plausible hist
 **Instructions:**
 1.  **Use the Provided Carrier:** All generated data (vessel names, voyage numbers, events) must be consistent with the provided carrier: {{{carrier}}}.
 2.  **Generate Shipment Details:** Create realistic shipment details for this carrier.
-    - **vesselName/voyageNumber:** Invent a plausible vessel name and voyage number suitable for the carrier.
+    - **vesselName/voyageNumber:** Invent a plausible vessel name and voyage number suitable for the carrier (e.g., "MAERSK PICO / 428N" for Maersk).
     - **origin/destination:** Create a realistic long-haul route (e.g., a port in Asia to a port in South America).
     - **etd/eta:** Generate realistic ETD and ETA dates that are about 30-40 days apart.
     - **masterBillNumber:** Should be the same as the input tracking number.
@@ -81,6 +81,7 @@ Given a tracking number and a specific carrier, you will create a plausible hist
     - A portion of the events should be marked as \`completed: true\`, and the rest \`completed: false\`.
     - The dates should be logical and span the time between ETD and ETA.
     - The 'carrier' for each event should be the one you were given.
+    - Use standard logistics terminology for the events (e.g., "Container Gated In", "Loaded on Vessel", "Vessel Departure", "Discharged at Destination", "Customs Clearance").
 5.  **Overall Status:** The top-level 'status' field should be the status of the *last completed event*.
 
 **CRITICAL:** Do NOT return the same data every time. Generate a unique and realistic scenario for each request.
@@ -120,7 +121,8 @@ const getTrackingInfoFlow = ai.defineFlow(
             const data = await response.json();
             
             // Check if the API returned valid tracking data
-            if (data.success && data.data) {
+            if (data.success && data.data && data.data.events && data.data.events.length > 0) {
+                console.log("SeaRates API call successful. Processing real data.");
                 const trackingData = data.data;
                 const events: TrackingEvent[] = trackingData.events.map((event: any) => ({
                     status: event.description || 'N/A',
@@ -165,6 +167,7 @@ const getTrackingInfoFlow = ai.defineFlow(
                     shipmentDetails: shipmentDetails,
                 };
             }
+            console.log("SeaRates API call successful, but no tracking events found. Falling back to AI.");
         } catch (error) {
             console.warn("SeaRates API call failed, falling back to AI simulation. Error:", error);
         }

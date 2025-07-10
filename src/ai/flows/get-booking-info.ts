@@ -10,7 +10,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Shipment } from '@/lib/shipment';
-import * as cargoFlows from '@/services/schedule-service';
+import { getTrackingInfo } from '@/ai/flows/get-tracking-info';
 
 const GetBookingInfoOutputSchema = z.any();
 
@@ -35,7 +35,7 @@ const getBookingInfoFlow = ai.defineFlow(
     console.log(`Fetching real carrier data from Cargo-flows for booking: ${bookingNumber} with carrier: ${carrier}`);
     
     // Cargo-flows tracking result provides all the necessary details
-    const trackingResult = await cargoFlows.cargoFlowsService.getTracking(bookingNumber);
+    const trackingResult = await getTrackingInfo({ trackingNumber: bookingNumber });
     
     const { 
         id, 
@@ -81,7 +81,7 @@ const getBookingInfoFlow = ai.defineFlow(
         contacts: []
       },
       charges: [],
-      details: { cargo: 'Detalhes da Carga', transitTime: 'A definir', validity: '', freeTime: '' },
+      details: { cargo: 'Detalhes da Carga', transitTime: 'A definir', validity: '', freeTime: '', incoterm: 'FOB' },
       milestones: [],
       origin: 'Desconhecida',
       destination: 'Desconhecida',

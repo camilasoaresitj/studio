@@ -40,7 +40,32 @@ const getVesselSchedulesFlow = ai.defineFlow(
     outputSchema: GetVesselSchedulesOutputSchema,
   },
   async ({ origin, destination }) => {
-    const schedules = await cargoFlowsService.getVesselSchedules(origin, destination);
-    return schedules;
+    const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
+    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
+    const baseUrl = 'https://flow.cargoes.com/api/v1';
+
+    try {
+        console.log(`Calling Cargo-flows API at: ${baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`);
+        
+        const response = await fetch(`${baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': apiKey,
+            'X-Org-Token': orgToken,
+          },
+        });
+
+        if (!response.ok) {
+          console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
+          return cargoFlowsService.getSimulatedVesselSchedules();
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Error during fetch to Cargo-flows for vessel schedules:", error);
+        throw new Error("Falha na comunicação com a API de schedules. Verifique sua conexão ou tente mais tarde.");
+    }
   }
 );

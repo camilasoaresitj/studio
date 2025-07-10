@@ -53,14 +53,6 @@ class CargoFlowsService {
     this.orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
   }
 
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-      'X-Api-Key': this.apiKey,
-      'X-Org-Token': this.orgToken,
-    };
-  }
-
   async getSimulatedTracking(trackingNumber: string): Promise<TrackingResult> {
      console.log(`Simulating Cargo-flows API call for: ${trackingNumber}`);
     await new Promise(resolve => setTimeout(resolve, 1200));
@@ -91,30 +83,8 @@ class CargoFlowsService {
       events,
     };
   }
-
-  async getVesselSchedules(origin: string, destination: string): Promise<VesselSchedule[]> {
-    try {
-        console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`);
-        
-        const response = await fetch(`${this.baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`, {
-          method: 'GET',
-          headers: this.getHeaders(),
-        });
-
-        if (!response.ok) {
-          console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-          return this.getSimulatedVesselSchedules();
-        }
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error("Error during fetch to Cargo-flows for vessel schedules:", error);
-        throw new Error("Falha na comunicação com a API de schedules. Verifique sua conexão ou tente mais tarde.");
-    }
-  }
   
-  private async getSimulatedVesselSchedules(): Promise<VesselSchedule[]> {
+  async getSimulatedVesselSchedules(): Promise<VesselSchedule[]> {
      await new Promise(resolve => setTimeout(resolve, 900));
     return [
       { vesselName: 'MAERSK PICO', voyage: '428N', carrier: 'Maersk', etd: '2024-07-25T12:00:00Z', eta: '2024-08-20T12:00:00Z', transitTime: '26 dias' },
@@ -125,29 +95,7 @@ class CargoFlowsService {
     ];
   }
   
-  async getFlightSchedules(origin: string, destination: string): Promise<FlightSchedule[]> {
-    try {
-        console.log(`Calling Cargo-flows API at: ${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`);
-        
-        const response = await fetch(`${this.baseUrl}/schedules/flight?origin=${origin}&destination=${destination}`, {
-          method: 'GET',
-          headers: this.getHeaders(),
-        });
-        
-        if (!response.ok) {
-           console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-          return this.getSimulatedFlightSchedules();
-        }
-        
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error("Error during fetch to Cargo-flows for flight schedules:", error);
-        throw new Error("Falha na comunicação com a API de schedules. Verifique sua conexão ou tente mais tarde.");
-    }
-  }
-
-  private async getSimulatedFlightSchedules(): Promise<FlightSchedule[]> {
+  async getSimulatedFlightSchedules(): Promise<FlightSchedule[]> {
     await new Promise(resolve => setTimeout(resolve, 800));
     return [
       { flightNumber: 'LA8145', carrier: 'LATAM Cargo', etd: '2024-07-25T22:30:00Z', eta: '2024-07-26T07:00:00Z', transitTime: '8h 30m', aircraft: 'Boeing 777F' },

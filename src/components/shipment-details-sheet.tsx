@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runDetectCarrier, runGetCourierStatus } from '@/app/actions';
+import { runGetTrackingInfo, runGetCourierStatus } from '@/app/actions';
 
 
 const containerDetailSchema = z.object({
@@ -290,26 +290,19 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   };
 
   const handleSyncBookingInfo = async () => {
-    const trackingNumber = form.getValues('bookingNumber') || form.getValues('masterBillNumber');
+    const trackingNumber = form.getValues('bookingNumber');
+    const carrier = form.getValues('carrier');
+
     if (!trackingNumber) {
-        toast({ variant: 'destructive', title: 'Nenhum Número de Rastreio', description: 'Por favor, insira um número de Booking ou Master BL para sincronizar.' });
+        toast({ variant: 'destructive', title: 'Nenhum Número de Booking', description: 'Por favor, insira um número de Booking para sincronizar.' });
+        return;
+    }
+    if (!carrier) {
+        toast({ variant: 'destructive', title: 'Nenhum Armador', description: 'Por favor, insira o nome do Armador para sincronizar.' });
         return;
     }
     setIsSyncing(true);
 
-    const carrierResponse = await runDetectCarrier(trackingNumber);
-    if (!carrierResponse.success || carrierResponse.data.carrier === 'Unknown') {
-        toast({
-            variant: 'destructive',
-            title: "Armador não identificado",
-            description: carrierResponse.error || `Não foi possível identificar o armador para o tracking "${trackingNumber}".`,
-        });
-        setIsSyncing(false);
-        return;
-    }
-    const carrier = carrierResponse.data.carrier;
-    toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
-    
     const trackingResponse = await runGetTrackingInfo({ trackingNumber, carrier });
 
     if (trackingResponse.success && shipment) {

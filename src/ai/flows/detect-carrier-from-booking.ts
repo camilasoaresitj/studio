@@ -36,11 +36,14 @@ Analyze the following number and determine the carrier.
 - **Maersk:** Starts with numbers (e.g., 254285462) or "MAEU".
 - **MSC:** Starts with "MSCU".
 - **Hapag-Lloyd:** Often a long numeric string, or starts with "HLCU".
-- **CMA CGM:** Starts with "CMDU".
+- **CMA CGM:** Starts with "CMDU" or "CGM".
 - **Evergreen:** Starts with "EGLV".
 - **COSCO:** Starts with "COSU".
 - **ONE (Ocean Network Express):** Starts with "ONEY".
 - **ZIM:** Starts with "ZIMU".
+- **Yang Ming:** Starts with "YMLU".
+- **HMM (Hyundai Merchant Marine):** Starts with "HDMU".
+- **OOCL:** Starts with "OOLU".
 
 Based on these patterns and your knowledge, identify the single most likely carrier. If the carrier is not identifiable from this list or your knowledge, return "Unknown".
 

@@ -36,7 +36,7 @@ const getBookingInfoFlow = ai.defineFlow(
     console.log(`Fetching real carrier data from Cargo-flows for booking: ${bookingNumber} with carrier: ${carrier}`);
     
     // Cargo-flows tracking result provides all the necessary details
-    const trackingResult = await getTrackingInfo({ trackingNumber: bookingNumber });
+    const trackingResult = await getTrackingInfo({ trackingNumber });
     
     const { 
         id, 
@@ -60,39 +60,32 @@ const getBookingInfoFlow = ai.defineFlow(
     const etdEvent = events.find(e => e.status.toLowerCase().includes('departure'));
     const etaEvent = [...events].reverse().find(e => e.status.toLowerCase().includes('arrival'));
 
-    // Create a base shipment structure with defaults for fields not available in the tracking API
-    const baseShipment: Shipment = {
+    // Create a new shipment structure with the fetched data
+    const finalShipment: Shipment = {
       id: `PROC-${bookingNumber.slice(-6)}`,
-      customer: 'Cliente a ser definido',
+      customer: 'Cliente a ser definido', 
       overseasPartner: { 
         id: 0, name: 'Parceiro a ser definido', nomeFantasia: 'Parceiro', roles: { fornecedor: true, cliente: false, agente: false, comissionado: false },
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
         contacts: []
       },
       charges: [],
-      details: { cargo: 'Detalhes da Carga', transitTime: 'A definir', validity: '', freeTime: '', incoterm: 'FOB' },
-      milestones: [],
-      origin: 'Desconhecida',
-      destination: 'Desconhecida',
-    };
-
-    // Merge the fetched data with the base structure
-    const finalShipment: Shipment = {
-        ...baseShipment,
-        id,
-        origin,
-        destination,
-        bookingNumber: id,
-        masterBillNumber: id, // Assume BL is same as booking for this simulation
-        vesselName,
-        voyageNumber,
-        etd: etdEvent ? new Date(etdEvent.date) : undefined,
-        eta: etaEvent ? new Date(etaEvent.date) : undefined,
-        milestones,
-        details: {
-            ...baseShipment.details,
-            cargo: trackingResult.carrier === 'Aéreo' ? 'Carga Aérea' : 'FCL Container'
-        }
+      origin,
+      destination,
+      bookingNumber: id,
+      masterBillNumber: id, // Assume BL is same as booking for this simulation
+      vesselName,
+      voyageNumber,
+      etd: etdEvent ? new Date(etdEvent.date) : undefined,
+      eta: etaEvent ? new Date(etaEvent.date) : undefined,
+      milestones,
+      details: {
+          cargo: trackingResult.carrier === 'Aéreo' ? 'Carga Aérea' : 'FCL Container',
+          transitTime: 'A definir',
+          validity: '',
+          freeTime: '',
+          incoterm: 'FOB',
+      }
     };
 
     return finalShipment;

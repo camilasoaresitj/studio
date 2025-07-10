@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch full shipment details using a tracking number from the Cargo-flows service.
+ * @fileOverview A Genkit flow to fetch and merge shipment details using a tracking number from the Cargo-flows service.
  *
- * getBookingInfo - A function that fetches shipment info.
+ * getBookingInfo - A function that fetches shipment info and merges it with an existing shipment object.
  * GetBookingInfoInput - The input type.
  * GetBookingInfoOutput - The return type (a full Shipment object).
  */
@@ -13,11 +13,11 @@ import { z } from 'zod';
 import type { Shipment, Milestone } from '@/lib/shipment';
 import { getTrackingInfo } from '@/ai/flows/get-tracking-info';
 
-const GetBookingInfoOutputSchema = z.any();
-
+// The input now includes the existing shipment object to merge data into.
 const GetBookingInfoInputSchema = z.object({
   bookingNumber: z.string().describe('The carrier booking number or Master BL.'),
   carrier: z.string().describe('The carrier associated with the booking number (e.g., Maersk, MSC).'),
+  existingShipment: z.any().describe('The existing shipment object to merge the fetched data into.'),
 });
 export type GetBookingInfoInput = z.infer<typeof GetBookingInfoInputSchema>;
 export type GetBookingInfoOutput = Shipment; // Export the actual TypeScript type for the action.
@@ -30,13 +30,12 @@ const getBookingInfoFlow = ai.defineFlow(
   {
     name: 'getBookingInfoFlow',
     inputSchema: GetBookingInfoInputSchema,
-    outputSchema: GetBookingInfoOutputSchema,
+    outputSchema: z.any(),
   },
-  async ({ bookingNumber, carrier }) => {
-    console.log(`Fetching real carrier data from Cargo-flows for booking: ${bookingNumber} with carrier: ${carrier}`);
+  async ({ bookingNumber, carrier, existingShipment }) => {
+    console.log(`Fetching real carrier data for booking: ${bookingNumber} with carrier: ${carrier}`);
     
-    // Cargo-flows tracking result provides all the necessary details
-    const trackingResult = await getTrackingInfo({ trackingNumber: bookingNumber });
+    const trackingResult = await getTrackingInfo({ trackingNumber });
     
     const { 
         id, 
@@ -47,7 +46,6 @@ const getBookingInfoFlow = ai.defineFlow(
         events 
     } = trackingResult;
 
-    // Use the tracking events to create milestones
     const milestones: Milestone[] = events.map(event => ({
         name: event.status,
         status: event.completed ? 'completed' as const : 'pending' as const,
@@ -56,39 +54,28 @@ const getBookingInfoFlow = ai.defineFlow(
         details: event.location,
     }));
 
-    // Find ETD and ETA from events
     const etdEvent = events.find(e => e.status.toLowerCase().includes('departure') || e.status.toLowerCase().includes('embarque'));
     const etaEvent = [...events].reverse().find(e => e.status.toLowerCase().includes('arrival') || e.status.toLowerCase().includes('chegada'));
 
-    // Create a new shipment structure with the fetched data
-    // This now correctly uses the data from the tracking service instead of hardcoded values.
-    const finalShipment: Shipment = {
-      id: `PROC-${id.slice(-6)}`,
-      customer: 'Cliente a ser definido', 
-      overseasPartner: { 
-        id: 0, name: 'Parceiro a ser definido', nomeFantasia: 'Parceiro', roles: { fornecedor: true, cliente: false, agente: false, comissionado: false },
-        address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
-        contacts: []
-      },
-      charges: [],
-      origin,
-      destination,
-      bookingNumber: id,
+    // **CRITICAL CHANGE**: Merge fetched data into the existing shipment object
+    // This preserves manually entered data like customer, partners, charges, etc.
+    const updatedShipment: Shipment = {
+      ...existingShipment, // Start with the existing data
+      origin: origin, // Overwrite with fresh data from API
+      destination: destination, // Overwrite with fresh data from API
+      bookingNumber: id, // Overwrite with fresh data from API
       masterBillNumber: id, // Assume BL is same as booking for this simulation
-      vesselName,
-      voyageNumber,
-      etd: etdEvent ? new Date(etdEvent.date) : undefined,
-      eta: etaEvent ? new Date(etaEvent.date) : undefined,
-      milestones,
-      details: {
+      vesselName: vesselName, // Overwrite with fresh data from API
+      voyageNumber: voyageNumber, // Overwrite with fresh data from API
+      etd: etdEvent ? new Date(etdEvent.date) : existingShipment.etd, // Update if available
+      eta: etaEvent ? new Date(etaEvent.date) : existingShipment.eta, // Update if available
+      milestones, // Overwrite with the latest milestones
+      details: { // Update details section
+          ...existingShipment.details,
           cargo: trackingResult.carrier === 'Aéreo' ? 'Carga Aérea' : 'FCL Container',
-          transitTime: 'A definir',
-          validity: '',
-          freeTime: '',
-          incoterm: 'FOB',
       }
     };
 
-    return finalShipment;
+    return updatedShipment;
   }
 );

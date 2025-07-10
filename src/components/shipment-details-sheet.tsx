@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { runGetBookingInfo } from '@/app/actions';
 
 
 const containerDetailSchema = z.object({
@@ -85,7 +86,6 @@ interface ShipmentDetailsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: (updatedShipment: Shipment) => void;
-  onSync: (bookingNumber: string) => Promise<void>;
 }
 
 const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date | null }) => {
@@ -109,7 +109,7 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 };
 
 
-export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, onSync }: ShipmentDetailsSheetProps) {
+export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
   
@@ -258,7 +258,25 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
         return;
     }
     setIsSyncing(true);
-    await onSync(trackingNumber);
+    
+    // Pass the entire current shipment object to the action
+    const response = await runGetBookingInfo(trackingNumber, shipment);
+
+    if (response.success) {
+      onUpdate(response.data);
+      toast({
+        title: 'Embarque Sincronizado!',
+        description: `Os dados de ${trackingNumber} foram atualizados.`,
+        className: 'bg-success text-success-foreground'
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Erro na Sincronização',
+        description: response.error,
+      });
+    }
+    
     setIsSyncing(false);
   };
 

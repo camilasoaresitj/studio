@@ -55,7 +55,7 @@ export default function OperacionalPage() {
     });
   };
   
-  const handleFetchBooking = async (bookingNumberToFetch: string) => {
+  const handleFetchNewBooking = async (bookingNumberToFetch: string) => {
       if (!bookingNumberToFetch.trim()) {
           toast({
               variant: 'destructive',
@@ -65,7 +65,11 @@ export default function OperacionalPage() {
           return;
       }
       setIsFetchingBooking(true);
-      const response = await runGetBookingInfo(bookingNumberToFetch);
+      // Create a dummy shipment object to pass to the action.
+      // This will be replaced by the real data if found.
+      const dummyShipment: Partial<Shipment> = { id: `TEMP-${bookingNumberToFetch}`, customer: 'Novo Processo', milestones: [], charges: [], details: { cargo: '', transitTime: '', validity: '', freeTime: '', incoterm: 'FOB' }, origin: '', destination: '' };
+
+      const response = await runGetBookingInfo(bookingNumberToFetch, dummyShipment as Shipment);
 
       if (response.success) {
           const fetchedShipment = response.data;
@@ -278,7 +282,7 @@ export default function OperacionalPage() {
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button onClick={() => handleFetchBooking(newBookingNumber)} disabled={isFetchingBooking}>
+                            <Button onClick={() => handleFetchNewBooking(newBookingNumber)} disabled={isFetchingBooking}>
                                 {isFetchingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
                                 Importar Processo
                             </Button>
@@ -336,7 +340,6 @@ export default function OperacionalPage() {
         open={!!selectedShipment}
         onOpenChange={(isOpen) => !isOpen && setSelectedShipment(null)}
         onUpdate={handleShipmentUpdate}
-        onSync={handleFetchBooking}
     />
     </>
   );

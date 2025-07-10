@@ -200,11 +200,12 @@ export async function runGetTrackingInfo(
 }
 
 export async function runGetBookingInfo(
-  bookingNumber: string
+  bookingNumber: string,
+  existingShipment: Shipment
 ): Promise<{ success: true; data: Shipment } | { success: false; error: string }> {
   try {
     const { carrier } = await detectCarrierFromBooking({ bookingNumber });
-    const result = (await getBookingInfo({ bookingNumber, carrier })) as Shipment;
+    const result = (await getBookingInfo({ bookingNumber, carrier, existingShipment })) as Shipment;
     return { success: true, data: result };
   } catch (e) {
     console.error(e);

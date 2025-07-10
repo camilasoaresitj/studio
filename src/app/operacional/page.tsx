@@ -140,7 +140,6 @@ export default function OperacionalPage() {
     }
   
     const firstPending = shipment.milestones.find(m => m.status === 'pending' || m.status === 'in_progress');
-    const departureCompleted = shipment.milestones.some(m => m.name.toLowerCase().includes('embarque') && m.status === 'completed');
   
     if (!firstPending) {
       return { text: 'Finalizado', variant: 'outline' };
@@ -148,20 +147,18 @@ export default function OperacionalPage() {
   
     const firstPendingName = firstPending.name.toLowerCase();
     
+    // Check if departure has happened by looking for a completed 'departure' or 'embarque'
+    const departureCompleted = shipment.milestones.some(m => 
+      (m.name.toLowerCase().includes('departure') || m.name.toLowerCase().includes('embarque')) 
+      && m.status === 'completed'
+    );
+  
     if (firstPendingName.includes('booking')) {
       return { text: 'Confirmação de Booking', variant: 'default' };
     }
   
-    if (firstPendingName.includes('embarque')) {
-      return { text: 'Pendente de Booking', variant: 'default' };
-    }
-
-    if (departureCompleted && firstPendingName.includes('chegada')) {
+    if (departureCompleted && (firstPendingName.includes('arrival') || firstPendingName.includes('chegada'))) {
         return { text: 'Pendente de Transit', variant: 'default' };
-    }
-  
-    if (firstPendingName.includes('chegada')) {
-      return { text: 'Chegada no Destino', variant: 'default' };
     }
   
     return { text: `Pendente: ${firstPending.name}`, variant: 'secondary' };

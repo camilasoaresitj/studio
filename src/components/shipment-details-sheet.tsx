@@ -90,22 +90,22 @@ interface ShipmentDetailsSheetProps {
 
 const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date | null }) => {
     if (!predictedDate || !isValid(predictedDate)) {
-        return <Hourglass className="h-5 w-5 text-muted-foreground" />;
+        return <Circle className="h-6 w-6 text-muted-foreground" />;
     }
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const isOverdue = isPast(predictedDate) && status !== 'completed';
 
     if (isOverdue) {
-        return <AlertTriangle className="h-5 w-5 text-destructive" />;
+        return <AlertTriangle className="h-6 w-6 text-destructive" />;
     }
     if (status === 'completed') {
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
+        return <CheckCircle className="h-6 w-6 text-success" />;
     }
     if (status === 'in_progress') {
-        return <Hourglass className="h-5 w-5 text-blue-600 animate-pulse" />;
+        return <Hourglass className="h-6 w-6 text-primary animate-pulse" />;
     }
-    return <Circle className="h-5 w-5 text-muted-foreground" />;
+    return <Circle className="h-6 w-6 text-muted-foreground" />;
 };
 
 
@@ -469,7 +469,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                                         const statusBadge = getMilestoneStatusBadge(milestone.status);
 
                                         return (
-                                        <div key={`${milestone.name}-${index}`} className="p-3 border rounded-lg flex items-start gap-4">
+                                        <Card key={`${milestone.name}-${index}`} className="p-3 flex items-start gap-4">
                                             <div className="pt-1">
                                                 <MilestoneIcon status={milestone.status} predictedDate={predictedDate} />
                                             </div>
@@ -478,7 +478,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                                                     <p className="font-semibold">{milestone.name}</p>
                                                     <Badge variant={statusBadge.variant} className="capitalize">{statusBadge.text}</Badge>
                                                 </div>
-                                                <p className="text-xs text-muted-foreground">{milestone.details || milestone.name}</p>
+                                                <p className="text-xs text-muted-foreground">{milestone.details || 'Detalhes não disponíveis'}</p>
+                                                
+                                                <Separator className="my-3"/>
                                                 
                                                 <div className="grid grid-cols-2 gap-4 mt-2">
                                                     <div className="space-y-1">
@@ -503,7 +505,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate, o
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </Card>
                                     )})}
                                 </CardContent>
                             </Card>

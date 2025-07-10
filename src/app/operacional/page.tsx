@@ -72,9 +72,9 @@ export default function OperacionalPage() {
           const shipmentDetails = fetchedData.shipmentDetails || {};
           
           const existingShipmentIndex = shipments.findIndex(s => 
-              (s.bookingNumber && s.bookingNumber === bookingNumberToFetch) || 
-              (s.masterBillNumber && s.masterBillNumber === bookingNumberToFetch) ||
-              (s.id === `PROC-${bookingNumberToFetch}`) // Also check for proc id
+              (s.bookingNumber && s.bookingNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) || 
+              (s.masterBillNumber && s.masterBillNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) ||
+              (s.id.toUpperCase() === `PROC-${bookingNumberToFetch.toUpperCase()}`)
           );
           
           let updatedShipment: Shipment;

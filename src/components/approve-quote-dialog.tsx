@@ -220,7 +220,6 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
 
     const agent = selectedAgentId !== 'none' ? partners.find(p => p.id?.toString() === selectedAgentId) : undefined;
     
-    // Teste e Log
     const freightCharge = quote.charges.find(c => c.name.toLowerCase().includes('frete'));
     const thcCharge = quote.charges.find(c => c.name.toLowerCase().includes('thc'));
     const response = await runSendShippingInstructions({
@@ -239,11 +238,11 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
     });
     
     if (response.success && response.data) {
-        console.log("--- TESTE DE INSTRUÇÕES DE EMBARQUE ---");
-        console.log("ASSUNTO:", response.data.emailSubject);
-        console.log("CORPO (HTML):", response.data.emailBody);
-        console.log("-----------------------------------------");
-        toast({ title: "Teste Concluído!", description: "O e-mail de Instruções de Embarque foi gerado. Verifique o console (F12).", className: 'bg-success text-success-foreground' });
+        const emailHtml = response.data.emailBody;
+        const newTab = window.open();
+        newTab?.document.write(emailHtml);
+        newTab?.document.close();
+        toast({ title: "Visualização Gerada!", description: "O e-mail de Instruções de Embarque foi aberto em uma nova aba.", className: 'bg-success text-success-foreground' });
     } else {
         toast({ variant: 'destructive', title: "Erro no Teste", description: response.error || 'Falha ao gerar o e-mail de teste.' });
     }

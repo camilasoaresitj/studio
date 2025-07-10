@@ -114,7 +114,7 @@ export type Shipment = {
   notifyName?: string;
   invoiceNumber?: string;
   purchaseOrderNumber?: string;
-  // Deprecated field, shipper/consignee are now top-level
+  // Deprecated field, shipper/consignee are top-level
   customer: string;
   overseasPartner?: Partner;
 };
@@ -278,8 +278,10 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
 
   const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
 
+  const shipmentId = `PROC-${quoteData.id.replace('COT-', '')}-${Date.now().toString().slice(-5)}`;
+
   const newShipment: Shipment = {
-    id: `PROC-${quoteData.id.replace('COT-', '')}-${Date.now().toString().slice(-5)}`,
+    id: shipmentId,
     quoteId: quoteData.id,
     origin: quoteData.origin,
     destination: quoteData.destination,
@@ -307,7 +309,10 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   // If it's an import with an agent, send the shipping instructions automatically.
   if (isImport && quoteData.agent) {
     const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
-    
+    const agentPortalUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/agent-portal/${shipmentId}`
+        : `/agent-portal/${shipmentId}`;
+
     // Simulate sending email to agent
     await runSendShippingInstructions({
       agentName: quoteData.agent.name,
@@ -321,7 +326,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
       thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
       commodity: newShipment.commodityDescription || 'General Cargo',
       ncm: newShipment.ncm || 'N/A',
-      updateLink: `https://cargainteligente.com/agent-portal/${newShipment.id}`,
+      updateLink: agentPortalUrl,
     });
     console.log(`Shipping instructions sent for shipment ${newShipment.id}`);
   }

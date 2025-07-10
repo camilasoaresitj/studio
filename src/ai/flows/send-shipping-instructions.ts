@@ -39,8 +39,8 @@ const prompt = ai.definePrompt({
     <meta charset="UTF-8">
     <title>Shipping Instructions - {{shipper.name}}</title>
 </head>
-<body style="font-family: Arial, sans-serif; font-size: 14px; color: #333; margin: 0; padding: 0;">
-    <div style="max-width: 800px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+<body style="font-family: Arial, sans-serif; font-size: 14px; color: #333; margin: 0; padding: 0; background-color: #f4f4f4;">
+    <div style="max-width: 800px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff;">
         <h1 style="color: #F97316; font-size: 24px;">Shipping Instructions</h1>
         <p>Dear {{agentName}},</p>
         <p>Please find below our shipping instructions. Kindly proceed with the booking and send us the confirmation and draft BL for approval.</p>
@@ -90,7 +90,7 @@ const prompt = ai.definePrompt({
         </table>
 
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{{updateLink}}" style="background-color: #F97316; color: white; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">
+            <a href="{{updateLink}}" style="background-color: #F97316; color: white; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;" target="_blank">
                 Update Booking Details
             </a>
         </div>
@@ -131,4 +131,3 @@ const sendShippingInstructionsFlow = ai.defineFlow(
     return output!;
   }
 );
-

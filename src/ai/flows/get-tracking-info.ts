@@ -103,12 +103,12 @@ const getTrackingInfoFlow = ai.defineFlow(
     if (seaRatesApiKey) {
         try {
             console.log(`Attempting to fetch tracking from SeaRates API for: ${input.trackingNumber}`);
-            const response = await fetch('https://developers.searates.com/api/v1/tracking', {
+            const response = await fetch('https://developers.searates.com/api/v1/tracking/track', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'api-key': seaRatesApiKey },
                 body: JSON.stringify({
-                    tracking_number: input.trackingNumber,
-                    carrier_name: input.carrier // Providing carrier name helps SeaRates
+                    number: input.trackingNumber,
+                    carrier: input.carrier // Providing carrier name helps SeaRates
                 }),
             });
 
@@ -204,5 +204,3 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
-
-    

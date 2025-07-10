@@ -41,36 +41,9 @@ const getVesselSchedulesFlow = ai.defineFlow(
     outputSchema: GetVesselSchedulesOutputSchema,
   },
   async ({ origin, destination }) => {
-    const apiKey = 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const orgToken = '9H31zRWYCGihV5U3th5JJXZI3h7LGen6';
-    const baseUrl = 'https://flow.cargoes.com/api/v1';
-
-    try {
-        console.log(`Calling Cargo-flows API at: ${baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`);
-        
-        const response = await fetch(`${baseUrl}/schedules/vessel?origin=${origin}&destination=${destination}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Api-Key': apiKey,
-            'X-Org-Token': orgToken,
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          },
-        });
-
-        if (!response.ok) {
-          console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-          return cargoFlowsService.getSimulatedVesselSchedules();
-        }
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error("Error during fetch to Cargo-flows for vessel schedules:", error);
-        console.log("Falling back to simulated vessel schedules due to error.");
-        return cargoFlowsService.getSimulatedVesselSchedules();
-    }
+    // The Cargo-flows API integration was unstable.
+    // We are now falling back to simulated data to ensure app stability.
+    console.log("Falling back to simulated vessel schedules.");
+    return cargoFlowsService.getSimulatedVesselSchedules();
   }
 );
-
-    

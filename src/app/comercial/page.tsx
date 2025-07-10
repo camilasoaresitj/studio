@@ -17,6 +17,10 @@ import type { Rate } from '@/components/rates-table';
 import type { FreightQuoteFormData } from '@/lib/schemas';
 import { SendQuoteOutput } from '@/ai/flows/send-quote';
 import { useToast } from '@/hooks/use-toast';
+import { runSyncDFAgents } from '@/app/actions';
+import { Button } from '@/components/ui/button';
+import { Globe, Loader2 } from 'lucide-react';
+import type { DFAgent } from '@/ai/flows/sync-df-alliance-agents';
 
 
 const initialRatesData: Rate[] = [
@@ -134,6 +138,7 @@ export default function ComercialPage() {
   const [fees, setFees] = useState(initialFeesData);
   const [activeTab, setActiveTab] = useState('quote');
   const [quoteFormData, setQuoteFormData] = useState<Partial<FreightQuoteFormData> | null>(null);
+  const [isSyncingAgents, setIsSyncingAgents] = useState(false);
   const { toast } = useToast();
 
   const handlePartnerSaved = (partnerToSave: Partner) => {
@@ -271,6 +276,68 @@ export default function ComercialPage() {
     setQuotes(prevQuotes => prevQuotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
   };
 
+  const handleSyncAgents = async () => {
+    setIsSyncingAgents(true);
+    toast({ title: 'Sincronizando agentes da DF Alliance...' });
+    const response = await runSyncDFAgents();
+
+    if (response.success && response.data) {
+      const syncedAgents = response.data as DFAgent[];
+      const currentPartners = getPartners();
+      const existingPartnerNames = new Set(currentPartners.map(p => p.name.toLowerCase()));
+      let newAgentsCount = 0;
+
+      const newPartners = syncedAgents.reduce((acc, agent) => {
+        if (!existingPartnerNames.has(agent.name.toLowerCase())) {
+          newAgentsCount++;
+          const newPartner: Partner = {
+            id: 0, // temp ID
+            name: agent.name,
+            nomeFantasia: agent.name,
+            roles: { agente: true, cliente: false, fornecedor: false, comissionado: false },
+            profitAgreement: { amount: 50, unit: 'por_container' },
+            paymentTerm: 30,
+            exchangeRateAgio: 0,
+            address: {
+                street: agent.website,
+                city: '',
+                state: '',
+                zip: '',
+                number: '',
+                complement: '',
+                district: '',
+                country: agent.country
+            },
+            contacts: [{ name: 'Contato Principal', email: `info@${agent.website.replace(/^(https?:\/\/)?(www\.)?/, '')}`, phone: '000000000', departments: ['Comercial'] }],
+          };
+          acc.push(newPartner);
+        }
+        return acc;
+      }, [] as Partner[]);
+
+      if (newPartners.length > 0) {
+        let currentMaxId = Math.max(0, ...currentPartners.map(p => p.id ?? 0));
+        const partnersToSave = newPartners.map(p => ({ ...p, id: ++currentMaxId }));
+        const updatedPartners = [...currentPartners, ...partnersToSave];
+        savePartners(updatedPartners);
+        setPartners(updatedPartners);
+      }
+      
+      toast({
+        title: 'Sincronização Concluída!',
+        description: `${newAgentsCount} novos agentes foram adicionados. ${syncedAgents.length} agentes no total foram encontrados.`,
+        className: 'bg-success text-success-foreground'
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Erro na Sincronização',
+        description: response.error,
+      });
+    }
+    setIsSyncingAgents(false);
+  };
+
   return (
     <div className="p-4 md:p-8">
       <header className="mb-8">
@@ -331,9 +398,15 @@ export default function ComercialPage() {
         </TabsContent>
         <TabsContent value="partners" className="mt-6">
             <Card>
-                <CardHeader>
-                    <CardTitle>Cadastro de Parceiros</CardTitle>
-                    <CardDescription>Gerencie seus clientes, fornecedores e agentes.</CardDescription>
+                <CardHeader className="flex flex-row justify-between items-center">
+                    <div>
+                        <CardTitle>Cadastro de Parceiros</CardTitle>
+                        <CardDescription>Gerencie seus clientes, fornecedores e agentes.</CardDescription>
+                    </div>
+                     <Button variant="outline" onClick={handleSyncAgents} disabled={isSyncingAgents}>
+                        {isSyncingAgents ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
+                        Sincronizar Agentes DF Alliance
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <PartnersRegistry partners={partners} onPartnerSaved={handlePartnerSaved} />

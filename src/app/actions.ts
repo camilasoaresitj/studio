@@ -16,6 +16,7 @@ import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
 import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
+import { syncDFAgents } from "@/ai/flows/sync-df-alliance-agents";
 
 
 export async function runGetFreightRates(input: any) {
@@ -181,5 +182,15 @@ export async function runMonitorTasks(emailSubject: string, emailContent: string
     } catch (error: any) {
         console.error("Monitor Tasks Action Failed", error);
         return { success: false, error: error.message || "Failed to monitor tasks" };
+    }
+}
+
+export async function runSyncDFAgents() {
+    try {
+        const data = await syncDFAgents();
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Sync DF Alliance Agents Action Failed", error);
+        return { success: false, error: error.message || "Failed to sync agents" };
     }
 }

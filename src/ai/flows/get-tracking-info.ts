@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to generate tracking information using the Cargo-flows API or an AI model as fallback.
+ * @fileOverview A Genkit flow to generate tracking information using the Maersk or Cargo-flows API, with an AI model as fallback.
  *
  * getTrackingInfo - A function that generates tracking events.
  * GetTrackingInfoInput - The input type for the function.
@@ -11,6 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Shipment } from '@/lib/shipment';
+import { format } from 'date-fns';
 
 const GetTrackingInfoInputSchema = z.object({
   trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
@@ -98,24 +99,95 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async (input) => {
-    const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
+    const maerskApiKey = process.env.MAERSK_API_KEY;
+    
+    // --- Primary Method: Maersk Direct API ---
+    if (input.carrier.toLowerCase().includes('maersk') && maerskApiKey && maerskApiKey !== '<SUA_CHAVE_AQUI>') {
+        try {
+            console.log(`Attempting to fetch tracking from Maersk API for: ${input.trackingNumber}`);
+            const maerskResponse = await fetch(`https://api.maersk.com/v2/track/shipments-summary?trackingNumber=${input.trackingNumber}`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${maerskApiKey}` }
+            });
+            
+            if (!maerskResponse.ok) {
+                const errorText = await maerskResponse.text();
+                throw new Error(`Maersk API Error (${maerskResponse.status}): ${errorText}`);
+            }
+
+            const data = await maerskResponse.json();
+            const shipment = data.shipments[0]; // Assuming we get at least one shipment
+
+            if (shipment) {
+                console.log("Maersk API call successful. Processing real data.");
+                
+                const events: TrackingEvent[] = (shipment.events || []).map((event: any) => ({
+                    status: event.eventDescription || 'N/A',
+                    date: event.eventDateTime,
+                    location: `${event.eventLocation.cityName}, ${event.eventLocation.countryCode}`,
+                    completed: new Date(event.eventDateTime) <= new Date(),
+                    carrier: 'Maersk',
+                }));
+
+                const lastCompletedEvent = events.slice().reverse().find(e => e.completed) || events[events.length - 1];
+
+                const shipmentDetails: Partial<Shipment> = {
+                    carrier: 'Maersk',
+                    origin: shipment.origin.locationName,
+                    destination: shipment.destination.locationName,
+                    vesselName: shipment.transportPlan.vessels[0]?.vesselName,
+                    voyageNumber: shipment.transportPlan.vessels[0]?.voyageReference,
+                    etd: shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETD')?.eventDateTime ? new Date(shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETD').eventDateTime) : undefined,
+                    eta: shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETA')?.eventDateTime ? new Date(shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETA').eventDateTime) : undefined,
+                    masterBillNumber: input.trackingNumber,
+                    containers: shipment.containers?.map((c: any) => ({
+                        id: c.containerNumber,
+                        number: c.containerNumber,
+                        seal: c.seals ? c.seals.join(', ') : 'N/A',
+                        tare: `${c.tareWeight || 0} KG`,
+                        grossWeight: `${c.grossWeight || 0} KG`,
+                    })) || [],
+                    milestones: events.map((event: TrackingEvent) => ({
+                        name: event.status,
+                        status: event.completed ? 'completed' : 'pending',
+                        predictedDate: new Date(event.date),
+                        effectiveDate: event.completed ? new Date(event.date) : null,
+                        details: event.location,
+                        isTransshipment: event.status.toLowerCase().includes('transhipment')
+                    })),
+                };
+
+                return {
+                    status: lastCompletedEvent?.status || 'Pending',
+                    events,
+                    containers: shipmentDetails.containers,
+                    shipmentDetails: shipmentDetails,
+                };
+            }
+             console.log("Maersk API call successful, but no shipment data found. Falling back.");
+        } catch (error) {
+             console.warn("Maersk API call failed, falling back. Error:", error);
+        }
+    }
+
+
+    // --- Fallback Method: Cargo-flows API ---
+    const cargoFlowsApiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
+    const cargoFlowsOrgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
     const baseUrl = 'https://flow.cargoes.com/api/v1';
 
-    // Primary method: Cargo-flows API
-    if (apiKey && orgToken) {
+    if (cargoFlowsApiKey && cargoFlowsOrgToken) {
         try {
             console.log(`Attempting to fetch tracking from Cargo-flows API for: ${input.trackingNumber}`);
             
-            // Normalize carrier name to slug format for the API
             const carrierSlug = input.carrier.toLowerCase().replace(/[^a-z0-9]/g, '');
 
             const response = await fetch(`${baseUrl}/tracking/track`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'X-Api-Key': apiKey,
-                    'X-Org-Token': orgToken,
+                    'X-Api-Key': cargoFlowsApiKey,
+                    'X-Org-Token': cargoFlowsOrgToken,
                 },
                 body: JSON.stringify({
                     bookingNumber: input.trackingNumber,
@@ -182,7 +254,7 @@ const getTrackingInfoFlow = ai.defineFlow(
         }
     }
 
-    // Fallback method: AI Simulation
+    // --- Final Fallback: AI Simulation ---
     console.log("Fallback: Generating tracking info with AI.");
     try {
         const { output } = await generateTrackingInfoWithAI(input);
@@ -216,3 +288,5 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
+
+    

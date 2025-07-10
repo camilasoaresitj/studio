@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow to fetch full shipment details using a booking number from the Cargo-flows service.
@@ -59,19 +60,7 @@ const getBookingInfoFlow = ai.defineFlow(
     const etdEvent = events.find(e => e.status.toLowerCase().includes('departure'));
     const etaEvent = [...events].reverse().find(e => e.status.toLowerCase().includes('arrival'));
 
-    const shipmentDetails: Partial<Shipment> = {
-        id,
-        origin,
-        destination,
-        bookingNumber: id,
-        masterBillNumber: id, // Assume BL is same as booking for this simulation
-        vesselName,
-        voyageNumber,
-        etd: etdEvent ? new Date(etdEvent.date) : undefined,
-        eta: etaEvent ? new Date(etaEvent.date) : undefined,
-        milestones
-    };
-    
+    // Create a base shipment structure with defaults for fields not available in the tracking API
     const baseShipment: Shipment = {
       id: `PROC-${bookingNumber.slice(-6)}`,
       customer: 'Cliente a ser definido',
@@ -87,10 +76,19 @@ const getBookingInfoFlow = ai.defineFlow(
       destination: 'Desconhecida',
     };
 
+    // Merge the fetched data with the base structure
     const finalShipment: Shipment = {
         ...baseShipment,
-        ...shipmentDetails, 
-        id: shipmentDetails.id || baseShipment.id,
+        id,
+        origin,
+        destination,
+        bookingNumber: id,
+        masterBillNumber: id, // Assume BL is same as booking for this simulation
+        vesselName,
+        voyageNumber,
+        etd: etdEvent ? new Date(etdEvent.date) : undefined,
+        eta: etaEvent ? new Date(etaEvent.date) : undefined,
+        milestones,
         details: {
             ...baseShipment.details,
             cargo: trackingResult.carrier === 'Aéreo' ? 'Carga Aérea' : 'FCL Container'

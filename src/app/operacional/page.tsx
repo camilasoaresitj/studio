@@ -73,7 +73,7 @@ export default function OperacionalPage() {
               const updatedShipments = [...shipments];
               updatedShipments[existingIndex] = fetchedShipment;
               setShipments(updatedShipments);
-              setSelectedShipment(fetchedShipment); // <-- This is the key change to show the updated data
+              setSelectedShipment(fetchedShipment);
               toast({
                   title: "Processo Atualizado!",
                   description: `Os dados do processo ${fetchedShipment.id} foram sincronizados.`,
@@ -84,6 +84,7 @@ export default function OperacionalPage() {
               const newShipmentList = [fetchedShipment, ...shipments];
               setShipments(newShipmentList);
               updateShipment(fetchedShipment); // Save to local storage
+              setSelectedShipment(fetchedShipment); // Select the new shipment to show details
               toast({
                   title: "Processo Importado!",
                   description: `O processo ${fetchedShipment.id} foi adicionado com sucesso.`,

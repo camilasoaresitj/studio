@@ -66,19 +66,19 @@ export default function OperacionalPage() {
       if (response.success) {
           const fetchedShipment = response.data;
           
-          let updatedShipments: Shipment[];
           const existingIndex = shipments.findIndex(s => s.id === fetchedShipment.id || (s.bookingNumber && s.bookingNumber === fetchedShipment.bookingNumber));
           
           if (existingIndex > -1) {
-              updatedShipments = [...shipments];
+              const updatedShipments = [...shipments];
               updatedShipments[existingIndex] = fetchedShipment;
+              setShipments(updatedShipments);
               toast({
                   title: "Processo Atualizado!",
                   description: `Os dados do processo ${fetchedShipment.id} foram sincronizados.`,
                   className: 'bg-success text-success-foreground'
               });
           } else {
-              updatedShipments = [fetchedShipment, ...shipments];
+              setShipments(prev => [fetchedShipment, ...prev]);
               toast({
                   title: "Processo Importado!",
                   description: `O processo ${fetchedShipment.id} foi adicionado com sucesso.`,
@@ -87,7 +87,6 @@ export default function OperacionalPage() {
           }
           
           updateShipment(fetchedShipment); // Crucial: Save all changes to local storage
-          setShipments(updatedShipments); // Update the list in the state
           setSelectedShipment(fetchedShipment); // Select the new/updated shipment to show details
 
           setNewBookingNumber('');
@@ -297,5 +296,3 @@ export default function OperacionalPage() {
     </>
   );
 }
-
-      

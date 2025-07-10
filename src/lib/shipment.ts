@@ -256,8 +256,9 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   const creationDate = new Date();
   const milestones = generateInitialMilestones(isImport, quoteData.details.transitTime, creationDate);
   
-  if (milestones.length > 0) {
-      milestones[0].status = 'in_progress';
+  if (milestones.length > 0 && quoteData.agent) {
+      milestones[0].status = 'completed'; // Mark as "Sent"
+      milestones[0].effectiveDate = new Date();
   }
 
   const transitTime = parseInt(quoteData.details.transitTime.split('-').pop() || '30', 10);
@@ -278,7 +279,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
 
   const newShipment: Shipment = {
-    id: `PROC-${quoteData.id.replace('COT-', '')}-${Date.now()}`,
+    id: `PROC-${quoteData.id.replace('COT-', '')}-${Date.now().toString().slice(-5)}`,
     quoteId: quoteData.id,
     origin: quoteData.origin,
     destination: quoteData.destination,
@@ -303,7 +304,8 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     customer: quoteData.customer, 
   };
 
-  if (quoteData.agent) {
+  // If it's an import with an agent, send the shipping instructions automatically.
+  if (isImport && quoteData.agent) {
     const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
     
     // Simulate sending email to agent

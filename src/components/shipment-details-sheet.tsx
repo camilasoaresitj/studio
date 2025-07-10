@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo } from '@/app/actions';
+import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
 
 
 const containerDetailSchema = z.object({
@@ -258,12 +258,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         return;
     }
     setIsSyncing(true);
-    
-    const response = await runGetTrackingInfo(trackingNumber);
 
-    if (response.success && shipment) {
-      const { shipmentDetails } = response.data;
-      // Merge fetched data into existing shipment, preserving manual data
+    const carrierResponse = await runDetectCarrier(trackingNumber);
+    if (!carrierResponse.success || carrierResponse.data.carrier === 'Unknown') {
+        toast({
+            variant: 'destructive',
+            title: "Armador não identificado",
+            description: carrierResponse.error || `Não foi possível identificar o armador para o tracking "${trackingNumber}".`,
+        });
+        setIsSyncing(false);
+        return;
+    }
+    const carrier = carrierResponse.data.carrier;
+    toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
+    
+    const trackingResponse = await runGetTrackingInfo({ trackingNumber, carrier });
+
+    if (trackingResponse.success && shipment) {
+      const { shipmentDetails } = trackingResponse.data;
       const updatedShipmentData = {
           ...shipment,
           ...shipmentDetails,
@@ -286,7 +298,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       toast({
         variant: 'destructive',
         title: 'Erro na Sincronização',
-        description: response.error,
+        description: trackingResponse.error,
       });
     }
     

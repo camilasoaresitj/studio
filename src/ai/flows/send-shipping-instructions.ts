@@ -24,50 +24,88 @@ const prompt = ai.definePrompt({
   prompt: `You are a logistics operations expert. Your task is to generate a professional and detailed "Shipping Instructions" email in English to a freight agent. The email must be in HTML format and resemble a draft Bill of Lading.
 
 **Crucial Formatting Rules:**
-- **HTML ONLY:** The entire body must be a single, well-structured HTML string. Use tables for layout.
-- **Styling:** Use inline CSS. The primary color is '#F97316'. The main font is 'Arial, sans-serif'.
+- **HTML ONLY:** The entire body must be a single, well-structured HTML string with inline CSS.
+- **Styling:** Use 'Arial, sans-serif'. The primary color for headers and buttons is '#F97316'. Main text is '#333333'. Use tables for layout.
 - **Clarity:** The email must be extremely clear, leaving no room for doubt about how the BL should be issued.
 
 **Email Structure:**
 
 1.  **Subject:** "SHIPPING INSTRUCTIONS - CargaInteligente // Shipper: {{shipper.name}} // Cnee: {{consigneeName}}"
-2.  **Body:**
-    -   Start with a greeting to the agent ("Dear {{agentName}},").
-    -   State the purpose: "Please find below our shipping instructions. Kindly proceed with the booking and send us the confirmation and draft BL for approval."
-    -   Create a main table with a title "DRAFT BILL OF LADING INSTRUCTIONS".
-    -   **Shipper Section:**
-        -   List the shipper's full name, address, and contact details.
-    -   **Consignee Section:**
-        -   State the consignee's name.
-    -   **Notify Party Section:**
-        -   State "SAME AS CONSIGNEE".
-    -   **Cargo Details Section:**
-        -   Description: "{{commodity}}"
-        -   NCM/HS Code: "{{ncm}}"
-    -   **Freight & Charges Section:**
-        -   Freight: "AS AGREED"
-        -   THC: "{{thcValue}}"
-    -   **Agent Portal Link:**
-        -   Include a prominent, styled button (background: #F97316; color: white) with the text "Update Booking Details" that links to "{{updateLink}}".
-    -   **Financial Summary (for agent's eyes only):**
-        -   Create a separate, clearly marked section at the bottom: "FINANCIAL AGREEMENT (For Agent Use Only)".
-        -   List: Freight Cost, Freight Sale, and Agent Profit.
-    -   End with a professional closing.
+2.  **Body (HTML Layout):**
 
-**Input Data:**
--   Agent: {{agentName}}
--   Shipper Name: {{shipper.name}}
--   Shipper Address: {{shipper.address.street}}, {{shipper.address.number}}, {{shipper.address.city}}, {{shipper.address.country}}
--   Shipper Contact: {{shipper.contacts.0.name}} / {{shipper.contacts.0.email}} / {{shipper.contacts.0.phone}}
--   Consignee: {{consigneeName}}
--   Notify: {{notifyName}}
--   Freight Cost: {{freightCost}}
--   Freight Sale: {{freightSale}}
--   Agent Profit: {{agentProfit}}
--   THC to declare: {{thcValue}}
--   Commodity: {{commodity}}
--   NCM: {{ncm}}
--   Update Link: {{updateLink}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shipping Instructions - {{shipper.name}}</title>
+</head>
+<body style="font-family: Arial, sans-serif; font-size: 14px; color: #333; margin: 0; padding: 0;">
+    <div style="max-width: 800px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+        <h1 style="color: #F97316; font-size: 24px;">Shipping Instructions</h1>
+        <p>Dear {{agentName}},</p>
+        <p>Please find below our shipping instructions. Kindly proceed with the booking and send us the confirmation and draft BL for approval.</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid #ddd;">
+            <thead style="background-color: #f9f9f9;">
+                <tr>
+                    <th colspan="2" style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd; background-color: #F97316; color: white;">
+                        DRAFT BILL OF LADING INSTRUCTIONS
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; vertical-align: top; width: 50%;">
+                        <strong style="color: #F97316;">Shipper</strong><br>
+                        {{shipper.name}}<br>
+                        {{shipper.address.street}}, {{shipper.address.number}}<br>
+                        {{shipper.address.city}}, {{shipper.address.country}}<br>
+                        <br>
+                        <strong>Contact:</strong><br>
+                        {{shipper.contacts.0.name}} / {{shipper.contacts.0.email}} / {{shipper.contacts.0.phone}}
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd; vertical-align: top; width: 50%;">
+                        <strong style="color: #F97316;">Consignee</strong><br>
+                        {{consigneeName}}<br>
+                        <br>
+                        <strong style="color: #F97316;">Notify Party</strong><br>
+                        {{notifyName}}
+                    </td>
+                </tr>
+                 <tr>
+                    <td colspan="2" style="padding: 10px; border: 1px solid #ddd;">
+                        <strong style="color: #F97316;">Cargo Details</strong><br>
+                        <strong>Description:</strong> {{commodity}}<br>
+                        <strong>NCM/HS Code:</strong> {{ncm}}
+                    </td>
+                </tr>
+                 <tr>
+                    <td colspan="2" style="padding: 10px; border: 1px solid #ddd;">
+                        <strong style="color: #F97316;">Freight & Charges to be declared on BL</strong><br>
+                        <strong>Freight:</strong> AS AGREED<br>
+                        <strong>THC:</strong> {{thcValue}}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{updateLink}}" style="background-color: #F97316; color: white; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">
+                Update Booking Details
+            </a>
+        </div>
+        
+        <div style="background-color: #f2f2f2; border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-top: 20px;">
+            <h3 style="margin: 0 0 10px 0; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px;">FINANCIAL AGREEMENT (For Agent Use Only)</h3>
+            <p style="margin: 5px 0;"><strong>Freight Cost:</strong> {{freightCost}}</p>
+            <p style="margin: 5px 0;"><strong>Freight Sale:</strong> {{freightSale}}</p>
+            <p style="margin: 5px 0;"><strong>Agent Profit:</strong> {{agentProfit}}</p>
+        </div>
+
+        <p style="margin-top: 30px;">Best regards,<br><strong>CargaInteligente Team</strong></p>
+    </div>
+</body>
+</html>
 `,
 });
 
@@ -93,3 +131,4 @@ const sendShippingInstructionsFlow = ai.defineFlow(
     return output!;
   }
 );
+

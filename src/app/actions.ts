@@ -8,7 +8,8 @@ import { extractRatesFromText, ExtractRatesFromTextOutput } from '@/ai/flows/ext
 import { sendQuote, SendQuoteInput, SendQuoteOutput } from '@/ai/flows/send-quote';
 import { requestAgentQuote, RequestAgentQuoteInput, RequestAgentQuoteOutput } from '@/ai/flows/request-agent-quote';
 import { extractPartnerInfo, ExtractPartnerInfoOutput } from '@/ai/flows/extract-partner-info';
-import { getShipSchedules, GetShipSchedulesInput, GetShipSchedulesOutput } from '@/ai/flows/get-ship-schedules';
+import { getVesselSchedules, GetVesselSchedulesInput, GetVesselSchedulesOutput } from '@/ai/flows/get-ship-schedules';
+import { getFlightSchedules, GetFlightSchedulesInput, GetFlightSchedulesOutput } from '@/ai/flows/get-flight-schedules';
 import { generateQuotePdfHtml, GenerateQuotePdfHtmlInput, GenerateQuotePdfHtmlOutput } from '@/ai/flows/generate-quote-pdf-html';
 import { extractQuoteDetailsFromText, ExtractQuoteDetailsFromTextOutput } from '@/ai/flows/extract-quote-details-from-text';
 import { getTrackingInfo, GetTrackingInfoOutput } from '@/ai/flows/get-tracking-info';
@@ -132,11 +133,24 @@ export async function runExtractPartnerInfo(
   }
 }
 
-export async function runGetShipSchedules(
-  input: GetShipSchedulesInput
-): Promise<{ success: true; data: GetShipSchedulesOutput } | { success: false; error: string }> {
+export async function runGetVesselSchedules(
+  input: GetVesselSchedulesInput
+): Promise<{ success: true; data: GetVesselSchedulesOutput } | { success: false; error: string }> {
   try {
-    const result = await getShipSchedules(input);
+    const result = await getVesselSchedules(input);
+    return { success: true, data: result };
+  } catch (e) {
+    console.error(e);
+    const error = e instanceof Error ? e.message : 'An unknown error occurred while fetching schedules.';
+    return { success: false, error };
+  }
+}
+
+export async function runGetFlightSchedules(
+  input: GetFlightSchedulesInput
+): Promise<{ success: true; data: GetFlightSchedulesOutput } | { success: false; error: string }> {
+  try {
+    const result = await getFlightSchedules(input);
     return { success: true, data: result };
   } catch (e) {
     console.error(e);

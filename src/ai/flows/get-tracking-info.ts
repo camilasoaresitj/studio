@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch tracking information from various carriers.
+ * @fileOverview A Genkit flow to fetch tracking information using the Cargo-flows service.
  *
  * getTrackingInfo - A function that fetches tracking events.
  * GetTrackingInfoInput - The input type for the function.
@@ -9,11 +9,10 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import * as hapag from '@/services/hapag-lloyd-service';
-import * as maersk from '@/services/maersk-service';
+import { cargoFlowsService } from '@/services/schedule-service';
 
 const GetTrackingInfoInputSchema = z.object({
-  trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No).'),
+  trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
 });
 export type GetTrackingInfoInput = z.infer<typeof GetTrackingInfoInputSchema>;
 
@@ -26,20 +25,23 @@ const TrackingEventSchema = z.object({
 });
 export type TrackingEvent = z.infer<typeof TrackingEventSchema>;
 
-
 const GetTrackingInfoOutputSchema = z.object({
     id: z.string(),
     status: z.string(),
+    origin: z.string(),
+    destination: z.string(),
+    vesselName: z.string().optional(),
+    voyageNumber: z.string().optional(),
+    carrier: z.string(),
     events: z.array(TrackingEventSchema)
 });
 export type GetTrackingInfoOutput = z.infer<typeof GetTrackingInfoOutputSchema>;
-
 
 export async function getTrackingInfo(input: GetTrackingInfoInput): Promise<GetTrackingInfoOutput> {
   return getTrackingInfoFlow(input);
 }
 
-// This flow acts as a router to different carrier services based on the tracking number format.
+// This flow now uses the centralized Cargo-flows service.
 const getTrackingInfoFlow = ai.defineFlow(
   {
     name: 'getTrackingInfoFlow',
@@ -47,22 +49,7 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async ({ trackingNumber }) => {
-    const upperCaseTrackingNumber = trackingNumber.toUpperCase();
-    let result: { status: string; events: TrackingEvent[] };
-
-    // Simple routing based on common prefixes. A real app might have a more complex lookup.
-    if (upperCaseTrackingNumber.startsWith('MSCU') || upperCaseTrackingNumber.startsWith('MAEU') || /^\d{9}$/.test(upperCaseTrackingNumber)) {
-        const maerskResult = await maersk.getTracking(upperCaseTrackingNumber);
-        result = { status: maerskResult.status, events: maerskResult.events };
-    } else {
-        // Default to Hapag-Lloyd for this example
-        result = await hapag.getTracking(upperCaseTrackingNumber);
-    }
-
-    return {
-        id: trackingNumber,
-        status: result.status,
-        events: result.events,
-    };
+    const result = await cargoFlowsService.getTracking(trackingNumber);
+    return result;
   }
 );

@@ -1,45 +1,46 @@
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch vessel schedules.
+ * @fileOverview A Genkit flow to fetch vessel schedules from the Cargo-flows service.
  *
- * getShipSchedules - A function that fetches schedules.
- * GetShipSchedulesInput - The input type for the function.
- * GetShipSchedulesOutput - The return type for the function.
+ * getVesselSchedules - A function that fetches schedules.
+ * GetVesselSchedulesInput - The input type for the function.
+ * GetVesselSchedulesOutput - The return type for the function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import * as scheduleService from '@/services/schedule-service';
+import { cargoFlowsService } from '@/services/schedule-service';
 
-const GetShipSchedulesInputSchema = z.object({
-  origin: z.string().describe('The origin port.'),
-  destination: z.string().describe('The destination port.'),
+const GetVesselSchedulesInputSchema = z.object({
+  origin: z.string().describe('The origin port code (e.g., CNSHA).'),
+  destination: z.string().describe('The destination port code (e.g., BRSSZ).'),
 });
-export type GetShipSchedulesInput = z.infer<typeof GetShipSchedulesInputSchema>;
+export type GetVesselSchedulesInput = z.infer<typeof GetVesselSchedulesInputSchema>;
 
-const ScheduleSchema = z.object({
+const VesselScheduleSchema = z.object({
   vesselName: z.string(),
   voyage: z.string(),
   carrier: z.string(),
   etd: z.string(),
   eta: z.string(),
+  transitTime: z.string(),
 });
 
-const GetShipSchedulesOutputSchema = z.array(ScheduleSchema);
-export type GetShipSchedulesOutput = z.infer<typeof GetShipSchedulesOutputSchema>;
+const GetVesselSchedulesOutputSchema = z.array(VesselScheduleSchema);
+export type GetVesselSchedulesOutput = z.infer<typeof GetVesselSchedulesOutputSchema>;
 
-export async function getShipSchedules(input: GetShipSchedulesInput): Promise<GetShipSchedulesOutput> {
-  return getShipSchedulesFlow(input);
+export async function getVesselSchedules(input: GetVesselSchedulesInput): Promise<GetVesselSchedulesOutput> {
+  return getVesselSchedulesFlow(input);
 }
 
-const getShipSchedulesFlow = ai.defineFlow(
+const getVesselSchedulesFlow = ai.defineFlow(
   {
-    name: 'getShipSchedulesFlow',
-    inputSchema: GetShipSchedulesInputSchema,
-    outputSchema: GetShipSchedulesOutputSchema,
+    name: 'getVesselSchedulesFlow',
+    inputSchema: GetVesselSchedulesInputSchema,
+    outputSchema: GetVesselSchedulesOutputSchema,
   },
   async ({ origin, destination }) => {
-    const schedules = await scheduleService.getSchedules(origin, destination);
+    const schedules = await cargoFlowsService.getVesselSchedules(origin, destination);
     return schedules;
   }
 );

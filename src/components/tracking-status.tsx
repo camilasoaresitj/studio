@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle2, Circle, Loader, Search, Ship, Warehouse, Anchor, AlertTriangle, PackageSearch } from 'lucide-react';
+import { CheckCircle2, Circle, Loader, Search, Ship, Warehouse, Anchor, AlertTriangle, PackageSearch, Plane } from 'lucide-react';
 import { runGetTrackingInfo } from '@/app/actions';
 import { GetTrackingInfoOutput, TrackingEvent } from '@/ai/flows/get-tracking-info';
 
@@ -12,7 +12,6 @@ type TrackingResult = GetTrackingInfoOutput | null;
 
 export function TrackingStatus() {
   const [trackingId, setTrackingId] = useState('');
-  const [lastSearchedId, setLastSearchedId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<TrackingResult>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,17 +21,11 @@ export function TrackingStatus() {
     setIsLoading(true);
     setResult(null);
     setError(null);
-    setLastSearchedId(trackingId);
 
     const response = await runGetTrackingInfo(trackingId);
 
     if (response.success) {
-      // The API might return an empty events list for a valid but untracked number
-      if (response.data && response.data.events.length > 0) {
-        setResult(response.data);
-      } else {
-        setError(`Nenhum resultado encontrado para o código "${trackingId}". Verifique o código e tente novamente.`);
-      }
+      setResult(response.data);
     } else {
       setError(response.error);
     }
@@ -41,11 +34,12 @@ export function TrackingStatus() {
   };
   
   const getIconForStatus = (status: string, completed: boolean) => {
+    const lowerStatus = status.toLowerCase();
     if (completed) return <CheckCircle2 className="w-5 h-5" />;
-    if (status.toLowerCase().includes('retido')) return <AlertTriangle className="w-5 h-5 text-destructive" />;
-    if (status.toLowerCase().includes('embarcado') || status.toLowerCase().includes('loaded')) return <Ship className="w-5 h-5" />;
-    if (status.toLowerCase().includes('coletada') || status.toLowerCase().includes('recebida')) return <Warehouse className="w-5 h-5" />;
-    if (status.toLowerCase().includes('chegada') || status.toLowerCase().includes('discharged')) return <Anchor className="w-5 h-5" />;
+    if (lowerStatus.includes('retido')) return <AlertTriangle className="w-5 h-5 text-destructive" />;
+    if (lowerStatus.includes('embarcado') || lowerStatus.includes('loaded')) return <Ship className="w-5 h-5" />;
+    if (lowerStatus.includes('coletada') || lowerStatus.includes('recebida')) return <Warehouse className="w-5 h-5" />;
+    if (lowerStatus.includes('chegada') || lowerStatus.includes('discharged')) return <Anchor className="w-5 h-5" />;
     return <Circle className="w-5 h-5" />;
   }
 
@@ -55,8 +49,8 @@ export function TrackingStatus() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Rastreamento de Carga</CardTitle>
-        <CardDescription>Insira o código de rastreamento (ex: MSCU1234567, BL-998172) para ver o status.</CardDescription>
+        <CardTitle>Rastreamento de Carga Universal</CardTitle>
+        <CardDescription>Insira o código de rastreamento (ex: BL, AWB, Container) para ver o status.</CardDescription>
         <div className="flex flex-col sm:flex-row gap-4 pt-4">
           <Input
             placeholder="Insira o código de rastreamento..."
@@ -96,10 +90,11 @@ export function TrackingStatus() {
             <div className="mb-6 p-4 border rounded-lg bg-secondary/50">
                 <h3 className="font-bold text-lg text-primary">Status da Carga: {result.id}</h3>
                 <div className="flex flex-wrap gap-x-6 gap-y-2 mt-2 text-sm">
-                    { result.events[0] && <p><span className="font-semibold text-muted-foreground">Origem:</span> {result.events[0].location}</p>}
-                    { result.events[result.events.length-1] && <p><span className="font-semibold text-muted-foreground">Destino:</span> {result.events[result.events.length-1].location}</p>}
+                    <p><span className="font-semibold text-muted-foreground">Origem:</span> {result.origin}</p>
+                    <p><span className="font-semibold text-muted-foreground">Destino:</span> {result.destination}</p>
                     <p><span className="font-semibold text-muted-foreground">Status Atual:</span> <span className="font-bold">{currentStatus}</span></p>
-                    <p><span className="font-semibold text-muted-foreground">Transportadora:</span> <span className="font-bold">{result.events[0]?.carrier || 'N/A'}</span></p>
+                    <p><span className="font-semibold text-muted-foreground">Transportadora:</span> <span className="font-bold">{result.carrier}</span></p>
+                    {result.vesselName && <p><span className="font-semibold text-muted-foreground">Navio/Voo:</span> <span className="font-bold">{result.vesselName} / {result.voyageNumber}</span></p>}
                 </div>
             </div>
             <div className="relative pl-8">

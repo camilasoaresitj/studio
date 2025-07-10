@@ -18,6 +18,7 @@ import {
   Landmark,
   Clock,
   Ship,
+  CalendarClock,
 } from 'lucide-react';
 
 const menuItems = [
@@ -26,6 +27,7 @@ const menuItems = [
   { href: '/operacional', label: 'Operacional', icon: Truck },
   { href: '/financeiro', label: 'Financeiro', icon: Landmark },
   { href: '/demurrage', label: 'Demurrage', icon: Clock },
+  { href: '/schedules', label: 'Schedules', icon: CalendarClock },
 ];
 
 export function MainSidebar() {

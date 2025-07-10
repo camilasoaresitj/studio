@@ -23,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -66,6 +66,7 @@ const shipmentDetailsSchema = z.object({
   masterBillNumber: z.string().optional(),
   houseBillNumber: z.string().optional(),
   bookingNumber: z.string().optional(),
+  mblPrintingAtDestination: z.boolean().optional(),
   courier: z.enum(['DHL', 'UPS', 'FedEx', 'Outro']).optional(),
   courierNumber: z.string().optional(),
   etd: z.date().optional(),
@@ -162,6 +163,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         masterBillNumber: shipment.masterBillNumber || '',
         houseBillNumber: shipment.houseBillNumber || '',
         bookingNumber: shipment.bookingNumber || '',
+        mblPrintingAtDestination: shipment.mblPrintingAtDestination || false,
         courier: shipment.courier,
         courierNumber: shipment.courierNumber || '',
         etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
@@ -197,6 +199,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
   const watchedCourier = form.watch('courier');
   const watchedCourierNumber = form.watch('courierNumber');
+  const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
   const courierTrackingUrl = getCourierTrackingUrl(watchedCourier, watchedCourierNumber);
 
   if (!shipment) {
@@ -303,6 +306,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
     
     setIsSyncing(false);
+  };
+
+  const handleToggleMblPrinting = () => {
+      const isEnabled = form.getValues('mblPrintingAtDestination');
+      form.setValue('mblPrintingAtDestination', !isEnabled);
+      if (!isEnabled) {
+          form.setValue('courier', undefined);
+          form.setValue('courierNumber', '');
+      }
   };
 
   return (
@@ -462,32 +474,46 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 <FormField control={form.control} name="houseBillNumber" render={({ field }) => (
                                     <FormItem><FormLabel>House Bill of Lading / HAWB</FormLabel><FormControl><Input placeholder="MYHBL12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                 )}/>
-                                <FormField control={form.control} name="courier" render={({ field }) => (
-                                    <FormItem><FormLabel>Courrier (Documentos)</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="DHL">DHL</SelectItem>
-                                                <SelectItem value="UPS">UPS</SelectItem>
-                                                <SelectItem value="FedEx">FedEx</SelectItem>
-                                                <SelectItem value="Outro">Outro</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    <FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="courierNumber" render={({ field }) => (
-                                    <FormItem><FormLabel>Nº Rastreio Courrier</FormLabel><FormControl><Input placeholder="1234567890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <div className="flex items-end">
-                                    {courierTrackingUrl && (
-                                        <Button asChild variant="outline" className="w-full">
-                                            <a href={courierTrackingUrl} target="_blank" rel="noopener noreferrer">
-                                                Rastrear Courrier
-                                                <LinkIcon className="ml-2 h-4 w-4" />
-                                            </a>
-                                        </Button>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Envio de Documentos</CardTitle>
+                                    {mblPrintingAtDestination && (
+                                        <CardDescription className="text-primary font-medium">Impressão do MBL será feita no destino.</CardDescription>
                                     )}
-                                </div>
+                                </CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                                    <FormField control={form.control} name="courier" render={({ field }) => (
+                                        <FormItem><FormLabel>Courrier</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value} disabled={mblPrintingAtDestination}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="DHL">DHL</SelectItem>
+                                                    <SelectItem value="UPS">UPS</SelectItem>
+                                                    <SelectItem value="FedEx">FedEx</SelectItem>
+                                                    <SelectItem value="Outro">Outro</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        <FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="courierNumber" render={({ field }) => (
+                                        <FormItem><FormLabel>Nº Rastreio Courrier</FormLabel><FormControl><Input placeholder="1234567890" {...field} value={field.value ?? ''} disabled={mblPrintingAtDestination} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <div className="flex items-center gap-2">
+                                        {courierTrackingUrl && !mblPrintingAtDestination && (
+                                            <Button asChild variant="outline" className="w-full">
+                                                <a href={courierTrackingUrl} target="_blank" rel="noopener noreferrer">
+                                                    Rastrear
+                                                    <LinkIcon className="ml-2 h-4 w-4" />
+                                                </a>
+                                            </Button>
+                                        )}
+                                        <Button type="button" variant={mblPrintingAtDestination ? 'default' : 'secondary'} className="w-full" onClick={handleToggleMblPrinting} title="Marcar/desmarcar impressão do MBL no destino">
+                                            <Printer className="mr-2 h-4 w-4" />
+                                            Impressão no Destino
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
                          </TabsContent>

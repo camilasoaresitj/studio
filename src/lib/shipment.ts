@@ -81,6 +81,7 @@ export type Shipment = {
   milestones: Milestone[];
   // Existing operational fields
   bookingNumber?: string;
+  mblPrintingAtDestination?: boolean;
   courier?: 'DHL' | 'UPS' | 'FedEx' | 'Outro';
   courierNumber?: string;
   vesselName?: string;
@@ -256,6 +257,7 @@ export async function createShipment(quote: ShipmentCreationData, overseasPartne
     houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     packageQuantity: quote.details.cargo,
     freeTimeDemurrage: quote.details.freeTime,
+    mblPrintingAtDestination: false,
   };
 
   if (isImport && agent) {

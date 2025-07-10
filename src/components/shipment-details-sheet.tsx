@@ -264,7 +264,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const response = await runGetBookingInfo(trackingNumber);
 
     if (response.success) {
-        onUpdate(response.data);
+        onUpdate(response.data); // Notify the parent component of the update
         toast({ title: 'Dados Sincronizados!', description: 'As informações do embarque foram atualizadas.', className: 'bg-success text-success-foreground' });
     } else {
         toast({ variant: 'destructive', title: 'Erro na Sincronização', description: response.error });
@@ -648,3 +648,5 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       </Sheet>
   );
 }
+
+    

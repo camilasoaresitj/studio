@@ -73,7 +73,7 @@ export default function OperacionalPage() {
               const updatedShipments = [...shipments];
               updatedShipments[existingIndex] = fetchedShipment;
               setShipments(updatedShipments);
-              setSelectedShipment(fetchedShipment);
+              setSelectedShipment(fetchedShipment); // This was the missing piece
               toast({
                   title: "Processo Atualizado!",
                   description: `Os dados do processo ${fetchedShipment.id} foram sincronizados.`,
@@ -296,3 +296,5 @@ export default function OperacionalPage() {
     </>
   );
 }
+
+    

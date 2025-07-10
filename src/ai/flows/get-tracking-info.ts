@@ -80,16 +80,12 @@ const getTrackingInfoFlow = ai.defineFlow(
   },
   async ({ trackingNumber }) => {
     
-    // Fallback to simulation if the tracking number is for the demo process
-    if (trackingNumber.startsWith('PROC-')) {
-        return getSimulatedTracking(trackingNumber);
-    }
-
     const apiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
     const orgToken = process.env.CARGOFLOWS_ORG_TOKEN || 'Gz7NChq8MbUnBmuG0DferKtBcDka33gV';
     const baseUrl = 'https://flow.cargoes.com/api/v1';
 
     try {
+        // Always try to call the real API first.
         console.log(`Calling Cargo-flows API from backend: ${baseUrl}/tracking/${trackingNumber}`);
         
         const response = await fetch(`${baseUrl}/tracking/${trackingNumber}`, {
@@ -102,8 +98,10 @@ const getTrackingInfoFlow = ai.defineFlow(
         });
 
         if (!response.ok) {
-            console.warn(`Cargo-flows API call failed with status ${response.status}. Falling back to simulation.`);
-            return getSimulatedTracking(trackingNumber);
+            // If the API call fails, throw an error which will be caught below.
+            const errorText = await response.text();
+            console.warn(`Cargo-flows API call failed with status ${response.status}: ${errorText}`);
+            throw new Error(`API returned status ${response.status}`);
         }
         
         const responseText = await response.text();
@@ -134,6 +132,7 @@ const getTrackingInfoFlow = ai.defineFlow(
             voyageNumber: apiData.voyageNumber,
         };
     } catch (error) {
+        // If the fetch fails for any reason (network error, API error thrown above), fall back to simulation.
         console.error("Error during fetch to Cargo-flows:", error);
         console.log("Falling back to simulated tracking due to error.");
         return getSimulatedTracking(trackingNumber);

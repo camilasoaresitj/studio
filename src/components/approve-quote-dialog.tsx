@@ -27,7 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { runExtractPartnerInfo } from '@/app/actions';
+import { runExtractPartnerInfo, runSendShippingInstructions } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import type { Quote } from './customer-quotes-list';
 import { Label } from './ui/label';
@@ -188,6 +188,7 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
   if (!quote) return null;
 
   const agentPartners = partners.filter(p => p.roles.agente);
+  const isImport = quote.destination.toUpperCase().includes('BR');
 
   const handlePartnerCreated = (newPartner: Partner) => {
     onPartnerSaved(newPartner);
@@ -211,8 +212,42 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
         toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, informe o Notify Party.' });
         return;
     }
+    
+    if (isImport && selectedAgentId === 'none') {
+        toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Para importações, um agente é obrigatório.' });
+        return;
+    }
 
     const agent = selectedAgentId !== 'none' ? partners.find(p => p.id?.toString() === selectedAgentId) : undefined;
+    
+    // Teste e Log
+    const freightCharge = quote.charges.find(c => c.name.toLowerCase().includes('frete'));
+    const thcCharge = quote.charges.find(c => c.name.toLowerCase().includes('thc'));
+    const response = await runSendShippingInstructions({
+      agentName: agent?.name || 'N/A',
+      agentEmail: agent?.contacts[0]?.email || 'agent@example.com',
+      shipper: shipper,
+      consigneeName: consignee.name,
+      notifyName: notifyName,
+      freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
+      freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'N/A',
+      agentProfit: agent?.profitAgreement?.amount ? `USD ${agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
+      thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
+      commodity: quote.details.cargo || 'General Cargo',
+      ncm: 'N/A',
+      updateLink: `https://cargainteligente.com/agent-portal/`,
+    });
+    
+    if (response.success && response.data) {
+        console.log("--- TESTE DE INSTRUÇÕES DE EMBARQUE ---");
+        console.log("ASSUNTO:", response.data.emailSubject);
+        console.log("CORPO (HTML):", response.data.emailBody);
+        console.log("-----------------------------------------");
+        toast({ title: "Teste Concluído!", description: "O e-mail de Instruções de Embarque foi gerado. Verifique o console (F12).", className: 'bg-success text-success-foreground' });
+    } else {
+        toast({ variant: 'destructive', title: "Erro no Teste", description: response.error || 'Falha ao gerar o e-mail de teste.' });
+    }
+
     onApprovalConfirmed(quote, shipper, consignee, agent, notifyName);
   };
 
@@ -248,7 +283,7 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
 
         <div className="space-y-4 pt-4 border-t">
             <Card>
-                <CardHeader><CardTitle className="text-lg">Agente na Origem/Destino (Opcional)</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg">Agente na Origem/Destino (Obrigatório para Importação)</CardTitle></CardHeader>
                 <CardContent>
                     <Label>Selecione um agente ou deixe em branco para um embarque direto.</Label>
                      <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>

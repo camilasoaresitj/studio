@@ -432,56 +432,50 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </div>
                             <Card>
                                 <CardHeader><CardTitle className="text-lg">Dados da Viagem/Voo</CardTitle></CardHeader>
-                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                                    <FormField control={form.control} name="carrier" render={({ field }) => (
-                                        <FormItem><FormLabel>Armador</FormLabel><FormControl><Input placeholder="Maersk" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="bookingNumber" render={({ field }) => (
-                                        <FormItem><FormLabel>Booking Reference</FormLabel>
-                                            <div className="flex items-center gap-2">
-                                            <FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl>
-                                            <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
-                                                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                                            </Button>
-                                            </div>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="vesselName" render={({ field }) => (
-                                        <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="MSC LEO" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="voyageNumber" render={({ field }) => (
-                                        <FormItem><FormLabel>Viagem / Nº Voo</FormLabel><FormControl><Input placeholder="AB123C" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="etd" render={({ field }) => (
-                                        <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild><FormControl>
-                                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                        {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </FormControl></PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
-                                            </Popover>
-                                        <FormMessage /></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="eta" render={({ field }) => (
-                                        <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild><FormControl>
-                                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                        {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </FormControl></PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
-                                            </Popover>
-                                        <FormMessage /></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="notifyName" render={({ field }) => (
-                                        <FormItem className="lg:col-span-2"><FormLabel>Notify Party</FormLabel><FormControl><Input placeholder="Nome do Notify" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                                        <FormField control={form.control} name="carrier" render={({ field }) => (
+                                            <FormItem><FormLabel>Armador</FormLabel><FormControl><Input placeholder="Maersk" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="bookingNumber" render={({ field }) => (
+                                            <FormItem><FormLabel>Booking Reference</FormLabel>
+                                                <div className="flex items-center gap-2">
+                                                <FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl>
+                                                <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
+                                                    {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                                </Button>
+                                                </div>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="vesselName" render={({ field }) => (
+                                            <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input placeholder="MSC LEO" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="voyageNumber" render={({ field }) => (
+                                            <FormItem><FormLabel>Viagem / Nº Voo</FormLabel><FormControl><Input placeholder="AB123C" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                                        <FormField control={form.control} name="etd" render={({ field }) => (
+                                            <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
+                                                <Popover>
+                                                    <PopoverTrigger asChild><FormControl>
+                                                        <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                            {field.value && isValid(field.value) ? format(field.value, "dd/MM/yyyy") : (<span>Selecione a data</span>)}
+                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                        </Button>
+                                                    </FormControl></PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                                                </Popover>
+                                            <FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
+                                            <FormItem><FormLabel>MBL</FormLabel><FormControl><Input placeholder="MSCU12345678" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="notifyName" render={({ field }) => (
+                                            <FormItem className="md:col-span-2"><FormLabel>Notify Party</FormLabel><FormControl><Input placeholder="Nome do Notify" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                    </div>
                                 </CardContent>
                             </Card>
                             

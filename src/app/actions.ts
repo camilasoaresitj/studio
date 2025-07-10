@@ -15,7 +15,8 @@ import { extractQuoteDetailsFromText, ExtractQuoteDetailsFromTextOutput } from '
 import { getTrackingInfo, GetTrackingInfoOutput, GetTrackingInfoInput } from '@/ai/flows/get-tracking-info';
 import { detectCarrierFromBooking, DetectCarrierFromBookingOutput } from '@/ai/flows/detect-carrier-from-booking';
 import { syncDFAgents, SyncDFAgentsOutput } from '@/ai/flows/sync-df-alliance-agents';
-import { sendShippingInstructions, SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/ai/flows/send-shipping-instructions';
+import { sendShippingInstructions } from '@/ai/flows/send-shipping-instructions';
+import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
 
 
 import type { Partner } from '@/components/partners-registry';

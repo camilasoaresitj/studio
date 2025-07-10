@@ -10,48 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Partner } from '@/components/partners-registry';
-
-const PartnerSchemaForPrompt = z.object({
-    name: z.string(),
-    address: z.object({
-        street: z.string().optional(),
-        number: z.string().optional(),
-        complement: z.string().optional(),
-        district: z.string().optional(),
-        city: z.string().optional(),
-        state: z.string().optional(),
-        zip: z.string().optional(),
-        country: z.string().optional(),
-    }),
-    contacts: z.array(z.object({
-        name: z.string(),
-        email: z.string(),
-        phone: z.string(),
-    })),
-});
-
-export const SendShippingInstructionsInputSchema = z.object({
-  agentName: z.string().describe("The recipient agent's name."),
-  agentEmail: z.string().email().describe("The recipient agent's email address."),
-  shipper: PartnerSchemaForPrompt.describe("The shipper's full details."),
-  consigneeName: z.string().describe("The consignee's company name."),
-  notifyName: z.string().describe("The notify party's name."),
-  freightCost: z.string().describe("The agreed freight cost (e.g., 'USD 2500.00')."),
-  freightSale: z.string().describe("The freight sale value (e.g., 'USD 2800.00')."),
-  agentProfit: z.string().describe("The agent's profit share (e.g., 'USD 50.00')."),
-  thcValue: z.string().describe("The THC value to be declared on the BL (e.g., 'BRL 1350.00')."),
-  commodity: z.string().describe("Description of the goods."),
-  ncm: z.string().describe("The NCM/HS Code for the goods."),
-  updateLink: z.string().url().describe("The unique link for the agent to update shipment details."),
-});
-export type SendShippingInstructionsInput = z.infer<typeof SendShippingInstructionsInputSchema>;
-
-export const SendShippingInstructionsOutputSchema = z.object({
-  emailSubject: z.string().describe("The subject line for the email."),
-  emailBody: z.string().describe("The full HTML content for the email body."),
-});
-export type SendShippingInstructionsOutput = z.infer<typeof SendShippingInstructionsOutputSchema>;
+import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema, SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
 
 
 export async function sendShippingInstructions(input: SendShippingInstructionsInput): Promise<SendShippingInstructionsOutput> {

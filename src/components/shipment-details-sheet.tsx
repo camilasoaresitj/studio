@@ -240,49 +240,37 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
   const handleDocumentChange = (index: number, newStatus: DocumentStatus['status'], fileName?: string) => {
     if (!shipment) return;
-
-    // Create a deep copy of the documents array to avoid direct state mutation.
     const updatedDocuments = JSON.parse(JSON.stringify(form.getValues('documents') || []));
-
     if (updatedDocuments[index]) {
-        updatedDocuments[index].status = newStatus;
-        if (fileName) {
-            updatedDocuments[index].fileName = fileName;
-        }
-        if (newStatus === 'uploaded') {
-            updatedDocuments[index].uploadedAt = new Date().toISOString();
-        }
-        // Update the form state to reflect the change immediately in the UI.
-        form.setValue('documents', updatedDocuments);
-
-        // Create the full updated shipment object and pass it to the onUpdate handler.
-        const updatedShipment: Shipment = {
-            ...shipment,
-            documents: updatedDocuments.map((d: any) => ({
-                ...d,
-                uploadedAt: d.uploadedAt ? new Date(d.uploadedAt) : undefined,
-            })),
-        };
-        onUpdate(updatedShipment);
+      updatedDocuments[index].status = newStatus;
+      if (fileName) {
+        updatedDocuments[index].fileName = fileName;
+        updatedDocuments[index].uploadedAt = new Date().toISOString();
+      }
+      form.setValue('documents', updatedDocuments);
+      const updatedShipment = { ...shipment, documents: updatedDocuments };
+      onUpdate(updatedShipment as Shipment);
     }
   };
 
   const handleUploadClick = (index: number) => {
-      if (fileInputRef.current) {
-          fileInputRef.current.onchange = (e) => {
-              const target = e.target as HTMLInputElement;
-              if (target.files && target.files[0]) {
-                  const file = target.files[0];
-                  handleDocumentChange(index, 'uploaded', file.name);
-                  toast({
-                      title: "Arquivo Selecionado!",
-                      description: `${file.name} foi carregado com sucesso.`,
-                      className: 'bg-success text-success-foreground'
-                  });
-              }
-          };
-          fileInputRef.current.click();
-      }
+    const uploader = fileInputRef.current;
+    if (uploader) {
+      uploader.onchange = (e) => {
+        const target = e.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (file) {
+          handleDocumentChange(index, 'uploaded', file.name);
+          toast({
+            title: "Arquivo Selecionado!",
+            description: `${file.name} foi carregado com sucesso.`,
+            className: 'bg-success text-success-foreground'
+          });
+        }
+        uploader.value = '';
+      };
+      uploader.click();
+    }
   };
   
   const handleBillingClick = (type: 'receber' | 'pagar') => {

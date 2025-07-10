@@ -116,7 +116,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
 
       if (response.success) {
         if (channel === 'email') {
-            const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
+            const primaryContact = customer.contacts.find(c => c.departments?.includes('Comercial')) || customer.contacts[0];
             const recipient = primaryContact?.email;
             if (recipient) {
                 // In a real app, you would use an email service API here.
@@ -130,7 +130,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                  toast({ variant: 'destructive', title: 'E-mail não encontrado', description: 'O contato principal do cliente não possui um e-mail cadastrado.' });
             }
         } else { // WhatsApp
-            const primaryContact = customer.contacts.find(c => c.department === 'Comercial') || customer.contacts[0];
+            const primaryContact = customer.contacts.find(c => c.departments?.includes('Comercial')) || customer.contacts[0];
             const phone = primaryContact?.phone?.replace(/\D/g, '');
              if (phone) {
                 const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(response.data.whatsappMessage)}`;

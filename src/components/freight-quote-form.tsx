@@ -174,10 +174,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [isFetchingSchedules, setIsFetchingSchedules] = useState(false);
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
-  const [isExporterPopoverOpen, setIsExporterPopoverOpen] = useState(false);
-  const [isImporterPopoverOpen, setIsImporterPopoverOpen] = useState(false);
-  const [isOriginAgentPopoverOpen, setIsOriginAgentPopoverOpen] = useState(false);
-  const [isDestinationAgentPopoverOpen, setIsDestinationAgentPopoverOpen] = useState(false);
   const [activeQuote, setActiveQuote] = useState<Quote | null>(null);
   const [isAutofilling, setIsAutofilling] = useState(false);
   const [autofillText, setAutofillText] = useState("");
@@ -187,12 +183,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     resolver: zodResolver(freightQuoteFormSchema),
     defaultValues: {
       customerId: '',
-      exporterId: '',
-      importerId: '',
-      invoiceNumber: '',
-      purchaseOrderNumber: '',
-      originAgentId: '',
-      destinationAgentId: '',
       modal: 'ocean',
       incoterm: 'FOB',
       origin: '',
@@ -244,24 +234,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const insuranceFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('SEGURO')), [fees]);
   const tradingFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('TRADING')), [fees]);
   const redestinacaoFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('REDESTINA')), [fees]);
-  
-  const { watch, setValue } = form;
-  const originValue = watch('origin');
-  const destinationValue = watch('destination');
-  const agentPartners = useMemo(() => partners.filter(p => p.roles.agente), [partners]);
-
-  useEffect(() => {
-    const ltiPartner = agentPartners.find(p => p.name.toUpperCase() === 'LTI DO BRASIL LTDA');
-    if (!ltiPartner) return;
-
-    if (originValue?.toUpperCase().includes('BR')) {
-      setValue('originAgentId', ltiPartner.id.toString(), { shouldValidate: true });
-    }
-    if (destinationValue?.toUpperCase().includes('BR')) {
-      setValue('destinationAgentId', ltiPartner.id.toString(), { shouldValidate: true });
-    }
-  }, [originValue, destinationValue, agentPartners, setValue]);
-
 
   async function onSubmit(values: FreightQuoteFormData) {
     setIsLoading(true);
@@ -948,163 +920,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                             <FormMessage />
                         </FormItem>
                     )} />
-                   
-                    <div className="flex flex-col gap-y-6">
-                        <FormField
-                        control={form.control}
-                        name="exporterId"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Exportador</FormLabel>
-                                <Popover open={isExporterPopoverOpen} onOpenChange={setIsExporterPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
-                                        {field.value ? partners.find((p) => p.id.toString() === field.value)?.name : "Selecione o exportador"}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                    <Command><CommandInput placeholder="Buscar parceiro..." />
-                                    <CommandList><CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
-                                        <CommandGroup>
-                                        {partners.map((partner) => (
-                                            <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("exporterId", partner.id.toString()); setIsExporterPopoverOpen(false);}}>
-                                            <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
-                                            {partner.name}
-                                            </CommandItem>
-                                        ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                                </Popover>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                         <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Invoice</FormLabel>
-                                <FormControl><Input placeholder="Número da Invoice" {...field} value={field.value ?? ''} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                    </div>
-
-                    <div className="flex flex-col gap-y-6">
-                        <FormField
-                        control={form.control}
-                        name="importerId"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Importador</FormLabel>
-                                <Popover open={isImporterPopoverOpen} onOpenChange={setIsImporterPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
-                                        {field.value ? partners.find((p) => p.id.toString() === field.value)?.name : "Selecione o importador"}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                    <Command><CommandInput placeholder="Buscar parceiro..." />
-                                    <CommandList><CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
-                                        <CommandGroup>
-                                        {partners.map((partner) => (
-                                            <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("importerId", partner.id.toString()); setIsImporterPopoverOpen(false);}}>
-                                            <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
-                                            {partner.name}
-                                            </CommandItem>
-                                        ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                                </Popover>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                        <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>PO</FormLabel>
-                                <FormControl><Input placeholder="Número da PO" {...field} value={field.value ?? ''} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                    </div>
-
-                    <FormField
-                        control={form.control}
-                        name="originAgentId"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Agente na Origem</FormLabel>
-                            <Popover open={isOriginAgentPopoverOpen} onOpenChange={setIsOriginAgentPopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <FormControl>
-                                <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
-                                    {field.value ? agentPartners.find((p) => p.id.toString() === field.value)?.name : "Selecione o agente"}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                                </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command><CommandInput placeholder="Buscar agente..." />
-                                <CommandList><CommandEmpty>Nenhum agente encontrado.</CommandEmpty>
-                                    <CommandGroup>
-                                    {agentPartners.map((partner) => (
-                                        <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("originAgentId", partner.id.toString()); setIsOriginAgentPopoverOpen(false);}}>
-                                        <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
-                                        {partner.name}
-                                        </CommandItem>
-                                    ))}
-                                    </CommandGroup>
-                                </CommandList>
-                                </Command>
-                            </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="destinationAgentId"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Agente no Destino</FormLabel>
-                            <Popover open={isDestinationAgentPopoverOpen} onOpenChange={setIsDestinationAgentPopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <FormControl>
-                                <Button variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
-                                    {field.value ? agentPartners.find((p) => p.id.toString() === field.value)?.name : "Selecione o agente"}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                                </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command><CommandInput placeholder="Buscar agente..." />
-                                <CommandList><CommandEmpty>Nenhum agente encontrado.</CommandEmpty>
-                                    <CommandGroup>
-                                    {agentPartners.map((partner) => (
-                                        <CommandItem value={partner.name} key={partner.id} onSelect={() => { form.setValue("destinationAgentId", partner.id.toString()); setIsDestinationAgentPopoverOpen(false);}}>
-                                        <Check className={cn("mr-2 h-4 w-4", partner.id.toString() === field.value ? "opacity-100" : "opacity-0")}/>
-                                        {partner.name}
-                                        </CommandItem>
-                                    ))}
-                                    </CommandGroup>
-                                </CommandList>
-                                </Command>
-                            </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
                 </div>
                 
                 <div className="flex items-center gap-4">

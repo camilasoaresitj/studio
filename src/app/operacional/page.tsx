@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { runGetBookingInfo } from '@/app/actions';
+import { runGetTrackingInfo } from '@/app/actions';
 import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -54,7 +54,7 @@ export default function OperacionalPage() {
     });
   };
   
-  const handleFetchNewBooking = async (bookingNumberToFetch: string) => {
+ const handleFetchNewBooking = async (bookingNumberToFetch: string) => {
       if (!bookingNumberToFetch.trim()) {
           toast({
               variant: 'destructive',
@@ -64,39 +64,66 @@ export default function OperacionalPage() {
           return;
       }
       setIsFetchingBooking(true);
-      // Create a dummy shipment object to pass to the action.
-      // This will be replaced by the real data if found.
-      const dummyShipment: Partial<Shipment> = { id: `TEMP-${bookingNumberToFetch}`, customer: 'Novo Processo', milestones: [], charges: [], details: { cargo: '', transitTime: '', validity: '', freeTime: '', incoterm: 'FOB' }, origin: '', destination: '' };
-
-      const response = await runGetBookingInfo(bookingNumberToFetch, dummyShipment as Shipment);
+      
+      const response = await runGetTrackingInfo(bookingNumberToFetch);
 
       if (response.success) {
-          const fetchedShipment = response.data;
+          const fetchedData = response.data;
+          const shipmentDetails = fetchedData.shipmentDetails || {};
           
-          const existingIndex = shipments.findIndex(s => s.id === fetchedShipment.id || (s.bookingNumber && s.bookingNumber === fetchedShipment.bookingNumber));
+          const existingShipmentIndex = shipments.findIndex(s => 
+              (s.bookingNumber && s.bookingNumber === bookingNumberToFetch) || 
+              (s.masterBillNumber && s.masterBillNumber === bookingNumberToFetch) ||
+              (s.id === `PROC-${bookingNumberToFetch}`) // Also check for proc id
+          );
           
-          if (existingIndex > -1) {
-              const updatedShipments = [...shipments];
-              updatedShipments[existingIndex] = fetchedShipment;
-              setShipments(updatedShipments);
-              setSelectedShipment(fetchedShipment); // Select the updated shipment to show details
+          let updatedShipment: Shipment;
+
+          if (existingShipmentIndex > -1) {
+              const existingShipment = shipments[existingShipmentIndex];
+              // Merge fetched data into existing shipment
+              updatedShipment = {
+                  ...existingShipment,
+                  ...shipmentDetails,
+                  id: existingShipment.id,
+                  customer: existingShipment.customer, 
+                  overseasPartner: existingShipment.overseasPartner,
+                  agent: existingShipment.agent,
+                  charges: existingShipment.charges,
+                  details: existingShipment.details,
+              };
+              
+              setShipments(prev => {
+                  const newShipments = [...prev];
+                  newShipments[existingShipmentIndex] = updatedShipment;
+                  return newShipments;
+              });
+              setSelectedShipment(updatedShipment);
               toast({
                   title: "Processo Atualizado!",
-                  description: `Os dados do processo ${fetchedShipment.id} foram sincronizados.`,
+                  description: `Os dados do processo ${updatedShipment.id} foram sincronizados.`,
                   className: 'bg-success text-success-foreground'
               });
           } else {
-              setShipments(prev => [fetchedShipment, ...prev]);
-              setSelectedShipment(fetchedShipment); // Select the new shipment to show details
+              // Create a new shipment if it doesn't exist
+              updatedShipment = {
+                  id: `PROC-${bookingNumberToFetch}`,
+                  customer: 'Novo Processo',
+                  charges: [],
+                  details: { cargo: '', transitTime: '', validity: '', freeTime: '', incoterm: 'FOB' },
+                  overseasPartner: { id: 0, name: 'Parceiro a definir', roles: { fornecedor: true } } as any,
+                  ...shipmentDetails,
+              } as Shipment;
+              setShipments(prev => [updatedShipment, ...prev]);
+              setSelectedShipment(updatedShipment);
               toast({
                   title: "Processo Importado!",
-                  description: `O processo ${fetchedShipment.id} foi adicionado com sucesso.`,
+                  description: `O processo ${updatedShipment.id} foi adicionado com sucesso.`,
                   className: 'bg-success text-success-foreground'
               });
           }
           
-          updateShipment(fetchedShipment); // Crucial: Save all changes to local storage
-
+          updateShipment(updatedShipment);
           setNewBookingNumber('');
       } else {
           toast({
@@ -153,7 +180,7 @@ export default function OperacionalPage() {
     
     // Check if departure has happened by looking for a completed 'departure' or 'embarque'
     const departureCompleted = shipment.milestones.some(m => 
-      (m.name.toLowerCase().includes('departure') || m.name.toLowerCase().includes('embarque')) 
+      (m.name.toLowerCase().includes('departure') || m.name.toLowerCase().includes('vessel departure') || m.name.toLowerCase().includes('embarque')) 
       && m.status === 'completed'
     );
   
@@ -162,7 +189,7 @@ export default function OperacionalPage() {
     }
   
     if (departureCompleted) {
-        if (firstPendingName.includes('chegada') || firstPendingName.includes('arrival')) {
+        if (firstPendingName.includes('chegada') || firstPendingName.includes('arrival') || firstPendingName.includes('discharged')) {
             return { text: 'Chegada no Destino', variant: 'default' };
         }
         if (firstPendingName.includes('desembaraço') || firstPendingName.includes('liberada') || firstPendingName.includes('entrega')) {
@@ -253,7 +280,7 @@ export default function OperacionalPage() {
       
       <Card>
         <CardHeader>
-            <div className="flex justify-between items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div className="flex-grow">
                     <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5 text-primary" />Embarques Ativos</CardTitle>
                     <CardDescription>Clique em um processo para ver e editar todos os detalhes.</CardDescription>

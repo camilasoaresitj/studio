@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetBookingInfo } from '@/app/actions';
+import { runGetTrackingInfo } from '@/app/actions';
 
 
 const containerDetailSchema = z.object({
@@ -259,11 +259,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
     setIsSyncing(true);
     
-    // Pass the entire current shipment object to the action
-    const response = await runGetBookingInfo(trackingNumber, shipment);
+    const response = await runGetTrackingInfo(trackingNumber);
 
-    if (response.success) {
-      onUpdate(response.data);
+    if (response.success && shipment) {
+      const { shipmentDetails } = response.data;
+      // Merge fetched data into existing shipment, preserving manual data
+      const updatedShipmentData = {
+          ...shipment,
+          ...shipmentDetails,
+          id: shipment.id,
+          customer: shipment.customer, 
+          overseasPartner: shipment.overseasPartner,
+          agent: shipment.agent,
+          charges: shipment.charges,
+          details: shipment.details,
+      };
+      
+      onUpdate(updatedShipmentData as Shipment);
+      
       toast({
         title: 'Embarque Sincronizado!',
         description: `Os dados de ${trackingNumber} foram atualizados.`,

@@ -16,6 +16,7 @@ const GetBookingInfoOutputSchema = z.any();
 
 const GetBookingInfoInputSchema = z.object({
   bookingNumber: z.string().describe('The carrier booking number.'),
+  carrier: z.string().describe('The carrier associated with the booking number (e.g., Maersk, MSC).'),
 });
 export type GetBookingInfoInput = z.infer<typeof GetBookingInfoInputSchema>;
 export type GetBookingInfoOutput = Shipment; // Export the actual TypeScript type for the action.
@@ -30,8 +31,8 @@ const getBookingInfoFlow = ai.defineFlow(
     inputSchema: GetBookingInfoInputSchema,
     outputSchema: GetBookingInfoOutputSchema,
   },
-  async ({ bookingNumber }) => {
-    console.log(`Fetching real carrier data from Cargo-flows for booking: ${bookingNumber}`);
+  async ({ bookingNumber, carrier }) => {
+    console.log(`Fetching real carrier data from Cargo-flows for booking: ${bookingNumber} with carrier: ${carrier}`);
     
     // Cargo-flows tracking result provides all the necessary details
     const trackingResult = await cargoFlows.cargoFlowsService.getTracking(bookingNumber);
@@ -40,7 +41,6 @@ const getBookingInfoFlow = ai.defineFlow(
         id, 
         origin, 
         destination, 
-        carrier, 
         vesselName, 
         voyageNumber, 
         events 
@@ -64,7 +64,7 @@ const getBookingInfoFlow = ai.defineFlow(
         origin,
         destination,
         bookingNumber: id,
-        masterBillNumber: id,
+        masterBillNumber: id, // Assume BL is same as booking for this simulation
         vesselName,
         voyageNumber,
         etd: etdEvent ? new Date(etdEvent.date) : undefined,
@@ -90,7 +90,11 @@ const getBookingInfoFlow = ai.defineFlow(
     const finalShipment: Shipment = {
         ...baseShipment,
         ...shipmentDetails, 
-        id: shipmentDetails.id || baseShipment.id, 
+        id: shipmentDetails.id || baseShipment.id,
+        details: {
+            ...baseShipment.details,
+            cargo: trackingResult.carrier === 'Aéreo' ? 'Carga Aérea' : 'FCL Container'
+        }
     };
 
     return finalShipment;

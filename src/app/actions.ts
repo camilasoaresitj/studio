@@ -14,6 +14,7 @@ import { generateQuotePdfHtml, GenerateQuotePdfHtmlInput, GenerateQuotePdfHtmlOu
 import { extractQuoteDetailsFromText, ExtractQuoteDetailsFromTextOutput } from '@/ai/flows/extract-quote-details-from-text';
 import { getTrackingInfo, GetTrackingInfoOutput } from '@/ai/flows/get-tracking-info';
 import { getBookingInfo } from '@/ai/flows/get-booking-info';
+import { detectCarrierFromBooking } from '@/ai/flows/detect-carrier-from-booking';
 import type { Partner } from '@/components/partners-registry';
 import type { Shipment } from '@/lib/shipment';
 
@@ -202,7 +203,8 @@ export async function runGetBookingInfo(
   bookingNumber: string
 ): Promise<{ success: true; data: Shipment } | { success: false; error: string }> {
   try {
-    const result = (await getBookingInfo({ bookingNumber })) as Shipment;
+    const { carrier } = await detectCarrierFromBooking({ bookingNumber });
+    const result = (await getBookingInfo({ bookingNumber, carrier })) as Shipment;
     return { success: true, data: result };
   } catch (e) {
     console.error(e);

@@ -255,35 +255,16 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   };
 
   const handleSyncBookingInfo = async () => {
-    const bookingNumber = form.getValues('bookingNumber');
-    if (!bookingNumber) {
-        toast({ variant: 'destructive', title: 'Nenhum Booking Number', description: 'Por favor, insira um número de booking para sincronizar.' });
+    const trackingNumber = form.getValues('masterBillNumber') || form.getValues('bookingNumber');
+    if (!trackingNumber) {
+        toast({ variant: 'destructive', title: 'Nenhum Número de Rastreio', description: 'Por favor, insira um número de Booking ou Master BL para sincronizar.' });
         return;
     }
     setIsSyncing(true);
-    const response = await runGetBookingInfo(bookingNumber);
+    const response = await runGetBookingInfo(trackingNumber);
 
-    if (response.success && shipment) {
-        const fetchedData = response.data;
-        const updatedShipment: Shipment = {
-            ...shipment, // Keep original quote/customer/charge/id data
-            // Overwrite with fresh data from the "carrier"
-            vesselName: fetchedData.vesselName,
-            voyageNumber: fetchedData.voyageNumber,
-            masterBillNumber: fetchedData.masterBillNumber,
-            houseBillNumber: fetchedData.houseBillNumber,
-            etd: fetchedData.etd,
-            eta: fetchedData.eta,
-            milestones: fetchedData.milestones,
-            containers: fetchedData.containers,
-            commodityDescription: fetchedData.commodityDescription,
-            ncm: fetchedData.ncm,
-            netWeight: fetchedData.netWeight,
-            packageQuantity: fetchedData.packageQuantity,
-            freeTimeDemurrage: fetchedData.freeTimeDemurrage,
-            transshipments: fetchedData.transshipments,
-        };
-        onUpdate(updatedShipment);
+    if (response.success) {
+        onUpdate(response.data);
         toast({ title: 'Dados Sincronizados!', description: 'As informações do embarque foram atualizadas.', className: 'bg-success text-success-foreground' });
     } else {
         toast({ variant: 'destructive', title: 'Erro na Sincronização', description: response.error });
@@ -438,9 +419,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <FormItem><FormLabel>Booking Reference</FormLabel>
                                         <div className="flex items-center gap-2">
                                         <FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl>
-                                        <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
-                                            {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                                        </Button>
                                         </div>
                                     <FormMessage />
                                     </FormItem>
@@ -485,7 +463,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 <CardHeader>
                                     <div className="flex justify-between items-center">
                                         <CardTitle className="text-lg">Milestones Operacionais</CardTitle>
-                                        <span className="text-sm text-muted-foreground font-medium">{completedCount} de {totalCount} concluídos</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-muted-foreground font-medium">{completedCount} de {totalCount} concluídos</span>
+                                            <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
+                                                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                            </Button>
+                                        </div>
                                     </div>
                                     <Progress value={progressPercentage} className="w-full mt-2" />
                                 </CardHeader>

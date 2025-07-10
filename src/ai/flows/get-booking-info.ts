@@ -34,7 +34,7 @@ const getBookingInfoFlow = ai.defineFlow(
     console.log(`Fetching tracking data for booking: ${bookingNumber}`);
     
     // Call the unified tracking flow
-    const trackingResult = await getTrackingInfo({ trackingNumber });
+    const trackingResult = await getTrackingInfo({ trackingNumber: bookingNumber });
 
     const shipmentDetails = trackingResult.shipmentDetails || {};
 

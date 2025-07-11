@@ -561,7 +561,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   }, [watchedCharges]);
 
   if (!shipment) {
-      return null;
+    return null;
   }
 
   return (
@@ -1039,7 +1039,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                 disabled={!charge.financialEntryId || isGeneratingPdf === charge.id}
                                                                 title="Visualizar Fatura em PDF"
                                                             >
-                                                                {isGeneratingPdf === charge.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileText className="h-4 w-4" />}
+                                                                {isGeneratingPdf === charge.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileText className={cn("h-4 w-4", charge.financialEntryId && "text-success")} />}
                                                             </Button>
                                                         </TableCell>
                                                         <TableCell className="text-center">

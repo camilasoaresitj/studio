@@ -206,7 +206,6 @@ function NfsePageComponent() {
   );
 }
 
-
 // We wrap the component in Suspense to handle the useSearchParams hook
 export default function NfsePage(): ReactElement {
   return (

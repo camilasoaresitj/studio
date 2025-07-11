@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -39,6 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 
 
 type FilterType = 'all' | 'dueToday' | 'dueThisMonth';
@@ -55,6 +57,7 @@ export default function FinanceiroPage() {
     const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
+    const [detailsShipment, setDetailsShipment] = useState<Shipment | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
@@ -181,11 +184,17 @@ export default function FinanceiroPage() {
         setSelectedRows(new Set());
     };
 
-    const handleInvoiceClick = (processId: string) => {
-        toast({
-            title: "Visualização de Detalhes",
-            description: `Em breve, será possível ver os detalhes da fatura vinculada ao processo ${processId}.`
-        });
+    const handleProcessClick = (processId: string) => {
+        const shipment = allShipments.find(s => s.id === processId);
+        if (shipment) {
+            setDetailsShipment(shipment);
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Processo não encontrado",
+                description: `O embarque para o processo ${processId} não foi localizado.`
+            });
+        }
     };
 
     const handleOpenNfseDialog = (entry: FinancialEntry) => {
@@ -392,7 +401,7 @@ export default function FinanceiroPage() {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Parceiro</TableHead>
                 <TableHead>Fatura</TableHead>
-                <TableHead>Conta</TableHead>
+                <TableHead>Processo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
@@ -410,19 +419,17 @@ export default function FinanceiroPage() {
                         />
                     </TableCell>
                     <TableCell>
-                    <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
+                        <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
                     </TableCell>
                     <TableCell className="font-medium">{entry.partner}</TableCell>
+                    <TableCell>{entry.invoiceId}</TableCell>
                     <TableCell>
-                        <a href="#" onClick={(e) => { e.preventDefault(); handleInvoiceClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
-                            {entry.invoiceId}
+                        <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                            {entry.processId}
                         </a>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                        {accounts.find(a => a.id === entry.accountId)?.name || 'N/A'}
-                    </TableCell>
                     <TableCell>
-                    <Badge variant={getStatusVariant(entry)} className="capitalize">{entry.status}</Badge>
+                        <Badge variant={getStatusVariant(entry)} className="capitalize">{entry.status}</Badge>
                     </TableCell>
                     <TableCell className={cn(getStatusVariant(entry) === 'destructive' && 'text-destructive font-bold')}>
                     {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
@@ -670,6 +677,12 @@ export default function FinanceiroPage() {
             data={nfseData}
             isOpen={!!nfseData}
             onClose={() => setNfseData(null)}
+        />
+        
+        <FinancialDetailsDialog
+            shipment={detailsShipment}
+            isOpen={!!detailsShipment}
+            onClose={() => setDetailsShipment(null)}
         />
 
     </div>

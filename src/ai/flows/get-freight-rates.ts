@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Fetches freight rates from the CargoFive and SeaRates APIs.
@@ -161,7 +162,7 @@ const getFreightRatesFlow = ai.defineFlow(
             const cargoFivePayload = buildCargoFivePayload(singleSearchInput);
             const cargoFivePromise = fetch('https://api.cargofive.com/v2/forwarding_rates', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Api-Key': cargoFiveApiKey },
+                headers: { 'Content-Type': 'application/json', 'x-api-key': cargoFiveApiKey },
                 body: JSON.stringify(cargoFivePayload),
             })
             .then(res => res.ok ? res.json() : res.text().then(text => Promise.reject(text)))

@@ -17,7 +17,7 @@ import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, Check
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { QuoteCostSheet } from './quote-cost-sheet';
-import { runSendQuote, runGenerateClientInvoicePdf } from '@/app/actions';
+import { runSendQuote, runGenerateClientInvoicePdf, runSendWhatsapp } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
@@ -104,8 +104,14 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
 
       const finalPrice = `BRL ${totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       const supplier = quoteToSend.charges.find(c => c.name.toLowerCase().includes('frete'))?.supplier || 'N/A';
+      
+      const isClientAgent = customer.roles.agente === true;
+      const contentVariables = {
+        '1': quoteToSend.id.replace('-DRAFT', ''),
+        '2': finalPrice
+      };
 
-      const response = await runSendQuote({
+      const commsResponse = await runSendQuote({
         customerName: quoteToSend.customer,
         quoteId: quoteToSend.id.replace('-DRAFT', ''),
         rateDetails: {
@@ -117,9 +123,10 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         },
         approvalLink: `https://cargainteligente.com/approve/${quoteToSend.id}`,
         rejectionLink: `https://cargainteligente.com/reject/${quoteToSend.id}`,
+        isClientAgent,
       });
 
-      if (response.success) {
+      if (commsResponse.success) {
         if (channel === 'email') {
             const primaryContact = customer.contacts.find(c => c.departments?.includes('Comercial')) || customer.contacts[0];
             const recipient = primaryContact?.email;
@@ -127,8 +134,8 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 // In a real app, you would use an email service API here.
                 console.log("----- SIMULATING EMAIL SEND -----");
                 console.log("TO:", recipient);
-                console.log("SUBJECT:", response.data.emailSubject);
-                console.log("BODY (HTML):", response.data.emailBody);
+                console.log("SUBJECT:", commsResponse.data.emailSubject);
+                console.log("BODY (HTML):", commsResponse.data.emailBody);
                 console.log("---------------------------------");
                 toast({ title: 'Simulando envio de e-mail!', description: `E-mail para ${recipient} gerado no console.` });
             } else {
@@ -138,16 +145,19 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             const primaryContact = customer.contacts.find(c => c.departments?.includes('Comercial')) || customer.contacts[0];
             const phone = primaryContact?.phone?.replace(/\D/g, '');
              if (phone) {
-                const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(response.data.whatsappMessage)}`;
-                window.open(whatsappUrl, '_blank');
-                toast({ title: 'Mensagem de WhatsApp gerada!', description: 'Pronto para enviar.' });
+                const whatsappResponse = await runSendWhatsapp(phone, JSON.stringify(contentVariables));
+                if (whatsappResponse.success) {
+                    toast({ title: 'Mensagem de WhatsApp enviada!', description: `SID: ${whatsappResponse.data.sid}.`, className: 'bg-success text-success-foreground' });
+                } else {
+                    toast({ variant: 'destructive', title: 'Falha no Envio do WhatsApp', description: whatsappResponse.error });
+                }
             } else {
                  toast({ variant: 'destructive', title: 'Telefone não encontrado', description: 'O contato principal do cliente não possui um telefone cadastrado.' });
             }
         }
         setSendDialogOpen(false);
       } else {
-        toast({ variant: 'destructive', title: 'Erro ao gerar comunicação', description: response.error });
+        toast({ variant: 'destructive', title: 'Erro ao gerar comunicação', description: commsResponse.error });
       }
 
       setIsSending(false);
@@ -196,8 +206,8 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 }
             });
             
-            if (!response.success) {
-                throw new Error(response.error);
+            if (!response.success || !response.data.html) {
+                throw new Error(response.error || "A geração do HTML da fatura falhou.");
             }
             
             const element = document.createElement("div");
@@ -397,7 +407,8 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                     Enviar por E-mail
                 </Button>
                 <Button onClick={() => handleSendQuote('whatsapp')} disabled={isSending}>
-                    <MessageCircle className="mr-2 h-4 w-4" /> Enviar por WhatsApp
+                    {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+                    Enviar por WhatsApp
                 </Button>
             </div>
         </DialogContent>

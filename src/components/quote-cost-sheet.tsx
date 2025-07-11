@@ -24,6 +24,7 @@ const quoteChargeSchema = z.object({
     id: z.string(),
     name: z.string().min(1, 'Obrigatório'),
     type: z.string(),
+    localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
     cost: z.coerce.number().default(0),
     costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
     sale: z.coerce.number().default(0),
@@ -55,6 +56,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
 
   React.useEffect(() => {
+    // This effect now correctly resets the form whenever the quote prop changes.
+    // This is the key to solving the stale data issue.
     if (quote) {
       form.reset({ charges: quote.charges || [] });
     }
@@ -78,6 +81,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
         id: `new-charge-${Date.now()}`,
         name: '',
         type: 'Fixo',
+        localPagamento: 'Frete',
         cost: 0,
         costCurrency: 'USD',
         sale: 0,

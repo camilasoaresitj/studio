@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -10,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, DollarSign, FileDown, Filter, MoreHorizontal, Upload, Landmark, Edit, Pencil, FileText, Send } from 'lucide-react';
+import { CalendarIcon, DollarSign, FileDown, Filter, MoreHorizontal, Upload, Landmark, Edit, Pencil, FileText, Send, Printer, Eye } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts } from '@/lib/financials-data';
@@ -18,18 +17,20 @@ import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { BankAccountDialog } from '@/components/financials/bank-account-form';
 import { NfseGenerationDialog } from '@/components/financials/nfse-generation-dialog';
 import { getShipments } from '@/lib/shipment';
-import type { Shipment } from '@/lib/shipment';
+import type { Shipment, QuoteCharge } from '@/lib/shipment';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
+import { runGenerateQuotePdfHtml, runSendQuote } from '@/app/actions';
 
 export default function FinanceiroPage() {
-    const [entries, setEntries] = useState<FinancialEntry[]>(getFinancialEntries);
-    const [accounts, setAccounts] = useState<BankAccount[]>(getBankAccounts);
+    const [isClient, setIsClient] = useState(false);
+    const [entries, setEntries] = useState<FinancialEntry[]>([]);
+    const [accounts, setAccounts] = useState<BankAccount[]>([]);
     const [allShipments, setAllShipments] = useState<Shipment[]>([]);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -42,6 +43,9 @@ export default function FinanceiroPage() {
     const { toast } = useToast();
 
     useEffect(() => {
+        setIsClient(true);
+        setEntries(getFinancialEntries());
+        setAccounts(getBankAccounts());
         setAllShipments(getShipments());
     }, []);
 
@@ -159,13 +163,6 @@ export default function FinanceiroPage() {
             });
         }
     };
-    
-    const handleOtherActions = (action: string, invoiceId: string) => {
-         toast({
-            title: 'Funcionalidade em Desenvolvimento',
-            description: `A ação "${action}" para a fatura ${invoiceId} será implementada em breve.`,
-        });
-    };
 
     const handleAccountSave = (accountToSave: BankAccount) => {
         let updatedAccounts;
@@ -185,20 +182,77 @@ export default function FinanceiroPage() {
         setEditingAccount(null);
     };
 
-    const handleViewDocument = (type: 'NFS-e' | 'Boleto', id: string) => {
-        toast({
-            title: `Visualizar ${type}`,
-            description: `A visualização do documento ${id} será implementada em breve.`
+    const handleGenerateInvoicePdf = async (entry: FinancialEntry) => {
+        const shipment = allShipments.find(s => s.id === entry.processId);
+        if (!shipment) {
+            toast({ variant: 'destructive', title: 'Processo não encontrado' });
+            return;
+        }
+
+        const formatValue = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        const totalsByCurrency: { [key: string]: number } = {};
+        shipment.charges.forEach(charge => {
+            totalsByCurrency[charge.saleCurrency] = (totalsByCurrency[charge.saleCurrency] || 0) + charge.sale;
         });
+        const totalAllIn = Object.entries(totalsByCurrency).map(([currency, total]) => `${currency} ${formatValue(total)}`).join(' + ');
+
+        const response = await runGenerateQuotePdfHtml({
+            quoteNumber: entry.invoiceId,
+            customerName: entry.partner,
+            date: new Date().toLocaleDateString('pt-br'),
+            validity: format(new Date(entry.dueDate), 'dd/MM/yyyy'),
+            origin: shipment.origin,
+            destination: shipment.destination,
+            incoterm: shipment.details.incoterm,
+            transitTime: shipment.details.transitTime,
+            modal: shipment.details.cargo.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo',
+            equipment: shipment.details.cargo,
+            freightCharges: shipment.charges.filter(c => c.localPagamento === 'Frete').map(c => ({ name: c.name, type: c.type, currency: c.saleCurrency, total: formatValue(c.sale) })),
+            localCharges: shipment.charges.filter(c => c.localPagamento !== 'Frete').map(c => ({ name: c.name, type: c.type, currency: c.saleCurrency, total: formatValue(c.sale) })),
+            totalAllIn: totalAllIn,
+            observations: "Pagamento referente a serviços de agenciamento de carga."
+        });
+
+        if (response.success && response.data?.html) {
+            const newTab = window.open();
+            newTab?.document.write(response.data.html);
+            newTab?.document.close();
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao gerar fatura', description: response.error });
+        }
+    };
+    
+    const handleResendInvoice = async (entry: FinancialEntry) => {
+        const response = await runSendQuote({
+            customerName: entry.partner,
+            quoteId: entry.invoiceId,
+            rateDetails: {
+                origin: 'Diversos',
+                destination: 'Diversos',
+                carrier: 'N/A',
+                transitTime: 'N/A',
+                finalPrice: `${entry.currency} ${entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            },
+            approvalLink: `https://cargainteligente.com/pay/${entry.id}`,
+            rejectionLink: `https://cargainteligente.com/dispute/${entry.id}`,
+            isInvoice: true,
+        });
+
+        if (response.success) {
+            console.log("----- SIMULATING INVOICE EMAIL SEND -----");
+            console.log("SUBJECT:", response.data.emailSubject);
+            console.log("BODY (HTML):", response.data.emailBody);
+            console.log("---------------------------------------");
+            toast({ title: 'Fatura reenviada! (Simulação)', description: `E-mail para ${entry.partner} gerado no console.` });
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao reenviar', description: response.error });
+        }
     };
 
-    const handleSendDocument = (type: 'NFS-e' | 'Boleto', id: string) => {
-        toast({
-            title: `Reenviar ${type} (Simulação)`,
-            description: `O documento ${id} foi reenviado ao cliente.`,
-            className: 'bg-success text-success-foreground'
-        });
-    };
+    if (!isClient) {
+        return null;
+    }
 
     return (
     <div className="p-4 md:p-8">
@@ -345,9 +399,14 @@ export default function FinanceiroPage() {
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onClick={() => setEntryToSettle(entry)}>Baixar Pagamento</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleGenerateInvoicePdf(entry)}>
+                                                <Eye className="mr-2 h-4 w-4" /> Visualizar Fatura
+                                            </DropdownMenuItem>
+                                             <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
+                                                <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
+                                            </DropdownMenuItem>
                                             {entry.type === 'credit' && (
                                                 <>
-                                                    <DropdownMenuItem onClick={() => handleOtherActions('Emitir Boleto', entry.invoiceId)}>Emitir Boleto</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
                                                         <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
                                                     </DropdownMenuItem>

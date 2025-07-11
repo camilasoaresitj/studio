@@ -47,14 +47,16 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const form = useForm<QuoteCostSheetFormData>({
     resolver: zodResolver(quoteChargeSchema),
     defaultValues: {
-      charges: [],
+      charges: quote.charges || [],
     },
   });
 
   const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
 
   React.useEffect(() => {
-    form.reset({ charges: quote.charges || [] });
+    if (quote) {
+      form.reset({ charges: quote.charges || [] });
+    }
   }, [quote, form]);
 
   const { fields, append, remove } = useFieldArray({
@@ -128,20 +130,20 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Nova Taxa
             </Button>
           </div>
-          <div className="flex-grow overflow-hidden">
+          <div className="flex-grow overflow-hidden border rounded-lg">
             <ScrollArea className="h-full">
-              <Table>
+              <Table className="min-w-[1200px]">
                 <TableHeader className="sticky top-0 bg-secondary z-10">
                   <TableRow>
-                    <TableHead className="w-[15%]">Taxa</TableHead>
-                    <TableHead className="w-[12%]">Tipo Cobrança</TableHead>
-                    <TableHead className="w-[12%]">Local Pagamento</TableHead>
-                    <TableHead className="w-[15%] text-right">Compra</TableHead>
-                    <TableHead className="w-[15%] text-right">Venda</TableHead>
-                    <TableHead className="w-[10%] text-right">Lucro</TableHead>
-                    <TableHead className="w-[12%]">Fornecedor</TableHead>
-                    <TableHead className="w-[12%]">Sacado</TableHead>
-                    <TableHead className="w-[5%]">Ação</TableHead>
+                    <TableHead className="w-[150px]">Taxa</TableHead>
+                    <TableHead className="w-[150px]">Tipo Cobrança</TableHead>
+                    <TableHead className="w-[150px]">Local Pagamento</TableHead>
+                    <TableHead className="w-[200px] text-right">Compra</TableHead>
+                    <TableHead className="w-[200px] text-right">Venda</TableHead>
+                    <TableHead className="w-[120px] text-right">Lucro</TableHead>
+                    <TableHead className="w-[150px]">Fornecedor</TableHead>
+                    <TableHead className="w-[150px]">Sacado</TableHead>
+                    <TableHead className="w-[50px]">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

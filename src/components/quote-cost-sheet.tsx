@@ -59,7 +59,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     if (quote) {
       form.reset({ charges: quote.charges || [] });
     }
-  }, [quote, form]);
+  }, [quote, form.reset]);
 
   React.useEffect(() => {
     const fetchRates = async () => {
@@ -160,7 +160,6 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                     <TableRow>
                       <TableHead className="w-[150px] h-10">Taxa</TableHead>
                       <TableHead className="w-[150px] h-10">Tipo Cobrança</TableHead>
-                      <TableHead className="w-[150px] h-10">Local Pagamento</TableHead>
                       <TableHead className="w-[200px] text-right h-10">Compra</TableHead>
                       <TableHead className="w-[200px] text-right h-10">Venda</TableHead>
                       <TableHead className="w-[120px] text-right h-10">Lucro</TableHead>
@@ -187,18 +186,6 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                           <TableCell className="p-2">
                             <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
                               <Input placeholder="Ex: Por Contêiner" {...field} className="h-8"/>
-                            )} />
-                          </TableCell>
-                          <TableCell className="p-2">
-                            <FormField control={form.control} name={`charges.${index}.localPagamento`} render={({ field }) => (
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Origem">Origem</SelectItem>
-                                    <SelectItem value="Frete">Frete</SelectItem>
-                                    <SelectItem value="Destino">Destino</SelectItem>
-                                </SelectContent>
-                              </Select>
                             )} />
                           </TableCell>
                           <TableCell className="text-right p-2">

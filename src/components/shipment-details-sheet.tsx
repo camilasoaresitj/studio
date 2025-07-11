@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, isPast, isValid } from 'date-fns';
+import { useRouter } from 'next/navigation';
 import {
   Sheet,
   SheetContent,
@@ -128,6 +129,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const [isCourierSyncing, setIsCourierSyncing] = useState(false);
   const [isInvoicing, setIsInvoicing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   
   const form = useForm<ShipmentDetailsFormData>({
     resolver: zodResolver(shipmentDetailsSchema),
@@ -293,7 +295,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         description: `${response.data.credits} crédito(s) e ${response.data.debits} débito(s) gerados no módulo Financeiro.`,
         className: 'bg-success text-success-foreground'
       });
-      // Optionally, close the sheet or update a status on the shipment
+      router.refresh();
       onOpenChange(false);
     } else {
       toast({

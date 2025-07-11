@@ -16,7 +16,8 @@ import {
   PlusCircle,
   ShieldAlert,
   Users,
-  Loader2
+  Loader2,
+  Printer
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
@@ -55,7 +56,7 @@ export default function FinanceiroPage() {
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -218,49 +219,23 @@ export default function FinanceiroPage() {
         setEditingAccount(null);
     };
 
-    const openGeneratedHtml = async (html: string | undefined, entryId: string) => {
+    const openGeneratedHtml = (html: string | undefined, entryId: string) => {
         if (!html) {
             toast({ variant: 'destructive', title: 'Erro ao gerar fatura', description: 'O conteúdo da fatura não pôde ser gerado.' });
             return;
         }
 
-        setIsGeneratingPdf(true);
-        toast({ title: 'Gerando PDF...', description: 'Aguarde um momento.' });
-
-        try {
-            const element = document.createElement("div");
-            element.style.position = 'absolute';
-            element.style.left = '-9999px';
-            element.style.top = '0';
-            element.style.width = '800px'; 
-            element.innerHTML = html;
-            document.body.appendChild(element);
-            
-            await new Promise(resolve => setTimeout(resolve, 500)); 
-
-            const canvas = await html2canvas(element, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`invoice-${entryId}.pdf`);
-            toast({ title: 'PDF gerado com sucesso!', className: 'bg-success text-success-foreground' });
-
-            document.body.removeChild(element);
-        } catch (e: any) {
-             toast({ variant: "destructive", title: "Erro ao gerar PDF", description: e.message || "Ocorreu um erro ao converter o conteúdo." });
-        } finally {
-            setIsGeneratingPdf(false);
-        }
+        const newWindow = window.open();
+        newWindow?.document.write(html);
+        newWindow?.document.close();
     };
 
     const handleGenerateClientInvoicePdf = async (entry: FinancialEntry) => {
-        setIsGeneratingPdf(true);
+        setIsGenerating(true);
         const shipment = allShipments.find(s => s.id === entry.processId);
         if (!shipment) {
             toast({ variant: 'destructive', title: 'Processo não encontrado' });
-            setIsGeneratingPdf(false);
+            setIsGenerating(false);
             return;
         }
 
@@ -296,19 +271,19 @@ export default function FinanceiroPage() {
         });
 
         if (response.success) {
-            await openGeneratedHtml(response.data?.html, entry.invoiceId);
+            openGeneratedHtml(response.data?.html, entry.invoiceId);
         } else {
              toast({ variant: 'destructive', title: 'Erro ao gerar fatura', description: response.error });
         }
-        setIsGeneratingPdf(false);
+        setIsGenerating(false);
     };
 
     const handleGenerateAgentInvoicePdf = async (entry: FinancialEntry) => {
-        setIsGeneratingPdf(true);
+        setIsGenerating(true);
         const shipment = allShipments.find(s => s.id === entry.processId);
         if (!shipment || !shipment.agent) {
             toast({ variant: 'destructive', title: 'Processo ou Agente não encontrado' });
-            setIsGeneratingPdf(false);
+            setIsGenerating(false);
             return;
         }
 
@@ -342,11 +317,11 @@ export default function FinanceiroPage() {
         });
         
         if (response.success) {
-            await openGeneratedHtml(response.data?.html, `agent-${entry.invoiceId}`);
+            openGeneratedHtml(response.data?.html, `agent-${entry.invoiceId}`);
         } else {
              toast({ variant: 'destructive', title: 'Erro ao gerar invoice do agente', description: response.error });
         }
-        setIsGeneratingPdf(false);
+        setIsGenerating(false);
     };
     
     const handleResendInvoice = async (entry: FinancialEntry) => {
@@ -453,15 +428,15 @@ export default function FinanceiroPage() {
                     </TableCell>
                     <TableCell className="text-center">
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGeneratingPdf}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={isGeneratingPdf}>
-                                    {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Eye className="mr-2 h-4 w-4" />} 
-                                    Visualizar Fatura (Cliente)
+                                <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={isGenerating}>
+                                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
+                                    Visualizar/Imprimir Fatura (Cliente)
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={isGeneratingPdf || !allShipments.find(s => s.id === entry.processId)?.agent}>
-                                    {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Users className="mr-2 h-4 w-4" />} 
-                                    Visualizar Invoice (Agente)
+                                <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={isGenerating || !allShipments.find(s => s.id === entry.processId)?.agent}>
+                                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
+                                    Visualizar/Imprimir Invoice (Agente)
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
                                     <Send className="mr-2 h-4 w-4" /> Reenviar Fatura

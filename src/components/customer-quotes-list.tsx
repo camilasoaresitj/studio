@@ -203,7 +203,8 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 bankDetails: {
                     bankName: "LTI GLOBAL",
                     accountNumber: "PIX: 10.298.168/0001-89"
-                }
+                },
+                approvalLink: `https://cargainteligente.com/approve/${quote.id}`,
             });
             
             if (!response.success || !response.data.html) {
@@ -377,7 +378,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         </CardContent>
     </Card>
     <Dialog open={!!selectedQuote} onOpenChange={(isOpen) => !isOpen && setSelectedQuote(null)}>
-        <DialogContent key={selectedQuote?.id} className="sm:max-w-7xl max-h-[90vh] p-0">
+        <DialogContent className="sm:max-w-7xl max-h-[90vh] p-0">
             {selectedQuote && (
                 <>
                     <DialogHeader className="p-6 pb-2">
@@ -387,7 +388,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                         </DialogDescription>
                     </DialogHeader>
                     <div className="p-6 pt-0 flex-grow overflow-y-auto">
-                        <QuoteCostSheet quote={selectedQuote} partners={partners} onUpdate={handleUpdateQuote} />
+                        <QuoteCostSheet key={selectedQuote.id} quote={selectedQuote} partners={partners} onUpdate={handleUpdateQuote} />
                     </div>
                 </>
             )}

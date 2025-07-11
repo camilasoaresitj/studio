@@ -17,6 +17,7 @@ import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
+import { exchangeRateService } from '@/services/exchange-rate-service';
 
 const quoteChargeSchema = z.object({
   charges: z.array(z.object({
@@ -51,12 +52,19 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     },
   });
 
+  const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
+
   const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
 
   React.useEffect(() => {
     if (quote) {
       form.reset({ charges: quote.charges || [] });
     }
+    const fetchRates = async () => {
+        const rates = await exchangeRateService.getRates();
+        setExchangeRates(rates);
+    };
+    fetchRates();
   }, [quote, form]);
 
   const { fields, append, remove } = useFieldArray({
@@ -84,23 +92,38 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const watchedCharges = form.watch('charges');
 
   const totals = React.useMemo(() => {
-    const cost: Record<string, number> = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
-    const sale: Record<string, number> = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
-    const profit: Record<string, number> = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
+    const cost: Record<string, number> = {};
+    const sale: Record<string, number> = {};
+    let totalProfitBRL = 0;
 
     watchedCharges.forEach(charge => {
-      const chargeCost = Number(charge.cost) || 0;
-      const chargeSale = Number(charge.sale) || 0;
+        const chargeCost = Number(charge.cost) || 0;
+        const chargeSale = Number(charge.sale) || 0;
 
-      cost[charge.costCurrency] = (cost[charge.costCurrency] || 0) + chargeCost;
-      sale[charge.saleCurrency] = (sale[charge.saleCurrency] || 0) + chargeSale;
-      
-      profit[charge.saleCurrency] = (profit[charge.saleCurrency] || 0) + chargeSale;
-      profit[charge.costCurrency] = (profit[charge.costCurrency] || 0) - chargeCost;
+        cost[charge.costCurrency] = (cost[charge.costCurrency] || 0) + chargeCost;
+        sale[charge.saleCurrency] = (sale[charge.saleCurrency] || 0) + chargeSale;
+
+        // --- BRL Profit Calculation ---
+        const customer = partners.find(p => p.name === charge.sacado);
+        const supplier = partners.find(p => p.name === charge.supplier);
+
+        const customerAgio = customer?.exchangeRateAgio ?? 0;
+        const supplierAgio = supplier?.exchangeRateAgio ?? 0;
+
+        const salePtax = exchangeRates[charge.saleCurrency] || 1;
+        const costPtax = exchangeRates[charge.costCurrency] || 1;
+
+        const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + customerAgio / 100);
+        const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + supplierAgio / 100);
+
+        const saleInBRL = chargeSale * saleRate;
+        const costInBRL = chargeCost * costRate;
+        
+        totalProfitBRL += (saleInBRL - costInBRL);
     });
 
-    return { cost, sale, profit };
-  }, [watchedCharges]);
+    return { cost, sale, totalProfitBRL };
+  }, [watchedCharges, partners, exchangeRates]);
 
   const onSubmit = (data: QuoteCostSheetFormData) => {
     onUpdate(data);
@@ -256,12 +279,13 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                       ))}
                   </CardContent>
               </Card>
-              <Card className={cn(Object.values(totals.profit).some(p => p < 0) ? "border-destructive" : "border-success")}>
-                  <CardHeader><CardTitle className="text-lg">Lucro Total</CardTitle></CardHeader>
+              <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
+                  <CardHeader><CardTitle className="text-lg">Lucro Total (em BRL)</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                      {Object.entries(totals.profit).filter(([, value]) => value !== 0).map(([key, value]) => (
-                        <div key={key} className={cn("flex justify-between font-semibold", value < 0 ? "text-destructive" : "text-success")}><span>{key}:</span><span className="font-mono">{value.toFixed(2)}</span></div>
-                      ))}
+                      <div className={cn("flex justify-between font-semibold", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
+                          <span>BRL:</span>
+                          <span className="font-mono">{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
                   </CardContent>
               </Card>
           </div>

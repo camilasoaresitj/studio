@@ -74,6 +74,7 @@ export default function FinanceiroPage() {
     }, [entries]);
 
     const filteredEntries = useMemo(() => {
+        if (!isClient) return [];
         const nonJuridicoEntries = entries.filter(e => e.status !== 'Jurídico');
         if (activeFilter === 'all') {
             return nonJuridicoEntries;
@@ -91,11 +92,12 @@ export default function FinanceiroPage() {
             }
             return true;
         });
-    }, [entries, activeFilter]);
+    }, [entries, activeFilter, isClient]);
     
     const juridicoEntries = useMemo(() => {
+        if (!isClient) return [];
         return entries.filter(e => e.status === 'Jurídico');
-    }, [entries]);
+    }, [entries, isClient]);
 
 
     const getStatusVariant = (entry: FinancialEntry): 'default' | 'secondary' | 'destructive' | 'success' => {
@@ -312,15 +314,21 @@ export default function FinanceiroPage() {
         return null;
     }
 
-    const renderTable = (entries: FinancialEntry[]) => (
+    const renderTable = (tableEntries: FinancialEntry[]) => (
         <div className="border rounded-lg">
             <Table>
             <TableHeader>
                 <TableRow>
                 <TableHead className="w-10">
                     <Checkbox
-                        checked={selectedRows.size === filteredEntries.length && filteredEntries.length > 0}
-                        onCheckedChange={toggleSelectAll}
+                        checked={selectedRows.size === tableEntries.length && tableEntries.length > 0}
+                        onCheckedChange={() => {
+                            if (selectedRows.size === tableEntries.length) {
+                                setSelectedRows(new Set());
+                            } else {
+                                setSelectedRows(new Set(tableEntries.map(e => e.id)));
+                            }
+                        }}
                         aria-label="Selecionar todos"
                     />
                 </TableHead>
@@ -335,7 +343,7 @@ export default function FinanceiroPage() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {entries.map((entry) => (
+                {tableEntries.map((entry) => (
                 <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
                     <TableCell>
                         <Checkbox

@@ -24,7 +24,6 @@ const quoteChargeSchema = z.object({
     id: z.string(),
     name: z.string().min(1, 'Obrigatório'),
     type: z.string(),
-    localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
     cost: z.coerce.number().default(0),
     costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
     sale: z.coerce.number().default(0),
@@ -59,7 +58,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     if (quote) {
       form.reset({ charges: quote.charges || [] });
     }
-  }, [quote, form.reset]);
+  }, [quote, form]);
 
   React.useEffect(() => {
     const fetchRates = async () => {
@@ -79,7 +78,6 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
         id: `new-charge-${Date.now()}`,
         name: '',
         type: 'Fixo',
-        localPagamento: 'Frete',
         cost: 0,
         costCurrency: 'USD',
         sale: 0,
@@ -129,7 +127,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   };
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex flex-col h-full space-y-2">
         <Card>
             <CardHeader className="p-3">
                 <CardTitle className="text-base">Detalhes do Embarque</CardTitle>
@@ -145,27 +143,27 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
             </CardContent>
         </Card>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-grow flex flex-col overflow-hidden">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 flex-grow flex flex-col overflow-hidden">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Tabela de Custos e Vendas</h3>
             <Button type="button" variant="outline" size="sm" onClick={handleAddNewCharge}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Nova Taxa
+                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
             </Button>
           </div>
           <div className="flex-grow overflow-hidden">
             <ScrollArea className="h-full">
               <div className="border rounded-lg">
-                <Table className="min-w-[1400px]">
+                <Table>
                   <TableHeader className="sticky top-0 bg-secondary z-10">
                     <TableRow>
-                      <TableHead className="w-[150px] h-10">Taxa</TableHead>
-                      <TableHead className="w-[150px] h-10">Tipo Cobrança</TableHead>
-                      <TableHead className="w-[200px] text-right h-10">Compra</TableHead>
-                      <TableHead className="w-[200px] text-right h-10">Venda</TableHead>
-                      <TableHead className="w-[120px] text-right h-10">Lucro</TableHead>
-                      <TableHead className="w-[150px] h-10">Fornecedor</TableHead>
-                      <TableHead className="w-[150px] h-10">Sacado</TableHead>
-                      <TableHead className="w-[50px] h-10">Ação</TableHead>
+                      <TableHead className="h-9 w-[200px]">Taxa</TableHead>
+                      <TableHead className="h-9 w-[120px]">Tipo Cobrança</TableHead>
+                      <TableHead className="h-9 w-[180px] text-right">Compra</TableHead>
+                      <TableHead className="h-9 w-[180px] text-right">Venda</TableHead>
+                      <TableHead className="h-9 w-[120px] text-right">Lucro</TableHead>
+                      <TableHead className="h-9 w-[180px]">Fornecedor</TableHead>
+                      <TableHead className="h-9 w-[180px]">Sacado</TableHead>
+                      <TableHead className="h-9 w-[50px]">Ação</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -178,17 +176,17 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                       
                       return (
                         <TableRow key={field.id}>
-                          <TableCell className="p-2">
+                          <TableCell className="p-1">
                             <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (
                               <Input placeholder="Ex: FRETE" {...field} className="h-8"/>
                             )} />
                           </TableCell>
-                          <TableCell className="p-2">
+                          <TableCell className="p-1">
                             <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
                               <Input placeholder="Ex: Por Contêiner" {...field} className="h-8"/>
                             )} />
                           </TableCell>
-                          <TableCell className="text-right p-2">
+                          <TableCell className="text-right p-1">
                             <div className="flex items-center gap-1">
                               <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value}>
@@ -201,7 +199,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                               )} />
                             </div>
                           </TableCell>
-                          <TableCell className="text-right p-2">
+                          <TableCell className="text-right p-1">
                             <div className="flex items-center gap-1">
                               <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value}>
@@ -214,15 +212,15 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                               )} />
                             </div>
                           </TableCell>
-                          <TableCell className={cn('font-semibold text-right p-2', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
+                          <TableCell className={cn('font-semibold text-right p-1', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
                               {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
                           </TableCell>
-                          <TableCell className="p-2">
+                          <TableCell className="p-1">
                             <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
                               <Input placeholder="Ex: Maersk" {...field} className="h-8"/>
                             )} />
                           </TableCell>
-                          <TableCell className="p-2">
+                          <TableCell className="p-1">
                             <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value || quote.customer}>
                                     <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -234,7 +232,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                 </Select>
                             )} />
                           </TableCell>
-                          <TableCell className="p-2">
+                          <TableCell className="p-1">
                               <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
                                   <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
@@ -250,10 +248,10 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
           
           <Separator className="!mt-auto" />
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
               <Card>
-                  <CardHeader className="p-3"><CardTitle className="text-base">Custo Total (em BRL)</CardTitle></CardHeader>
-                  <CardContent className="p-3 pt-0 text-sm">
+                  <CardHeader className="p-2"><CardTitle className="text-base">Custo Total (em BRL)</CardTitle></CardHeader>
+                  <CardContent className="p-2 pt-0 text-sm">
                       <div className="flex justify-between font-semibold">
                           <span>BRL:</span>
                           <span className="font-mono">{totalsBRL.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -261,8 +259,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                   </CardContent>
               </Card>
                <Card>
-                  <CardHeader className="p-3"><CardTitle className="text-base">Venda Total (em BRL)</CardTitle></CardHeader>
-                  <CardContent className="p-3 pt-0 text-sm">
+                  <CardHeader className="p-2"><CardTitle className="text-base">Venda Total (em BRL)</CardTitle></CardHeader>
+                  <CardContent className="p-2 pt-0 text-sm">
                        <div className="flex justify-between font-semibold">
                           <span>BRL:</span>
                           <span className="font-mono">{totalsBRL.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -270,8 +268,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                   </CardContent>
               </Card>
               <Card className={cn(totalsBRL.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
-                  <CardHeader className="p-3"><CardTitle className="text-base">Lucro Total (em BRL)</CardTitle></CardHeader>
-                  <CardContent className="p-3 pt-0 text-sm">
+                  <CardHeader className="p-2"><CardTitle className="text-base">Lucro Total (em BRL)</CardTitle></CardHeader>
+                  <CardContent className="p-2 pt-0 text-sm">
                       <div className={cn("flex justify-between font-semibold", totalsBRL.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
                           <span>BRL:</span>
                           <span className="font-mono">{totalsBRL.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>

@@ -22,7 +22,7 @@ import {
   ChevronsUpDown
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
-import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
+import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getFinancialEntries, getBankAccounts } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -42,8 +42,8 @@ import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { getShipments } from '@/lib/shipment';
 
-type FilterType = 'all' | 'dueToday' | 'dueThisMonth';
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico';
 const allStatuses: Status[] = ['Aberto', 'Vencido', 'Parcialmente Pago', 'Pago'];
 
@@ -68,8 +68,8 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [detailsShipment, setDetailsShipment] = useState<(Shipment & { payments?: PartialPayment[] }) | null>(null);
-    const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-    const [statusFilter, setStatusFilter] = useState<Status[]>(['Aberto', 'Vencido', 'Parcialmente Pago']);
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit'>('all');
     const [textFilters, setTextFilters] = useState({ partner: '', processId: '', value: '' });
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
@@ -131,23 +131,13 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             if (entry.status === 'Jurídico') return false;
 
             if (!applyFilters(entry)) return false;
+            
+            const typeMatch = typeFilter === 'all' || entry.type === typeFilter;
+            const statusMatch = statusFilter === 'all' ? true : status === statusFilter;
 
-            const statusMatch = statusFilter.length === 0 ? true : statusFilter.includes(status);
-            if (!statusMatch) return false;
-
-            if (activeFilter === 'all') {
-                return true;
-            }
-            const dueDate = new Date(entry.dueDate);
-            if (activeFilter === 'dueToday') {
-                return isToday(dueDate);
-            }
-            if (activeFilter === 'dueThisMonth') {
-                return isThisMonth(dueDate);
-            }
-            return true;
+            return typeMatch && statusMatch;
         });
-    }, [entries, activeFilter, statusFilter, textFilters]);
+    }, [entries, statusFilter, typeFilter, textFilters]);
     
     const juridicoEntries = useMemo(() => {
         return entries.filter(e => e.status === 'Jurídico' && applyFilters(e));
@@ -529,12 +519,48 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                         aria-label="Selecionar todos"
                     />
                 </TableHead>}
-                {!isLegalTable && <TableHead>Tipo</TableHead>}
+                <TableHead>
+                    <div className="flex flex-col gap-1">
+                        <span>Tipo</span>
+                         <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+                            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                <SelectItem value="credit">Crédito</SelectItem>
+                                <SelectItem value="debit">Débito</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </TableHead>
                 <TableHead>Parceiro</TableHead>
                 <TableHead>Fatura</TableHead>
                 <TableHead>Processo</TableHead>
-                {!isLegalTable && <TableHead>Status</TableHead>}
-                {isLegalTable && <TableHead>Status Jurídico</TableHead>}
+                <TableHead>
+                    <div className="flex flex-col gap-1">
+                        <span>{isLegalTable ? 'Status Jurídico' : 'Status'}</span>
+                        {!isLegalTable ? (
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    {allStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <Select
+                                value={(tableEntries[0] as any)?.legalStatus || ''}
+                                onValueChange={(value) => handleLegalEntryUpdate(tableEntries[0].id, 'legalStatus', value)}
+                            >
+                                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
+                                    <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
+                                    <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+                </TableHead>
                 {isLegalTable && <TableHead>Comentários</TableHead>}
                 <TableHead>Vencimento</TableHead>
                 <TableHead className="text-right">Valor Total</TableHead>
@@ -555,9 +581,9 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                     aria-label="Selecionar linha"
                                 />
                             </TableCell>}
-                            {!isLegalTable && <TableCell>
+                            <TableCell>
                                 <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
-                            </TableCell>}
+                            </TableCell>
                             <TableCell className="font-medium">{entry.partner}</TableCell>
                             <TableCell>
                                 <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(isLegalTable ? entry.processId : entry.invoiceId); }} className="text-muted-foreground hover:text-primary hover:underline">
@@ -569,32 +595,32 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                     {entry.processId}
                                 </a>
                             </TableCell>
-                            {!isLegalTable && <TableCell>
-                                <Badge variant={variant} className="capitalize">{status}</Badge>
-                            </TableCell>}
-                            {isLegalTable && (
-                                <>
-                                 <TableCell className="w-48">
+                            <TableCell>
+                                {isLegalTable ? (
                                     <Select
                                         value={entry.legalStatus}
                                         onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
                                     >
-                                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
                                             <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
                                             <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                </TableCell>
-                                <TableCell className="w-64">
+                                ) : (
+                                    <Badge variant={variant} className="capitalize">{status}</Badge>
+                                )}
+                            </TableCell>
+                            {isLegalTable && (
+                                 <TableCell className="w-64">
                                     <Input
                                         value={entry.legalComments || ''}
                                         onChange={(e) => handleLegalEntryUpdate(entry.id, 'legalComments', e.target.value)}
                                         placeholder="Adicionar comentário..."
+                                        className="h-8 text-xs"
                                     />
                                 </TableCell>
-                                </>
                             )}
                             <TableCell className={cn(variant === 'destructive' && !isLegalTable && 'text-destructive font-bold')}>
                                 {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
@@ -642,7 +668,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     )
                 }) : (
                     <TableRow>
-                        <TableCell colSpan={isLegalTable ? 8 : 10} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
+                        <TableCell colSpan={isLegalTable ? 8 : 9} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
                     </TableRow>
                 )}
             </TableBody>
@@ -698,54 +724,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                 <CardDescription>
                                     Visualize e gerencie todas as suas contas a pagar e a receber.
                                 </CardDescription>
-                            </div>
-                            <div className="flex items-center gap-2 self-start sm:self-center">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-[180px] justify-start">
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            Filtrar Status
-                                            {statusFilter.length > 0 && <Badge variant="secondary" className="ml-auto">{statusFilter.length}</Badge>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-56 p-0" align="end">
-                                        <Command>
-                                            <CommandInput placeholder="Buscar status..." />
-                                            <CommandList>
-                                                <CommandEmpty>Nenhum status encontrado.</CommandEmpty>
-                                                <CommandGroup>
-                                                    {allStatuses.map((status) => (
-                                                        <CommandItem
-                                                            key={status}
-                                                            onSelect={() => {
-                                                                setStatusFilter(prev => 
-                                                                    prev.includes(status) 
-                                                                    ? prev.filter(s => s !== status)
-                                                                    : [...prev, status]
-                                                                )
-                                                            }}
-                                                        >
-                                                            <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", statusFilter.includes(status) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
-                                                                <Check className={cn("h-4 w-4")} />
-                                                            </div>
-                                                            <span>{status}</span>
-                                                        </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
-                                <Select onValueChange={(value) => setActiveFilter(value as FilterType)} defaultValue="all">
-                                    <SelectTrigger id="date-filter" className="w-[180px]">
-                                        <SelectValue placeholder="Filtrar por data" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Qualquer Data</SelectItem>
-                                        <SelectItem value="dueToday">Vencendo Hoje</SelectItem>
-                                        <SelectItem value="dueThisMonth">Vencendo no Mês</SelectItem>
-                                    </SelectContent>
-                                </Select>
                             </div>
                         </div>
                     </CardHeader>

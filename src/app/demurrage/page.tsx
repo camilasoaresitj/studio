@@ -10,8 +10,9 @@ import { getShipments, updateShipment, Shipment, ContainerDetail } from '@/lib/s
 import { addDays, differenceInDays, format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { DemurrageDetailsDialog } from '@/components/demurrage-details-dialog';
 
-type DemurrageItem = {
+export type DemurrageItem = {
     container: ContainerDetail;
     shipment: Shipment;
     arrivalDate: Date | null;
@@ -25,6 +26,7 @@ type DemurrageItem = {
 export default function DemurragePage() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [isClient, setIsClient] = useState(false);
+    const [selectedDemurrageItem, setSelectedDemurrageItem] = useState<DemurrageItem | null>(null);
 
     useEffect(() => {
         setIsClient(true);
@@ -42,10 +44,10 @@ export default function DemurragePage() {
                     newContainers[containerIndex] = {
                         ...newContainers[containerIndex],
                         effectiveReturnDate: newDate,
-                    } as any; // Cast to avoid TS error on new property
+                    } as any; 
 
                     const updatedShipmentData = { ...shipment, containers: newContainers };
-                    updateShipment(updatedShipmentData); // Save to local storage
+                    updateShipment(updatedShipmentData); 
                     return updatedShipmentData;
                 }
                 return shipment;
@@ -76,7 +78,7 @@ export default function DemurragePage() {
                     let status: 'ok' | 'risk' | 'overdue' = 'ok';
                     if (overdueDays > 0) {
                         status = 'overdue';
-                    } else if (overdueDays >= -3) { // 3 days or less until deadline
+                    } else if (overdueDays >= -3) { 
                         status = 'risk';
                     }
 
@@ -92,7 +94,7 @@ export default function DemurragePage() {
                     };
                 });
             })
-            .sort((a, b) => a.returnDate!.getTime() - b.returnDate!.getTime());
+            .sort((a, b) => (a.returnDate?.getTime() || 0) - (b.returnDate?.getTime() || 0));
     }, [shipments, isClient]);
 
     const statusConfig = {
@@ -104,6 +106,7 @@ export default function DemurragePage() {
     if (!isClient) return null;
 
     return (
+        <>
         <div className="p-4 md:p-8">
             <header className="mb-8">
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground">Controle de Demurrage & Detention</h1>
@@ -115,7 +118,7 @@ export default function DemurragePage() {
                 <CardHeader>
                     <CardTitle>Visão Geral dos Contêineres</CardTitle>
                     <CardDescription>
-                        Lista de contêineres de importação monitorados. Insira a data efetiva de devolução para parar o contador.
+                        Clique em uma linha para ver o extrato financeiro detalhado.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -140,7 +143,11 @@ export default function DemurragePage() {
                                     demurrageItems.map(item => {
                                         const config = statusConfig[item.status];
                                         return (
-                                            <TableRow key={item.container.id} className={cn(item.status === 'overdue' && 'bg-destructive/10')}>
+                                            <TableRow 
+                                                key={item.container.id} 
+                                                className={cn("cursor-pointer", item.status === 'overdue' && 'bg-destructive/10')}
+                                                onClick={() => setSelectedDemurrageItem(item)}
+                                            >
                                                 <TableCell className="font-medium">{item.container.number}</TableCell>
                                                 <TableCell>{item.shipment.id}</TableCell>
                                                 <TableCell>{item.shipment.customer}</TableCell>
@@ -148,7 +155,7 @@ export default function DemurragePage() {
                                                 <TableCell>{item.arrivalDate ? format(item.arrivalDate, 'dd/MM/yy') : 'N/A'}</TableCell>
                                                 <TableCell>{item.freeDays}</TableCell>
                                                 <TableCell className="font-semibold">{item.returnDate ? format(item.returnDate, 'dd/MM/yy') : 'N/A'}</TableCell>
-                                                <TableCell>
+                                                <TableCell onClick={(e) => e.stopPropagation()}>
                                                     <Input
                                                         type="date"
                                                         className="h-8 w-32"
@@ -180,5 +187,11 @@ export default function DemurragePage() {
                 </CardContent>
             </Card>
         </div>
+        <DemurrageDetailsDialog
+            isOpen={!!selectedDemurrageItem}
+            onClose={() => setSelectedDemurrageItem(null)}
+            item={selectedDemurrageItem}
+        />
+        </>
     );
 }

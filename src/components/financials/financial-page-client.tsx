@@ -982,7 +982,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         <NfseGenerationDialog
             data={nfseData}
             isOpen={!!nfseData}
-            onClose={() => setNfse-data(null)}
+            onClose={() => setNfseData(null)}
         />
 
         <SendToLegalDialog

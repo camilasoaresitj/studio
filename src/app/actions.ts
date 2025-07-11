@@ -23,6 +23,8 @@ import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
 import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
+import { addFinancialEntry } from "@/lib/financials-data";
+import type { Shipment } from "@/lib/shipment";
 
 
 export async function runGetFreightRates(input: any) {
@@ -300,5 +302,84 @@ export async function runSendToLegal(input: any) {
     } catch (error: any) {
         console.error("Send to Legal Action Failed", error);
         return { success: false, error: error.message || "Failed to send to legal" };
+    }
+}
+
+export async function runInvoiceShipment(shipment: Shipment) {
+    try {
+        if (!shipment || !shipment.charges) {
+            throw new Error("Dados do embarque inválidos para faturamento.");
+        }
+
+        let creditsCreated = 0;
+        let debitsCreated = 0;
+
+        // Create a single credit entry for the customer (sacado)
+        const sacado = shipment.charges[0]?.sacado || shipment.customer;
+        const totalSaleByCurrency: { [key: string]: number } = {};
+
+        shipment.charges.forEach(charge => {
+            if (!totalSaleByCurrency[charge.saleCurrency]) {
+                totalSaleByCurrency[charge.saleCurrency] = 0;
+            }
+            totalSaleByCurrency[charge.saleCurrency] += charge.sale;
+        });
+
+        for (const [currency, amount] of Object.entries(totalSaleByCurrency)) {
+            if (amount > 0) {
+                 addFinancialEntry({
+                    type: 'credit',
+                    partner: sacado,
+                    invoiceId: `INV-${shipment.id}`,
+                    dueDate: new Date().toISOString(), // Or a calculated due date
+                    amount: amount,
+                    currency: currency as 'BRL' | 'USD',
+                    processId: shipment.id,
+                    accountId: 1, // Default account, should be smarter
+                    payments: [],
+                    status: 'Aberto'
+                });
+                creditsCreated++;
+            }
+        }
+        
+        // Create debit entries for each supplier
+        const costsBySupplierAndCurrency: { [key: string]: { [currency: string]: number } } = {};
+        shipment.charges.forEach(charge => {
+            if (!costsBySupplierAndCurrency[charge.supplier]) {
+                costsBySupplierAndCurrency[charge.supplier] = {};
+            }
+            if (!costsBySupplierAndCurrency[charge.supplier][charge.costCurrency]) {
+                costsBySupplierAndCurrency[charge.supplier][charge.costCurrency] = 0;
+            }
+            costsBySupplierAndCurrency[charge.supplier][charge.costCurrency] += charge.cost;
+        });
+        
+        for (const supplier in costsBySupplierAndCurrency) {
+             for (const currency in costsBySupplierAndCurrency[supplier]) {
+                 const amount = costsBySupplierAndCurrency[supplier][currency];
+                 if (amount > 0) {
+                    addFinancialEntry({
+                        type: 'debit',
+                        partner: supplier,
+                        invoiceId: `BILL-${shipment.id}-${supplier.substring(0,3).toUpperCase()}`,
+                        dueDate: new Date().toISOString(),
+                        amount: amount,
+                        currency: currency as 'BRL' | 'USD',
+                        processId: shipment.id,
+                        accountId: 2, // Default account
+                        payments: [],
+                        status: 'Aberto'
+                    });
+                    debitsCreated++;
+                }
+             }
+        }
+
+        return { success: true, data: { credits: creditsCreated, debits: debitsCreated } };
+
+    } catch (error: any) {
+        console.error("Invoice Shipment Action Failed", error);
+        return { success: false, error: error.message || "Failed to invoice shipment" };
     }
 }

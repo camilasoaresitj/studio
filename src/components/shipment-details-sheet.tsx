@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runGetCourierStatus } from '@/app/actions';
+import { runGetTrackingInfo, runGetCourierStatus, runInvoiceShipment } from '@/app/actions';
 
 
 const containerDetailSchema = z.object({
@@ -126,6 +126,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCourierSyncing, setIsCourierSyncing] = useState(false);
+  const [isInvoicing, setIsInvoicing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<ShipmentDetailsFormData>({
@@ -282,11 +283,26 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
   };
   
-  const handleBillingClick = (type: 'receber' | 'pagar') => {
-    toast({
-        title: `Função em Desenvolvimento`,
-        description: `A ação de "Faturar Contas a ${type === 'receber' ? 'Receber' : 'Pagar'}" será integrada ao módulo Financeiro.`,
-    });
+  const handleInvoiceShipment = async () => {
+    if (!shipment) return;
+    setIsInvoicing(true);
+    const response = await runInvoiceShipment(shipment);
+    if (response.success) {
+      toast({
+        title: "Processo Faturado com Sucesso!",
+        description: `${response.data.credits} crédito(s) e ${response.data.debits} débito(s) gerados no módulo Financeiro.`,
+        className: 'bg-success text-success-foreground'
+      });
+      // Optionally, close the sheet or update a status on the shipment
+      onOpenChange(false);
+    } else {
+      toast({
+        variant: 'destructive',
+        title: "Erro ao Faturar",
+        description: response.error,
+      });
+    }
+    setIsInvoicing(false);
   };
 
   const handleSyncBookingInfo = async () => {
@@ -810,13 +826,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </Table>
                                     </div>
                                     <div className="flex justify-end gap-2 mt-4">
-                                        <Button variant="outline" type="button" onClick={() => handleBillingClick('pagar')}>
-                                            <Receipt className="mr-2 h-4 w-4" />
-                                            Faturar Contas a Pagar
-                                        </Button>
-                                        <Button variant="outline" type="button" onClick={() => handleBillingClick('receber')}>
-                                            <Wallet className="mr-2 h-4 w-4" />
-                                            Faturar Contas a Receber
+                                        <Button type="button" onClick={handleInvoiceShipment} disabled={isInvoicing}>
+                                            {isInvoicing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
+                                            Faturar Processo
                                         </Button>
                                     </div>
                                 </CardContent>

@@ -164,6 +164,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             exchangeRate: needsExchangeRate ? parseFloat(exchangeRate) : undefined,
         };
 
+        // Update the financial entry with the new payment
         const updatedEntries = entries.map(e => {
             if (e.id === entryToSettle.id) {
                 const updatedPayments = [...(e.payments || []), newPayment];
@@ -172,8 +173,34 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             return e;
         });
 
+        // Update the bank account balance
+        const accountToUpdate = accounts.find(a => a.id.toString() === settlementAccountId);
+        if (!accountToUpdate) {
+             toast({ variant: 'destructive', title: 'Conta não encontrada' });
+             return;
+        }
+        
+        let amountInAccountCurrency = amount;
+        if (needsExchangeRate) {
+            amountInAccountCurrency = amount * parseFloat(exchangeRate);
+        }
+
+        const updatedAccounts = accounts.map(acc => {
+            if (acc.id.toString() === settlementAccountId) {
+                const newBalance = entryToSettle.type === 'credit' 
+                    ? acc.balance + amountInAccountCurrency 
+                    : acc.balance - amountInAccountCurrency;
+                return { ...acc, balance: newBalance };
+            }
+            return acc;
+        });
+        
+        // Save both states and update localStorage
         saveFinancialEntries(updatedEntries);
         setEntries(updatedEntries);
+        saveBankAccounts(updatedAccounts);
+        setAccounts(updatedAccounts);
+
 
         toast({
             title: 'Baixa de Pagamento Realizada!',
@@ -801,7 +828,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
 
         <BankAccountStatementDialog
             account={statementAccount}
-            entries={entries.filter(e => e.accountId === statementAccount?.id)}
+            entries={entries.filter(e => statementAccount && (e.accountId === statementAccount.id || e.payments?.some(p => p.accountId === statementAccount.id)))}
             isOpen={!!statementAccount}
             onClose={() => setStatementAccount(null)}
         />

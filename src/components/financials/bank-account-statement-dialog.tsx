@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -43,20 +43,61 @@ export function BankAccountStatementDialog({ isOpen, onClose, account, entries }
     });
   };
 
-  const runningBalance = entries
-    .slice() // Create a shallow copy to avoid mutating the original array
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-    .reduce((acc, entry, index) => {
-        const previousBalance = index > 0 ? acc[index - 1].balance : account.balance;
-        const amount = entry.type === 'credit' ? entry.amount : -entry.amount;
-        acc.push({
-            ...entry,
-            balance: previousBalance + amount
-        });
-        return acc;
-    }, [] as (FinancialEntry & { balance: number })[]);
+  const statementEntries = useMemo(() => {
+    if (!account) return [];
+    
+    // Flatten entries and their payments into a single list of transactions for this account
+    const transactions = entries.flatMap(entry => 
+      (entry.payments || [])
+        .filter(p => p.accountId === account.id)
+        .map(payment => {
+          let amountInAccountCurrency = payment.amount;
+          if (entry.currency !== account.currency && payment.exchangeRate) {
+            amountInAccountCurrency = payment.amount * payment.exchangeRate;
+          }
+          const transactionType = entry.type === 'credit' ? 'credit' : 'debit';
+          return {
+            id: payment.id,
+            date: new Date(payment.date),
+            description: `Pgto. Fatura ${entry.invoiceId} (${entry.partner})`,
+            type: transactionType,
+            amount: amountInAccountCurrency,
+          };
+        })
+    );
 
-  const finalBalance = runningBalance.length > 0 ? runningBalance[runningBalance.length - 1].balance : account.balance;
+    // Sort transactions by date
+    transactions.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // Calculate running balance
+    let currentBalance = account.balance;
+    const transactionsWithBalance = transactions.map(tx => {
+      const newBalance = tx.type === 'credit' ? currentBalance + tx.amount : currentBalance - tx.amount;
+      const result = { ...tx, balance: newBalance };
+      currentBalance = newBalance;
+      return result;
+    });
+
+    // We need to reverse the logic for the final balance calculation.
+    // The balance shown on the card is the "current" final balance.
+    // The statement should show the initial balance and how we arrived at the current one.
+    let runningBalance = account.balance;
+    const reversedTransactions = transactions.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
+    const historicalTransactions = reversedTransactions.map(tx => {
+        const balanceBeforeTx = tx.type === 'credit' ? runningBalance - tx.amount : runningBalance + tx.amount;
+        const result = { ...tx, balance: runningBalance };
+        runningBalance = balanceBeforeTx;
+        return result;
+    }).reverse();
+
+
+    return {
+        transactions: historicalTransactions,
+        initialBalance: runningBalance
+    }
+
+  }, [account, entries]);
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -64,7 +105,7 @@ export function BankAccountStatementDialog({ isOpen, onClose, account, entries }
         <DialogHeader>
           <DialogTitle>Extrato da Conta: {account.name}</DialogTitle>
           <DialogDescription>
-            Visualize as movimentações e realize a conciliação bancária. Saldo inicial: {account.currency} {account.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            Visualize as movimentações e realize a conciliação bancária. Saldo inicial: {account.currency} {statementEntries.initialBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </DialogDescription>
         </DialogHeader>
         <div className="flex-grow overflow-hidden">
@@ -82,33 +123,32 @@ export function BankAccountStatementDialog({ isOpen, onClose, account, entries }
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {runningBalance.length > 0 ? runningBalance.map((entry) => (
-                    <TableRow key={entry.id} data-state={reconciledIds.has(entry.id) && 'selected'}>
+                  {statementEntries.transactions.length > 0 ? statementEntries.transactions.map((tx) => (
+                    <TableRow key={tx.id} data-state={reconciledIds.has(tx.id) && 'selected'}>
                       <TableCell>
                         <Checkbox
-                          checked={reconciledIds.has(entry.id)}
-                          onCheckedChange={() => handleToggleReconciled(entry.id)}
+                          checked={reconciledIds.has(tx.id)}
+                          onCheckedChange={() => handleToggleReconciled(tx.id)}
                         />
                       </TableCell>
-                      <TableCell>{format(new Date(entry.dueDate), 'dd/MM/yy')}</TableCell>
+                      <TableCell>{format(new Date(tx.date), 'dd/MM/yy')}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                           {entry.type === 'credit' 
+                           {tx.type === 'credit' 
                            ? <ArrowUpCircle className="h-4 w-4 text-success" /> 
                            : <ArrowDownCircle className="h-4 w-4 text-destructive" />}
                            <div>
-                            <p className="font-medium">{entry.partner}</p>
-                            <p className="text-xs text-muted-foreground">Fatura: {entry.invoiceId} | Processo: {entry.processId}</p>
+                            <p className="font-medium">{tx.description}</p>
                            </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-mono text-destructive">
-                        {entry.type === 'debit' ? `${entry.currency} ${entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}
+                        {tx.type === 'debit' ? `${account.currency} ${tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}
                       </TableCell>
                        <TableCell className="text-right font-mono text-success">
-                        {entry.type === 'credit' ? `${entry.currency} ${entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}
+                        {tx.type === 'credit' ? `${account.currency} ${tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}
                       </TableCell>
-                      <TableCell className="text-right font-mono">{entry.currency} {entry.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right font-mono">{account.currency} {tx.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                     </TableRow>
                   )) : (
                      <TableRow>
@@ -122,7 +162,7 @@ export function BankAccountStatementDialog({ isOpen, onClose, account, entries }
         </div>
         <div className="flex justify-between items-center pt-4 border-t">
             <div className="text-lg font-bold">
-                Saldo Final: <Badge className="text-lg">{account.currency} {finalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Badge>
+                Saldo Final: <Badge className="text-lg">{account.currency} {account.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Badge>
             </div>
             <Button>Fechar Dia</Button>
         </div>

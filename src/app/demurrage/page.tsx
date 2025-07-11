@@ -34,6 +34,8 @@ export default function DemurragePage() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [isClient, setIsClient] = useState(false);
     const [selectedDemurrageItem, setSelectedDemurrageItem] = useState<DemurrageItem | null>(null);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'risk' | 'overdue'>('all');
+
 
     useEffect(() => {
         setIsClient(true);
@@ -65,7 +67,7 @@ export default function DemurragePage() {
         });
     };
 
-    const demurrageItems = useMemo((): DemurrageItem[] => {
+    const allDemurrageItems = useMemo((): DemurrageItem[] => {
         if (!isClient) return [];
         
         return shipments
@@ -106,9 +108,16 @@ export default function DemurragePage() {
             .sort((a, b) => (a.returnDate?.getTime() || 0) - (b.returnDate?.getTime() || 0));
     }, [shipments, isClient]);
 
+    const filteredDemurrageItems = useMemo(() => {
+        if (statusFilter === 'all') {
+            return allDemurrageItems;
+        }
+        return allDemurrageItems.filter(item => item.status === statusFilter);
+    }, [allDemurrageItems, statusFilter]);
+
     const dashboardData = useMemo(() => {
         let totalRevenue = 0;
-        const overdueItems = demurrageItems.filter(item => item.overdueDays > 0);
+        const overdueItems = allDemurrageItems.filter(item => item.overdueDays > 0);
 
         overdueItems.forEach(item => {
             let itemRevenue = 0;
@@ -125,9 +134,9 @@ export default function DemurragePage() {
         return {
             totalRevenue,
             overdueCount: overdueItems.length,
-            atRiskCount: demurrageItems.filter(item => item.status === 'risk').length
+            atRiskCount: allDemurrageItems.filter(item => item.status === 'risk').length
         }
-    }, [demurrageItems]);
+    }, [allDemurrageItems]);
 
     const statusConfig = {
         ok: { variant: 'success', icon: <CheckCircle className="h-4 w-4" />, text: 'OK' },
@@ -148,7 +157,10 @@ export default function DemurragePage() {
             </header>
 
             <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-3">
-                 <Card>
+                 <Card 
+                    className="cursor-pointer transition-all hover:ring-2 hover:ring-primary/50"
+                    onClick={() => setStatusFilter('all')}
+                 >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Lucratividade (Mês)</CardTitle>
                         <DollarSign className="h-5 w-5 text-muted-foreground" />
@@ -158,7 +170,10 @@ export default function DemurragePage() {
                         <p className="text-xs text-muted-foreground">Receita total de demurrage cobrada.</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card 
+                    className="cursor-pointer transition-all hover:ring-2 hover:ring-primary/50"
+                    onClick={() => setStatusFilter('risk')}
+                >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Contêineres em Risco</CardTitle>
                         <Clock className="h-5 w-5 text-muted-foreground" />
@@ -168,7 +183,10 @@ export default function DemurragePage() {
                         <p className="text-xs text-muted-foreground">Vencem nos próximos 3 dias.</p>
                     </CardContent>
                 </Card>
-                 <Card>
+                 <Card 
+                    className="cursor-pointer transition-all hover:ring-2 hover:ring-primary/50"
+                    onClick={() => setStatusFilter('overdue')}
+                 >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Contêineres Vencidos</CardTitle>
                         <AlertTriangle className="h-5 w-5 text-muted-foreground" />
@@ -184,7 +202,9 @@ export default function DemurragePage() {
                 <CardHeader>
                     <CardTitle>Visão Geral dos Contêineres</CardTitle>
                     <CardDescription>
-                        Clique em uma linha para ver o extrato financeiro detalhado.
+                       {statusFilter === 'all' && 'Clique em uma linha para ver o extrato financeiro detalhado.'}
+                       {statusFilter === 'risk' && <span className="text-primary font-medium">Mostrando contêineres em risco. Clique no card de lucratividade para limpar o filtro.</span>}
+                       {statusFilter === 'overdue' && <span className="text-destructive font-medium">Mostrando contêineres vencidos. Clique no card de lucratividade para limpar o filtro.</span>}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -205,8 +225,8 @@ export default function DemurragePage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {demurrageItems.length > 0 ? (
-                                    demurrageItems.map(item => {
+                                {filteredDemurrageItems.length > 0 ? (
+                                    filteredDemurrageItems.map(item => {
                                         const config = statusConfig[item.status];
                                         return (
                                             <TableRow 
@@ -243,7 +263,7 @@ export default function DemurragePage() {
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={10} className="h-24 text-center">
-                                            Nenhum contêiner de importação ativo para monitorar.
+                                            Nenhum contêiner encontrado com os filtros selecionados.
                                         </TableCell>
                                     </TableRow>
                                 )}

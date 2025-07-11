@@ -17,7 +17,8 @@ import {
   CalendarDays,
   ListFilter,
   ShieldAlert,
-  Banknote
+  Banknote,
+  PlusCircle
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

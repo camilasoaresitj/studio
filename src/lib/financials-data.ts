@@ -1,4 +1,5 @@
 
+'use client';
 
 import { addDays, subDays } from 'date-fns';
 
@@ -31,7 +32,6 @@ export type FinancialEntry = {
     processId: string;
     accountId: number; // Link to the BankAccount
     payments?: PartialPayment[];
-    // Deprecated status, will be calculated on the fly
     status: 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico';
     legalStatus?: 'Fase Inicial' | 'Fase de Execução' | 'Desconsideração da Personalidade Jurídica';
     legalComments?: string;
@@ -183,7 +183,6 @@ const initialFinancialData: FinancialEntry[] = [
     },
 ];
 
-// In a real app, this would fetch from a database. Here, we use local storage for persistence.
 const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v5';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 

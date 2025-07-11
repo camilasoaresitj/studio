@@ -69,31 +69,20 @@ export function BankAccountStatementDialog({ isOpen, onClose, account, entries }
     // Sort transactions by date
     transactions.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    // Calculate running balance
     let currentBalance = account.balance;
-    const transactionsWithBalance = transactions.map(tx => {
-      const newBalance = tx.type === 'credit' ? currentBalance + tx.amount : currentBalance - tx.amount;
-      const result = { ...tx, balance: newBalance };
-      currentBalance = newBalance;
-      return result;
-    });
-
-    // We need to reverse the logic for the final balance calculation.
-    // The balance shown on the card is the "current" final balance.
-    // The statement should show the initial balance and how we arrived at the current one.
-    let runningBalance = account.balance;
     const reversedTransactions = transactions.slice().sort((a, b) => b.date.getTime() - a.date.getTime());
+    
     const historicalTransactions = reversedTransactions.map(tx => {
-        const balanceBeforeTx = tx.type === 'credit' ? runningBalance - tx.amount : runningBalance + tx.amount;
-        const result = { ...tx, balance: runningBalance };
-        runningBalance = balanceBeforeTx;
+        const balanceBeforeTx = tx.type === 'credit' ? currentBalance - tx.amount : currentBalance + tx.amount;
+        const result = { ...tx, balance: currentBalance };
+        currentBalance = balanceBeforeTx;
         return result;
     }).reverse();
 
 
     return {
         transactions: historicalTransactions,
-        initialBalance: runningBalance
+        initialBalance: currentBalance
     }
 
   }, [account, entries]);

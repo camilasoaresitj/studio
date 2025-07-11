@@ -12,21 +12,21 @@ export default function FinanceiroPage() {
     const [initialAccounts, setInitialAccounts] = useState(() => getBankAccounts());
     const [initialShipments, setInitialShipments] = useState(() => getShipments());
     
-    // This effect can be used to re-fetch data if needed, for instance,
-    // by listening to custom events or a state management library.
     useEffect(() => {
-        const handleStorageChange = () => {
+        const handleDataChange = () => {
             setInitialEntries(getFinancialEntries());
             setInitialAccounts(getBankAccounts());
             setInitialShipments(getShipments());
         };
 
-        window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('focus', handleStorageChange); // To catch changes in other tabs
+        window.addEventListener('storage', handleDataChange);
+        window.addEventListener('focus', handleDataChange);
+        window.addEventListener('financialsUpdated', handleDataChange);
         
         return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('focus', handleStorageChange);
+            window.removeEventListener('storage', handleDataChange);
+            window.removeEventListener('focus', handleDataChange);
+            window.removeEventListener('financialsUpdated', handleDataChange);
         };
     }, []);
 

@@ -295,7 +295,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         description: `${response.data.credits} crédito(s) e ${response.data.debits} débito(s) gerados no módulo Financeiro.`,
         className: 'bg-success text-success-foreground'
       });
-      router.refresh();
+      window.dispatchEvent(new CustomEvent('financialsUpdated'));
       onOpenChange(false);
     } else {
       toast({

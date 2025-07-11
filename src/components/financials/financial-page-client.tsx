@@ -20,7 +20,7 @@ import {
   Gavel
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
-import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries, PartialPayment, addFinancialEntry } from '@/lib/financials-data';
+import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -29,7 +29,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { BankAccountDialog } from '@/components/financials/bank-account-form';
 import { NfseGenerationDialog } from '@/components/financials/nfse-generation-dialog';
-import { getShipments } from '@/lib/shipment';
 import type { Shipment } from '@/lib/shipment';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
@@ -39,7 +38,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
-import { getPartners } from '@/lib/partners-data';
 
 type FilterType = 'all' | 'dueToday' | 'dueThisMonth';
 
@@ -69,22 +67,11 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const { toast } = useToast();
     
     useEffect(() => {
-        const handleStorageChange = () => {
-            setEntries(getFinancialEntries());
-            setAccounts(getBankAccounts());
-            setAllShipments(getShipments());
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-        // Also trigger on focus to catch changes from other tabs
-        window.addEventListener('focus', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('focus', handleStorageChange);
-        };
-    }, []);
-
+        setEntries(initialEntries);
+        setAccounts(initialAccounts);
+        setAllShipments(initialShipments);
+    }, [initialEntries, initialAccounts, initialShipments]);
+    
     const getEntryBalance = (entry: FinancialEntry): number => {
         const totalPaid = (entry.payments || []).reduce((sum, p) => sum + p.amount, 0);
         return entry.amount - totalPaid;
@@ -97,7 +84,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         const balance = getEntryBalance(entry);
         const totalPaid = entry.amount - balance;
 
-        if (balance <= 0) {
+        if (balance <= 0.009) { // Using a small epsilon for float comparison
             return { status: 'Pago', variant: 'success' };
         }
         if (isPast(new Date(entry.dueDate)) && !isToday(new Date(entry.dueDate))) {
@@ -151,7 +138,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         }
         const amount = parseFloat(settlementAmount);
         const balance = getEntryBalance(entryToSettle);
-        if (amount > balance) {
+        if (amount > balance + 0.01) { // Add tolerance for floating point issues
             toast({ variant: 'destructive', title: 'Valor Inválido', description: 'O valor do pagamento não pode ser maior que o saldo devedor.' });
             return;
         }
@@ -195,7 +182,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             return acc;
         });
         
-        // Save both states and update localStorage
         saveFinancialEntries(updatedEntries);
         setEntries(updatedEntries);
         saveBankAccounts(updatedAccounts);
@@ -398,7 +384,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                 cost: formatValue(c.cost),
                 sale: formatValue(c.sale),
                 profit: formatValue(profit),
-                currency: c.saleCurrency, // Assuming sale currency is the primary one
+                currency: c.saleCurrency,
             };
         });
 
@@ -453,7 +439,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     };
 
     const handleEntriesImported = (importedEntries: FinancialEntry[]) => {
-        const currentEntries = getFinancialEntries();
+        const currentEntries = entries;
         const updatedEntries = [...currentEntries, ...importedEntries];
         saveFinancialEntries(updatedEntries);
         setEntries(updatedEntries);
@@ -536,7 +522,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                             </TableCell>}
                             <TableCell className="font-medium">{entry.partner}</TableCell>
                             <TableCell>
-                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(isLegalTable ? entry.processId : entry.invoiceId); }} className="text-muted-foreground hover:text-primary hover:underline">
                                     {entry.invoiceId}
                                 </a>
                             </TableCell>
@@ -741,7 +727,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                     </TableRow>
                                 </TableBody>
                             </Table>
-                        </div>
+                         </div>
                     </CardContent>
                  </Card>
             </TabsContent>
@@ -828,7 +814,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
 
         <BankAccountStatementDialog
             account={statementAccount}
-            entries={entries.filter(e => statementAccount && (e.accountId === statementAccount.id || e.payments?.some(p => p.accountId === statementAccount.id)))}
+            entries={entries}
             isOpen={!!statementAccount}
             onClose={() => setStatementAccount(null)}
         />

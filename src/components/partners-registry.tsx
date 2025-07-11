@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { partnerSchema, type Partner } from '@/lib/partners-data';
@@ -39,7 +40,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
 
@@ -71,11 +71,11 @@ const supplierTypes = [
 
 export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({ name: '', country: '', state: '', type: '' });
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<PartnerFormData>({
     resolver: zodResolver(partnerSchema),
@@ -174,26 +174,140 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       className: 'bg-success text-success-foreground',
     });
   };
+  
+  const getPartnerTypeString = (partner: Partner): string => {
+    const types: string[] = [];
+    if (partner.roles.cliente) types.push('Cliente');
+    if (partner.roles.fornecedor) {
+        const supplierSubtypes = Object.entries(partner.tipoFornecedor || {})
+            .filter(([, value]) => value)
+            .map(([key]) => supplierTypes.find(t => t.id === key)?.label)
+            .filter(Boolean);
+        if (supplierSubtypes.length > 0) {
+            types.push(supplierSubtypes.join(', '));
+        } else {
+            types.push('Fornecedor');
+        }
+    }
+    if (partner.roles.agente) {
+        const agentSubtypes = Object.entries(partner.tipoAgente || {})
+            .filter(([, value]) => value)
+            .map(([key]) => key.toUpperCase())
+            .join('/');
+        types.push(`Agente (${agentSubtypes || 'N/A'})`);
+    }
+    if (partner.roles.comissionado) types.push('Comissionado');
+
+    return types.join(' | ');
+  }
 
   const filteredPartners = useMemo(() => {
-    return partners.filter((partner) =>
-      partner.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [partners, searchTerm]);
+    return partners.filter((partner) => {
+        const nameMatch = partner.name.toLowerCase().includes(filters.name.toLowerCase());
+        const countryMatch = !filters.country || (partner.address.country || '').toLowerCase().includes(filters.country.toLowerCase());
+        const stateMatch = !filters.state || (partner.address.state || '').toLowerCase().includes(filters.state.toLowerCase());
+        const typeMatch = !filters.type || getPartnerTypeString(partner).toLowerCase().includes(filters.type.toLowerCase());
+        return nameMatch && countryMatch && stateMatch && typeMatch;
+    });
+  }, [partners, filters]);
+  
+  const handleFilterChange = (field: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
+
+        if (jsonData.length === 0) {
+          throw new Error("A planilha está vazia.");
+        }
+
+        const newPartners: Partner[] = jsonData.map((row, index) => {
+          const roleLower = String(row.role || '').toLowerCase();
+          const newPartner: Partner = {
+            id: 0,
+            name: String(row.name || `Novo Parceiro ${index}`),
+            nomeFantasia: String(row.nome_fantasia || ''),
+            cnpj: String(row.cnpj || ''),
+            vat: String(row.vat || ''),
+            roles: {
+                cliente: roleLower.includes('cliente'),
+                fornecedor: roleLower.includes('fornecedor'),
+                agente: roleLower.includes('agente'),
+                comissionado: roleLower.includes('comissionado'),
+            },
+            address: {
+                street: String(row.address_street || ''),
+                number: String(row.address_number || ''),
+                complement: String(row.address_complement || ''),
+                district: String(row.address_district || ''),
+                city: String(row.address_city || ''),
+                state: String(row.address_state || ''),
+                zip: String(row.address_zip || ''),
+                country: String(row.address_country || ''),
+            },
+            contacts: [{
+                name: String(row.contact_name || 'Contato Principal'),
+                email: String(row.contact_email || 'email@a-definir.com'),
+                phone: String(row.contact_phone || '000000000'),
+                departments: ['Comercial']
+            }]
+          };
+          onPartnerSaved(newPartner);
+          return newPartner;
+        });
+        
+        toast({
+          title: "Importação Concluída!",
+          description: `${newPartners.length} parceiros foram adicionados/atualizados.`,
+          className: 'bg-success text-success-foreground'
+        });
+
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Erro ao Importar', description: err.message });
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <Input
-          placeholder="Buscar parceiro por nome..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        accept=".xlsx, .xls"
+      />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full">
+            <Input placeholder="Buscar por Nome..." value={filters.name} onChange={(e) => handleFilterChange('name', e.target.value)} />
+            <Input placeholder="Buscar por País..." value={filters.country} onChange={(e) => handleFilterChange('country', e.target.value)} />
+            <Input placeholder="Buscar por Estado..." value={filters.state} onChange={(e) => handleFilterChange('state', e.target.value)} />
+            <Input placeholder="Buscar por Tipo..." value={filters.type} onChange={(e) => handleFilterChange('type', e.target.value)} />
+        </div>
+        <div className="flex gap-2 self-end md:self-auto">
+            <Button variant="outline" onClick={handleImportClick}>
                 <Upload className="mr-2 h-4 w-4" />
-                Importar Parceiros
+                Importar
             </Button>
             <Button onClick={() => handleOpenDialog(null)}>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -206,7 +320,9 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>Funções</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>País</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead>Contato Principal</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -215,17 +331,11 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
             {filteredPartners.length > 0 ? filteredPartners.map((partner) => (
               <TableRow key={partner.id}>
                 <TableCell className="font-medium">{partner.name}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {Object.entries(partner.roles)
-                      .filter(([, value]) => value)
-                      .map(([role]) => (
-                        <Badge key={role} variant="secondary" className="capitalize">
-                          {role}
-                        </Badge>
-                      ))}
-                  </div>
+                <TableCell className="text-xs">
+                  {getPartnerTypeString(partner)}
                 </TableCell>
+                <TableCell>{partner.address?.country}</TableCell>
+                <TableCell>{partner.address?.state}</TableCell>
                 <TableCell>
                   <div className="text-sm">{partner.contacts[0]?.name}</div>
                   <div className="text-xs text-muted-foreground">{partner.contacts[0]?.email}</div>
@@ -238,38 +348,12 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
               </TableRow>
             )) : (
                 <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">Nenhum parceiro encontrado.</TableCell>
+                    <TableCell colSpan={6} className="h-24 text-center">Nenhum parceiro encontrado.</TableCell>
                 </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-
-      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Importação de Parceiros em Massa</DialogTitle>
-                <DialogDescription>
-                    Para importar parceiros, prepare um arquivo CSV ou Excel com os seguintes cabeçalhos na primeira linha:
-                </DialogDescription>
-            </DialogHeader>
-            <Alert>
-                <AlertTitle>Cabeçalhos Obrigatórios</AlertTitle>
-                <AlertDescription>
-                   <code>name, role, contact_name, contact_email, contact_phone</code>
-                </AlertDescription>
-            </Alert>
-            <p className="text-sm text-muted-foreground">
-                O campo `role` pode ser `cliente`, `fornecedor` ou `agente`. Colunas adicionais como `cnpj`, `address_street`, `address_city`, etc., também serão importadas se presentes.
-            </p>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Fechar</Button>
-                 <Button disabled>
-                    <Upload className="mr-2 h-4 w-4" /> Selecionar Arquivo (em breve)
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">

@@ -428,6 +428,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             supplier: rate.carrier,
             sacado: customer?.name,
             localPagamento: 'Frete',
+            approvalStatus: 'aprovada',
         });
     }
     
@@ -490,6 +491,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         supplier: 'CargaInteligente',
         sacado: customer?.name,
         localPagamento,
+        approvalStatus: 'aprovada',
       });
     });
 
@@ -808,9 +810,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                 </div>
             </CardHeader>
             <CardContent>
-                <div>
-                    <QuoteCostSheet quote={activeQuote} partners={partners} onUpdate={handleUpdateQuote} />
-                </div>
+                <QuoteCostSheet key={activeQuote.id} quote={activeQuote} partners={partners} onUpdate={handleUpdateQuote} />
                 <Separator className="my-6"/>
                 <div className="flex flex-col sm:flex-row gap-2 mt-6 justify-end">
                      <Button variant="secondary" onClick={handleGeneratePdf} disabled={isSending}>

@@ -39,7 +39,8 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runGetCourierStatus, runInvoiceShipment } from '@/app/actions';
+import { runGetTrackingInfo, runGetCourierStatus } from '@/app/actions';
+import { addFinancialEntry, getFinancialEntries } from '@/lib/financials-data';
 
 
 const containerDetailSchema = z.object({
@@ -288,23 +289,91 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const handleInvoiceShipment = async () => {
     if (!shipment) return;
     setIsInvoicing(true);
-    const response = await runInvoiceShipment(shipment);
-    if (response.success) {
+    try {
+        if (!shipment || !shipment.charges) {
+            throw new Error("Dados do embarque inválidos para faturamento.");
+        }
+
+        let creditsCreated = 0;
+        let debitsCreated = 0;
+
+        // Create a single credit entry for the customer (sacado)
+        const sacado = shipment.charges[0]?.sacado || shipment.customer;
+        const totalSaleByCurrency: { [key: string]: number } = {};
+
+        shipment.charges.forEach(charge => {
+            if (!totalSaleByCurrency[charge.saleCurrency]) {
+                totalSaleByCurrency[charge.saleCurrency] = 0;
+            }
+            totalSaleByCurrency[charge.saleCurrency] += charge.sale;
+        });
+
+        for (const [currency, amount] of Object.entries(totalSaleByCurrency)) {
+            if (amount > 0) {
+                 addFinancialEntry({
+                    type: 'credit',
+                    partner: sacado,
+                    invoiceId: `INV-${shipment.id}`,
+                    dueDate: new Date().toISOString(), // Or a calculated due date
+                    amount: amount,
+                    currency: currency as 'BRL' | 'USD',
+                    processId: shipment.id,
+                    accountId: 1, // Default account, should be smarter
+                    payments: [],
+                    status: 'Aberto'
+                });
+                creditsCreated++;
+            }
+        }
+        
+        // Create debit entries for each supplier
+        const costsBySupplierAndCurrency: { [key: string]: { [currency: string]: number } } = {};
+        shipment.charges.forEach(charge => {
+            if (!costsBySupplierAndCurrency[charge.supplier]) {
+                costsBySupplierAndCurrency[charge.supplier] = {};
+            }
+            if (!costsBySupplierAndCurrency[charge.supplier][charge.costCurrency]) {
+                costsBySupplierAndCurrency[charge.supplier][charge.costCurrency] = 0;
+            }
+            costsBySupplierAndCurrency[charge.supplier][charge.costCurrency] += charge.cost;
+        });
+        
+        for (const supplier in costsBySupplierAndCurrency) {
+             for (const currency in costsBySupplierAndCurrency[supplier]) {
+                 const amount = costsBySupplierAndCurrency[supplier][currency];
+                 if (amount > 0) {
+                    addFinancialEntry({
+                        type: 'debit',
+                        partner: supplier,
+                        invoiceId: `BILL-${shipment.id}-${supplier.substring(0,3).toUpperCase()}`,
+                        dueDate: new Date().toISOString(),
+                        amount: amount,
+                        currency: currency as 'BRL' | 'USD',
+                        processId: shipment.id,
+                        accountId: 2, // Default account
+                        payments: [],
+                        status: 'Aberto'
+                    });
+                    debitsCreated++;
+                }
+             }
+        }
       toast({
         title: "Processo Faturado com Sucesso!",
-        description: `${response.data.credits} crédito(s) e ${response.data.debits} débito(s) gerados no módulo Financeiro.`,
+        description: `${creditsCreated} crédito(s) e ${debitsCreated} débito(s) gerados no módulo Financeiro.`,
         className: 'bg-success text-success-foreground'
       });
-      window.dispatchEvent(new CustomEvent('financialsUpdated'));
+      router.refresh();
       onOpenChange(false);
-    } else {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: "Erro ao Faturar",
-        description: response.error,
+        description: error.message,
       });
+    } finally {
+        setIsInvoicing(false);
     }
-    setIsInvoicing(false);
   };
 
   const handleSyncBookingInfo = async () => {

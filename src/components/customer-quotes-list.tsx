@@ -17,7 +17,7 @@ import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, Check
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { QuoteCostSheet } from './quote-cost-sheet';
-import { runSendQuote, runGenerateQuotePdfHtml } from '@/app/actions';
+import { runSendQuote, runGenerateClientInvoicePdf } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
@@ -157,48 +157,31 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
 
-            const freightCharges = quote.charges
-                .filter(c => c.name.toLowerCase().includes('frete'))
-                .map(c => ({
-                    name: c.name,
-                    type: c.type,
-                    currency: c.saleCurrency,
-                    total: formatValue(c.sale),
-                }));
+            const charges = quote.charges.map(c => ({
+                description: c.name,
+                quantity: 1, // Simplified for now
+                value: formatValue(c.sale),
+                total: formatValue(c.sale),
+                currency: c.saleCurrency
+            }));
 
-            const localCharges = quote.charges
-                .filter(c => !c.name.toLowerCase().includes('frete'))
-                .map(c => ({
-                    name: c.name,
-                    type: c.type,
-                    currency: c.saleCurrency,
-                    total: formatValue(c.sale),
-                }));
-
-            const totalsByCurrency: { [key: string]: number } = {};
-            quote.charges.forEach(charge => {
-                totalsByCurrency[charge.saleCurrency] = (totalsByCurrency[charge.saleCurrency] || 0) + charge.sale;
-            });
-
-            const totalAllIn = Object.entries(totalsByCurrency)
-                .map(([currency, total]) => `${currency} ${formatValue(total)}`)
-                .join(' + ');
-
-            const response = await runGenerateQuotePdfHtml({
-                quoteNumber: quote.id.replace('-DRAFT', ''),
+            const totalBRL = quote.charges.reduce((sum, charge) => {
+                const rate = charge.saleCurrency === 'USD' ? 5.0 : 1; // Simplified rate
+                return sum + (charge.sale * rate);
+            }, 0);
+            
+            const response = await runGenerateClientInvoicePdf({
+                invoiceNumber: quote.id.replace('-DRAFT', ''),
                 customerName: quote.customer,
-                date: new Date().toLocaleDateString('pt-BR'),
-                validity: quote.details.validity,
-                origin: quote.origin,
-                destination: quote.destination,
-                incoterm: quote.details.incoterm,
-                transitTime: quote.details.transitTime,
-                modal: quote.details.cargo.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo',
-                equipment: quote.details.cargo,
-                freightCharges,
-                localCharges,
-                totalAllIn,
-                observations: "Valores sujeitos a alteração sem aviso prévio. Taxas locais na origem e destino não inclusas, exceto quando mencionadas."
+                customerAddress: "Endereço do Cliente",
+                date: new Date().toLocaleDateString('pt-br'),
+                charges: charges,
+                total: formatValue(totalBRL),
+                exchangeRate: 5.0,
+                bankDetails: {
+                    bankName: "LTI GLOBAL",
+                    accountNumber: "PIX: 10.298.168/0001-89"
+                }
             });
             
             if (!response.success) {

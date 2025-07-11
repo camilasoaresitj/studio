@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview This file defines a Genkit flow to generate a professional quote PDF in HTML format.
@@ -175,19 +176,63 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
     outputSchema: GenerateQuotePdfHtmlOutputSchema,
   },
   async (input) => {
-    
-    // Helper function for Handlebars
-    const Handlebars = require('handlebars');
-    Handlebars.registerHelper('multiply', function(a: any, b: any) {
-        const val1 = parseFloat(a);
-        const val2 = parseFloat(b);
-        if (isNaN(val1) || isNaN(val2)) {
-            return 'N/A';
+    // This is a temporary, simplified Handlebars-like replacer.
+    // A more robust solution would use a proper templating library.
+    function applyTemplate(template: string, data: any): string {
+        let result = template;
+
+        // Replace simple placeholders like {{customerName}}
+        result = result.replace(/{{(.*?)}}/g, (match, key) => {
+            const keys = key.trim().split('.');
+            let value = data;
+            for (const k of keys) {
+                if (value && typeof value === 'object' && k in value) {
+                    value = value[k];
+                } else {
+                    return match; // Return original placeholder if key not found
+                }
+            }
+            return value;
+        });
+
+        // Handle #each block
+        const eachRegex = /{{#each charges}}(.*?){{\/each}}/s;
+        const eachMatch = result.match(eachRegex);
+        if (eachMatch && data.charges) {
+            const itemTemplate = eachMatch[1];
+            let itemsHtml = '';
+            data.charges.forEach((charge: any, index: number) => {
+                let itemHtml = itemTemplate;
+                itemHtml = itemHtml.replace(/{{description}}/g, charge.description);
+                itemHtml = itemHtml.replace(/{{quantity}}/g, charge.quantity);
+                itemHtml = itemHtml.replace(/{{value}}/g, charge.value);
+                itemHtml = itemHtml.replace(/{{total}}/g, charge.total);
+                itemHtml = itemHtml.replace(/{{currency}}/g, charge.currency);
+                itemHtml = itemHtml.replace(/{{..\/exchangeRate}}/g, data.exchangeRate);
+
+                const totalInBRL = (parseFloat(charge.total.replace(',', '.')) * data.exchangeRate).toFixed(2);
+                itemHtml = itemHtml.replace(/{{multiply total ..\/exchangeRate}}/g, totalInBRL);
+
+                if (index % 2 !== 0) { // odd
+                    itemHtml = itemHtml.replace('{{#if @odd}}background-color: #F5F7F8;{{/if}}', 'style="background-color: #F5F7F8;"');
+                } else {
+                    itemHtml = itemHtml.replace('{{#if @odd}}background-color: #F5F7F8;{{/if}}', '');
+                }
+                itemsHtml += itemHtml;
+            });
+            result = result.replace(eachRegex, itemsHtml);
         }
-        return (val1 * val2).toFixed(2);
-    });
+
+        return result;
+    }
 
     const { output } = await generateQuotePdfHtmlPrompt(input);
-    return output!;
+    
+    // We are now doing the templating here instead of relying on a library that may not be available server-side.
+    const finalHtml = applyTemplate(output!.html, input);
+
+    return { html: finalHtml };
   }
 );
+
+    

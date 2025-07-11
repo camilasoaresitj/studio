@@ -15,7 +15,8 @@ import {
   Banknote,
   PlusCircle,
   ShieldAlert,
-  Users
+  Users,
+  Loader2
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
@@ -35,6 +36,8 @@ import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote }
 import { FinancialEntryImporter } from '@/components/financials/financial-entry-importer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exchangeRateService } from '@/services/exchange-rate-service';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 type FilterType = 'all' | 'dueToday' | 'dueThisMonth';
@@ -52,6 +55,7 @@ export default function FinanceiroPage() {
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -214,20 +218,49 @@ export default function FinanceiroPage() {
         setEditingAccount(null);
     };
 
-    const openGeneratedHtml = (html: string | undefined) => {
-        if (html) {
-            const newTab = window.open();
-            newTab?.document.write(html);
-            newTab?.document.close();
-        } else {
+    const openGeneratedHtml = async (html: string | undefined, entryId: string) => {
+        if (!html) {
             toast({ variant: 'destructive', title: 'Erro ao gerar fatura', description: 'O conteúdo da fatura não pôde ser gerado.' });
+            return;
+        }
+
+        setIsGeneratingPdf(true);
+        toast({ title: 'Gerando PDF...', description: 'Aguarde um momento.' });
+
+        try {
+            const element = document.createElement("div");
+            element.style.position = 'absolute';
+            element.style.left = '-9999px';
+            element.style.top = '0';
+            element.style.width = '800px'; 
+            element.innerHTML = html;
+            document.body.appendChild(element);
+            
+            await new Promise(resolve => setTimeout(resolve, 500)); 
+
+            const canvas = await html2canvas(element, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`invoice-${entryId}.pdf`);
+            toast({ title: 'PDF gerado com sucesso!', className: 'bg-success text-success-foreground' });
+
+            document.body.removeChild(element);
+        } catch (e: any) {
+             toast({ variant: "destructive", title: "Erro ao gerar PDF", description: e.message || "Ocorreu um erro ao converter o conteúdo." });
+        } finally {
+            setIsGeneratingPdf(false);
         }
     };
 
     const handleGenerateClientInvoicePdf = async (entry: FinancialEntry) => {
+        setIsGeneratingPdf(true);
         const shipment = allShipments.find(s => s.id === entry.processId);
         if (!shipment) {
             toast({ variant: 'destructive', title: 'Processo não encontrado' });
+            setIsGeneratingPdf(false);
             return;
         }
 
@@ -263,16 +296,19 @@ export default function FinanceiroPage() {
         });
 
         if (response.success) {
-            openGeneratedHtml(response.data?.html);
+            await openGeneratedHtml(response.data?.html, entry.invoiceId);
         } else {
              toast({ variant: 'destructive', title: 'Erro ao gerar fatura', description: response.error });
         }
+        setIsGeneratingPdf(false);
     };
 
     const handleGenerateAgentInvoicePdf = async (entry: FinancialEntry) => {
+        setIsGeneratingPdf(true);
         const shipment = allShipments.find(s => s.id === entry.processId);
         if (!shipment || !shipment.agent) {
             toast({ variant: 'destructive', title: 'Processo ou Agente não encontrado' });
+            setIsGeneratingPdf(false);
             return;
         }
 
@@ -306,10 +342,11 @@ export default function FinanceiroPage() {
         });
         
         if (response.success) {
-            openGeneratedHtml(response.data?.html);
+            await openGeneratedHtml(response.data?.html, `agent-${entry.invoiceId}`);
         } else {
              toast({ variant: 'destructive', title: 'Erro ao gerar invoice do agente', description: response.error });
         }
+        setIsGeneratingPdf(false);
     };
     
     const handleResendInvoice = async (entry: FinancialEntry) => {
@@ -348,7 +385,11 @@ export default function FinanceiroPage() {
     };
 
     if (!isClient) {
-        return null;
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
     }
 
     const renderTable = (tableEntries: FinancialEntry[]) => (
@@ -358,12 +399,12 @@ export default function FinanceiroPage() {
                 <TableRow>
                 <TableHead className="w-10">
                     <Checkbox
-                        checked={selectedRows.size === tableEntries.length && tableEntries.length > 0}
-                        onCheckedChange={() => {
-                            if (selectedRows.size === tableEntries.length) {
-                                setSelectedRows(new Set());
-                            } else {
+                        checked={selectedRows.size > 0 && tableEntries.every(e => selectedRows.has(e.id))}
+                        onCheckedChange={(checked) => {
+                            if (checked) {
                                 setSelectedRows(new Set(tableEntries.map(e => e.id)));
+                            } else {
+                                setSelectedRows(new Set());
                             }
                         }}
                         aria-label="Selecionar todos"
@@ -412,13 +453,15 @@ export default function FinanceiroPage() {
                     </TableCell>
                     <TableCell className="text-center">
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGeneratingPdf}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)}>
-                                    <Eye className="mr-2 h-4 w-4" /> Visualizar Fatura (Cliente)
+                                <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={isGeneratingPdf}>
+                                    {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Eye className="mr-2 h-4 w-4" />} 
+                                    Visualizar Fatura (Cliente)
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={!allShipments.find(s => s.id === entry.processId)?.agent}>
-                                    <Users className="mr-2 h-4 w-4" /> Visualizar Invoice (Agente)
+                                <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={isGeneratingPdf || !allShipments.find(s => s.id === entry.processId)?.agent}>
+                                    {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Users className="mr-2 h-4 w-4" />} 
+                                    Visualizar Invoice (Agente)
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
                                     <Send className="mr-2 h-4 w-4" /> Reenviar Fatura

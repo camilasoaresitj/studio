@@ -58,6 +58,20 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const form = useForm<PartnerFormData>({
     resolver: zodResolver(partnerSchema),
+    defaultValues: {
+      name: '',
+      nomeFantasia: '',
+      cnpj: '',
+      roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
+      contacts: [{ name: '', email: '', phone: '', departments: [] }],
+      address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
+      tipoCliente: { importacao: false, exportacao: false },
+      tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false },
+      tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
+      paymentTerm: 30,
+      exchangeRateAgio: 0,
+      profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' }
+    }
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -73,12 +87,16 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     form.reset(
       partner || {
         name: '',
+        nomeFantasia: '',
+        cnpj: '',
         roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
         contacts: [{ name: '', email: '', phone: '', departments: [] }],
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
-        tipoCliente: { importacao: false, exportacao: false, nacional: false, internacional: false },
-        tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false, despachante: false, armazem: false },
+        tipoCliente: { importacao: false, exportacao: false },
+        tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false },
         tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
+        paymentTerm: 30,
+        exchangeRateAgio: 0,
         profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' }
       }
     );

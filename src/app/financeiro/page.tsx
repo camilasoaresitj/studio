@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -9,8 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, DollarSign, FileDown, Filter, MoreHorizontal, Upload, Landmark, Edit, Pencil, FileText, Send, Printer, Eye } from 'lucide-react';
-import { format, isPast, isToday } from 'date-fns';
+import { CalendarIcon, DollarSign, FileDown, MoreHorizontal, Upload, Landmark, Edit, Pencil, FileText, Send, Printer, Eye, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { format, isPast, isToday, isThisMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
@@ -22,10 +23,12 @@ import { Label } from '@/components/ui/label';
 import { BankAccountDialog } from '@/components/financials/bank-account-form';
 import { NfseGenerationDialog } from '@/components/financials/nfse-generation-dialog';
 import { getShipments } from '@/lib/shipment';
-import type { Shipment, QuoteCharge } from '@/lib/shipment';
+import type { Shipment } from '@/lib/shipment';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
 import { runGenerateQuotePdfHtml, runSendQuote } from '@/app/actions';
+
+type FilterType = 'all' | 'dueTodayReceivable' | 'dueTodayPayable' | 'dueMonthReceivable' | 'dueMonthPayable';
 
 export default function FinanceiroPage() {
     const [isClient, setIsClient] = useState(false);
@@ -40,6 +43,7 @@ export default function FinanceiroPage() {
     const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
+    const [activeFilter, setActiveFilter] = useState<FilterType>('all');
     const { toast } = useToast();
 
     useEffect(() => {
@@ -48,6 +52,39 @@ export default function FinanceiroPage() {
         setAccounts(getBankAccounts());
         setAllShipments(getShipments());
     }, []);
+
+    const dashboardData = useMemo(() => {
+        const todayEntries = entries.filter(e => isToday(new Date(e.dueDate)));
+        const monthEntries = entries.filter(e => isThisMonth(new Date(e.dueDate)));
+
+        return {
+            dueTodayReceivable: todayEntries.filter(e => e.type === 'credit').reduce((sum, e) => sum + e.amount, 0),
+            dueTodayPayable: todayEntries.filter(e => e.type === 'debit').reduce((sum, e) => sum + e.amount, 0),
+            dueMonthReceivable: monthEntries.filter(e => e.type === 'credit').reduce((sum, e) => sum + e.amount, 0),
+            dueMonthPayable: monthEntries.filter(e => e.type === 'debit').reduce((sum, e) => sum + e.amount, 0),
+        }
+    }, [entries]);
+
+    const filteredEntries = useMemo(() => {
+        if (activeFilter === 'all') return entries;
+
+        return entries.filter(entry => {
+            const dueDate = new Date(entry.dueDate);
+            switch (activeFilter) {
+                case 'dueTodayReceivable':
+                    return isToday(dueDate) && entry.type === 'credit';
+                case 'dueTodayPayable':
+                    return isToday(dueDate) && entry.type === 'debit';
+                case 'dueMonthReceivable':
+                    return isThisMonth(dueDate) && entry.type === 'credit';
+                case 'dueMonthPayable':
+                    return isThisMonth(dueDate) && entry.type === 'debit';
+                default:
+                    return true;
+            }
+        });
+    }, [entries, activeFilter]);
+
 
     const getStatusVariant = (entry: FinancialEntry): 'default' | 'secondary' | 'destructive' | 'success' => {
         if (entry.status === 'Pago') return 'success';
@@ -102,10 +139,10 @@ export default function FinanceiroPage() {
     };
 
     const toggleSelectAll = () => {
-        if (selectedRows.size === entries.length) {
+        if (selectedRows.size === filteredEntries.length) {
             setSelectedRows(new Set());
         } else {
-            setSelectedRows(new Set(entries.map(e => e.id)));
+            setSelectedRows(new Set(filteredEntries.map(e => e.id)));
         }
     };
 
@@ -263,27 +300,62 @@ export default function FinanceiroPage() {
         </p>
       </header>
       
-        <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
-            {accounts.map(account => (
-                 <Card key={account.id} className="relative group cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setStatementAccount(account)}>
-                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); setEditingAccount(account); }}>
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
-                     </Button>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
-                        <Landmark className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{account.currency} {account.balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                        <p className="text-xs text-muted-foreground">{account.bankName} - Ag: {account.agency} C/C: {account.accountNumber}</p>
-                    </CardContent>
-                </Card>
-            ))}
+        <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-5">
+            <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setActiveFilter('all')}>
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-base font-medium">Visão Geral</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">&nbsp;</div>
+                    <p className="text-xs text-muted-foreground">Clique para ver todos os lançamentos</p>
+                </CardContent>
+            </Card>
+            <Card className="cursor-pointer hover:ring-2 hover:ring-green-500/50 transition-all" onClick={() => setActiveFilter('dueTodayReceivable')}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">A Receber Hoje</CardTitle>
+                    <ArrowUpCircle className="h-5 w-5 text-success" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-success">R$ {dashboardData.dueTodayReceivable.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <p className="text-xs text-muted-foreground">Vencendo em {format(new Date(), 'dd/MM/yyyy')}</p>
+                </CardContent>
+            </Card>
+             <Card className="cursor-pointer hover:ring-2 hover:ring-red-500/50 transition-all" onClick={() => setActiveFilter('dueTodayPayable')}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">A Pagar Hoje</CardTitle>
+                    <ArrowDownCircle className="h-5 w-5 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-destructive">R$ {dashboardData.dueTodayPayable.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                     <p className="text-xs text-muted-foreground">Vencendo em {format(new Date(), 'dd/MM/yyyy')}</p>
+                </CardContent>
+            </Card>
+             <Card className="cursor-pointer hover:ring-2 hover:ring-green-500/50 transition-all" onClick={() => setActiveFilter('dueMonthReceivable')}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">A Receber no Mês</CardTitle>
+                     <ArrowUpCircle className="h-5 w-5 text-success" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-success">R$ {dashboardData.dueMonthReceivable.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    <p className="text-xs text-muted-foreground">Mês de {format(new Date(), 'MMMM', {locale: ptBR})}</p>
+                </CardContent>
+            </Card>
+            <Card className="cursor-pointer hover:ring-2 hover:ring-red-500/50 transition-all" onClick={() => setActiveFilter('dueMonthPayable')}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">A Pagar no Mês</CardTitle>
+                    <ArrowDownCircle className="h-5 w-5 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-destructive">R$ {dashboardData.dueMonthPayable.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                     <p className="text-xs text-muted-foreground">Mês de {format(new Date(), 'MMMM', {locale: ptBR})}</p>
+                </CardContent>
+            </Card>
         </div>
 
         <Tabs defaultValue="lancamentos" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+            <TabsList className="grid w-full grid-cols-4 max-w-4xl">
                 <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+                <TabsTrigger value="contas">Contas Bancárias</TabsTrigger>
                 <TabsTrigger value="nfse">Consulta NFS-e</TabsTrigger>
                 <TabsTrigger value="boletos">Consulta Boletos</TabsTrigger>
             </TabsList>
@@ -292,38 +364,14 @@ export default function FinanceiroPage() {
                 <Card>
                     <CardHeader>
                     <CardTitle>Lançamentos Financeiros</CardTitle>
-                    <CardDescription>Visualize e gerencie todas as suas contas a pagar e a receber.</CardDescription>
+                    <CardDescription>
+                        {activeFilter !== 'all' 
+                            ? <span className="text-primary font-medium">Mostrando filtro ativo. Clique em "Visão Geral" para limpar.</span>
+                            : 'Visualize e gerencie todas as suas contas a pagar e a receber.'
+                        }
+                    </CardDescription>
                     </CardHeader>
                     <CardContent>
-                    <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                        <Input placeholder="Filtrar por Cliente/Fornecedor..." className="flex-grow" />
-                        <Select defaultValue="all-accounts">
-                            <SelectTrigger className="w-full sm:w-[220px]"><SelectValue placeholder="Contas Bancárias" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all-accounts">Todas as Contas</SelectItem>
-                                {accounts.map(account => (
-                                    <SelectItem key={account.id} value={account.id.toString()}>{account.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select defaultValue="all-status">
-                            <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-                            <SelectContent><SelectItem value="all-status">Todos Status</SelectItem><SelectItem value="aberto">Aberto</SelectItem><SelectItem value="pago">Pago</SelectItem><SelectItem value="vencido">Vencido</SelectItem></SelectContent>
-                        </Select>
-                        <Select defaultValue="all-types">
-                            <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
-                            <SelectContent><SelectItem value="all-types">Todos Tipos</SelectItem><SelectItem value="credit">Crédito</SelectItem><SelectItem value="debit">Débito</SelectItem></SelectContent>
-                        </Select>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal sm:w-auto", !selectedDate && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />{selectedDate ? format(selectedDate, 'PPP', { locale: ptBR }) : <span>Filtrar por vencimento</span>}
-                            </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus /></PopoverContent>
-                        </Popover>
-                        <Button variant="outline"><Filter className="mr-2 h-4 w-4" />Filtrar</Button>
-                    </div>
                     
                     {unifiedSettlementData && (
                         <div className="flex items-center justify-between p-3 mb-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
@@ -348,7 +396,7 @@ export default function FinanceiroPage() {
                             <TableRow>
                             <TableHead className="w-10">
                                 <Checkbox
-                                    checked={selectedRows.size === entries.length && entries.length > 0}
+                                    checked={selectedRows.size === filteredEntries.length && filteredEntries.length > 0}
                                     onCheckedChange={toggleSelectAll}
                                     aria-label="Selecionar todos"
                                 />
@@ -364,7 +412,7 @@ export default function FinanceiroPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {entries.map((entry) => (
+                            {filteredEntries.map((entry) => (
                             <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
                                 <TableCell>
                                     <Checkbox
@@ -420,16 +468,51 @@ export default function FinanceiroPage() {
                         </TableBody>
                         </Table>
                     </div>
-                    <div className="flex justify-end gap-2 mt-4">
-                        <Button variant="outline" onClick={() => toast({ title: 'Funcionalidade em desenvolvimento.' })}>
-                        <Upload className="mr-2 h-4 w-4"/> Importar Extrato
-                        </Button>
-                        <Button variant="outline" onClick={() => toast({ title: 'Funcionalidade em desenvolvimento.' })}>
-                        <FileDown className="mr-2 h-4 w-4"/> Exportar Extrato
-                        </Button>
-                    </div>
                     </CardContent>
                 </Card>
+            </TabsContent>
+
+             <TabsContent value="contas" className="mt-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Contas Bancárias</CardTitle>
+                        <CardDescription>Gerencie suas contas e veja os extratos.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nome da Conta</TableHead>
+                                        <TableHead>Banco</TableHead>
+                                        <TableHead>Agência</TableHead>
+                                        <TableHead>Conta</TableHead>
+                                        <TableHead>Moeda</TableHead>
+                                        <TableHead className="text-right">Saldo</TableHead>
+                                        <TableHead className="text-center">Ações</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                     {accounts.map(account => (
+                                         <TableRow key={account.id} className="cursor-pointer" onClick={() => setStatementAccount(account)}>
+                                            <TableCell className="font-medium">{account.name}</TableCell>
+                                            <TableCell>{account.bankName}</TableCell>
+                                            <TableCell>{account.agency}</TableCell>
+                                            <TableCell>{account.accountNumber}</TableCell>
+                                            <TableCell><Badge variant="secondary">{account.currency}</Badge></TableCell>
+                                            <TableCell className="text-right font-mono">{account.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className="text-center">
+                                                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingAccount(account); }}>
+                                                    <Pencil className="h-4 w-4" />
+                                                 </Button>
+                                            </TableCell>
+                                         </TableRow>
+                                     ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                 </Card>
             </TabsContent>
 
             <TabsContent value="nfse" className="mt-6">
@@ -567,3 +650,5 @@ export default function FinanceiroPage() {
     </div>
   );
 }
+
+    

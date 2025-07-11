@@ -29,8 +29,6 @@ interface BankAccountStatementDialogProps {
 export function BankAccountStatementDialog({ isOpen, onClose, account, entries }: BankAccountStatementDialogProps) {
   const [reconciledIds, setReconciledIds] = useState<Set<string>>(new Set());
 
-  if (!account) return null;
-
   const handleToggleReconciled = (id: string) => {
     setReconciledIds(prev => {
       const newSet = new Set(prev);
@@ -44,7 +42,7 @@ export function BankAccountStatementDialog({ isOpen, onClose, account, entries }
   };
 
   const statementEntries = useMemo(() => {
-    if (!account) return [];
+    if (!account) return { transactions: [], initialBalance: 0 };
     
     // Flatten entries and their payments into a single list of transactions for this account
     const transactions = entries.flatMap(entry => 
@@ -87,6 +85,10 @@ export function BankAccountStatementDialog({ isOpen, onClose, account, entries }
 
   }, [account, entries]);
 
+  // This conditional return must come AFTER all hooks.
+  if (!account) {
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

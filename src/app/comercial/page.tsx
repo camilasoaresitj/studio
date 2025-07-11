@@ -417,5 +417,3 @@ export default function ComercialPage() {
     </div>
   );
 }
-
-    

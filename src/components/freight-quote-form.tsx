@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
-import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetVesselSchedules, runGenerateQuotePdfHtml, runExtractQuoteDetailsFromText } from '@/app/actions';
+import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetVesselSchedules, runGenerateClientInvoicePdf, runExtractQuoteDetailsFromText } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import type { Quote, QuoteCharge, QuoteDetails } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
@@ -689,7 +689,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             .map(([currency, total]) => `${currency} ${formatValue(total)}`)
             .join(' + ');
 
-        const response = await runGenerateQuotePdfHtml({
+        const response = await runGenerateClientInvoicePdf({
             quoteNumber: quote.id.replace('-DRAFT', ''),
             customerName: quote.customer,
             date: new Date().toLocaleDateString('pt-BR'),

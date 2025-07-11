@@ -47,7 +47,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const form = useForm<QuoteCostSheetFormData>({
     resolver: zodResolver(quoteChargeSchema),
     defaultValues: {
-      charges: quote.charges || [],
+      charges: [],
     },
   });
 
@@ -162,7 +162,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                           )} />
                         </TableCell>
                         <TableCell>
-                          <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
+                           <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
                             <Input placeholder="Ex: Por Contêiner" {...field} />
                           )} />
                         </TableCell>

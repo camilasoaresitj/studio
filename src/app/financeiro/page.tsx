@@ -230,11 +230,15 @@ export default function FinanceiroPage() {
         newWindow?.document.close();
     };
 
+    const findShipmentForEntry = (entry: FinancialEntry) => {
+        return allShipments.find(s => s.id === entry.processId || s.quoteId === entry.invoiceId);
+    };
+    
     const handleGenerateClientInvoicePdf = async (entry: FinancialEntry) => {
         setIsGenerating(true);
-        const shipment = allShipments.find(s => s.id === entry.processId);
+        const shipment = findShipmentForEntry(entry);
         if (!shipment) {
-            toast({ variant: 'destructive', title: 'Processo não encontrado' });
+            toast({ variant: 'destructive', title: 'Processo não encontrado', description: `Não foi possível localizar o processo para a fatura ${entry.invoiceId}` });
             setIsGenerating(false);
             return;
         }
@@ -280,7 +284,7 @@ export default function FinanceiroPage() {
 
     const handleGenerateAgentInvoicePdf = async (entry: FinancialEntry) => {
         setIsGenerating(true);
-        const shipment = allShipments.find(s => s.id === entry.processId);
+        const shipment = findShipmentForEntry(entry);
         if (!shipment || !shipment.agent) {
             toast({ variant: 'destructive', title: 'Processo ou Agente não encontrado' });
             setIsGenerating(false);
@@ -434,7 +438,7 @@ export default function FinanceiroPage() {
                                     {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
                                     Visualizar/Imprimir Fatura (Cliente)
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={isGenerating || !allShipments.find(s => s.id === entry.processId)?.agent}>
+                                <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={isGenerating || !findShipmentForEntry(entry)?.agent}>
                                     {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
                                     Visualizar/Imprimir Invoice (Agente)
                                 </DropdownMenuItem>

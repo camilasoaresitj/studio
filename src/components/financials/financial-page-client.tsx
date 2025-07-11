@@ -68,7 +68,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [detailsShipment, setDetailsShipment] = useState<(Shipment & { payments?: PartialPayment[] }) | null>(null);
-    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [statusFilter, setStatusFilter] = useState<string[]>(['Aberto', 'Parcialmente Pago', 'Vencido']);
     const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit'>('all');
     const [textFilters, setTextFilters] = useState({ partner: '', processId: '', value: '' });
     const [isGenerating, setIsGenerating] = useState(false);
@@ -133,7 +133,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             if (!applyFilters(entry)) return false;
             
             const typeMatch = typeFilter === 'all' || entry.type === typeFilter;
-            const statusMatch = statusFilter === 'all' ? true : status === statusFilter;
+            const statusMatch = statusFilter.length === 0 ? true : statusFilter.includes(status);
 
             return typeMatch && statusMatch;
         });
@@ -267,6 +267,66 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             className: 'bg-success text-success-foreground'
         });
         setSelectedRows(new Set());
+    };
+
+    const findEntryForPayment = (paymentId: string) => {
+        return entries.find(e => e.payments?.some(p => p.id === paymentId));
+    };
+
+    const handleReversePayment = (paymentId: string, entryId: string) => {
+        const entry = entries.find(e => e.id === entryId);
+        const payment = entry?.payments?.find(p => p.id === paymentId);
+
+        if (!entry || !payment) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Pagamento ou lançamento não encontrado.' });
+            return;
+        }
+
+        const account = accounts.find(a => a.id === payment.accountId);
+        if (!account) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Conta bancária associada não encontrada.' });
+            return;
+        }
+        
+        // Update financial entries: remove payment and reset status if needed
+        const updatedEntries = entries.map(e => {
+            if (e.id === entryId) {
+                return {
+                    ...e,
+                    payments: e.payments?.filter(p => p.id !== paymentId),
+                    status: 'Aberto' as Status,
+                };
+            }
+            return e;
+        });
+        
+        // Update bank account balance
+        let amountInAccountCurrency = payment.amount;
+        if (payment.exchangeRate && entry.currency !== account.currency) {
+            amountInAccountCurrency = payment.amount * payment.exchangeRate;
+        }
+        
+        const updatedAccounts = accounts.map(acc => {
+            if (acc.id === payment.accountId) {
+                const newBalance = entry.type === 'credit' 
+                    ? acc.balance - amountInAccountCurrency 
+                    : acc.balance + amountInAccountCurrency;
+                return { ...acc, balance: newBalance };
+            }
+            return acc;
+        });
+
+        saveFinancialEntries(updatedEntries);
+        setEntries(updatedEntries);
+        saveBankAccounts(updatedAccounts);
+        setAccounts(updatedAccounts);
+        window.dispatchEvent(new Event('financialsUpdated'));
+
+        toast({
+            title: 'Pagamento Revertido!',
+            description: `A baixa de ${entry.currency} ${payment.amount.toFixed(2)} foi revertida.`,
+            className: 'bg-success text-success-foreground'
+        });
     };
 
     const handleProcessClick = (processId: string) => {
@@ -539,13 +599,49 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     <div className="flex flex-col gap-1">
                         <span>{isLegalTable ? 'Status Jurídico' : 'Status'}</span>
                         {!isLegalTable ? (
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todos</SelectItem>
-                                    {allStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="h-7 text-xs justify-between">
+                                        <span className="truncate pr-2">
+                                        {statusFilter.length === 0 || statusFilter.length === allStatuses.length
+                                            ? "Todos"
+                                            : statusFilter.join(", ")}
+                                        </span>
+                                        <ChevronsUpDown className="h-3 w-3 text-muted-foreground" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-48 p-0" align="start">
+                                    <Command>
+                                        <CommandInput placeholder="Filtrar status..." />
+                                        <CommandList>
+                                            <CommandEmpty>Nenhum status encontrado.</CommandEmpty>
+                                            <CommandGroup>
+                                                {allStatuses.map((s) => (
+                                                    <CommandItem
+                                                    key={s}
+                                                    onSelect={() => {
+                                                        const newFilter = statusFilter.includes(s)
+                                                        ? statusFilter.filter((item) => item !== s)
+                                                        : [...statusFilter, s];
+                                                        setStatusFilter(newFilter);
+                                                    }}
+                                                    >
+                                                    <div className={cn(
+                                                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                        statusFilter.includes(s)
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "opacity-50 [&_svg]:invisible"
+                                                    )}>
+                                                        <Check className="h-4 w-4" />
+                                                    </div>
+                                                    <span>{s}</span>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         ) : (
                             <Select
                                 value={(tableEntries[0] as any)?.legalStatus || ''}
@@ -886,7 +982,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         <NfseGenerationDialog
             data={nfseData}
             isOpen={!!nfseData}
-            onClose={() => setNfseData(null)}
+            onClose={() => setNfse-data(null)}
         />
 
         <SendToLegalDialog
@@ -900,6 +996,8 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             shipment={detailsShipment}
             isOpen={!!detailsShipment}
             onClose={() => setDetailsShipment(null)}
+            onReversePayment={handleReversePayment}
+            findEntryForPayment={findEntryForPayment}
         />
 
     </div>

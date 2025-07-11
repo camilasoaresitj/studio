@@ -18,14 +18,21 @@ import type { Shipment } from '@/lib/shipment';
 import type { PartialPayment } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Button } from '../ui/button';
+import { Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface FinancialDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   shipment: (Shipment & { payments?: PartialPayment[] }) | null;
+  onReversePayment?: (paymentId: string, entryId: string) => void;
+  findEntryForPayment: (paymentId: string) => any;
 }
 
-export function FinancialDetailsDialog({ isOpen, onClose, shipment }: FinancialDetailsDialogProps) {
+export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePayment, findEntryForPayment }: FinancialDetailsDialogProps) {
+  const { toast } = useToast();
+  
   const totals = React.useMemo(() => {
     if (!shipment) return { cost: {}, sale: {}, profit: {} };
 
@@ -43,7 +50,6 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment }: FinancialD
       if (charge.costCurrency === charge.saleCurrency) {
         profit[charge.saleCurrency] = (profit[charge.saleCurrency] || 0) + (chargeSale - chargeCost);
       } else {
-        // Handle different currencies for profit separately if needed
         profit[charge.saleCurrency] = (profit[charge.saleCurrency] || 0) + chargeSale;
         profit[charge.costCurrency] = (profit[charge.costCurrency] || 0) - chargeCost;
       }
@@ -122,20 +128,30 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment }: FinancialD
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Data</TableHead>
+                                        <TableHead>Fatura</TableHead>
                                         <TableHead className="text-right">Valor Pago</TableHead>
                                         <TableHead>Conta</TableHead>
-                                        <TableHead>Câmbio</TableHead>
+                                        <TableHead className="text-center">Ações</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {shipment.payments.map(payment => (
+                                    {shipment.payments.map(payment => {
+                                      const relatedEntry = findEntryForPayment(payment.id);
+                                      return (
                                         <TableRow key={payment.id}>
                                             <TableCell>{format(new Date(payment.date), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>{relatedEntry?.invoiceId || 'N/A'}</TableCell>
                                             <TableCell className="text-right font-mono">{payment.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell>Conta ID: {payment.accountId}</TableCell>
-                                            <TableCell>{payment.exchangeRate ? `1 USD = ${payment.exchangeRate} BRL` : 'N/A'}</TableCell>
+                                            <TableCell className="text-center">
+                                                {onReversePayment && relatedEntry && (
+                                                    <Button variant="ghost" size="icon" onClick={() => onReversePayment(payment.id, relatedEntry.id)}>
+                                                        <Trash2 className="h-4 w-4 text-destructive"/>
+                                                    </Button>
+                                                )}
+                                            </TableCell>
                                         </TableRow>
-                                    ))}
+                                    )})}
                                 </TableBody>
                             </Table>
                          </div>

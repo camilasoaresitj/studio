@@ -46,7 +46,7 @@ const GenerateNfseXmlInputSchema = z.object({
   }),
   tomador: TomadorSchema,
   servico: ServicoSchema,
-  naturezaOperacao: z.string().default('101').describe('O código da natureza da operação.'),
+  naturezaOperacao: z.string().default('1').describe('O código da natureza da operação. 1 = Tributação no município'),
   optanteSimplesNacional: z.enum(['1', '2']).default('2').describe('Se o prestador é optante pelo Simples Nacional (1-Sim, 2-Não).'),
 });
 export type GenerateNfseXmlInput = z.infer<typeof GenerateNfseXmlInputSchema>;
@@ -67,9 +67,6 @@ const generateNfseXmlFlow = ai.defineFlow(
     outputSchema: GenerateNfseXmlOutputSchema,
   },
   async (input) => {
-    // This flow doesn't need AI generation, it's a direct XML builder.
-    // It's defined as a flow to keep consistency with other backend actions.
-
     const isCpf = input.tomador.cpfCnpj.length === 11;
     const tomadorCpfCnpjXml = isCpf
       ? `<Cpf>${input.tomador.cpfCnpj}</Cpf>`
@@ -77,14 +74,14 @@ const generateNfseXmlFlow = ai.defineFlow(
 
     const xmlContent = `
 <EnviarLoteRpsEnvio xmlns="http://www.publica.inf.br">
-  <LoteRps versao="1.00">
+  <LoteRps>
     <NumeroLote>${input.rps.loteId}</NumeroLote>
     <Cnpj>${input.prestador.cnpj}</Cnpj>
     <InscricaoMunicipal>${input.prestador.inscricaoMunicipal}</InscricaoMunicipal>
     <QuantidadeRps>1</QuantidadeRps>
     <ListaRps>
       <Rps>
-        <InfRps Id="R${input.rps.numero}">
+        <InfRps Id="RPS${input.rps.numero}">
           <IdentificacaoRps>
             <Numero>${input.rps.numero}</Numero>
             <Serie>${input.rps.serie}</Serie>
@@ -98,11 +95,21 @@ const generateNfseXmlFlow = ai.defineFlow(
           <Servico>
             <Valores>
               <ValorServicos>${input.servico.valorServicos.toFixed(2)}</ValorServicos>
+              <ValorDeducoes>0.00</ValorDeducoes>
+              <ValorPis>0.00</ValorPis>
+              <ValorCofins>0.00</ValorCofins>
+              <ValorInss>0.00</ValorInss>
+              <ValorIr>0.00</ValorIr>
+              <ValorCsll>0.00</ValorCsll>
               <IssRetido>${input.servico.issRetido}</IssRetido>
               <ValorIss>${input.servico.valorIss.toFixed(2)}</ValorIss>
+              <OutrasRetencoes>0.00</OutrasRetencoes>
               <Aliquota>${input.servico.aliquota.toFixed(4)}</Aliquota>
+              <DescontoIncondicionado>0.00</DescontoIncondicionado>
+              <DescontoCondicionado>0.00</DescontoCondicionado>
             </Valores>
             <ItemListaServico>${input.servico.itemListaServico}</ItemListaServico>
+            <CodigoCnae>5250804</CodigoCnae>
             <Discriminacao>${input.servico.discriminacao}</Discriminacao>
             <CodigoMunicipio>${input.servico.codigoMunicipioPrestacao}</CodigoMunicipio>
           </Servico>

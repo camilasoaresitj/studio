@@ -129,6 +129,7 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
             valorServicos: totalValue,
             aliquota: 0.05,
             issRetido: '2',
+            valorIss: 0,
             itemListaServico: '04.02',
             discriminacao: `Ref. Fatura ${data.entry.invoiceId}. ${discriminacao}`,
             codigoMunicipioPrestacao: '4208203',

@@ -242,10 +242,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const mblPrintingAuthDate = form.watch('mblPrintingAuthDate');
   const watchedCharges = form.watch('charges');
 
-  if (!shipment) {
-      return null;
-  }
-
   const onSubmit = (data: ShipmentDetailsFormData) => {
     if (!shipment) return;
     const updatedShipment: Shipment = {
@@ -511,6 +507,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const hasPendingCharges = useMemo(() => {
     return watchedCharges?.some(c => c.approvalStatus === 'pendente');
   }, [watchedCharges]);
+
+  // THIS IS THE FIX: The conditional return must be AFTER all hooks are called.
+  if (!shipment) {
+      return null;
+  }
 
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>

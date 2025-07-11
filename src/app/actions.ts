@@ -23,7 +23,7 @@ import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
 import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
-import { addFinancialEntry } from "@/lib/financials-data";
+import { getFinancialEntries, addFinancialEntry } from "@/lib/financials-data";
 import type { Shipment } from "@/lib/shipment";
 
 
@@ -375,8 +375,10 @@ export async function runInvoiceShipment(shipment: Shipment) {
                 }
              }
         }
+        
+        const allEntries = getFinancialEntries();
 
-        return { success: true, data: { credits: creditsCreated, debits: debitsCreated } };
+        return { success: true, data: { credits: creditsCreated, debits: debitsCreated, allEntries } };
 
     } catch (error: any) {
         console.error("Invoice Shipment Action Failed", error);

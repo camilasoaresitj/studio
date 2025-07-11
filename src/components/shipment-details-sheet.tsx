@@ -11,14 +11,6 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from '@/components/ui/sheet';
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -26,6 +18,14 @@ import {
   DialogDescription,
   DialogFooter as DialogFooterComponent,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
@@ -51,7 +51,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf } from '@/app/actions';
-import { addFinancialEntry, getFinancialEntries } from '@/lib/financials-data';
+import { addFinancialEntry, getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { Checkbox } from './ui/checkbox';
 import type { Fee } from '@/components/fees-registry';
 import { ScrollArea } from './ui/scroll-area';
@@ -353,73 +353,59 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
         let creditsCreated = 0;
         let debitsCreated = 0;
-
-        // Create a single credit entry for the customer (sacado)
-        const sacado = unbilledCharges[0]?.sacado || shipment.customer;
-        const totalSaleByCurrency: { [key: string]: number } = {};
-
-        unbilledCharges.forEach(charge => {
-            if (!totalSaleByCurrency[charge.saleCurrency]) {
-                totalSaleByCurrency[charge.saleCurrency] = 0;
-            }
-            totalSaleByCurrency[charge.saleCurrency] += charge.sale;
-        });
-
-        const newFinancialEntries: any[] = [];
+        
         const updatedChargesMap = new Map<string, string>();
 
-        for (const [currency, amount] of Object.entries(totalSaleByCurrency)) {
-            if (amount > 0) {
-                 const entryId = `fin-${Date.now()}-${creditsCreated}`;
-                 addFinancialEntry({
-                    id: entryId,
-                    type: 'credit',
-                    partner: sacado,
-                    invoiceId: `INV-${shipment.id}`,
-                    dueDate: new Date().toISOString(),
-                    amount: amount,
-                    currency: currency as 'BRL' | 'USD',
-                    processId: shipment.id,
-                    accountId: 1,
-                    payments: [],
-                    status: 'Aberto'
-                });
-                unbilledCharges.filter(c => c.saleCurrency === currency).forEach(c => updatedChargesMap.set(c.id, entryId));
-                creditsCreated++;
+        // Create credit entries (Contas a Receber)
+        const salesBySacadoAndCurrency: { [sacado: string]: { [currency: string]: { amount: number, charges: QuoteCharge[] } } } = {};
+        unbilledCharges.forEach(charge => {
+            const sacado = charge.sacado || shipment.customer;
+            if (!salesBySacadoAndCurrency[sacado]) salesBySacadoAndCurrency[sacado] = {};
+            if (!salesBySacadoAndCurrency[sacado][charge.saleCurrency]) {
+                salesBySacadoAndCurrency[sacado][charge.saleCurrency] = { amount: 0, charges: [] };
+            }
+            salesBySacadoAndCurrency[sacado][charge.saleCurrency].amount += charge.sale;
+            salesBySacadoAndCurrency[sacado][charge.saleCurrency].charges.push(charge);
+        });
+
+        for (const sacado in salesBySacadoAndCurrency) {
+            for (const currency in salesBySacadoAndCurrency[sacado]) {
+                const { amount, charges } = salesBySacadoAndCurrency[sacado][currency];
+                if (amount > 0) {
+                    const entryId = `fin-CR-${Date.now()}-${creditsCreated}`;
+                    addFinancialEntry({
+                        id: entryId, type: 'credit', partner: sacado, invoiceId: `INV-${shipment.id}`,
+                        dueDate: new Date().toISOString(), amount, currency: currency as any,
+                        processId: shipment.id, accountId: 1, payments: [], status: 'Aberto'
+                    });
+                    charges.forEach(c => updatedChargesMap.set(c.id, entryId));
+                    creditsCreated++;
+                }
             }
         }
         
-        // Create debit entries for each supplier
-        const costsBySupplierAndCurrency: { [key: string]: { [currency: string]: number } } = {};
+        // Create debit entries (Contas a Pagar)
+        const costsBySupplierAndCurrency: { [supplier: string]: { [currency: string]: { amount: number, charges: QuoteCharge[] } } } = {};
         unbilledCharges.forEach(charge => {
-            if (!costsBySupplierAndCurrency[charge.supplier]) {
-                costsBySupplierAndCurrency[charge.supplier] = {};
-            }
+            if (!costsBySupplierAndCurrency[charge.supplier]) costsBySupplierAndCurrency[charge.supplier] = {};
             if (!costsBySupplierAndCurrency[charge.supplier][charge.costCurrency]) {
-                costsBySupplierAndCurrency[charge.supplier][charge.costCurrency] = 0;
+                costsBySupplierAndCurrency[charge.supplier][charge.costCurrency] = { amount: 0, charges: [] };
             }
-            costsBySupplierAndCurrency[charge.supplier][charge.costCurrency] += charge.cost;
+            costsBySupplierAndCurrency[charge.supplier][charge.costCurrency].amount += charge.cost;
+            costsBySupplierAndCurrency[charge.supplier][charge.costCurrency].charges.push(charge);
         });
         
         for (const supplier in costsBySupplierAndCurrency) {
              for (const currency in costsBySupplierAndCurrency[supplier]) {
-                 const amount = costsBySupplierAndCurrency[supplier][currency];
+                 const { amount, charges } = costsBySupplierAndCurrency[supplier][currency];
                  if (amount > 0) {
-                    const entryId = `fin-${Date.now()}-debit-${debitsCreated}`;
+                    const entryId = `fin-DB-${Date.now()}-${debitsCreated}`;
                     addFinancialEntry({
-                        id: entryId,
-                        type: 'debit',
-                        partner: supplier,
-                        invoiceId: `BILL-${shipment.id}-${supplier.substring(0,3).toUpperCase()}`,
-                        dueDate: new Date().toISOString(),
-                        amount: amount,
-                        currency: currency as 'BRL' | 'USD',
-                        processId: shipment.id,
-                        accountId: 2,
-                        payments: [],
-                        status: 'Aberto'
+                        id: entryId, type: 'debit', partner: supplier, invoiceId: `BILL-${shipment.id}-${supplier.substring(0,3).toUpperCase()}`,
+                        dueDate: new Date().toISOString(), amount, currency: currency as any,
+                        processId: shipment.id, accountId: 2, payments: [], status: 'Aberto'
                     });
-                     unbilledCharges.filter(c => c.supplier === supplier && c.costCurrency === currency).forEach(c => updatedChargesMap.set(c.id, entryId));
+                     charges.forEach(c => updatedChargesMap.set(c.id, entryId));
                     debitsCreated++;
                 }
              }
@@ -570,10 +556,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
     setIsGeneratingPdf(charge.id);
     const financialEntries = getFinancialEntries();
-    const entry = financialEntries.find(e => e.id === charge.financialEntryId || e.invoiceId === charge.financialEntryId);
+    
+    // Find either the credit (INV) or debit (BILL) entry associated with this charge
+    const entry = financialEntries.find(e => e.id === charge.financialEntryId);
 
     if (!entry) {
-        toast({ variant: 'destructive', title: "Lançamento não encontrado", description: `Não foi possível localizar o lançamento financeiro para a fatura ${charge.financialEntryId}` });
+        toast({ variant: 'destructive', title: "Lançamento não encontrado", description: `Não foi possível localizar o lançamento financeiro.` });
         setIsGeneratingPdf(null);
         return;
     }
@@ -608,6 +596,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
          toast({ variant: 'destructive', title: 'Erro ao gerar PDF', description: response.error });
     }
     setIsGeneratingPdf(null);
+  };
+
+  const getPaymentStatus = (charge: QuoteCharge): { saleStatus: 'Pago' | 'Aberto', costStatus: 'Pago' | 'Aberto' | 'N/A' } => {
+    if (!charge.financialEntryId) {
+        return { saleStatus: 'Aberto', costStatus: 'Aberto' };
+    }
+    const financialEntries = getFinancialEntries();
+    
+    const saleEntry = financialEntries.find(e => e.id === charge.financialEntryId && e.type === 'credit');
+    const costEntry = financialEntries.find(e => e.id === charge.financialEntryId && e.type === 'debit');
+
+    const isSalePaid = saleEntry ? (saleEntry.payments?.reduce((sum, p) => sum + p.amount, 0) ?? 0) >= saleEntry.amount : false;
+    const isCostPaid = costEntry ? (costEntry.payments?.reduce((sum, p) => sum + p.amount, 0) ?? 0) >= costEntry.amount : false;
+    
+    return {
+        saleStatus: isSalePaid ? 'Pago' : 'Aberto',
+        costStatus: !costEntry ? 'N/A' : isCostPaid ? 'Pago' : 'Aberto'
+    };
   };
 
   const docStatusMap: Record<DocumentStatus['status'], { variant: 'secondary' | 'default' | 'success'; text: string; icon: React.ElementType }> = {
@@ -1059,14 +1065,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <TableHead>Sacado</TableHead>
                                                     <TableHead className="text-right">Custo</TableHead>
                                                     <TableHead className="text-right">Venda</TableHead>
-                                                    <TableHead className="text-center">Fatura PDF</TableHead>
-                                                    <TableHead className="text-center w-[120px]">Status</TableHead>
+                                                    <TableHead className="text-center w-[150px]">Status Pagamento</TableHead>
                                                     <TableHead className="w-[50px]">Ação</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {chargeFields.map((field, index) => {
                                                     const charge = watchedCharges[index];
+                                                    const paymentStatus = getPaymentStatus(charge);
                                                     return (
                                                     <TableRow key={field.id} className={cn(charge.approvalStatus === 'pendente' && 'bg-amber-50')}>
                                                         <TableCell><FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (<Input {...field} />)}/></TableCell>
@@ -1096,22 +1102,29 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                 )} />
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleGenerateInvoicePdf(charge)}
-                                                                disabled={!charge.financialEntryId || isGeneratingPdf === charge.id}
-                                                                title="Visualizar Fatura em PDF"
-                                                            >
-                                                                {isGeneratingPdf === charge.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileText className={cn("h-4 w-4", charge.financialEntryId && "text-success")} />}
-                                                            </Button>
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Badge variant={charge.approvalStatus === 'aprovada' ? 'success' : charge.approvalStatus === 'pendente' ? 'default' : 'destructive'} className="capitalize">
-                                                                {charge.approvalStatus === 'pendente' ? 'Pendente' : 'Aprovada'}
-                                                            </Badge>
+                                                         <TableCell className="text-center">
+                                                            <div className="flex items-center gap-1 justify-center">
+                                                                <Badge variant={paymentStatus.saleStatus === 'Pago' ? 'success' : 'secondary'} className="w-16 justify-center">
+                                                                    C: {paymentStatus.saleStatus}
+                                                                </Badge>
+                                                                <Badge variant={paymentStatus.costStatus === 'Pago' ? 'success' : paymentStatus.costStatus === 'N/A' ? 'outline' : 'secondary'} className="w-16 justify-center">
+                                                                    V: {paymentStatus.costStatus}
+                                                                </Badge>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleGenerateInvoicePdf(charge)}
+                                                                    disabled={!charge.financialEntryId || isGeneratingPdf === charge.id}
+                                                                    title="Visualizar Fatura em PDF"
+                                                                    className="ml-1 h-7 w-7"
+                                                                >
+                                                                    {isGeneratingPdf === charge.id 
+                                                                        ? <Loader2 className="h-4 w-4 animate-spin"/> 
+                                                                        : <FileText className={cn("h-4 w-4", charge.financialEntryId && "text-success")} />
+                                                                    }
+                                                                </Button>
+                                                            </div>
                                                         </TableCell>
                                                         <TableCell>
                                                             <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}>

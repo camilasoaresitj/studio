@@ -20,7 +20,6 @@ import {
   Clock,
   Ship,
   CalendarClock,
-  FileText,
 } from 'lucide-react';
 
 const menuItems = [
@@ -30,7 +29,6 @@ const menuItems = [
   { href: '/financeiro', label: 'Financeiro', icon: Landmark },
   { href: '/demurrage', label: 'Demurrage', icon: Clock },
   { href: '/schedules', label: 'Schedules', icon: CalendarClock },
-  { href: '/nfse', label: 'NFS-e', icon: FileText },
 ];
 
 export function MainSidebar() {

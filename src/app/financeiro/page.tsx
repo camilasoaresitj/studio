@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, DollarSign, FileDown, Filter, MoreHorizontal, Upload, Landmark, Edit, Pencil, FileText } from 'lucide-react';
+import { CalendarIcon, DollarSign, FileDown, Filter, MoreHorizontal, Upload, Landmark, Edit, Pencil, FileText, Send } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts } from '@/lib/financials-data';
@@ -24,6 +24,8 @@ import { BankAccountDialog } from '@/components/financials/bank-account-form';
 import { NfseGenerationDialog } from '@/components/financials/nfse-generation-dialog';
 import { getShipments } from '@/lib/shipment';
 import type { Shipment } from '@/lib/shipment';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
 
 export default function FinanceiroPage() {
     const [entries, setEntries] = useState<FinancialEntry[]>(getFinancialEntries);
@@ -35,6 +37,7 @@ export default function FinanceiroPage() {
     const [settlementAccountId, setSettlementAccountId] = useState<string>('');
     const [exchangeRate, setExchangeRate] = useState<string>('');
     const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
+    const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const { toast } = useToast();
 
@@ -182,19 +185,34 @@ export default function FinanceiroPage() {
         setEditingAccount(null);
     };
 
+    const handleViewDocument = (type: 'NFS-e' | 'Boleto', id: string) => {
+        toast({
+            title: `Visualizar ${type}`,
+            description: `A visualização do documento ${id} será implementada em breve.`
+        });
+    };
+
+    const handleSendDocument = (type: 'NFS-e' | 'Boleto', id: string) => {
+        toast({
+            title: `Reenviar ${type} (Simulação)`,
+            description: `O documento ${id} foi reenviado ao cliente.`,
+            className: 'bg-success text-success-foreground'
+        });
+    };
+
     return (
     <div className="p-4 md:p-8">
       <header className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-foreground">Módulo Financeiro</h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Gerencie suas contas a pagar e receber, e acompanhe a saúde financeira da empresa.
+          Gerencie suas contas, faturas, notas fiscais e boletos.
         </p>
       </header>
       
         <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
             {accounts.map(account => (
-                 <Card key={account.id} className="relative group">
-                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setEditingAccount(account)}>
+                 <Card key={account.id} className="relative group cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setStatementAccount(account)}>
+                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); setEditingAccount(account); }}>
                         <Pencil className="h-4 w-4 text-muted-foreground" />
                      </Button>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -209,142 +227,216 @@ export default function FinanceiroPage() {
             ))}
         </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lançamentos Financeiros</CardTitle>
-          <CardDescription>Visualize e gerencie todas as suas contas a pagar e a receber.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-              <Input placeholder="Filtrar por Cliente/Fornecedor..." className="flex-grow" />
-              <Select defaultValue="all-accounts">
-                  <SelectTrigger className="w-full sm:w-[220px]"><SelectValue placeholder="Contas Bancárias" /></SelectTrigger>
-                  <SelectContent>
-                      <SelectItem value="all-accounts">Todas as Contas</SelectItem>
-                      {accounts.map(account => (
-                          <SelectItem key={account.id} value={account.id.toString()}>{account.name}</SelectItem>
-                      ))}
-                  </SelectContent>
-              </Select>
-              <Select defaultValue="all-status">
-                  <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-                  <SelectContent><SelectItem value="all-status">Todos Status</SelectItem><SelectItem value="aberto">Aberto</SelectItem><SelectItem value="pago">Pago</SelectItem><SelectItem value="vencido">Vencido</SelectItem></SelectContent>
-              </Select>
-               <Select defaultValue="all-types">
-                  <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
-                  <SelectContent><SelectItem value="all-types">Todos Tipos</SelectItem><SelectItem value="credit">Crédito</SelectItem><SelectItem value="debit">Débito</SelectItem></SelectContent>
-              </Select>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal sm:w-auto", !selectedDate && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />{selectedDate ? format(selectedDate, 'PPP', { locale: ptBR }) : <span>Filtrar por vencimento</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus /></PopoverContent>
-              </Popover>
-               <Button variant="outline"><Filter className="mr-2 h-4 w-4" />Filtrar</Button>
-          </div>
-          
-          {unifiedSettlementData && (
-              <div className="flex items-center justify-between p-3 mb-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
-                  <div className="text-sm font-medium">
-                      {unifiedSettlementData.count} item(s) selecionado(s). Totais: 
-                       {Object.entries(unifiedSettlementData.totalsByCurrency).map(([currency, total]) => (
-                          <span key={currency} className={cn("font-bold ml-2", total >= 0 ? 'text-success' : 'text-destructive' )}>
-                              {currency} {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                       ))}
-                  </div>
-                  <Button size="sm" onClick={handleUnifiedSettlement}>
-                    <DollarSign className="mr-2 h-4 w-4"/>
-                    Realizar Baixa Unificada
-                  </Button>
-              </div>
-          )}
+        <Tabs defaultValue="lancamentos" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+                <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+                <TabsTrigger value="nfse">Consulta NFS-e</TabsTrigger>
+                <TabsTrigger value="boletos">Consulta Boletos</TabsTrigger>
+            </TabsList>
 
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                        checked={selectedRows.size === entries.length && entries.length > 0}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Selecionar todos"
-                    />
-                  </TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Parceiro</TableHead>
-                  <TableHead>Fatura</TableHead>
-                  <TableHead>Conta</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => (
-                  <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
-                    <TableCell>
-                         <Checkbox
-                            checked={selectedRows.has(entry.id)}
-                            onCheckedChange={() => toggleRowSelection(entry.id)}
-                            aria-label="Selecionar linha"
-                        />
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">{entry.partner}</TableCell>
-                    <TableCell>
-                        <a href="#" onClick={(e) => { e.preventDefault(); handleInvoiceClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
-                            {entry.invoiceId}
-                        </a>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                        {accounts.find(a => a.id === entry.accountId)?.name || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                       <Badge variant={getStatusVariant(entry)} className="capitalize">{entry.status}</Badge>
-                    </TableCell>
-                    <TableCell className={cn(getStatusVariant(entry) === 'destructive' && 'text-destructive font-bold')}>
-                      {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
-                    </TableCell>
-                    <TableCell className={cn("text-right font-mono", entry.type === 'credit' ? 'text-success' : 'text-foreground')}>
-                      {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-center">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEntryToSettle(entry)}>Baixar Pagamento</DropdownMenuItem>
-                                {entry.type === 'credit' && (
-                                    <>
-                                        <DropdownMenuItem onClick={() => handleOtherActions('Emitir Boleto', entry.invoiceId)}>Emitir Boleto</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
-                                            <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => toast({ title: 'Funcionalidade em desenvolvimento.' })}>
-              <Upload className="mr-2 h-4 w-4"/> Importar Extrato
-            </Button>
-            <Button variant="outline" onClick={() => toast({ title: 'Funcionalidade em desenvolvimento.' })}>
-              <FileDown className="mr-2 h-4 w-4"/> Exportar Extrato
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            <TabsContent value="lancamentos" className="mt-6">
+                <Card>
+                    <CardHeader>
+                    <CardTitle>Lançamentos Financeiros</CardTitle>
+                    <CardDescription>Visualize e gerencie todas as suas contas a pagar e a receber.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                        <Input placeholder="Filtrar por Cliente/Fornecedor..." className="flex-grow" />
+                        <Select defaultValue="all-accounts">
+                            <SelectTrigger className="w-full sm:w-[220px]"><SelectValue placeholder="Contas Bancárias" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all-accounts">Todas as Contas</SelectItem>
+                                {accounts.map(account => (
+                                    <SelectItem key={account.id} value={account.id.toString()}>{account.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select defaultValue="all-status">
+                            <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                            <SelectContent><SelectItem value="all-status">Todos Status</SelectItem><SelectItem value="aberto">Aberto</SelectItem><SelectItem value="pago">Pago</SelectItem><SelectItem value="vencido">Vencido</SelectItem></SelectContent>
+                        </Select>
+                        <Select defaultValue="all-types">
+                            <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                            <SelectContent><SelectItem value="all-types">Todos Tipos</SelectItem><SelectItem value="credit">Crédito</SelectItem><SelectItem value="debit">Débito</SelectItem></SelectContent>
+                        </Select>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal sm:w-auto", !selectedDate && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />{selectedDate ? format(selectedDate, 'PPP', { locale: ptBR }) : <span>Filtrar por vencimento</span>}
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus /></PopoverContent>
+                        </Popover>
+                        <Button variant="outline"><Filter className="mr-2 h-4 w-4" />Filtrar</Button>
+                    </div>
+                    
+                    {unifiedSettlementData && (
+                        <div className="flex items-center justify-between p-3 mb-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
+                            <div className="text-sm font-medium">
+                                {unifiedSettlementData.count} item(s) selecionado(s). Totais: 
+                                {Object.entries(unifiedSettlementData.totalsByCurrency).map(([currency, total]) => (
+                                    <span key={currency} className={cn("font-bold ml-2", total >= 0 ? 'text-success' : 'text-destructive' )}>
+                                        {currency} {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </span>
+                                ))}
+                            </div>
+                            <Button size="sm" onClick={handleUnifiedSettlement}>
+                                <DollarSign className="mr-2 h-4 w-4"/>
+                                Realizar Baixa Unificada
+                            </Button>
+                        </div>
+                    )}
+
+                    <div className="border rounded-lg">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead className="w-10">
+                                <Checkbox
+                                    checked={selectedRows.size === entries.length && entries.length > 0}
+                                    onCheckedChange={toggleSelectAll}
+                                    aria-label="Selecionar todos"
+                                />
+                            </TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Parceiro</TableHead>
+                            <TableHead>Fatura</TableHead>
+                            <TableHead>Conta</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Vencimento</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                            <TableHead className="text-center">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {entries.map((entry) => (
+                            <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
+                                <TableCell>
+                                    <Checkbox
+                                        checked={selectedRows.has(entry.id)}
+                                        onCheckedChange={() => toggleRowSelection(entry.id)}
+                                        aria-label="Selecionar linha"
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
+                                </TableCell>
+                                <TableCell className="font-medium">{entry.partner}</TableCell>
+                                <TableCell>
+                                    <a href="#" onClick={(e) => { e.preventDefault(); handleInvoiceClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                        {entry.invoiceId}
+                                    </a>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                    {accounts.find(a => a.id === entry.accountId)?.name || 'N/A'}
+                                </TableCell>
+                                <TableCell>
+                                <Badge variant={getStatusVariant(entry)} className="capitalize">{entry.status}</Badge>
+                                </TableCell>
+                                <TableCell className={cn(getStatusVariant(entry) === 'destructive' && 'text-destructive font-bold')}>
+                                {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
+                                </TableCell>
+                                <TableCell className={cn("text-right font-mono", entry.type === 'credit' ? 'text-success' : 'text-foreground')}>
+                                {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => setEntryToSettle(entry)}>Baixar Pagamento</DropdownMenuItem>
+                                            {entry.type === 'credit' && (
+                                                <>
+                                                    <DropdownMenuItem onClick={() => handleOtherActions('Emitir Boleto', entry.invoiceId)}>Emitir Boleto</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
+                                                        <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
+                                                    </DropdownMenuItem>
+                                                </>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4">
+                        <Button variant="outline" onClick={() => toast({ title: 'Funcionalidade em desenvolvimento.' })}>
+                        <Upload className="mr-2 h-4 w-4"/> Importar Extrato
+                        </Button>
+                        <Button variant="outline" onClick={() => toast({ title: 'Funcionalidade em desenvolvimento.' })}>
+                        <FileDown className="mr-2 h-4 w-4"/> Exportar Extrato
+                        </Button>
+                    </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+            <TabsContent value="nfse" className="mt-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Consulta de Notas Fiscais de Serviço (NFS-e)</CardTitle>
+                        <CardDescription>Visualize todas as notas fiscais emitidas.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nº NFS-e</TableHead>
+                                        <TableHead>Tomador</TableHead>
+                                        <TableHead>Data Emissão</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Valor</TableHead>
+                                        <TableHead className="text-center">Ações</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                     <TableRow>
+                                        <TableCell colSpan={6} className="h-24 text-center">
+                                            Nenhuma NFS-e emitida ainda.
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                 </Card>
+            </TabsContent>
+
+            <TabsContent value="boletos" className="mt-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Consulta de Boletos</CardTitle>
+                        <CardDescription>Visualize todos os boletos emitidos para seus clientes.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nosso Número</TableHead>
+                                        <TableHead>Sacado</TableHead>
+                                        <TableHead>Vencimento</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Valor</TableHead>
+                                        <TableHead className="text-center">Ações</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                     <TableRow>
+                                        <TableCell colSpan={6} className="h-24 text-center">
+                                            Nenhum boleto emitido ainda.
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                 </Card>
+            </TabsContent>
+        </Tabs>
       
         <AlertDialog open={!!entryToSettle} onOpenChange={(isOpen) => !isOpen && setEntryToSettle(null)}>
             <AlertDialogContent>
@@ -398,6 +490,13 @@ export default function FinanceiroPage() {
             onClose={() => setEditingAccount(null)}
             onSave={handleAccountSave}
             account={editingAccount}
+        />
+
+        <BankAccountStatementDialog
+            account={statementAccount}
+            entries={entries.filter(e => e.accountId === statementAccount?.id)}
+            isOpen={!!statementAccount}
+            onClose={() => setStatementAccount(null)}
         />
 
         <NfseGenerationDialog

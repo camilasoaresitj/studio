@@ -22,9 +22,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, Check, FileCheck, CircleDot, FileText } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { runGetTrackingInfo, runGetCourierStatus } from '@/app/actions';
 import { addFinancialEntry, getFinancialEntries } from '@/lib/financials-data';
+import { Checkbox } from './ui/checkbox';
 
 
 const containerDetailSchema = z.object({
@@ -58,6 +59,21 @@ const transshipmentDetailSchema = z.object({
   vessel: z.string().min(1, "Obrigatório"),
   etd: z.date().optional(),
   eta: z.date().optional(),
+});
+
+const quoteChargeSchemaForSheet = z.object({
+    id: z.string(),
+    name: z.string().min(1, 'Obrigatório'),
+    type: z.string(),
+    localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
+    cost: z.coerce.number().default(0),
+    costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
+    sale: z.coerce.number().default(0),
+    saleCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
+    supplier: z.string().min(1, 'Obrigatório'),
+    sacado: z.string().optional(),
+    approvalStatus: z.enum(['aprovada', 'pendente', 'rejeitada']),
+    financialEntryId: z.string().nullable().optional(),
 });
 
 
@@ -83,6 +99,7 @@ const shipmentDetailsSchema = z.object({
       fileName: z.string().optional(),
       uploadedAt: z.date().optional()
   })).optional(),
+  charges: z.array(quoteChargeSchemaForSheet).optional(),
   commodityDescription: z.string().optional(),
   ncm: z.string().optional(),
   netWeight: z.string().optional(),
@@ -150,6 +167,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     control: form.control,
     name: "documents"
   });
+  
+  const { fields: chargeFields, append: appendCharge, remove: removeCharge, update: updateCharge } = useFieldArray({
+    control: form.control,
+    name: "charges"
+  });
 
   const assembledMilestones = useMemo(() => {
     if (!shipment) return [];
@@ -195,6 +217,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
         eta: shipment.eta && isValid(new Date(shipment.eta)) ? new Date(shipment.eta) : undefined,
         containers: shipment.containers?.map(c => ({...c, freeTime: c.freeTime || ''})) || [],
+        charges: shipment.charges.map(c => ({ ...c, approvalStatus: c.approvalStatus || 'aprovada' })) || [],
         documents: shipment.documents || [],
         commodityDescription: shipment.commodityDescription || '',
         ncm: shipment.ncm || '',
@@ -217,6 +240,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const watchedCourierNumber = form.watch('courierNumber');
   const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
   const mblPrintingAuthDate = form.watch('mblPrintingAuthDate');
+  const watchedCharges = form.watch('charges');
 
   if (!shipment) {
       return null;
@@ -456,11 +480,37 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       }
   };
 
+  const handleAddNewCharge = () => {
+    appendCharge({
+        id: `extra-${Date.now()}`,
+        name: '',
+        type: 'Extra',
+        cost: 0,
+        costCurrency: 'BRL',
+        sale: 0,
+        saleCurrency: 'BRL',
+        supplier: '',
+        sacado: shipment.customer,
+        approvalStatus: 'pendente',
+    });
+  };
+  
+  const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
+    const charge = watchedCharges[index];
+    if (charge.approvalStatus === 'aprovada') {
+        updateCharge(index, { ...charge, [field]: parseFloat(value) || 0, approvalStatus: 'pendente' });
+    }
+  };
+
   const docStatusMap: Record<DocumentStatus['status'], { variant: 'secondary' | 'default' | 'success'; text: string; icon: React.ElementType }> = {
     pending: { variant: 'secondary', text: 'Pendente', icon: Circle },
     uploaded: { variant: 'default', text: 'Enviado', icon: CircleDot },
     approved: { variant: 'success', text: 'Aprovado', icon: FileCheck },
   };
+
+  const hasPendingCharges = useMemo(() => {
+    return watchedCharges?.some(c => c.approvalStatus === 'pendente');
+  }, [watchedCharges]);
 
   return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -871,33 +921,77 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                          <TabsContent value="financeiro" className="mt-0 space-y-6">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Detalhes Financeiros</CardTitle>
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-lg">Detalhes Financeiros</CardTitle>
+                                        <Button type="button" variant="outline" size="sm" onClick={handleAddNewCharge}>
+                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Despesa Extra
+                                        </Button>
+                                    </div>
+                                    <CardDescription>
+                                        Adicione ou edite despesas do processo. Alterações requerem aprovação gerencial.
+                                    </CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="border rounded-lg overflow-hidden">
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
-                                                    <TableHead>Taxa</TableHead>
-                                                    <TableHead>Fornecedor</TableHead>
+                                                    <TableHead className="w-[15%]">Taxa</TableHead>
+                                                    <TableHead className="w-[15%]">Fornecedor</TableHead>
                                                     <TableHead className="text-right">Custo</TableHead>
                                                     <TableHead className="text-right">Venda</TableHead>
+                                                    <TableHead className="text-center w-[120px]">Status</TableHead>
+                                                    <TableHead className="w-[50px]">Ação</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {shipment.charges && shipment.charges.map(charge => (
-                                                    <TableRow key={charge.id}>
-                                                        <TableCell>{charge.name}</TableCell>
-                                                        <TableCell className="text-muted-foreground">{charge.supplier}</TableCell>
-                                                        <TableCell className="text-right font-mono">{charge.costCurrency} {charge.cost.toFixed(2)}</TableCell>
-                                                        <TableCell className="text-right font-mono">{charge.saleCurrency} {charge.sale.toFixed(2)}</TableCell>
+                                                {chargeFields.map((field, index) => {
+                                                    const charge = watchedCharges[index];
+                                                    return (
+                                                    <TableRow key={field.id} className={cn(charge.approvalStatus === 'pendente' && 'bg-amber-50')}>
+                                                        <TableCell><FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (<Input {...field} />)}/></TableCell>
+                                                        <TableCell><FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (<Input {...field} />)}/></TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex items-center gap-1">
+                                                                <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
+                                                                <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
+                                                                    <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
+                                                                </Select>
+                                                                )} />
+                                                                <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
+                                                                <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'cost', e.target.value); }} className="w-full h-9" />
+                                                                )} />
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex items-center gap-1">
+                                                                <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
+                                                                <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
+                                                                    <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
+                                                                </Select>
+                                                                )} />
+                                                                <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
+                                                                <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'sale', e.target.value); }} className="w-full h-9" />
+                                                                )} />
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Badge variant={charge.approvalStatus === 'aprovada' ? 'success' : charge.approvalStatus === 'pendente' ? 'default' : 'destructive'} className="capitalize">
+                                                                {charge.approvalStatus === 'pendente' ? 'Pendente' : 'Aprovada'}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}>
+                                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                            </Button>
+                                                        </TableCell>
                                                     </TableRow>
-                                                ))}
+                                                )})}
                                             </TableBody>
                                         </Table>
                                     </div>
                                     <div className="flex justify-end gap-2 mt-4">
-                                        <Button type="button" onClick={handleInvoiceShipment} disabled={isInvoicing}>
+                                        <Button type="button" onClick={handleInvoiceShipment} disabled={isInvoicing || hasPendingCharges} title={hasPendingCharges ? "Existem despesas pendentes de aprovação" : ""}>
                                             {isInvoicing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
                                             Faturar Processo
                                         </Button>

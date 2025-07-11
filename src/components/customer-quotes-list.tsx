@@ -37,7 +37,7 @@ export type QuoteCharge = {
   saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   supplier: string;
   sacado?: string;
-  approvalStatus: 'approved' | 'pending';
+  approvalStatus: 'aprovada' | 'pendente' | 'rejeitada';
   financialEntryId?: string | null;
 };
 
@@ -367,16 +367,18 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         </CardContent>
     </Card>
     <Dialog open={!!selectedQuote} onOpenChange={(isOpen) => !isOpen && setSelectedQuote(null)}>
-        <DialogContent key={selectedQuote?.id} className="sm:max-w-6xl h-[90vh]">
+        <DialogContent key={selectedQuote?.id} className="sm:max-w-7xl max-h-[90vh] p-0">
             {selectedQuote && (
                 <>
-                    <DialogHeader>
+                    <DialogHeader className="p-6 pb-0">
                         <DialogTitle>Detalhes da Cotação: {selectedQuote.id.replace('-DRAFT', '')}</DialogTitle>
                         <DialogDescription>
                             Gerencie os custos, receitas e lucro desta cotação. Status: <Badge variant={getStatusVariant(selectedQuote.status)} className="text-xs">{selectedQuote.status}</Badge>
                         </DialogDescription>
                     </DialogHeader>
-                    <QuoteCostSheet quote={selectedQuote} partners={partners} onUpdate={handleUpdateQuote} />
+                    <div className="p-6 pt-0 flex-grow overflow-y-auto">
+                        <QuoteCostSheet quote={selectedQuote} partners={partners} onUpdate={handleUpdateQuote} />
+                    </div>
                 </>
             )}
         </DialogContent>

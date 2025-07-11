@@ -22,8 +22,8 @@ export type QuoteCharge = {
   saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   supplier: string;
   sacado?: string;
-  // New fields for invoicing and approval workflow
-  approvalStatus: 'approved' | 'pending';
+  // Expanded approval status
+  approvalStatus: 'aprovada' | 'pendente' | 'rejeitada';
   financialEntryId?: string | null; // ID of the invoice/bill it belongs to
 };
 
@@ -296,7 +296,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     shipper: quoteData.shipper,
     consignee: quoteData.consignee,
     agent: quoteData.agent,
-    charges: quoteData.charges,
+    charges: quoteData.charges.map(c => ({ ...c, approvalStatus: 'aprovada' })),
     details: quoteData.details,
     carrier: freightCharge?.supplier,
     milestones,

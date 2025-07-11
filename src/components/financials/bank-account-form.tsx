@@ -45,17 +45,19 @@ export function BankAccountDialog({ isOpen, onClose, onSave, account }: BankAcco
   });
 
   useEffect(() => {
-    if (account) {
-      form.reset(account);
-    } else {
-      form.reset({
-        name: '',
-        bankName: '',
-        agency: '',
-        accountNumber: '',
-        currency: 'BRL',
-        balance: 0,
-      });
+    if (isOpen) {
+        if (account && account.id) {
+            form.reset(account);
+        } else {
+            form.reset({
+                name: '',
+                bankName: '',
+                agency: '',
+                accountNumber: '',
+                currency: 'BRL',
+                balance: 0,
+            });
+        }
     }
   }, [account, form, isOpen]);
 
@@ -67,7 +69,7 @@ export function BankAccountDialog({ isOpen, onClose, onSave, account }: BankAcco
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{account ? 'Editar Conta Bancária' : 'Nova Conta Bancária'}</DialogTitle>
+          <DialogTitle>{account?.id ? 'Editar Conta Bancária' : 'Nova Conta Bancária'}</DialogTitle>
           <DialogDescription>
             Preencha os dados da conta para conciliação.
           </DialogDescription>

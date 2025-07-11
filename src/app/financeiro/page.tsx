@@ -16,9 +16,10 @@ import {
   ArrowUpCircle,
   CalendarDays,
   ListFilter,
-  ShieldAlert
+  ShieldAlert,
+  Banknote
 } from 'lucide-react';
-import { format, isPast, isToday, isThisMonth } from 'date-fns';
+import { format, isPast, isToday, isThisMonth, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
@@ -38,7 +39,7 @@ import { FinancialEntryImporter } from '@/components/financials/financial-entry-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
-type FilterType = 'all' | 'dueTodayReceivable' | 'dueTodayPayable' | 'dueThisMonth';
+type FilterType = 'all' | 'dueToday' | 'dueThisMonth';
 
 export default function FinanceiroPage() {
     const [isClient, setIsClient] = useState(false);
@@ -64,30 +65,30 @@ export default function FinanceiroPage() {
 
     const dashboardData = useMemo(() => {
         const todayEntries = entries.filter(e => isToday(new Date(e.dueDate)) && e.status !== 'Pago');
-        const monthEntries = entries.filter(e => isThisMonth(new Date(e.dueDate)) && e.status !== 'Pago');
 
         return {
             dueTodayReceivable: todayEntries.filter(e => e.type === 'credit').reduce((sum, e) => sum + e.amount, 0),
             dueTodayPayable: todayEntries.filter(e => e.type === 'debit').reduce((sum, e) => sum + e.amount, 0),
-            dueMonthTotal: monthEntries.length,
         }
     }, [entries]);
 
     const filteredEntries = useMemo(() => {
         const nonJuridicoEntries = entries.filter(e => e.status !== 'Jurídico');
+        if (activeFilter === 'all') {
+            return nonJuridicoEntries;
+        }
+
         return nonJuridicoEntries.filter(entry => {
             const dueDate = new Date(entry.dueDate);
-            switch (activeFilter) {
-                case 'dueTodayReceivable':
-                    return isToday(dueDate) && entry.type === 'credit' && entry.status !== 'Pago';
-                case 'dueTodayPayable':
-                    return isToday(dueDate) && entry.type === 'debit' && entry.status !== 'Pago';
-                case 'dueThisMonth':
-                    return isThisMonth(dueDate) && entry.status !== 'Pago';
-                case 'all':
-                default:
-                    return true;
+            if (entry.status === 'Pago') return false;
+
+            if (activeFilter === 'dueToday') {
+                return isToday(dueDate);
             }
+            if (activeFilter === 'dueThisMonth') {
+                return isThisMonth(dueDate);
+            }
+            return true;
         });
     }, [entries, activeFilter]);
     
@@ -401,51 +402,31 @@ export default function FinanceiroPage() {
       </header>
       
         <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setActiveFilter('all')}>
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-medium flex items-center gap-2"><ListFilter />Visão Geral</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">&nbsp;</div>
-                    <p className="text-xs text-muted-foreground">Clique para ver todos os lançamentos</p>
-                </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:ring-2 hover:ring-green-500/50 transition-all" onClick={() => setActiveFilter('dueTodayReceivable')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">A Receber Hoje</CardTitle>
-                    <ArrowUpCircle className="h-5 w-5 text-success" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-success">R$ {dashboardData.dueTodayReceivable.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                    <p className="text-xs text-muted-foreground">Vencendo em {format(new Date(), 'dd/MM/yyyy')}</p>
-                </CardContent>
-            </Card>
-             <Card className="cursor-pointer hover:ring-2 hover:ring-red-500/50 transition-all" onClick={() => setActiveFilter('dueTodayPayable')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">A Pagar Hoje</CardTitle>
-                    <ArrowDownCircle className="h-5 w-5 text-destructive" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-destructive">R$ {dashboardData.dueTodayPayable.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                     <p className="text-xs text-muted-foreground">Vencendo em {format(new Date(), 'dd/MM/yyyy')}</p>
-                </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 transition-all" onClick={() => setActiveFilter('dueThisMonth')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Vencimentos no Mês</CardTitle>
-                    <CalendarDays className="h-5 w-5 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-blue-500">{dashboardData.dueMonthTotal} Lançamentos</div>
-                     <p className="text-xs text-muted-foreground">Para o mês de {format(new Date(), 'MMMM', {locale: ptBR})}</p>
+            {accounts.map(account => (
+                <Card key={account.id} className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setStatementAccount(account)}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
+                        <Banknote className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{account.currency} {account.balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                        <p className="text-xs text-muted-foreground">{account.bankName}</p>
+                    </CardContent>
+                </Card>
+            ))}
+             <Card className="flex flex-col items-center justify-center">
+                <CardContent className="p-4">
+                    <Button variant="outline" size="sm" onClick={() => setEditingAccount({} as BankAccount)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Nova Conta
+                    </Button>
                 </CardContent>
             </Card>
         </div>
 
         <Tabs defaultValue="lancamentos" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 max-w-4xl">
+            <TabsList className="grid w-full grid-cols-3 max-w-2xl">
                 <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
-                <TabsTrigger value="contas">Contas Bancárias</TabsTrigger>
                 <TabsTrigger value="nfse">Consulta NFS-e</TabsTrigger>
                 <TabsTrigger value="juridico">Jurídico</TabsTrigger>
             </TabsList>
@@ -453,13 +434,27 @@ export default function FinanceiroPage() {
             <TabsContent value="lancamentos" className="mt-6">
                 <Card>
                     <CardHeader>
-                    <CardTitle>Lançamentos Financeiros</CardTitle>
-                    <CardDescription>
-                        {activeFilter !== 'all' 
-                            ? <span className="text-primary font-medium">Mostrando filtro ativo. Clique em "Visão Geral" para limpar.</span>
-                            : 'Visualize e gerencie todas as suas contas a pagar e a receber.'
-                        }
-                    </CardDescription>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <CardTitle>Lançamentos Financeiros</CardTitle>
+                                <CardDescription>
+                                    Visualize e gerencie todas as suas contas a pagar e a receber.
+                                </CardDescription>
+                            </div>
+                             <div className="flex items-center gap-2 self-start sm:self-center">
+                                <Label htmlFor="date-filter" className="text-sm font-medium">Filtrar por</Label>
+                                <Select onValueChange={(value) => setActiveFilter(value as FilterType)} defaultValue="all">
+                                    <SelectTrigger id="date-filter" className="w-[180px]">
+                                        <SelectValue placeholder="Filtrar por" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos</SelectItem>
+                                        <SelectItem value="dueToday">Vencendo Hoje</SelectItem>
+                                        <SelectItem value="dueThisMonth">Vencendo no Mês</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                     <FinancialEntryImporter onEntriesImported={handleEntriesImported} />
@@ -483,49 +478,6 @@ export default function FinanceiroPage() {
                     {renderTable(filteredEntries)}
                     </CardContent>
                 </Card>
-            </TabsContent>
-
-             <TabsContent value="contas" className="mt-6">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Contas Bancárias</CardTitle>
-                        <CardDescription>Gerencie suas contas e veja os extratos.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <div className="border rounded-lg">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nome da Conta</TableHead>
-                                        <TableHead>Banco</TableHead>
-                                        <TableHead>Agência</TableHead>
-                                        <TableHead>Conta</TableHead>
-                                        <TableHead>Moeda</TableHead>
-                                        <TableHead className="text-right">Saldo</TableHead>
-                                        <TableHead className="text-center">Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                     {accounts.map(account => (
-                                         <TableRow key={account.id} className="cursor-pointer" onClick={() => setStatementAccount(account)}>
-                                            <TableCell className="font-medium">{account.name}</TableCell>
-                                            <TableCell>{account.bankName}</TableCell>
-                                            <TableCell>{account.agency}</TableCell>
-                                            <TableCell>{account.accountNumber}</TableCell>
-                                            <TableCell><Badge variant="secondary">{account.currency}</Badge></TableCell>
-                                            <TableCell className="text-right font-mono">{account.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                            <TableCell className="text-center">
-                                                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingAccount(account); }}>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                 </Button>
-                                            </TableCell>
-                                         </TableRow>
-                                     ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                 </Card>
             </TabsContent>
 
             <TabsContent value="nfse" className="mt-6">
@@ -623,7 +575,7 @@ export default function FinanceiroPage() {
         </AlertDialog>
 
         <BankAccountDialog
-            isOpen={!!editingAccount}
+            isOpen={!!editingAccount || !!(editingAccount && editingAccount.name === undefined)}
             onClose={() => setEditingAccount(null)}
             onSave={handleAccountSave}
             account={editingAccount}

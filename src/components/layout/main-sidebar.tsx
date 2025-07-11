@@ -20,6 +20,7 @@ import {
   Clock,
   Ship,
   CalendarClock,
+  FileText,
 } from 'lucide-react';
 
 const menuItems = [

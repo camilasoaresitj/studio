@@ -16,11 +16,24 @@ export const partnerSchema = z.object({
   tipoCliente: z.object({
     importacao: z.boolean().default(false),
     exportacao: z.boolean().default(false),
+    empresaNoExterior: z.boolean().default(false),
   }).optional(),
   tipoFornecedor: z.object({
       ciaMaritima: z.boolean().default(false),
       ciaAerea: z.boolean().default(false),
       transportadora: z.boolean().default(false),
+      terminal: z.boolean().default(false),
+      coLoader: z.boolean().default(false),
+      fumigacao: z.boolean().default(false),
+      despachante: z.boolean().default(false),
+      representante: z.boolean().default(false),
+      dta: z.boolean().default(false),
+      comissionados: z.boolean().default(false),
+      administrativo: z.boolean().default(false),
+      aluguelContainer: z.boolean().default(false),
+      lashing: z.boolean().default(false),
+      seguradora: z.boolean().default(false),
+      advogado: z.boolean().default(false),
   }).optional(),
   tipoAgente: z.object({
       fcl: z.boolean().default(false),
@@ -29,6 +42,7 @@ export const partnerSchema = z.object({
       projects: z.boolean().default(false),
   }).optional(),
   cnpj: z.string().optional(),
+  vat: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
   exchangeRateAgio: z.coerce.number().optional().default(0),
   profitAgreement: z.object({
@@ -56,7 +70,7 @@ export const partnerSchema = z.object({
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v4';
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v5';
 
 function getInitialPartners(): Partner[] {
     return [
@@ -65,7 +79,7 @@ function getInitialPartners(): Partner[] {
             name: "Nexus Imports",
             nomeFantasia: "Nexus",
             roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
-            tipoCliente: { importacao: true, exportacao: true },
+            tipoCliente: { importacao: true, exportacao: true, empresaNoExterior: false },
             cnpj: "12.345.678/0001-90",
             paymentTerm: 30,
             exchangeRateAgio: 2.5,
@@ -122,7 +136,7 @@ function getInitialPartners(): Partner[] {
             name: "Global Import Solutions",
             nomeFantasia: "GIS",
             roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
-            tipoFornecedor: { ciaMaritima: true, ciaAerea: false, transportadora: false },
+            tipoFornecedor: { ciaMaritima: true, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
             cnpj: "54.321.876/0001-21",
             paymentTerm: 60,
             exchangeRateAgio: 0,
@@ -148,7 +162,7 @@ function getInitialPartners(): Partner[] {
             name: "Advocacia Marítima XYZ",
             nomeFantasia: "Advocacia XYZ",
             roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
-            tipoFornecedor: { ciaAerea: false, ciaMaritima: false, transportadora: false},
+            tipoFornecedor: { ciaAerea: false, ciaMaritima: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: true },
             cnpj: "11.223.344/0001-55",
             paymentTerm: 30,
             address: {

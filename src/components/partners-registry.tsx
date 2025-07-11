@@ -34,11 +34,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from './ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
 
@@ -49,8 +50,28 @@ interface PartnersRegistryProps {
 
 const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 
+const supplierTypes = [
+    { id: 'ciaMaritima', label: 'Cia Marítima' },
+    { id: 'ciaAerea', label: 'Cia Aérea' },
+    { id: 'transportadora', label: 'Transportadora' },
+    { id: 'terminal', label: 'Terminal' },
+    { id: 'coLoader', label: 'Co-loader' },
+    { id: 'fumigacao', label: 'Fumigação' },
+    { id: 'despachante', label: 'Despachante' },
+    { id: 'representante', label: 'Representante' },
+    { id: 'dta', label: 'DTA' },
+    { id: 'comissionados', label: 'Comissionados' },
+    { id: 'administrativo', label: 'Administrativo' },
+    { id: 'aluguelContainer', label: 'Aluguel Contêiner' },
+    { id: 'lashing', label: 'Lashing' },
+    { id: 'seguradora', label: 'Seguradora' },
+    { id: 'advogado', label: 'Advogado' },
+];
+
+
 export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,11 +83,12 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       name: '',
       nomeFantasia: '',
       cnpj: '',
+      vat: '',
       roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
       contacts: [{ name: '', email: '', phone: '', departments: [] }],
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
-      tipoCliente: { importacao: false, exportacao: false },
-      tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false },
+      tipoCliente: { importacao: false, exportacao: false, empresaNoExterior: false },
+      tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       paymentTerm: 30,
       exchangeRateAgio: 0,
@@ -81,6 +103,9 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   
   const watchedCnpj = form.watch('cnpj');
   const watchedRoles = form.watch('roles');
+  const isEmpresaNoExterior = form.watch('tipoCliente.empresaNoExterior');
+  const documentType = isEmpresaNoExterior ? 'vat' : 'cnpj';
+  const documentLabel = isEmpresaNoExterior ? 'VAT / Tax ID' : 'CNPJ / CPF';
 
   const handleOpenDialog = (partner: Partner | null) => {
     setEditingPartner(partner);
@@ -89,11 +114,12 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         name: '',
         nomeFantasia: '',
         cnpj: '',
+        vat: '',
         roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
         contacts: [{ name: '', email: '', phone: '', departments: [] }],
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
-        tipoCliente: { importacao: false, exportacao: false },
-        tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false },
+        tipoCliente: { importacao: false, exportacao: false, empresaNoExterior: false },
+        tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
         tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
         paymentTerm: 30,
         exchangeRateAgio: 0,
@@ -164,10 +190,16 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
-        <Button onClick={() => handleOpenDialog(null)}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Novo Parceiro
-        </Button>
+        <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" />
+                Importar Parceiros
+            </Button>
+            <Button onClick={() => handleOpenDialog(null)}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Novo Parceiro
+            </Button>
+        </div>
       </div>
       <div className="border rounded-lg">
         <Table>
@@ -213,6 +245,32 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         </Table>
       </div>
 
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Importação de Parceiros em Massa</DialogTitle>
+                <DialogDescription>
+                    Para importar parceiros, prepare um arquivo CSV ou Excel com os seguintes cabeçalhos na primeira linha:
+                </DialogDescription>
+            </DialogHeader>
+            <Alert>
+                <AlertTitle>Cabeçalhos Obrigatórios</AlertTitle>
+                <AlertDescription>
+                   <code>name, role, contact_name, contact_email, contact_phone</code>
+                </AlertDescription>
+            </Alert>
+            <p className="text-sm text-muted-foreground">
+                O campo `role` pode ser `cliente`, `fornecedor` ou `agente`. Colunas adicionais como `cnpj`, `address_street`, `address_city`, etc., também serão importadas se presentes.
+            </p>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Fechar</Button>
+                 <Button disabled>
+                    <Upload className="mr-2 h-4 w-4" /> Selecionar Arquivo (em breve)
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
@@ -229,15 +287,17 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome / Razão Social</FormLabel><FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="nomeFantasia" render={({ field }) => ( <FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input placeholder="Nome fantasia" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
-                     <FormField control={form.control} name="cnpj" render={({ field }) => ( 
+                     <FormField control={form.control} name={documentType} render={({ field }) => ( 
                         <FormItem>
-                            <FormLabel>CNPJ / CPF</FormLabel>
+                            <FormLabel>{documentLabel}</FormLabel>
                             <div className="flex items-center gap-2">
-                                <FormControl><Input placeholder="00.000.000/0001-00" {...field} /></FormControl>
+                                <FormControl><Input placeholder={isEmpresaNoExterior ? 'Ex: IE1234567T' : '00.000.000/0001-00'} {...field} /></FormControl>
+                                {!isEmpresaNoExterior && (
                                 <Button type="button" onClick={handleFetchCnpjData} disabled={isFetchingCnpj || (watchedCnpj || '').replace(/\D/g, '').length !== 14}>
                                     {isFetchingCnpj ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}
                                     Buscar
                                 </Button>
+                                )}
                             </div>
                             <FormMessage />
                         </FormItem> 
@@ -257,15 +317,16 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         <div className="grid grid-cols-2 gap-4">
                              <FormField control={form.control} name="tipoCliente.importacao" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Importação</FormLabel></FormItem> )} />
                              <FormField control={form.control} name="tipoCliente.exportacao" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Exportação</FormLabel></FormItem> )} />
+                             <FormField control={form.control} name="tipoCliente.empresaNoExterior" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Empresa no Exterior</FormLabel></FormItem> )} />
                         </div>
                     </div>}
 
                     {watchedRoles.fornecedor && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <h4 className="font-semibold text-sm">Tipo de Fornecedor</h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                            <FormField control={form.control} name="tipoFornecedor.ciaMaritima" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Cia Marítima</FormLabel></FormItem> )} />
-                            <FormField control={form.control} name="tipoFornecedor.ciaAerea" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Cia Aérea</FormLabel></FormItem> )} />
-                            <FormField control={form.control} name="tipoFornecedor.transportadora" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Transportadora</FormLabel></FormItem> )} />
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+                            {supplierTypes.map(type => (
+                                 <FormField key={type.id} control={form.control} name={`tipoFornecedor.${type.id as keyof PartnerFormData['tipoFornecedor']}`} render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">{type.label}</FormLabel></FormItem> )} />
+                            ))}
                         </div>
                     </div>}
                     

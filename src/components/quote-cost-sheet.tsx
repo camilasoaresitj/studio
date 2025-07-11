@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Separator } from './ui/separator';
-import { Trash2 } from 'lucide-react';
+import { Trash2, PlusCircle } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
@@ -20,14 +20,14 @@ import { cn } from '@/lib/utils';
 const quoteChargeSchema = z.object({
   charges: z.array(z.object({
     id: z.string(),
-    name: z.string(),
+    name: z.string().min(1, 'Obrigatório'),
     type: z.string(),
     localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
     cost: z.coerce.number().default(0),
     costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
     sale: z.coerce.number().default(0),
     saleCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
-    supplier: z.string(),
+    supplier: z.string().min(1, 'Obrigatório'),
     sacado: z.string().optional(),
     approvalStatus: z.enum(['approved', 'pending']),
     financialEntryId: z.string().nullable().optional(),
@@ -60,6 +60,23 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     control: form.control,
     name: "charges",
   });
+
+  const handleAddNewCharge = () => {
+    append({
+        id: `new-charge-${Date.now()}`,
+        name: '',
+        type: 'Fixo',
+        localPagamento: 'Frete',
+        cost: 0,
+        costCurrency: 'USD',
+        sale: 0,
+        saleCurrency: 'USD',
+        supplier: '',
+        sacado: quote.customer,
+        approvalStatus: 'pending',
+        financialEntryId: null,
+    });
+  };
 
   const watchedCharges = form.watch('charges');
 
@@ -104,6 +121,12 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
         </Card>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-grow flex flex-col">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Tabela de Custos e Vendas</h3>
+            <Button type="button" variant="outline" size="sm" onClick={handleAddNewCharge}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Nova Taxa
+            </Button>
+          </div>
           <div className="flex-grow overflow-y-auto border rounded-lg">
             <Table>
               <TableHeader className="sticky top-0 bg-secondary z-10">
@@ -131,8 +154,16 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                   
                   return (
                     <TableRow key={field.id}>
-                      <TableCell>{charge.name}</TableCell>
-                      <TableCell>{charge.type}</TableCell>
+                      <TableCell>
+                         <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (
+                           <Input placeholder="Ex: FRETE" {...field} className="w-36" />
+                         )} />
+                      </TableCell>
+                      <TableCell>
+                         <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
+                           <Input placeholder="Ex: Por Contêiner" {...field} className="w-32" />
+                         )} />
+                      </TableCell>
                       <TableCell>
                         <FormField control={form.control} name={`charges.${index}.localPagamento`} render={({ field }) => (
                            <Select onValueChange={field.onChange} value={field.value}>
@@ -190,7 +221,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                        </TableCell>
                        <TableCell>
                          <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
-                           <Input {...field} />
+                           <Input placeholder="Ex: Maersk" {...field} className="w-32" />
                          )} />
                        </TableCell>
                        <TableCell>

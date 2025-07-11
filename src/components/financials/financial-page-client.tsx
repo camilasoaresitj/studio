@@ -20,7 +20,7 @@ import {
   Gavel
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
-import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries, PartialPayment } from '@/lib/financials-data';
+import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries, PartialPayment, addFinancialEntry } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -63,18 +63,27 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
-    const [detailsShipment, setDetailsShipment] = useState<Shipment | null>(null);
+    const [detailsShipment, setDetailsShipment] = useState<(Shipment & { payments?: PartialPayment[] }) | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
     
-    // This effect ensures that if the server-provided data changes (e.g., after router.refresh()),
-    // the client state is updated accordingly.
     useEffect(() => {
-        setEntries(initialEntries);
-        setAccounts(initialAccounts);
-        setAllShipments(initialShipments);
-    }, [initialEntries, initialAccounts, initialShipments]);
+        const handleStorageChange = () => {
+            setEntries(getFinancialEntries());
+            setAccounts(getBankAccounts());
+            setAllShipments(getShipments());
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        // Also trigger on focus to catch changes from other tabs
+        window.addEventListener('focus', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('focus', handleStorageChange);
+        };
+    }, []);
 
     const getEntryBalance = (entry: FinancialEntry): number => {
         const totalPaid = (entry.payments || []).reduce((sum, p) => sum + p.amount, 0);
@@ -173,7 +182,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         });
         
         setEntryToSettle(null);
-        router.refresh(); // Refresh server data
     };
     
     const toggleRowSelection = (id: string) => {
@@ -227,8 +235,9 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const handleProcessClick = (processId: string) => {
         const shipment = allShipments.find(s => s.id === processId || s.quoteId === processId);
         if (shipment) {
-            const relatedEntry = entries.find(e => e.processId === processId || e.invoiceId === shipment.quoteId);
-            const shipmentWithPayments = { ...shipment, payments: relatedEntry?.payments || [] };
+            const relatedEntries = entries.filter(e => e.processId === processId || e.invoiceId === shipment.quoteId);
+            const allPayments = relatedEntries.flatMap(e => e.payments || []);
+            const shipmentWithPayments = { ...shipment, payments: allPayments };
             setDetailsShipment(shipmentWithPayments as Shipment & { payments: PartialPayment[] });
         } else {
             toast({
@@ -240,7 +249,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     };
 
     const handleOpenNfseDialog = (entry: FinancialEntry) => {
-        const relatedShipment = allShipments.find(s => s.id === entry.processId || s.quoteId === entry.invoiceId);
+        const relatedShipment = findShipmentForEntry(entry);
         if (relatedShipment) {
             setNfseData({ entry, shipment: relatedShipment });
         } else {
@@ -253,7 +262,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     };
     
     const handleOpenLegalDialog = (entry: FinancialEntry) => {
-        const relatedShipment = allShipments.find(s => s.id === entry.processId || s.quoteId === entry.invoiceId);
+        const relatedShipment = findShipmentForEntry(entry);
         if (relatedShipment) {
             setLegalData({ entry, shipment: relatedShipment });
         } else {
@@ -281,7 +290,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             className: 'bg-success text-success-foreground',
         });
         setEditingAccount(null);
-        router.refresh();
     };
 
     const openGeneratedHtml = (html: string | undefined, entryId: string) => {
@@ -418,35 +426,30 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     };
 
     const handleEntriesImported = (importedEntries: FinancialEntry[]) => {
-        const updatedEntries = [...entries, ...importedEntries];
+        const currentEntries = getFinancialEntries();
+        const updatedEntries = [...currentEntries, ...importedEntries];
         saveFinancialEntries(updatedEntries);
-        setEntries(updatedEntries); // Update local state
-        router.refresh(); // Refresh server data to be sure
+        setEntries(updatedEntries);
     };
 
     const handleLegalEntryUpdate = (id: string, field: 'legalStatus' | 'legalComments', value: string) => {
-        setEntries(prev => {
-            const updatedEntries = prev.map(entry => {
-                if (entry.id === id) {
-                    return { ...entry, [field]: value };
-                }
-                return entry;
-            });
-            saveFinancialEntries(updatedEntries); // Persist change
-            return updatedEntries;
+        const updatedEntries = entries.map(entry => {
+            if (entry.id === id) {
+                return { ...entry, [field]: value };
+            }
+            return entry;
         });
+        saveFinancialEntries(updatedEntries);
+        setEntries(updatedEntries);
     };
     
     const handleSendToLegal = (entry: FinancialEntry) => {
-        setEntries(prev => {
-            const updatedEntries = prev.map(e => 
-                e.id === entry.id ? { ...e, status: 'Jurídico' as const, legalStatus: 'Fase Inicial' as const } : e
-            );
-            saveFinancialEntries(updatedEntries);
-            return updatedEntries;
-        });
+        const updatedEntries = entries.map(e => 
+            e.id === entry.id ? { ...e, status: 'Jurídico' as const, legalStatus: 'Fase Inicial' as const } : e
+        );
+        saveFinancialEntries(updatedEntries);
+        setEntries(updatedEntries);
         setLegalData(null);
-        router.refresh();
     };
 
     const handleOpenSettleDialog = (entry: FinancialEntry) => {
@@ -457,12 +460,12 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         setEntryToSettle(entry);
     };
 
-    const renderEntriesTable = (tableEntries: FinancialEntry[]) => (
+    const renderEntriesTable = (tableEntries: FinancialEntry[], isLegalTable = false) => (
         <div className="border rounded-lg">
             <Table>
             <TableHeader>
                 <TableRow>
-                <TableHead className="w-10">
+                {!isLegalTable && <TableHead className="w-10">
                     <Checkbox
                         checked={selectedRows.size > 0 && tableEntries.every(e => selectedRows.has(e.id))}
                         onCheckedChange={(checked) => {
@@ -474,16 +477,18 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                         }}
                         aria-label="Selecionar todos"
                     />
-                </TableHead>
-                <TableHead>Tipo</TableHead>
+                </TableHead>}
+                {!isLegalTable && <TableHead>Tipo</TableHead>}
                 <TableHead>Parceiro</TableHead>
                 <TableHead>Fatura</TableHead>
                 <TableHead>Processo</TableHead>
-                <TableHead>Status</TableHead>
+                {!isLegalTable && <TableHead>Status</TableHead>}
+                {isLegalTable && <TableHead>Status Jurídico</TableHead>}
+                {isLegalTable && <TableHead>Comentários</TableHead>}
                 <TableHead>Vencimento</TableHead>
                 <TableHead className="text-right">Valor Total</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
-                <TableHead className="text-center">Ações</TableHead>
+                {!isLegalTable && <TableHead className="text-center">Ações</TableHead>}
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -492,28 +497,56 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     const balance = getEntryBalance(entry);
                     return (
                         <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
-                            <TableCell>
+                            {!isLegalTable && <TableCell>
                                 <Checkbox
                                     checked={selectedRows.has(entry.id)}
                                     onCheckedChange={() => toggleRowSelection(entry.id)}
                                     aria-label="Selecionar linha"
                                 />
-                            </TableCell>
-                            <TableCell>
+                            </TableCell>}
+                            {!isLegalTable && <TableCell>
                                 <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
-                            </TableCell>
+                            </TableCell>}
                             <TableCell className="font-medium">{entry.partner}</TableCell>
-                            <TableCell>{entry.invoiceId}</TableCell>
+                            <TableCell>
+                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                    {entry.invoiceId}
+                                </a>
+                            </TableCell>
                             <TableCell>
                                 <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
                                     {entry.processId}
                                 </a>
                             </TableCell>
-                            <TableCell>
+                            {!isLegalTable && <TableCell>
                                 <Badge variant={variant} className="capitalize">{status}</Badge>
-                            </TableCell>
-                            <TableCell className={cn(variant === 'destructive' && 'text-destructive font-bold')}>
-                            {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
+                            </TableCell>}
+                            {isLegalTable && (
+                                <>
+                                 <TableCell className="w-48">
+                                    <Select
+                                        value={entry.legalStatus}
+                                        onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
+                                    >
+                                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
+                                            <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
+                                            <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </TableCell>
+                                <TableCell className="w-64">
+                                    <Input
+                                        value={entry.legalComments || ''}
+                                        onChange={(e) => handleLegalEntryUpdate(entry.id, 'legalComments', e.target.value)}
+                                        placeholder="Adicionar comentário..."
+                                    />
+                                </TableCell>
+                                </>
+                            )}
+                            <TableCell className={cn(variant === 'destructive' && !isLegalTable && 'text-destructive font-bold')}>
+                                {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
                             </TableCell>
                             <TableCell className="text-right font-mono">
                                 {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -521,7 +554,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                              <TableCell className={cn("text-right font-mono font-bold", entry.type === 'credit' ? 'text-success' : 'text-destructive')}>
                                 {entry.currency} {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </TableCell>
-                            <TableCell className="text-center">
+                            {!isLegalTable && <TableCell className="text-center">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
@@ -553,12 +586,12 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                         )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-                            </TableCell>
+                            </TableCell>}
                         </TableRow>
                     )
                 }) : (
                     <TableRow>
-                        <TableCell colSpan={10} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
+                        <TableCell colSpan={isLegalTable ? 8 : 10} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
                     </TableRow>
                 )}
             </TableBody>
@@ -695,64 +728,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                         <CardDescription>Faturas que foram enviadas para cobrança judicial ou protesto.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <div className="border rounded-lg">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Parceiro</TableHead>
-                                        <TableHead>Fatura</TableHead>
-                                        <TableHead>Processo</TableHead>
-                                        <TableHead>Status Jurídico</TableHead>
-                                        <TableHead>Comentários</TableHead>
-                                        <TableHead className="text-right">Valor</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {juridicoEntries.length > 0 ? juridicoEntries.map(entry => (
-                                        <TableRow key={entry.id}>
-                                            <TableCell className="font-medium">{entry.partner}</TableCell>
-                                            <TableCell>
-                                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
-                                                    {entry.invoiceId}
-                                                </a>
-                                            </TableCell>
-                                            <TableCell>
-                                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
-                                                    {entry.processId}
-                                                </a>
-                                            </TableCell>
-                                            <TableCell className="w-48">
-                                                <Select
-                                                    value={entry.legalStatus}
-                                                    onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
-                                                >
-                                                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
-                                                        <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
-                                                        <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
-                                            <TableCell className="w-64">
-                                                <Input
-                                                    value={entry.legalComments || ''}
-                                                    onChange={(e) => handleLegalEntryUpdate(entry.id, 'legalComments', e.target.value)}
-                                                    placeholder="Adicionar comentário..."
-                                                />
-                                            </TableCell>
-                                            <TableCell className="text-right font-mono text-destructive">
-                                                {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            </TableCell>
-                                        </TableRow>
-                                    )) : (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center">Nenhum processo no jurídico.</TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                         </div>
+                        {renderEntriesTable(juridicoEntries, true)}
                     </CardContent>
                  </Card>
             </TabsContent>

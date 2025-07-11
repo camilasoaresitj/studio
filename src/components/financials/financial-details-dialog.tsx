@@ -14,7 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import type { Shipment, PartialPayment } from '@/lib/shipment';
+import type { Shipment } from '@/lib/shipment';
+import type { PartialPayment } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -122,7 +123,8 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment }: FinancialD
                                     <TableRow>
                                         <TableHead>Data</TableHead>
                                         <TableHead className="text-right">Valor Pago</TableHead>
-                                        <TableHead>Moeda</TableHead>
+                                        <TableHead>Conta</TableHead>
+                                        <TableHead>Câmbio</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -130,7 +132,8 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment }: FinancialD
                                         <TableRow key={payment.id}>
                                             <TableCell>{format(new Date(payment.date), 'dd/MM/yyyy')}</TableCell>
                                             <TableCell className="text-right font-mono">{payment.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                            <TableCell>{(shipment.charges[0]?.saleCurrency || '')}</TableCell>
+                                            <TableCell>Conta ID: {payment.accountId}</TableCell>
+                                            <TableCell>{payment.exchangeRate ? `1 USD = ${payment.exchangeRate} BRL` : 'N/A'}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>

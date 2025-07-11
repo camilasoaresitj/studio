@@ -53,20 +53,25 @@ export function SendToLegalDialog({ isOpen, onClose, data, onConfirm }: SendToLe
   });
   
   useEffect(() => {
-    // In a real app, you might fetch this, but here we get it from our local data source
     const allPartners = getPartners();
-    // Assuming lawyers are partners with a specific role or tag. For now, we'll hardcode one.
-    // In a real scenario, this filter would be more robust.
-    const legalPartners = allPartners.filter(p => p.name.toLowerCase().includes('advogado'));
-    if(legalPartners.length === 0) {
-        // Add a dummy lawyer if none exist
+    const legalPartners = allPartners.filter(p => p.name.toLowerCase().includes('advoca'));
+    if(legalPartners.length > 0) {
+        setLawyers(legalPartners);
+    } else {
         const dummyLawyer = { id: 99, name: "Escritório de Advocacia Exemplo", roles: {}, contacts: [{ name: "Dr. Exemplo", email: "advogado@example.com", phone: "11999999999", departments: ['Outro']}]} as Partner;
         setLawyers([dummyLawyer]);
-        form.setValue('lawyerId', '99');
-    } else {
-        setLawyers(legalPartners);
     }
   }, []);
+
+   useEffect(() => {
+    if (data) {
+      form.reset({
+        lawyerId: lawyers.length > 0 ? lawyers[0].id!.toString() : '',
+        comments: '',
+      });
+    }
+  }, [data, form, lawyers]);
+
 
   const onSubmit = async (formData: SendToLegalFormData) => {
     if (!data) return;
@@ -81,15 +86,11 @@ export function SendToLegalDialog({ isOpen, onClose, data, onConfirm }: SendToLe
 
     const response = await runSendToLegal({
         lawyerName: selectedLawyer.contacts[0].name,
-        lawyerEmail: selectedLawyer.contacts[0].email,
         customerName: data.entry.partner,
         invoiceId: data.entry.invoiceId,
         processId: data.entry.processId,
         invoiceAmount: `${data.entry.currency} ${data.entry.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`,
         comments: formData.comments,
-        // In a real app, we would generate and attach the actual invoice and HBL files
-        invoiceHtml: "<html><body><h1>Fatura Simulada</h1></body></html>",
-        hblDataUri: "data:text/plain;base64,SBLSimulado"
     });
     
     if(response.success){
@@ -130,7 +131,7 @@ export function SendToLegalDialog({ isOpen, onClose, data, onConfirm }: SendToLe
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Advogado / Escritório Responsável</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecione o advogado..." />

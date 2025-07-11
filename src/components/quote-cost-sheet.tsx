@@ -81,19 +81,19 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const watchedCharges = form.watch('charges');
 
   const totals = React.useMemo(() => {
-    const cost = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
-    const sale = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
-    const profit = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
+    const cost: Record<string, number> = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
+    const sale: Record<string, number> = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
+    const profit: Record<string, number> = { BRL: 0, USD: 0, EUR: 0, JPY: 0, CHF: 0, GBP: 0 };
 
     watchedCharges.forEach(charge => {
       const chargeCost = Number(charge.cost) || 0;
       const chargeSale = Number(charge.sale) || 0;
 
-      cost[charge.costCurrency] += chargeCost;
-      sale[charge.saleCurrency] += chargeSale;
+      cost[charge.costCurrency] = (cost[charge.costCurrency] || 0) + chargeCost;
+      sale[charge.saleCurrency] = (sale[charge.saleCurrency] || 0) + chargeSale;
       
-      profit[charge.saleCurrency] += chargeSale;
-      profit[charge.costCurrency] -= chargeCost;
+      profit[charge.saleCurrency] = (profit[charge.saleCurrency] || 0) + chargeSale;
+      profit[charge.costCurrency] = (profit[charge.costCurrency] || 0) - chargeCost;
     });
 
     return { cost, sale, profit };
@@ -271,7 +271,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                   <CardHeader><CardTitle className="text-lg">Lucro Total</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
                       {Object.entries(totals.profit).filter(([, value]) => value !== 0).map(([key, value]) => (
-                        <div key={key} className="flex justify-between"><span>{key}:</span><span className="font-mono">{value.toFixed(2)}</span></div>
+                        <div key={key} className={cn("flex justify-between font-semibold", value < 0 ? "text-destructive" : "text-success")}><span>{key}:</span><span className="font-mono">{value.toFixed(2)}</span></div>
                       ))}
                   </CardContent>
               </Card>

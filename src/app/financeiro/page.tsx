@@ -231,7 +231,7 @@ export default function FinanceiroPage() {
     };
 
     const handleOpenNfseDialog = (entry: FinancialEntry) => {
-        const relatedShipment = allShipments.find(s => s.id === entry.processId || s.invoiceId === s.quoteId);
+        const relatedShipment = allShipments.find(s => s.id === entry.processId || s.quoteId === entry.invoiceId);
         if (relatedShipment) {
             setNfseData({ entry, shipment: relatedShipment });
         } else {

@@ -7,6 +7,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, isPast, isValid } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
 import {
   Sheet,
   SheetContent,
@@ -39,7 +42,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runGetCourierStatus } from '@/app/actions';
+import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf } from '@/app/actions';
 import { addFinancialEntry, getFinancialEntries } from '@/lib/financials-data';
 import { Checkbox } from './ui/checkbox';
 
@@ -146,6 +149,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCourierSyncing, setIsCourierSyncing] = useState(false);
   const [isInvoicing, setIsInvoicing] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   
@@ -477,6 +481,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   };
 
   const handleAddNewCharge = () => {
+    if (!shipment) return;
     appendCharge({
         id: `extra-${Date.now()}`,
         name: '',
@@ -498,6 +503,53 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
   };
 
+  const handleGenerateInvoicePdf = async (charge: QuoteCharge) => {
+    if (!shipment || !charge.financialEntryId) {
+        toast({ variant: 'destructive', title: "Fatura não encontrada", description: "Esta despesa ainda não foi faturada."});
+        return;
+    }
+    setIsGeneratingPdf(charge.id);
+    const financialEntries = getFinancialEntries();
+    const entry = financialEntries.find(e => e.id === charge.financialEntryId || e.invoiceId === charge.financialEntryId);
+
+    if (!entry) {
+        toast({ variant: 'destructive', title: "Lançamento não encontrado", description: `Não foi possível localizar o lançamento financeiro para a fatura ${charge.financialEntryId}` });
+        setIsGeneratingPdf(null);
+        return;
+    }
+    
+    const formatValue = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    const response = await runGenerateClientInvoicePdf({
+        invoiceNumber: entry.invoiceId,
+        customerName: entry.partner,
+        customerAddress: shipment.consignee?.address ? `${shipment.consignee.address.street}, ${shipment.consignee.address.city}` : 'Endereço não disponível',
+        date: new Date().toLocaleDateString('pt-br'),
+        charges: [{
+            description: charge.name,
+            quantity: 1,
+            value: formatValue(charge.sale),
+            total: formatValue(charge.sale),
+            currency: charge.saleCurrency
+        }],
+        total: formatValue(entry.amount),
+        exchangeRate: 5.0, // Simplified rate for now
+        bankDetails: {
+            bankName: "LTI GLOBAL",
+            accountNumber: "PIX: 10.298.168/0001-89"
+        }
+    });
+
+    if (response.success && response.data?.html) {
+        const newWindow = window.open();
+        newWindow?.document.write(response.data.html);
+        newWindow?.document.close();
+    } else {
+         toast({ variant: 'destructive', title: 'Erro ao gerar PDF', description: response.error });
+    }
+    setIsGeneratingPdf(null);
+  };
+
   const docStatusMap: Record<DocumentStatus['status'], { variant: 'secondary' | 'default' | 'success'; text: string; icon: React.ElementType }> = {
     pending: { variant: 'secondary', text: 'Pendente', icon: Circle },
     uploaded: { variant: 'default', text: 'Enviado', icon: CircleDot },
@@ -508,7 +560,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     return watchedCharges?.some(c => c.approvalStatus === 'pendente');
   }, [watchedCharges]);
 
-  // THIS IS THE FIX: The conditional return must be AFTER all hooks are called.
   if (!shipment) {
       return null;
   }
@@ -937,10 +988,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
-                                                    <TableHead className="w-[15%]">Taxa</TableHead>
-                                                    <TableHead className="w-[15%]">Fornecedor</TableHead>
+                                                    <TableHead>Taxa</TableHead>
+                                                    <TableHead>Fornecedor</TableHead>
+                                                    <TableHead>Sacado</TableHead>
                                                     <TableHead className="text-right">Custo</TableHead>
                                                     <TableHead className="text-right">Venda</TableHead>
+                                                    <TableHead className="text-center">Fatura PDF</TableHead>
                                                     <TableHead className="text-center w-[120px]">Status</TableHead>
                                                     <TableHead className="w-[50px]">Ação</TableHead>
                                                 </TableRow>
@@ -952,6 +1005,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <TableRow key={field.id} className={cn(charge.approvalStatus === 'pendente' && 'bg-amber-50')}>
                                                         <TableCell><FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (<Input {...field} />)}/></TableCell>
                                                         <TableCell><FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (<Input {...field} />)}/></TableCell>
+                                                        <TableCell><FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (<Input {...field} />)}/></TableCell>
                                                         <TableCell className="text-right">
                                                             <div className="flex items-center gap-1">
                                                                 <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
@@ -975,6 +1029,18 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                 <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'sale', e.target.value); }} className="w-full h-9" />
                                                                 )} />
                                                             </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleGenerateInvoicePdf(charge)}
+                                                                disabled={!charge.financialEntryId || isGeneratingPdf === charge.id}
+                                                                title="Visualizar Fatura em PDF"
+                                                            >
+                                                                {isGeneratingPdf === charge.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileText className="h-4 w-4" />}
+                                                            </Button>
                                                         </TableCell>
                                                         <TableCell className="text-center">
                                                             <Badge variant={charge.approvalStatus === 'aprovada' ? 'success' : charge.approvalStatus === 'pendente' ? 'default' : 'destructive'} className="capitalize">

@@ -7,7 +7,7 @@ import { runSendShippingInstructions } from '@/app/actions';
 import type { PartialPayment } from './financials-data';
 
 
-const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v2';
+const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v3';
 
 // --- Type Definitions ---
 
@@ -22,6 +22,9 @@ export type QuoteCharge = {
   saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   supplier: string;
   sacado?: string;
+  // New fields for invoicing and approval workflow
+  approvalStatus: 'approved' | 'pending';
+  financialEntryId?: string | null; // ID of the invoice/bill it belongs to
 };
 
 export type QuoteDetails = {

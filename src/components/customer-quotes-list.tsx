@@ -37,6 +37,8 @@ export type QuoteCharge = {
   saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   supplier: string;
   sacado?: string;
+  approvalStatus: 'approved' | 'pending';
+  financialEntryId?: string | null;
 };
 
 export type QuoteDetails = {

@@ -18,19 +18,23 @@ import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
 
 const quoteChargeSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  type: z.string(),
-  localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
-  cost: z.coerce.number().default(0),
-  costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
-  sale: z.coerce.number().default(0),
-  saleCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
-  supplier: z.string(),
-  sacado: z.string().optional(),
+  charges: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.string(),
+    localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
+    cost: z.coerce.number().default(0),
+    costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
+    sale: z.coerce.number().default(0),
+    saleCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
+    supplier: z.string(),
+    sacado: z.string().optional(),
+    approvalStatus: z.enum(['approved', 'pending']),
+    financialEntryId: z.string().nullable().optional(),
+  }))
 });
 
-type QuoteCostSheetFormData = z.infer<typeof quoteCostSheetSchema>;
+type QuoteCostSheetFormData = z.infer<typeof quoteChargeSchema>;
 
 interface QuoteCostSheetProps {
   quote: Quote;
@@ -40,7 +44,7 @@ interface QuoteCostSheetProps {
 
 export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProps) {
   const form = useForm<QuoteCostSheetFormData>({
-    resolver: zodResolver(quoteCostSheetSchema),
+    resolver: zodResolver(quoteChargeSchema),
     defaultValues: {
       charges: [],
     },

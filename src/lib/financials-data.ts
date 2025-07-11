@@ -28,7 +28,7 @@ export type FinancialEntry = {
     invoiceId: string;
     dueDate: string; // ISO string format
     amount: number;
-    currency: 'BRL' | 'USD';
+    currency: 'BRL' | 'USD' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
     processId: string;
     accountId: number; // Link to the BankAccount
     payments?: PartialPayment[];
@@ -216,7 +216,8 @@ export function saveFinancialEntries(entries: FinancialEntry[]): void {
 
 export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'>): void {
   const currentEntries = getFinancialEntries();
-  const newId = `fin-${Date.now()}`;
+  // Ensure unique ID by appending a random number to the timestamp
+  const newId = `fin-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const entryWithId: FinancialEntry = { ...newEntry, id: newId };
   const updatedEntries = [entryWithId, ...currentEntries];
   saveFinancialEntries(updatedEntries);

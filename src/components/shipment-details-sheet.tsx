@@ -17,13 +17,15 @@ import {
   SheetTitle,
   SheetDescription,
   SheetFooter,
+} from '@/components/ui/sheet';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter as DialogFooterComponent,
-} from '@/components/ui/sheet';
+} from '@/components/ui/dialog';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';

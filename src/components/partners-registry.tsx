@@ -92,7 +92,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       paymentTerm: 30,
       exchangeRateAgio: 0,
-      profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' }
+      profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
+      commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'USD' }
     }
   });
 
@@ -123,7 +124,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
         paymentTerm: 30,
         exchangeRateAgio: 0,
-        profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' }
+        profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
+        commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'USD' }
       }
     );
     setIsDialogOpen(true);
@@ -393,6 +395,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             <FormField control={form.control} name="roles.cliente" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Cliente</FormLabel></FormItem> )} />
                             <FormField control={form.control} name="roles.fornecedor" render={({ field }) => ( <FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Fornecedor</FormLabel></FormItem>)} />
                             <FormField control={form.control} name="roles.agente" render={({ field }) => ( <FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Agente</FormLabel></FormItem> )} />
+                            <FormField control={form.control} name="roles.comissionado" render={({ field }) => ( <FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Comissionado</FormLabel></FormItem> )} />
                         </div>
                     </FormItem>
 
@@ -423,7 +426,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             <FormField control={form.control} name="tipoAgente.projects" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Projetos</FormLabel></FormItem> )} />
                         </div>
                     </div>}
-
+                    
                     <Separator className="my-4"/>
                     
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -443,6 +446,26 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                              )}/>
                              <FormField control={form.control} name="profitAgreement.amount" render={({ field }) => ( <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" placeholder="50" {...field} /></FormControl><FormMessage /></FormItem> )} />
                              <FormField control={form.control} name="profitAgreement.currency" render={({ field }) => (
+                                <FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
+                                    <SelectItem value="USD">USD</SelectItem>
+                                    <SelectItem value="BRL">BRL</SelectItem>
+                                </SelectContent></Select><FormMessage /></FormItem>
+                             )}/>
+                        </div>
+                    </div>}
+
+                    {watchedRoles.comissionado && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                        <h4 className="font-semibold text-sm">Acordo de Comissão</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <FormField control={form.control} name="commissionAgreement.unit" render={({ field }) => (
+                                <FormItem><FormLabel>Base de Cálculo</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
+                                    <SelectItem value="porcentagem_lucro">% do Lucro</SelectItem>
+                                    <SelectItem value="por_container">Por Contêiner</SelectItem>
+                                    <SelectItem value="por_bl">Por BL/AWB</SelectItem>
+                                </SelectContent></Select><FormMessage /></FormItem>
+                             )}/>
+                             <FormField control={form.control} name="commissionAgreement.amount" render={({ field }) => ( <FormItem><FormLabel>Valor/Percentual</FormLabel><FormControl><Input type="number" placeholder="5" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                             <FormField control={form.control} name="commissionAgreement.currency" render={({ field }) => (
                                 <FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
                                     <SelectItem value="USD">USD</SelectItem>
                                     <SelectItem value="BRL">BRL</SelectItem>

@@ -50,6 +50,11 @@ export const partnerSchema = z.object({
       unit: z.enum(['por_container', 'por_bl', 'porcentagem_lucro']).optional(),
       currency: z.enum(['USD', 'BRL']).default('USD').optional(),
   }).optional(),
+  commissionAgreement: z.object({
+      amount: z.coerce.number().optional(),
+      unit: z.enum(['porcentagem_lucro', 'por_container', 'por_bl']).optional(),
+      currency: z.enum(['USD', 'BRL']).default('USD').optional(),
+  }).optional(),
   address: z.object({
     street: z.string().optional(),
     number: z.string().optional(),

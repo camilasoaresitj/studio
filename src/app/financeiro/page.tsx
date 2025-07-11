@@ -250,8 +250,12 @@ export default function FinanceiroPage() {
             </Table>
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline"><Upload className="mr-2 h-4 w-4"/> Importar Extrato</Button>
-            <Button variant="outline"><FileDown className="mr-2 h-4 w-4"/> Exportar Extrato</Button>
+            <Button variant="outline" onClick={() => toast({ title: 'Funcionalidade em desenvolvimento.' })}>
+              <Upload className="mr-2 h-4 w-4"/> Importar Extrato
+            </Button>
+            <Button variant="outline" onClick={() => toast({ title: 'Funcionalidade em desenvolvimento.' })}>
+              <FileDown className="mr-2 h-4 w-4"/> Exportar Extrato
+            </Button>
           </div>
         </CardContent>
       </Card>

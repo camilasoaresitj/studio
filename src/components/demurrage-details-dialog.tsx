@@ -14,12 +14,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from './ui/badge';
-import { FileText, Receipt, Banknote } from 'lucide-react';
+import { FileText, Receipt, Banknote, Loader2 } from 'lucide-react';
 import type { DemurrageItem } from '@/app/demurrage/page';
 import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { addFinancialEntry } from '@/lib/financials-data';
 import { getBankAccounts } from '@/lib/financials-data';
+import { exchangeRateService } from '@/services/exchange-rate-service';
+import { runSendDemurrageInvoice } from '@/app/actions';
+import { useState } from 'react';
 
 interface DemurrageDetailsDialogProps {
   isOpen: boolean;
@@ -43,6 +46,7 @@ const SIMULATED_TARIFFS = {
 
 export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetailsDialogProps) {
   const { toast } = useToast();
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const financialBreakdown = useMemo(() => {
     if (!item || item.overdueDays <= 0) return [];
@@ -91,7 +95,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
   const totalSale = financialBreakdown.reduce((sum, row) => sum + row.sale, 0);
   const totalProfit = financialBreakdown.reduce((sum, row) => sum + row.profit, 0);
 
-  const handleGenerateInvoice = () => {
+  const handleGenerateInvoice = async () => {
     if (!item || totalSale <= 0) {
       toast({
         variant: 'destructive',
@@ -100,39 +104,76 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
       });
       return;
     }
+    setIsGenerating(true);
 
-    const accounts = getBankAccounts();
-    const usdAccount = accounts.find(a => a.currency === 'USD');
+    try {
+        const accounts = getBankAccounts();
+        const usdAccount = accounts.find(a => a.currency === 'USD');
 
-    if (!usdAccount) {
-      toast({
-        variant: 'destructive',
-        title: 'Conta Bancária Não Encontrada',
-        description: 'Nenhuma conta em USD encontrada para vincular a fatura.',
-      });
-      return;
+        if (!usdAccount) {
+        throw new Error('Nenhuma conta em USD encontrada para vincular a fatura.');
+        }
+
+        const invoiceId = `DEM-${item.container.number}`;
+        const dueDate = addDays(new Date(), 30);
+
+        // 1. Create financial entry
+        addFinancialEntry({
+            type: 'credit',
+            partner: item.shipment.customer,
+            invoiceId: invoiceId,
+            status: 'Aberto',
+            dueDate: dueDate.toISOString(),
+            amount: totalSale,
+            currency: 'USD',
+            processId: item.shipment.id,
+            accountId: usdAccount.id,
+        });
+        toast({
+            title: 'Lançamento Financeiro Criado!',
+            description: `Fatura de ${totalSale.toFixed(2)} USD para ${item.shipment.customer} adicionada ao financeiro.`,
+            className: 'bg-success text-success-foreground'
+        });
+        
+        // 2. Get exchange rate and generate email
+        const rates = await exchangeRateService.getRates();
+        const ptaxRate = rates['USD'] || 5.0; // Fallback
+        const finalRate = ptaxRate * 1.08;
+
+        const emailResponse = await runSendDemurrageInvoice({
+            customerName: item.shipment.customer,
+            invoiceId: invoiceId,
+            processId: item.shipment.id,
+            containerNumber: item.container.number,
+            dueDate: format(dueDate, 'dd/MM/yyyy'),
+            totalAmountUSD: `USD ${totalSale.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+            exchangeRate: finalRate.toFixed(4),
+        });
+
+        if (emailResponse.success) {
+            console.log("----- SIMULATING DEMURRAGE INVOICE EMAIL -----");
+            console.log("SUBJECT:", emailResponse.data.emailSubject);
+            console.log("BODY (HTML):", emailResponse.data.emailBody);
+            console.log("-------------------------------------------");
+            toast({
+                title: 'E-mail de Cobrança Enviado (Simulação)',
+                description: 'A fatura de demurrage foi enviada para o cliente.',
+            });
+        } else {
+            throw new Error(emailResponse.error || 'Falha ao gerar o e-mail de cobrança.');
+        }
+
+        onClose();
+
+    } catch (e: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao Gerar Fatura',
+            description: e.message,
+        });
+    } finally {
+        setIsGenerating(false);
     }
-
-    const newEntry = {
-      type: 'credit' as const,
-      partner: item.shipment.customer,
-      invoiceId: `DEM-${item.container.number}`,
-      status: 'Aberto' as const,
-      dueDate: addDays(new Date(), 30).toISOString(), // Vencimento em 30 dias
-      amount: totalSale,
-      currency: 'USD' as const,
-      processId: item.shipment.id,
-      accountId: usdAccount.id,
-    };
-
-    addFinancialEntry(newEntry);
-
-    toast({
-      title: 'Fatura de Demurrage Gerada!',
-      description: `Lançamento de ${totalSale.toFixed(2)} USD para ${item.shipment.customer} criado no Módulo Financeiro.`,
-      className: 'bg-success text-success-foreground'
-    });
-    onClose();
   };
 
   const handleOtherActions = (action: string) => {
@@ -210,15 +251,15 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
         </Card>
 
         <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={() => handleGenerateInvoice()}>
-            <FileText className="mr-2 h-4 w-4" />
-            Gerar Fatura
+          <Button variant="outline" onClick={() => handleGenerateInvoice()} disabled={isGenerating}>
+            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+            Gerar Fatura e Enviar
           </Button>
-          <Button variant="outline" onClick={() => handleOtherActions("Gerar Boleto")}>
+          <Button variant="outline" onClick={() => handleOtherActions("Gerar Boleto")} disabled={isGenerating}>
             <Banknote className="mr-2 h-4 w-4" />
             Gerar Boleto
           </Button>
-          <Button onClick={() => handleOtherActions("Emitir Recibo")}>
+          <Button onClick={() => handleOtherActions("Emitir Recibo")} disabled={isGenerating}>
             <Receipt className="mr-2 h-4 w-4" />
             Emitir Recibo
           </Button>

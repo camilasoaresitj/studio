@@ -18,6 +18,8 @@ import { getCourierStatus } from "@/ai/flows/get-courier-status";
 import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import { syncDFAgents } from "@/ai/flows/sync-df-alliance-agents";
 import { getShipments, updateShipment } from "@/lib/shipment";
+import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
+import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
 
 
 export async function runGetFreightRates(input: any) {
@@ -243,5 +245,25 @@ export async function updateShipmentFromAgent(shipmentId: string, data: any) {
     } catch (error: any) {
         console.error("Update Shipment From Agent Action Failed", error);
         return { success: false, error: error.message || "Failed to update shipment" };
+    }
+}
+
+export async function runConsultNfse(input: any) {
+    try {
+        const data = await consultNfseItajai(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Consult NFS-e Action Failed", error);
+        return { success: false, error: error.message || "Failed to consult NFS-e" };
+    }
+}
+
+export async function runSendDemurrageInvoice(input: any) {
+    try {
+        const data = await sendDemurrageInvoice(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Send Demurrage Invoice Action Failed", error);
+        return { success: false, error: error.message || "Failed to send demurrage invoice" };
     }
 }

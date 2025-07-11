@@ -29,3 +29,4 @@ import '@/ai/flows/sync-df-alliance-agents.ts';
 import '@/ai/flows/send-shipping-instructions.ts';
 import '@/ai/flows/get-courier-status.ts';
 import '@/ai/flows/consult-nfse-itajai.ts';
+import '@/ai/flows/send-demurrage-invoice.ts';

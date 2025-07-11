@@ -564,6 +564,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const handleUpdateQuote = (data: { charges: QuoteCharge[] }) => {
     if (!activeQuote) return;
 
+    // Create a new object to force re-render in the child component
     const updatedQuote: Quote = {
         ...activeQuote,
         charges: data.charges,
@@ -802,7 +803,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
              <CardHeader>
                 <div className="flex justify-between items-start">
                     <div>
-                        <CardTitle>Editor de Cotação - {activeQuote.id}</CardTitle>
+                        <CardTitle>Editor de Cotação - {activeQuote.id.replace('-DRAFT','')}</CardTitle>
                         <CardDescription>
                             Ajuste os custos e valores de venda. Quando estiver pronto, envie para o cliente ou salve em PDF.
                         </CardDescription>

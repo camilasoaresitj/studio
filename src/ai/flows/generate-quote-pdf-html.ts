@@ -31,6 +31,7 @@ const GenerateQuotePdfHtmlInputSchema = z.object({
       bankName: z.string().describe("The bank's name."),
       accountNumber: z.string().describe('The bank account number.'),
   }).describe('The bank details for payment.'),
+  approvalLink: z.string().url().optional().describe('Optional URL for the customer to approve the quote.'),
 });
 export type GenerateQuotePdfHtmlInput = z.infer<typeof GenerateQuotePdfHtmlInputSchema>;
 
@@ -65,6 +66,7 @@ Your task is to generate the HTML for an invoice based on the provided JSON data
     - The "DADOS BANCARIOS" and "TOTAL" sections should be at the bottom.
     - The "TOTAL" block must be a dark blue (\`#092C48\`), rounded box with white text.
     - The final footer is a dark blue bar (\`#092C48\`) at the very bottom, containing contact icons (use text placeholders like '[Web]', '[Tel]', '[Email]') and details.
+- **Approval Link**: If an \`approvalLink\` is provided, you must include a sentence at the bottom of the invoice, before the final footer bar, that says: "Para aprovar esta cotação, acesse: {{approvalLink}}"
 
 **Data Mapping:**
 - **Table Columns:**
@@ -153,6 +155,12 @@ Your task is to generate the HTML for an invoice based on the provided JSON data
             </td>
         </tr>
     </table>
+    
+    {{#if approvalLink}}
+    <div style="margin-top: 20px; text-align: center; font-size: 12px; color: #555;">
+        <p>Para aprovar esta cotação, acesse: <a href="{{approvalLink}}" style="color: #092C48; font-weight: bold;">{{approvalLink}}</a></p>
+    </div>
+    {{/if}}
 
   </div>
   <div style="max-width: 800px; margin: 0 auto; padding: 15px 40px; background-color: #092C48; color: white; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
@@ -222,6 +230,16 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
             });
             result = result.replace(eachRegex, itemsHtml);
         }
+        
+        // Handle #if block
+        const ifRegex = /{{#if approvalLink}}(.*?){{\/if}}/s;
+        const ifMatch = result.match(ifRegex);
+        if (ifMatch && data.approvalLink) {
+            result = result.replace(ifRegex, ifMatch[1]);
+        } else if (ifMatch) {
+            result = result.replace(ifRegex, '');
+        }
+
 
         return result;
     }
@@ -234,5 +252,3 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
     return { html: finalHtml };
   }
 );
-
-    

@@ -61,14 +61,13 @@ Generate the following based on the input data, language rule, and whether it's 
     - Start with a friendly greeting.
     - **If Invoice**: State that you are sending the invoice for services provided. Display the total amount.
     - **If Quote**: Present the quote details in a structured way (Origin, Destination, Carrier, Transit Time, Final Price).
-    - **Crucially**, include prominent, nicely styled HTML buttons (<a href="..." style="...">...</a>).
-        - **If Quote**: One button for "{{#if isClientAgent}}Approve Quote{{else}}Aprovar Cotação{{/if}}" (green) using \`approvalLink\`, and another for "{{#if isClientAgent}}Reject Quote{{else}}Rejeitar Cotação{{/if}}" (red) using \`rejectionLink\`.
-        - **If Invoice**: A single button for "{{#if isClientAgent}}Pay Invoice{{else}}Pagar Fatura{{/if}}" (blue) using \`approvalLink\`.
+    - **Crucially**, include a prominent, nicely styled HTML button (<a href="..." style="...">...</a>) for the user to view and approve the quote online.
+    - The button text should be: "{{#if isClientAgent}}View and Approve Quote{{else}}Ver e Aprovar Cotação{{/if}}" using \`approvalLink\`.
     - End with a professional closing.
 
-3.  **WhatsApp Message**: A concise and friendly message.
-    - **If Invoice**: "Olá {{{customerName}}}! Sua fatura ({{{quoteId}}}) no valor de {{{rateDetails.finalPrice}}} está disponível para pagamento. Acesse: {{{approvalLink}}}" (PT) or "Hello {{{customerName}}}! Your invoice ({{{quoteId}}}) for {{{rateDetails.finalPrice}}} is available for payment. Please visit: {{{approvalLink}}}" (EN).
-    - **If Quote**: "Olá {{{customerName}}}! Segue sua cotação ({{{quoteId}}}): De {{{rateDetails.origin}}} para {{{rateDetails.destination}}} por {{{rateDetails.finalPrice}}}. Para aprovar: {{{approvalLink}}}" (PT) or "Hello {{{customerName}}}! Here is your quote ({{{quoteId}}}): From {{{rateDetails.origin}}} to {{{rateDetails.destination}}} for {{{rateDetails.finalPrice}}}. To approve: {{{approvalLink}}}" (EN).
+3.  **WhatsApp Message**: A concise and friendly message, ready to be sent via Twilio.
+    - **If Invoice**: "Olá {{{customerName}}}! Sua fatura ({{{quoteId}}}) no valor de {{{rateDetails.finalPrice}}} está disponível. Para visualizar e pagar, acesse: {{{approvalLink}}}" (PT) or "Hello {{{customerName}}}! Your invoice ({{{quoteId}}}) for {{{rateDetails.finalPrice}}} is available. To view and pay, visit: {{{approvalLink}}}" (EN).
+    - **If Quote**: "Olá {{{customerName}}}! Sua cotação de frete ({{{quoteId}}}) está pronta. De {{{rateDetails.origin}}} para {{{rateDetails.destination}}}. Para ver os detalhes e aprovar, acesse o link: {{{approvalLink}}}" (PT) or "Hello {{{customerName}}}! Your freight quote ({{{quoteId}}}) is ready. From {{{rateDetails.origin}}} to {{{rateDetails.destination}}}. To see the details and approve, please visit the link: {{{approvalLink}}}" (EN).
 
 **Input Data:**
 - Customer Name: {{{customerName}}}

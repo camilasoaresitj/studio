@@ -32,3 +32,5 @@ import '@/ai/flows/consult-nfse-itajai.ts';
 import '@/ai/flows/send-demurrage-invoice.ts';
 import '@/ai/flows/generate-nfse-xml.ts';
 import '@/ai/flows/generate-agent-invoice-html.ts';
+import '@/ai/flows/send-to-legal.ts';
+

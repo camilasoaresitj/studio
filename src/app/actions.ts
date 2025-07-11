@@ -22,6 +22,7 @@ import { getShipments, updateShipment } from "@/lib/shipment";
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
 import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
+import { sendToLegal } from "@/ai/flows/send-to-legal";
 
 
 export async function runGetFreightRates(input: any) {
@@ -287,5 +288,17 @@ export async function runGenerateNfseXml(input: any) {
     } catch (error: any) {
         console.error("Generate NFS-e XML Action Failed", error);
         return { success: false, error: error.message || "Failed to generate XML" };
+    }
+}
+
+export async function runSendToLegal(input: any) {
+    try {
+        const data = await sendToLegal(input);
+        // Here you would also generate the attachments and send the email
+        // For now, we just return the generated content
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Send to Legal Action Failed", error);
+        return { success: false, error: error.message || "Failed to send to legal" };
     }
 }

@@ -16,7 +16,8 @@ import {
   PlusCircle,
   ShieldAlert,
   Loader2,
-  Printer
+  Printer,
+  Gavel
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries, PartialPayment } from '@/lib/financials-data';
@@ -37,6 +38,8 @@ import { FinancialEntryImporter } from '@/components/financials/financial-entry-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { Input } from '@/components/ui/input';
+import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
+import { getPartners } from '@/lib/partners-data';
 
 
 type FilterType = 'all' | 'dueToday' | 'dueThisMonth';
@@ -54,6 +57,7 @@ export default function FinanceiroPage() {
     const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
+    const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [detailsShipment, setDetailsShipment] = useState<Shipment | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -242,6 +246,19 @@ export default function FinanceiroPage() {
             });
         }
     };
+    
+    const handleOpenLegalDialog = (entry: FinancialEntry) => {
+        const relatedShipment = allShipments.find(s => s.id === entry.processId || s.quoteId === entry.invoiceId);
+        if (relatedShipment) {
+            setLegalData({ entry, shipment: relatedShipment });
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Processo não encontrado',
+                description: `Não foi possível encontrar o processo de embarque vinculado a esta fatura.`,
+            });
+        }
+    };
 
     const handleAccountSave = (accountToSave: BankAccount) => {
         let updatedAccounts;
@@ -414,6 +431,17 @@ export default function FinanceiroPage() {
             return updatedEntries;
         });
     };
+    
+    const handleSendToLegal = (entry: FinancialEntry) => {
+        setEntries(prev => {
+            const updatedEntries = prev.map(e => 
+                e.id === entry.id ? { ...e, status: 'Jurídico' as const, legalStatus: 'Fase Inicial' as const } : e
+            );
+            saveFinancialEntries(updatedEntries);
+            return updatedEntries;
+        });
+        setLegalData(null);
+    };
 
     const handleOpenSettleDialog = (entry: FinancialEntry) => {
         const balance = getEntryBalance(entry);
@@ -518,6 +546,10 @@ export default function FinanceiroPage() {
                                             <>
                                                 <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
                                                     <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={() => handleOpenLegalDialog(entry)} className="text-destructive focus:text-destructive">
+                                                    <Gavel className="mr-2 h-4 w-4" /> Enviar para Jurídico
                                                 </DropdownMenuItem>
                                             </>
                                         )}
@@ -804,6 +836,13 @@ export default function FinanceiroPage() {
             data={nfseData}
             isOpen={!!nfseData}
             onClose={() => setNfseData(null)}
+        />
+
+        <SendToLegalDialog
+            data={legalData}
+            isOpen={!!legalData}
+            onClose={() => setLegalData(null)}
+            onConfirm={handleSendToLegal}
         />
         
         <FinancialDetailsDialog

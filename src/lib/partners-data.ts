@@ -122,7 +122,28 @@ function getInitialPartners(): Partner[] {
                 phone: "+1 212-555-1234",
                 departments: ["Importação", "Financeiro"]
             }]
-        }
+        },
+        {
+            id: 4,
+            name: "Advocacia Marítima XYZ",
+            nomeFantasia: "Advocacia XYZ",
+            roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
+            cnpj: "11.223.344/0001-55",
+            paymentTerm: 30,
+            address: {
+                street: "Avenida Paulista",
+                number: "1500",
+                city: "São Paulo",
+                state: "SP",
+                country: "Brasil",
+            },
+            contacts: [{
+                name: "Dr. Roberto Carlos",
+                email: "roberto.carlos@advogados.com",
+                phone: "+55 11 98888-7777",
+                departments: ["Outro"],
+            }]
+        },
     ];
 }
 

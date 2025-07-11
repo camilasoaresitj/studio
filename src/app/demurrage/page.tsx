@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { getShipments, updateShipment, Shipment, ContainerDetail } from '@/lib/shipment';
 import { addDays, differenceInDays, format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, DollarSign } from 'lucide-react';
 import { DemurrageDetailsDialog } from '@/components/demurrage-details-dialog';
 
 export type DemurrageItem = {
@@ -23,6 +23,13 @@ export type DemurrageItem = {
     status: 'ok' | 'risk' | 'overdue';
 };
 
+// Simulated tariff data for dashboard calculation.
+const SIMULATED_SALE_TARIFF = [
+    { from: 1, to: 5, rate: 100 },
+    { from: 6, to: 10, rate: 200 },
+    { from: 11, to: Infinity, rate: 400 },
+];
+
 export default function DemurragePage() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [isClient, setIsClient] = useState(false);
@@ -30,6 +37,8 @@ export default function DemurragePage() {
 
     useEffect(() => {
         setIsClient(true);
+        // We need to get the latest shipments every time the page loads or data changes.
+        // For now, we load it once. A more robust solution might use a state management library.
         setShipments(getShipments());
     }, []);
 
@@ -97,6 +106,29 @@ export default function DemurragePage() {
             .sort((a, b) => (a.returnDate?.getTime() || 0) - (b.returnDate?.getTime() || 0));
     }, [shipments, isClient]);
 
+    const dashboardData = useMemo(() => {
+        let totalRevenue = 0;
+        const overdueItems = demurrageItems.filter(item => item.overdueDays > 0);
+
+        overdueItems.forEach(item => {
+            let itemRevenue = 0;
+            let daysToCalculate = item.overdueDays;
+            for (const tariff of SIMULATED_SALE_TARIFF) {
+                if (daysToCalculate <= 0) break;
+                const daysInPeriod = Math.min(daysToCalculate, tariff.to - tariff.from + 1);
+                itemRevenue += daysInPeriod * tariff.rate;
+                daysToCalculate -= daysInPeriod;
+            }
+            totalRevenue += itemRevenue;
+        });
+        
+        return {
+            totalRevenue,
+            overdueCount: overdueItems.length,
+            atRiskCount: demurrageItems.filter(item => item.status === 'risk').length
+        }
+    }, [demurrageItems]);
+
     const statusConfig = {
         ok: { variant: 'success', icon: <CheckCircle className="h-4 w-4" />, text: 'OK' },
         risk: { variant: 'default', icon: <Clock className="h-4 w-4" />, text: 'Em Risco' },
@@ -114,6 +146,40 @@ export default function DemurragePage() {
                     Monitore os prazos de devolução de contêineres e evite custos extras.
                 </p>
             </header>
+
+            <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-3">
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Lucratividade (Mês)</CardTitle>
+                        <DollarSign className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-success">USD {dashboardData.totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                        <p className="text-xs text-muted-foreground">Receita total de demurrage cobrada.</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Contêineres em Risco</CardTitle>
+                        <Clock className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{dashboardData.atRiskCount}</div>
+                        <p className="text-xs text-muted-foreground">Vencem nos próximos 3 dias.</p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Contêineres Vencidos</CardTitle>
+                        <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-destructive">{dashboardData.overdueCount}</div>
+                        <p className="text-xs text-muted-foreground">Já estão acumulando demurrage.</p>
+                    </CardContent>
+                </Card>
+            </div>
+
             <Card>
                 <CardHeader>
                     <CardTitle>Visão Geral dos Contêineres</CardTitle>

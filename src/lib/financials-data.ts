@@ -179,6 +179,14 @@ export function saveFinancialEntries(entries: FinancialEntry[]): void {
   }
 }
 
+export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'>): void {
+  const currentEntries = getFinancialEntries();
+  const newId = `fin-${Date.now()}`;
+  const entryWithId: FinancialEntry = { ...newEntry, id: newId };
+  const updatedEntries = [entryWithId, ...currentEntries];
+  saveFinancialEntries(updatedEntries);
+}
+
 export function getBankAccounts(): BankAccount[] {
     if (typeof window === 'undefined') {
         return [];

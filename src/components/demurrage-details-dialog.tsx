@@ -14,10 +14,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from './ui/badge';
-import { FileText, Receipt, FileUp, Banknote } from 'lucide-react';
+import { FileText, Receipt, Banknote } from 'lucide-react';
 import type { DemurrageItem } from '@/app/demurrage/page';
 import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { addFinancialEntry } from '@/lib/financials-data';
+import { getBankAccounts } from '@/lib/financials-data';
 
 interface DemurrageDetailsDialogProps {
   isOpen: boolean;
@@ -84,17 +86,61 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
   }, [item]);
 
   if (!item) return null;
+  
+  const totalCost = financialBreakdown.reduce((sum, row) => sum + row.cost, 0);
+  const totalSale = financialBreakdown.reduce((sum, row) => sum + row.sale, 0);
+  const totalProfit = financialBreakdown.reduce((sum, row) => sum + row.profit, 0);
 
-  const handleActionClick = (action: string) => {
+  const handleGenerateInvoice = () => {
+    if (!item || totalSale <= 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Fatura Vazia',
+        description: 'Não é possível gerar uma fatura sem valor de demurrage a cobrar.',
+      });
+      return;
+    }
+
+    const accounts = getBankAccounts();
+    const usdAccount = accounts.find(a => a.currency === 'USD');
+
+    if (!usdAccount) {
+      toast({
+        variant: 'destructive',
+        title: 'Conta Bancária Não Encontrada',
+        description: 'Nenhuma conta em USD encontrada para vincular a fatura.',
+      });
+      return;
+    }
+
+    const newEntry = {
+      type: 'credit' as const,
+      partner: item.shipment.customer,
+      invoiceId: `DEM-${item.container.number}`,
+      status: 'Aberto' as const,
+      dueDate: addDays(new Date(), 30).toISOString(), // Vencimento em 30 dias
+      amount: totalSale,
+      currency: 'USD' as const,
+      processId: item.shipment.id,
+      accountId: usdAccount.id,
+    };
+
+    addFinancialEntry(newEntry);
+
+    toast({
+      title: 'Fatura de Demurrage Gerada!',
+      description: `Lançamento de ${totalSale.toFixed(2)} USD para ${item.shipment.customer} criado no Módulo Financeiro.`,
+      className: 'bg-success text-success-foreground'
+    });
+    onClose();
+  };
+
+  const handleOtherActions = (action: string) => {
     toast({
       title: `Ação: ${action}`,
       description: `Funcionalidade para ${action.toLowerCase()} o demurrage do contêiner ${item.container.number} será implementada em breve.`,
     });
   };
-  
-  const totalCost = financialBreakdown.reduce((sum, row) => sum + row.cost, 0);
-  const totalSale = financialBreakdown.reduce((sum, row) => sum + row.sale, 0);
-  const totalProfit = financialBreakdown.reduce((sum, row) => sum + row.profit, 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -164,15 +210,15 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
         </Card>
 
         <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={() => handleActionClick("Gerar Fatura")}>
+          <Button variant="outline" onClick={() => handleGenerateInvoice()}>
             <FileText className="mr-2 h-4 w-4" />
             Gerar Fatura
           </Button>
-          <Button variant="outline" onClick={() => handleActionClick("Gerar Boleto")}>
+          <Button variant="outline" onClick={() => handleOtherActions("Gerar Boleto")}>
             <Banknote className="mr-2 h-4 w-4" />
             Gerar Boleto
           </Button>
-          <Button onClick={() => handleActionClick("Emitir Recibo")}>
+          <Button onClick={() => handleOtherActions("Emitir Recibo")}>
             <Receipt className="mr-2 h-4 w-4" />
             Emitir Recibo
           </Button>

@@ -11,6 +11,7 @@ export type FinancialEntry = {
     status: 'Aberto' | 'Pago' | 'Vencido';
     dueDate: string; // ISO string format
     amount: number;
+    currency: 'BRL' | 'USD';
     processId: string;
 };
 
@@ -26,6 +27,7 @@ const initialFinancialData: FinancialEntry[] = [
         status: 'Aberto',
         dueDate: addDays(today, 15).toISOString(),
         amount: 12500.50,
+        currency: 'BRL',
         processId: 'PROC-BL-998172',
     },
     {
@@ -36,6 +38,7 @@ const initialFinancialData: FinancialEntry[] = [
         status: 'Pago',
         dueDate: subDays(today, 20).toISOString(),
         amount: 8750.00,
+        currency: 'BRL',
         processId: 'PROC-MAWB-314256',
     },
     {
@@ -46,6 +49,7 @@ const initialFinancialData: FinancialEntry[] = [
         status: 'Vencido',
         dueDate: subDays(today, 5).toISOString(),
         amount: 45800.00,
+        currency: 'BRL',
         processId: 'PROC-CNEE-451023',
     },
     {
@@ -55,7 +59,8 @@ const initialFinancialData: FinancialEntry[] = [
         invoiceId: 'INV-2024-071',
         status: 'Aberto',
         dueDate: addDays(today, 30).toISOString(),
-        amount: 32000.00,
+        amount: 3200.00,
+        currency: 'USD',
         processId: 'PROC-AWB-724598',
     },
      {
@@ -66,6 +71,7 @@ const initialFinancialData: FinancialEntry[] = [
         status: 'Aberto',
         dueDate: today.toISOString(),
         amount: 7250.75,
+        currency: 'BRL',
         processId: 'PROC-INV-2024-068',
     },
 
@@ -77,7 +83,8 @@ const initialFinancialData: FinancialEntry[] = [
         invoiceId: 'ML-BR-55432',
         status: 'Aberto',
         dueDate: addDays(today, 10).toISOString(),
-        amount: 9800.00,
+        amount: 980.00,
+        currency: 'USD',
         processId: 'PROC-BL-998172',
     },
     {
@@ -88,6 +95,7 @@ const initialFinancialData: FinancialEntry[] = [
         status: 'Pago',
         dueDate: subDays(today, 15).toISOString(),
         amount: 4200.00,
+        currency: 'BRL',
         processId: 'PROC-MAWB-314256',
     },
     {
@@ -98,6 +106,7 @@ const initialFinancialData: FinancialEntry[] = [
         status: 'Aberto',
         dueDate: addDays(today, 5).toISOString(),
         amount: 2150.80,
+        currency: 'BRL',
         processId: 'PROC-CNEE-451023',
     },
     {
@@ -107,13 +116,14 @@ const initialFinancialData: FinancialEntry[] = [
         invoiceId: 'HL-DE-99887',
         status: 'Aberto',
         dueDate: today.toISOString(),
-        amount: 8000.00,
+        amount: 1500.00,
+        currency: 'USD',
         processId: 'PROC-INV-2024-068',
     },
 ];
 
 // In a real app, this would fetch from a database. Here, we use local storage for persistence.
-const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v1';
+const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v2';
 
 export function getFinancialEntries(): FinancialEntry[] {
   if (typeof window === 'undefined') {

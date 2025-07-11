@@ -70,26 +70,43 @@ export default function FinanceiroPage() {
         if (selectedRows.size === 0) return null;
 
         const selectedEntries = entries.filter(e => selectedRows.has(e.id));
-        const netTotal = selectedEntries.reduce((sum, entry) => {
-            return sum + (entry.type === 'credit' ? entry.amount : -entry.amount);
-        }, 0);
+        const totalsByCurrency: { [key: string]: number } = {};
+        
+        selectedEntries.forEach(entry => {
+            if (!totalsByCurrency[entry.currency]) {
+                totalsByCurrency[entry.currency] = 0;
+            }
+            const value = entry.type === 'credit' ? entry.amount : -entry.amount;
+            totalsByCurrency[entry.currency] += value;
+        });
 
         return {
             count: selectedRows.size,
-            netTotal,
+            totalsByCurrency,
         };
     }, [selectedRows, entries]);
 
     const handleUnifiedSettlement = () => {
         if (!unifiedSettlementData) return;
         
+        const totalsString = Object.entries(unifiedSettlementData.totalsByCurrency)
+            .map(([currency, total]) => `${currency} ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+            .join(' | ');
+
         toast({
             title: 'Baixa Unificada (Simulação)',
-            description: `${unifiedSettlementData.count} lançamento(s) foram selecionados, com um valor líquido de R$ ${unifiedSettlementData.netTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
+            description: `${unifiedSettlementData.count} lançamento(s) selecionado(s). Totais: ${totalsString}`,
             className: 'bg-success text-success-foreground'
         });
         // In a real scenario, you'd update the status of selected items here and clear selection.
         setSelectedRows(new Set());
+    };
+
+    const handleInvoiceClick = (processId: string) => {
+        toast({
+            title: "Visualização de Detalhes",
+            description: `Em breve, será possível ver os detalhes da fatura vinculada ao processo ${processId}.`
+        });
     };
 
     return (
@@ -174,10 +191,12 @@ export default function FinanceiroPage() {
           {unifiedSettlementData && (
               <div className="flex items-center justify-between p-3 mb-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
                   <div className="text-sm font-medium">
-                      {unifiedSettlementData.count} item(s) selecionado(s). Total líquido: 
-                      <span className={cn("font-bold", unifiedSettlementData.netTotal >= 0 ? 'text-success' : 'text-destructive' )}>
-                          R$ {unifiedSettlementData.netTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
+                      {unifiedSettlementData.count} item(s) selecionado(s). Totais: 
+                       {Object.entries(unifiedSettlementData.totalsByCurrency).map(([currency, total]) => (
+                          <span key={currency} className={cn("font-bold ml-2", total >= 0 ? 'text-success' : 'text-destructive' )}>
+                              {currency} {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                       ))}
                   </div>
                   <Button size="sm" onClick={handleUnifiedSettlement}>
                     <DollarSign className="mr-2 h-4 w-4"/>
@@ -220,7 +239,11 @@ export default function FinanceiroPage() {
                       <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
                     </TableCell>
                     <TableCell className="font-medium">{entry.partner}</TableCell>
-                    <TableCell className="text-muted-foreground">{entry.invoiceId}</TableCell>
+                    <TableCell>
+                        <a href="#" onClick={(e) => { e.preventDefault(); handleInvoiceClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                            {entry.invoiceId}
+                        </a>
+                    </TableCell>
                     <TableCell>
                        <Badge variant={getStatusVariant(entry)} className="capitalize">{entry.status}</Badge>
                     </TableCell>
@@ -228,7 +251,7 @@ export default function FinanceiroPage() {
                       {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
                     </TableCell>
                     <TableCell className={cn("text-right font-mono", entry.type === 'credit' ? 'text-success' : 'text-foreground')}>
-                      R$ {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className="text-center">
                         <DropdownMenu>

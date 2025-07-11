@@ -17,7 +17,9 @@ import {
   ShieldAlert,
   Loader2,
   Printer,
-  Gavel
+  Gavel,
+  Check,
+  ChevronsUpDown
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
 import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
@@ -38,8 +40,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 type FilterType = 'all' | 'dueToday' | 'dueThisMonth';
+type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico';
+const allStatuses: Status[] = ['Aberto', 'Vencido', 'Parcialmente Pago', 'Pago'];
 
 interface FinancialPageClientProps {
     initialEntries: FinancialEntry[];
@@ -63,49 +69,60 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [detailsShipment, setDetailsShipment] = useState<(Shipment & { payments?: PartialPayment[] }) | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+    const [statusFilter, setStatusFilter] = useState<Status[]>(['Aberto', 'Vencido', 'Parcialmente Pago']);
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
     
     useEffect(() => {
-        setEntries(initialEntries);
-        setAccounts(initialAccounts);
-        setAllShipments(initialShipments);
-    }, [initialEntries, initialAccounts, initialShipments]);
+        const handleStorageChange = () => {
+            setEntries(getFinancialEntries());
+            setAccounts(getBankAccounts());
+            setAllShipments(getShipments());
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('financialsUpdated', handleStorageChange);
+        
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('financialsUpdated', handleStorageChange);
+        };
+    }, []);
     
     const getEntryBalance = (entry: FinancialEntry): number => {
         const totalPaid = (entry.payments || []).reduce((sum, p) => sum + p.amount, 0);
         return entry.amount - totalPaid;
     };
 
-    const getEntryStatus = (entry: FinancialEntry): { status: 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico'; variant: 'default' | 'secondary' | 'destructive' | 'success' } => {
+    const getEntryStatus = (entry: FinancialEntry): { status: Status; variant: 'default' | 'secondary' | 'destructive' | 'success' } => {
         if (entry.status === 'Jurídico') {
             return { status: 'Jurídico', variant: 'default' };
         }
         const balance = getEntryBalance(entry);
-        const totalPaid = entry.amount - balance;
-
+        
         if (balance <= 0.009) { // Using a small epsilon for float comparison
             return { status: 'Pago', variant: 'success' };
         }
         if (isPast(new Date(entry.dueDate)) && !isToday(new Date(entry.dueDate))) {
             return { status: 'Vencido', variant: 'destructive' };
         }
-        if (totalPaid > 0 && balance > 0) {
+        if ((entry.payments?.length || 0) > 0 && balance > 0) {
             return { status: 'Parcialmente Pago', variant: 'default' };
         }
         return { status: 'Aberto', variant: 'secondary' };
     };
 
     const filteredEntries = useMemo(() => {
-        const nonJuridicoEntries = entries.filter(e => e.status !== 'Jurídico');
-        if (activeFilter === 'all') {
-            return nonJuridicoEntries;
-        }
-
-        return nonJuridicoEntries.filter(entry => {
+        return entries.filter(entry => {
             const { status } = getEntryStatus(entry);
-            if (status === 'Pago' || status === 'Jurídico') return false;
+            if (entry.status === 'Jurídico') return false;
 
+            const statusMatch = statusFilter.length === 0 ? true : statusFilter.includes(status);
+            if (!statusMatch) return false;
+
+            if (activeFilter === 'all') {
+                return true;
+            }
             const dueDate = new Date(entry.dueDate);
             if (activeFilter === 'dueToday') {
                 return isToday(dueDate);
@@ -115,7 +132,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             }
             return true;
         });
-    }, [entries, activeFilter]);
+    }, [entries, activeFilter, statusFilter]);
     
     const juridicoEntries = useMemo(() => {
         return entries.filter(e => e.status === 'Jurídico');
@@ -151,7 +168,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             exchangeRate: needsExchangeRate ? parseFloat(exchangeRate) : undefined,
         };
 
-        // Update the financial entry with the new payment
         const updatedEntries = entries.map(e => {
             if (e.id === entryToSettle.id) {
                 const updatedPayments = [...(e.payments || []), newPayment];
@@ -160,7 +176,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             return e;
         });
 
-        // Update the bank account balance
         const accountToUpdate = accounts.find(a => a.id.toString() === settlementAccountId);
         if (!accountToUpdate) {
              toast({ variant: 'destructive', title: 'Conta não encontrada' });
@@ -168,7 +183,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         }
         
         let amountInAccountCurrency = amount;
-        if (needsExchangeRate) {
+        if (needsExchangeRate && exchangeRate) {
             amountInAccountCurrency = amount * parseFloat(exchangeRate);
         }
 
@@ -187,6 +202,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         saveBankAccounts(updatedAccounts);
         setAccounts(updatedAccounts);
 
+        window.dispatchEvent(new Event('financialsUpdated'));
 
         toast({
             title: 'Baixa de Pagamento Realizada!',
@@ -661,14 +677,49 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                     Visualize e gerencie todas as suas contas a pagar e a receber.
                                 </CardDescription>
                             </div>
-                             <div className="flex items-center gap-2 self-start sm:self-center">
-                                <Label htmlFor="date-filter" className="text-sm font-medium">Filtrar por</Label>
+                            <div className="flex items-center gap-2 self-start sm:self-center">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-[180px] justify-start">
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Filtrar Status
+                                            {statusFilter.length > 0 && <Badge variant="secondary" className="ml-auto">{statusFilter.length}</Badge>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 p-0" align="end">
+                                        <Command>
+                                            <CommandInput placeholder="Buscar status..." />
+                                            <CommandList>
+                                                <CommandEmpty>Nenhum status encontrado.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {allStatuses.map((status) => (
+                                                        <CommandItem
+                                                            key={status}
+                                                            onSelect={() => {
+                                                                setStatusFilter(prev => 
+                                                                    prev.includes(status) 
+                                                                    ? prev.filter(s => s !== status)
+                                                                    : [...prev, status]
+                                                                )
+                                                            }}
+                                                        >
+                                                            <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", statusFilter.includes(status) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
+                                                                <Check className={cn("h-4 w-4")} />
+                                                            </div>
+                                                            <span>{status}</span>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
                                 <Select onValueChange={(value) => setActiveFilter(value as FilterType)} defaultValue="all">
                                     <SelectTrigger id="date-filter" className="w-[180px]">
-                                        <SelectValue placeholder="Filtrar por" />
+                                        <SelectValue placeholder="Filtrar por data" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">Todos</SelectItem>
+                                        <SelectItem value="all">Qualquer Data</SelectItem>
                                         <SelectItem value="dueToday">Vencendo Hoje</SelectItem>
                                         <SelectItem value="dueThisMonth">Vencendo no Mês</SelectItem>
                                     </SelectContent>
@@ -841,3 +892,4 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     </div>
   );
 }
+

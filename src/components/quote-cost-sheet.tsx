@@ -16,6 +16,7 @@ import { Trash2, PlusCircle } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from './ui/scroll-area';
 
 const quoteChargeSchema = z.object({
   charges: z.array(z.object({
@@ -46,14 +47,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const form = useForm<QuoteCostSheetFormData>({
     resolver: zodResolver(quoteChargeSchema),
     defaultValues: {
-      charges: quote.charges || [],
+      charges: [],
     },
   });
 
   const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
 
   React.useEffect(() => {
-    form.reset({ charges: quote.charges });
+    form.reset({ charges: quote.charges || [] });
   }, [quote, form]);
 
   const { fields, append, remove } = useFieldArray({
@@ -127,125 +128,111 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Nova Taxa
             </Button>
           </div>
-          <div className="flex-grow overflow-y-auto border rounded-lg">
-            <Table>
-              <TableHeader className="sticky top-0 bg-secondary z-10">
-                <TableRow>
-                  <TableHead className="w-[15%]">Taxa</TableHead>
-                  <TableHead>Tipo Cobrança</TableHead>
-                  <TableHead>Local Pagamento</TableHead>
-                  <TableHead>Moeda Compra</TableHead>
-                  <TableHead>Compra</TableHead>
-                  <TableHead>Moeda Venda</TableHead>
-                  <TableHead>Venda</TableHead>
-                  <TableHead>Lucro</TableHead>
-                  <TableHead>Fornecedor</TableHead>
-                  <TableHead>Sacado</TableHead>
-                  <TableHead>Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fields.map((field, index) => {
-                  const charge = watchedCharges[index];
-                  const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
-                  const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
-                  const profitCurrency = charge.saleCurrency;
-                  const isLoss = canCalculateProfit && profit < 0;
-                  
-                  return (
-                    <TableRow key={field.id}>
-                      <TableCell>
-                         <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (
-                           <Input placeholder="Ex: FRETE" {...field} className="w-36" />
-                         )} />
-                      </TableCell>
-                      <TableCell>
-                         <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
-                           <Input placeholder="Ex: Por Contêiner" {...field} className="w-32" />
-                         )} />
-                      </TableCell>
-                      <TableCell>
-                        <FormField control={form.control} name={`charges.${index}.localPagamento`} render={({ field }) => (
-                           <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger><SelectValue placeholder="Selecione..."/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Origem">Origem</SelectItem>
-                                <SelectItem value="Frete">Frete</SelectItem>
-                                <SelectItem value="Destino">Destino</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )} />
-                      </TableCell>
-                      <TableCell>
-                        <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
-                           <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="BRL">BRL</SelectItem>
-                                <SelectItem value="USD">USD</SelectItem>
-                                <SelectItem value="EUR">EUR</SelectItem>
-                                <SelectItem value="JPY">JPY</SelectItem>
-                                <SelectItem value="CHF">CHF</SelectItem>
-                                <SelectItem value="GBP">GBP</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )} />
-                      </TableCell>
-                       <TableCell>
-                         <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
-                           <Input type="number" {...field} className="w-24" />
-                         )} />
-                       </TableCell>
-                       <TableCell>
-                         <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
-                           <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="BRL">BRL</SelectItem>
-                                <SelectItem value="USD">USD</SelectItem>
-                                <SelectItem value="EUR">EUR</SelectItem>
-                                <SelectItem value="JPY">JPY</SelectItem>
-                                <SelectItem value="CHF">CHF</SelectItem>
-                                <SelectItem value="GBP">GBP</SelectItem>
-                            </SelectContent>
-                          </Select>
-                         )} />
-                       </TableCell>
-                       <TableCell>
-                         <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
-                           <Input type="number" {...field} className="w-24" />
-                         )} />
-                       </TableCell>
-                       <TableCell className={cn('font-semibold', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
-                          {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
-                       </TableCell>
-                       <TableCell>
-                         <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
-                           <Input placeholder="Ex: Maersk" {...field} className="w-32" />
-                         )} />
-                       </TableCell>
-                       <TableCell>
-                        <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value || quote.customer}>
-                                <SelectTrigger className="w-40"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                <SelectContent>
-                                    {clientPartners.map(p => (
-                                      <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
+          <div className="flex-grow overflow-hidden">
+            <ScrollArea className="h-full">
+              <Table>
+                <TableHeader className="sticky top-0 bg-secondary z-10">
+                  <TableRow>
+                    <TableHead className="w-[15%]">Taxa</TableHead>
+                    <TableHead className="w-[12%]">Tipo Cobrança</TableHead>
+                    <TableHead className="w-[12%]">Local Pagamento</TableHead>
+                    <TableHead className="w-[15%] text-right">Compra</TableHead>
+                    <TableHead className="w-[15%] text-right">Venda</TableHead>
+                    <TableHead className="w-[10%] text-right">Lucro</TableHead>
+                    <TableHead className="w-[12%]">Fornecedor</TableHead>
+                    <TableHead className="w-[12%]">Sacado</TableHead>
+                    <TableHead className="w-[5%]">Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {fields.map((field, index) => {
+                    const charge = watchedCharges[index];
+                    const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
+                    const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
+                    const profitCurrency = charge.saleCurrency;
+                    const isLoss = canCalculateProfit && profit < 0;
+                    
+                    return (
+                      <TableRow key={field.id}>
+                        <TableCell>
+                          <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (
+                            <Input placeholder="Ex: FRETE" {...field} />
+                          )} />
+                        </TableCell>
+                        <TableCell>
+                          <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
+                            <Input placeholder="Ex: Por Contêiner" {...field} />
+                          )} />
+                        </TableCell>
+                        <TableCell>
+                          <FormField control={form.control} name={`charges.${index}.localPagamento`} render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="Origem">Origem</SelectItem>
+                                  <SelectItem value="Frete">Frete</SelectItem>
+                                  <SelectItem value="Destino">Destino</SelectItem>
+                              </SelectContent>
                             </Select>
-                        )} />
-                       </TableCell>
-                       <TableCell>
-                           <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                               <Trash2 className="h-4 w-4 text-destructive" />
-                           </Button>
-                       </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                          )} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center gap-1">
+                            <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
+                                <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
+                              </Select>
+                            )} />
+                            <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
+                              <Input type="number" {...field} className="w-full" />
+                            )} />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center gap-1">
+                            <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
+                                <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
+                              </Select>
+                            )} />
+                            <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
+                              <Input type="number" {...field} className="w-full" />
+                            )} />
+                          </div>
+                        </TableCell>
+                        <TableCell className={cn('font-semibold text-right', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
+                            {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
+                            <Input placeholder="Ex: Maersk" {...field} />
+                          )} />
+                        </TableCell>
+                        <TableCell>
+                          <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
+                              <Select onValueChange={field.onChange} value={field.value || quote.customer}>
+                                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                  <SelectContent>
+                                      {clientPartners.map(p => (
+                                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                                      ))}
+                                  </SelectContent>
+                              </Select>
+                          )} />
+                        </TableCell>
+                        <TableCell>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </ScrollArea>
           </div>
           
           <Separator />

@@ -20,6 +20,7 @@ import { syncDFAgents } from "@/ai/flows/sync-df-alliance-agents";
 import { getShipments, updateShipment } from "@/lib/shipment";
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
+import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 
 
 export async function runGetFreightRates(input: any) {
@@ -265,5 +266,15 @@ export async function runSendDemurrageInvoice(input: any) {
     } catch (error: any) {
         console.error("Send Demurrage Invoice Action Failed", error);
         return { success: false, error: error.message || "Failed to send demurrage invoice" };
+    }
+}
+
+export async function runGenerateNfseXml(input: any) {
+    try {
+        const data = await generateNfseXml(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Generate NFS-e XML Action Failed", error);
+        return { success: false, error: error.message || "Failed to generate XML" };
     }
 }

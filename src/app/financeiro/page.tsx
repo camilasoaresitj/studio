@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,13 +10,14 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, ArrowUpRight, ArrowDownRight, DollarSign, FileText, Download, Upload, Filter, MoreHorizontal, FileDown } from 'lucide-react';
+import { CalendarIcon, ArrowUpRight, ArrowDownRight, DollarSign, FileText, Download, Upload, Filter, MoreHorizontal, FileDown, Trash2 } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const kpiData = {
     dueToday: 15250.75,
@@ -28,6 +29,7 @@ const kpiData = {
 export default function FinanceiroPage() {
     const [entries, setEntries] = useState<FinancialEntry[]>(getFinancialEntries);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+    const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const { toast } = useToast();
 
     const getStatusVariant = (entry: FinancialEntry): 'default' | 'secondary' | 'destructive' | 'success' => {
@@ -42,6 +44,52 @@ export default function FinanceiroPage() {
             title: 'Funcionalidade em Desenvolvimento',
             description: `A ação "${action}" para a fatura ${entryId} será implementada em breve.`,
         });
+    };
+    
+    const toggleRowSelection = (id: string) => {
+        setSelectedRows(prev => {
+            const newSelection = new Set(prev);
+            if (newSelection.has(id)) {
+                newSelection.delete(id);
+            } else {
+                newSelection.add(id);
+            }
+            return newSelection;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedRows.size === entries.length) {
+            setSelectedRows(new Set());
+        } else {
+            setSelectedRows(new Set(entries.map(e => e.id)));
+        }
+    };
+
+    const unifiedSettlementData = useMemo(() => {
+        if (selectedRows.size === 0) return null;
+
+        const selectedEntries = entries.filter(e => selectedRows.has(e.id));
+        const netTotal = selectedEntries.reduce((sum, entry) => {
+            return sum + (entry.type === 'credit' ? entry.amount : -entry.amount);
+        }, 0);
+
+        return {
+            count: selectedRows.size,
+            netTotal,
+        };
+    }, [selectedRows, entries]);
+
+    const handleUnifiedSettlement = () => {
+        if (!unifiedSettlementData) return;
+        
+        toast({
+            title: 'Baixa Unificada (Simulação)',
+            description: `${unifiedSettlementData.count} lançamento(s) foram selecionados, com um valor líquido de R$ ${unifiedSettlementData.netTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
+            className: 'bg-success text-success-foreground'
+        });
+        // In a real scenario, you'd update the status of selected items here and clear selection.
+        setSelectedRows(new Set());
     };
 
     return (
@@ -122,10 +170,33 @@ export default function FinanceiroPage() {
               </Popover>
                <Button variant="outline"><Filter className="mr-2 h-4 w-4" />Filtrar</Button>
           </div>
+          
+          {unifiedSettlementData && (
+              <div className="flex items-center justify-between p-3 mb-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
+                  <div className="text-sm font-medium">
+                      {unifiedSettlementData.count} item(s) selecionado(s). Total líquido: 
+                      <span className={cn("font-bold", unifiedSettlementData.netTotal >= 0 ? 'text-success' : 'text-destructive' )}>
+                          R$ {unifiedSettlementData.netTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                  </div>
+                  <Button size="sm" onClick={handleUnifiedSettlement}>
+                    <DollarSign className="mr-2 h-4 w-4"/>
+                    Realizar Baixa Unificada
+                  </Button>
+              </div>
+          )}
+
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                        checked={selectedRows.size === entries.length && entries.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Selecionar todos"
+                    />
+                  </TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Parceiro</TableHead>
                   <TableHead>Fatura</TableHead>
@@ -137,7 +208,14 @@ export default function FinanceiroPage() {
               </TableHeader>
               <TableBody>
                 {entries.map((entry) => (
-                  <TableRow key={entry.id}>
+                  <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
+                    <TableCell>
+                         <Checkbox
+                            checked={selectedRows.has(entry.id)}
+                            onCheckedChange={() => toggleRowSelection(entry.id)}
+                            aria-label="Selecionar linha"
+                        />
+                    </TableCell>
                     <TableCell>
                       <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
                     </TableCell>

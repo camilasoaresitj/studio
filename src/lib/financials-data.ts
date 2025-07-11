@@ -18,7 +18,7 @@ export type FinancialEntry = {
     type: 'credit' | 'debit';
     partner: string;
     invoiceId: string;
-    status: 'Aberto' | 'Pago' | 'Vencido';
+    status: 'Aberto' | 'Pago' | 'Vencido' | 'Jurídico';
     dueDate: string; // ISO string format
     amount: number;
     currency: 'BRL' | 'USD';
@@ -95,6 +95,19 @@ const initialFinancialData: FinancialEntry[] = [
         processId: 'PROC-INV-2024-068',
         accountId: 1,
     },
+    {
+        id: 'fin-010',
+        type: 'credit',
+        partner: 'Empresa Dívida Ativa',
+        invoiceId: 'INV-2023-001',
+        status: 'Jurídico',
+        dueDate: subDays(today, 180).toISOString(),
+        amount: 99500.00,
+        currency: 'BRL',
+        processId: 'PROC-JURIDICO-1',
+        accountId: 1,
+    },
+
 
     // --- Contas a Pagar (Débitos) ---
     {
@@ -148,7 +161,7 @@ const initialFinancialData: FinancialEntry[] = [
 ];
 
 // In a real app, this would fetch from a database. Here, we use local storage for persistence.
-const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v3';
+const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v4';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
 export function getFinancialEntries(): FinancialEntry[] {

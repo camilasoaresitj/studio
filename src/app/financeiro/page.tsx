@@ -6,25 +6,21 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   MoreHorizontal,
   DollarSign,
-  FileDown,
-  Edit,
-  Pencil,
-  FileText,
-  Send,
-  Printer,
   Eye,
+  Send,
+  FileText,
   ArrowDownCircle,
   ArrowUpCircle,
   CalendarDays,
-  ListFilter
+  ListFilter,
+  ShieldAlert
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts } from '@/lib/financials-data';
+import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -38,6 +34,9 @@ import type { Shipment } from '@/lib/shipment';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
 import { runGenerateQuotePdfHtml, runSendQuote } from '@/app/actions';
+import { FinancialEntryImporter } from '@/components/financials/financial-entry-importer';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 type FilterType = 'all' | 'dueTodayReceivable' | 'dueTodayPayable' | 'dueThisMonth';
 
@@ -64,8 +63,8 @@ export default function FinanceiroPage() {
     }, []);
 
     const dashboardData = useMemo(() => {
-        const todayEntries = entries.filter(e => isToday(new Date(e.dueDate)));
-        const monthEntries = entries.filter(e => isThisMonth(new Date(e.dueDate)));
+        const todayEntries = entries.filter(e => isToday(new Date(e.dueDate)) && e.status !== 'Pago');
+        const monthEntries = entries.filter(e => isThisMonth(new Date(e.dueDate)) && e.status !== 'Pago');
 
         return {
             dueTodayReceivable: todayEntries.filter(e => e.type === 'credit').reduce((sum, e) => sum + e.amount, 0),
@@ -75,25 +74,31 @@ export default function FinanceiroPage() {
     }, [entries]);
 
     const filteredEntries = useMemo(() => {
-        return entries.filter(entry => {
+        const nonJuridicoEntries = entries.filter(e => e.status !== 'Jurídico');
+        return nonJuridicoEntries.filter(entry => {
             const dueDate = new Date(entry.dueDate);
             switch (activeFilter) {
                 case 'dueTodayReceivable':
-                    return isToday(dueDate) && entry.type === 'credit';
+                    return isToday(dueDate) && entry.type === 'credit' && entry.status !== 'Pago';
                 case 'dueTodayPayable':
-                    return isToday(dueDate) && entry.type === 'debit';
+                    return isToday(dueDate) && entry.type === 'debit' && entry.status !== 'Pago';
                 case 'dueThisMonth':
-                    return isThisMonth(dueDate);
+                    return isThisMonth(dueDate) && entry.status !== 'Pago';
                 case 'all':
                 default:
                     return true;
             }
         });
     }, [entries, activeFilter]);
+    
+    const juridicoEntries = useMemo(() => {
+        return entries.filter(e => e.status === 'Jurídico');
+    }, [entries]);
 
 
     const getStatusVariant = (entry: FinancialEntry): 'default' | 'secondary' | 'destructive' | 'success' => {
         if (entry.status === 'Pago') return 'success';
+        if (entry.status === 'Jurídico') return 'default';
         if (isPast(new Date(entry.dueDate)) && !isToday(new Date(entry.dueDate))) return 'destructive';
         if (isToday(new Date(entry.dueDate))) return 'default';
         return 'secondary';
@@ -293,16 +298,105 @@ export default function FinanceiroPage() {
         }
     };
 
+    const handleEntriesImported = (importedEntries: FinancialEntry[]) => {
+        setEntries(currentEntries => {
+            const newEntries = [...currentEntries, ...importedEntries];
+            saveFinancialEntries(newEntries);
+            return newEntries;
+        });
+    };
+
     if (!isClient) {
         return null;
     }
+
+    const renderTable = (entries: FinancialEntry[]) => (
+        <div className="border rounded-lg">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead className="w-10">
+                    <Checkbox
+                        checked={selectedRows.size === filteredEntries.length && filteredEntries.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Selecionar todos"
+                    />
+                </TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Parceiro</TableHead>
+                <TableHead>Fatura</TableHead>
+                <TableHead>Conta</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Vencimento</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-center">Ações</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {entries.map((entry) => (
+                <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
+                    <TableCell>
+                        <Checkbox
+                            checked={selectedRows.has(entry.id)}
+                            onCheckedChange={() => toggleRowSelection(entry.id)}
+                            aria-label="Selecionar linha"
+                        />
+                    </TableCell>
+                    <TableCell>
+                    <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">{entry.partner}</TableCell>
+                    <TableCell>
+                        <a href="#" onClick={(e) => { e.preventDefault(); handleInvoiceClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                            {entry.invoiceId}
+                        </a>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                        {accounts.find(a => a.id === entry.accountId)?.name || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                    <Badge variant={getStatusVariant(entry)} className="capitalize">{entry.status}</Badge>
+                    </TableCell>
+                    <TableCell className={cn(getStatusVariant(entry) === 'destructive' && 'text-destructive font-bold')}>
+                    {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
+                    </TableCell>
+                    <TableCell className={cn("text-right font-mono", entry.type === 'credit' ? 'text-success' : 'text-foreground')}>
+                    {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-center">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setEntryToSettle(entry)}>Baixar Pagamento</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleGenerateInvoicePdf(entry)}>
+                                    <Eye className="mr-2 h-4 w-4" /> Visualizar Fatura
+                                </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
+                                    <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
+                                </DropdownMenuItem>
+                                {entry.type === 'credit' && (
+                                    <>
+                                        <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
+                                            <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                </TableRow>
+                ))}
+            </TableBody>
+            </Table>
+        </div>
+    );
 
     return (
     <div className="p-4 md:p-8">
       <header className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-foreground">Módulo Financeiro</h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Gerencie suas contas, faturas, notas fiscais e boletos.
+          Gerencie suas contas, faturas, notas fiscais e processos jurídicos.
         </p>
       </header>
       
@@ -353,7 +447,7 @@ export default function FinanceiroPage() {
                 <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
                 <TabsTrigger value="contas">Contas Bancárias</TabsTrigger>
                 <TabsTrigger value="nfse">Consulta NFS-e</TabsTrigger>
-                <TabsTrigger value="boletos">Consulta Boletos</TabsTrigger>
+                <TabsTrigger value="juridico">Jurídico</TabsTrigger>
             </TabsList>
 
             <TabsContent value="lancamentos" className="mt-6">
@@ -368,9 +462,9 @@ export default function FinanceiroPage() {
                     </CardDescription>
                     </CardHeader>
                     <CardContent>
-                    
+                    <FinancialEntryImporter onEntriesImported={handleEntriesImported} />
                     {unifiedSettlementData && (
-                        <div className="flex items-center justify-between p-3 mb-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
+                        <div className="flex items-center justify-between p-3 my-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
                             <div className="text-sm font-medium">
                                 {unifiedSettlementData.count} item(s) selecionado(s). Totais: 
                                 {Object.entries(unifiedSettlementData.totalsByCurrency).map(([currency, total]) => (
@@ -386,84 +480,7 @@ export default function FinanceiroPage() {
                         </div>
                     )}
 
-                    <div className="border rounded-lg">
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead className="w-10">
-                                <Checkbox
-                                    checked={selectedRows.size === filteredEntries.length && filteredEntries.length > 0}
-                                    onCheckedChange={toggleSelectAll}
-                                    aria-label="Selecionar todos"
-                                />
-                            </TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Parceiro</TableHead>
-                            <TableHead>Fatura</TableHead>
-                            <TableHead>Conta</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Vencimento</TableHead>
-                            <TableHead className="text-right">Valor</TableHead>
-                            <TableHead className="text-center">Ações</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredEntries.map((entry) => (
-                            <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
-                                <TableCell>
-                                    <Checkbox
-                                        checked={selectedRows.has(entry.id)}
-                                        onCheckedChange={() => toggleRowSelection(entry.id)}
-                                        aria-label="Selecionar linha"
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
-                                </TableCell>
-                                <TableCell className="font-medium">{entry.partner}</TableCell>
-                                <TableCell>
-                                    <a href="#" onClick={(e) => { e.preventDefault(); handleInvoiceClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
-                                        {entry.invoiceId}
-                                    </a>
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">
-                                    {accounts.find(a => a.id === entry.accountId)?.name || 'N/A'}
-                                </TableCell>
-                                <TableCell>
-                                <Badge variant={getStatusVariant(entry)} className="capitalize">{entry.status}</Badge>
-                                </TableCell>
-                                <TableCell className={cn(getStatusVariant(entry) === 'destructive' && 'text-destructive font-bold')}>
-                                {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
-                                </TableCell>
-                                <TableCell className={cn("text-right font-mono", entry.type === 'credit' ? 'text-success' : 'text-foreground')}>
-                                {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => setEntryToSettle(entry)}>Baixar Pagamento</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleGenerateInvoicePdf(entry)}>
-                                                <Eye className="mr-2 h-4 w-4" /> Visualizar Fatura
-                                            </DropdownMenuItem>
-                                             <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
-                                                <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
-                                            </DropdownMenuItem>
-                                            {entry.type === 'credit' && (
-                                                <>
-                                                    <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
-                                                        <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
-                                                    </DropdownMenuItem>
-                                                </>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                            ))}
-                        </TableBody>
-                        </Table>
-                    </div>
+                    {renderTable(filteredEntries)}
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -499,7 +516,7 @@ export default function FinanceiroPage() {
                                             <TableCell className="text-right font-mono">{account.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                                             <TableCell className="text-center">
                                                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingAccount(account); }}>
-                                                    <Pencil className="h-4 w-4" />
+                                                    <MoreHorizontal className="h-4 w-4" />
                                                  </Button>
                                             </TableCell>
                                          </TableRow>
@@ -543,34 +560,16 @@ export default function FinanceiroPage() {
                  </Card>
             </TabsContent>
 
-            <TabsContent value="boletos" className="mt-6">
+            <TabsContent value="juridico" className="mt-6">
                  <Card>
                     <CardHeader>
-                        <CardTitle>Consulta de Boletos</CardTitle>
-                        <CardDescription>Visualize todos os boletos emitidos para seus clientes.</CardDescription>
+                        <CardTitle className="flex items-center gap-2">
+                           <ShieldAlert className="h-5 w-5 text-destructive" /> Processos em Jurídico
+                        </CardTitle>
+                        <CardDescription>Faturas que foram enviadas para cobrança judicial ou protesto.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <div className="border rounded-lg">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nosso Número</TableHead>
-                                        <TableHead>Sacado</TableHead>
-                                        <TableHead>Vencimento</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Valor</TableHead>
-                                        <TableHead className="text-center">Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
-                                            Nenhum boleto emitido ainda.
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </div>
+                        {renderTable(juridicoEntries)}
                     </CardContent>
                  </Card>
             </TabsContent>

@@ -56,17 +56,18 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
 
   React.useEffect(() => {
-    // This effect ensures the form is reset with the new quote data whenever the quote prop changes.
-    // This is the fix for the table appearing empty.
     if (quote) {
       form.reset({ charges: quote.charges || [] });
     }
+  }, [quote, form]);
+
+  React.useEffect(() => {
     const fetchRates = async () => {
         const rates = await exchangeRateService.getRates();
         setExchangeRates(rates);
     };
     fetchRates();
-  }, [quote, form]);
+  }, []);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,

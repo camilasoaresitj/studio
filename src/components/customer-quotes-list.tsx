@@ -367,8 +367,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         </CardContent>
     </Card>
     <Dialog open={!!selectedQuote} onOpenChange={(isOpen) => !isOpen && setSelectedQuote(null)}>
-        {/* By adding a key here, we force React to re-mount the component when the selected quote changes, ensuring the form inside re-initializes. */}
-        <DialogContent key={selectedQuote?.id} className="max-w-6xl h-[90vh]">
+        <DialogContent key={selectedQuote?.id} className="sm:max-w-6xl h-[90vh]">
             {selectedQuote && (
                 <>
                     <DialogHeader>

@@ -1,4 +1,5 @@
 
+'use client';
 import { z } from 'zod';
 
 export const partnerSchema = z.object({
@@ -39,7 +40,7 @@ export const partnerSchema = z.object({
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v2';
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v3';
 
 function getInitialPartners(): Partner[] {
     return [

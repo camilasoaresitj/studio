@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, ArrowUpRight, ArrowDownRight, DollarSign, FileText, Download, Upload, Filter, MoreHorizontal, FileDown, Trash2, Landmark } from 'lucide-react';
+import { CalendarIcon, DollarSign, FileDown, Filter, MoreHorizontal, Upload, Landmark } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts } from '@/lib/financials-data';
@@ -18,19 +18,16 @@ import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
-
-const kpiData = {
-    dueToday: 15250.75,
-    overdue: 45800.00,
-    receivablesMonth: 185400.50,
-    payablesMonth: 95320.00,
-};
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Label } from '@/components/ui/label';
 
 export default function FinanceiroPage() {
     const [entries, setEntries] = useState<FinancialEntry[]>(getFinancialEntries);
     const [accounts, setAccounts] = useState<BankAccount[]>(getBankAccounts);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+    const [entryToSettle, setEntryToSettle] = useState<FinancialEntry | null>(null);
+    const [settlementAccountId, setSettlementAccountId] = useState<string>('');
     const { toast } = useToast();
 
     const getStatusVariant = (entry: FinancialEntry): 'default' | 'secondary' | 'destructive' | 'success' => {
@@ -40,11 +37,25 @@ export default function FinanceiroPage() {
         return 'secondary';
     };
     
-    const handleAction = (action: string, entryId: string) => {
+    const handleSettlePayment = () => {
+        if (!entryToSettle || !settlementAccountId) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: 'Fatura ou conta bancária não selecionada.',
+            });
+            return;
+        }
+
         toast({
-            title: 'Funcionalidade em Desenvolvimento',
-            description: `A ação "${action}" para a fatura ${entryId} será implementada em breve.`,
+            title: 'Baixa de Pagamento (Simulação)',
+            description: `A fatura ${entryToSettle.invoiceId} foi marcada como paga na conta ID ${settlementAccountId}.`,
+            className: 'bg-success text-success-foreground'
         });
+        
+        // In a real app, you would update the entry status here.
+        setEntryToSettle(null);
+        setSettlementAccountId('');
     };
     
     const toggleRowSelection = (id: string) => {
@@ -99,7 +110,6 @@ export default function FinanceiroPage() {
             description: `${unifiedSettlementData.count} lançamento(s) selecionado(s). Totais: ${totalsString}`,
             className: 'bg-success text-success-foreground'
         });
-        // In a real scenario, you'd update the status of selected items here and clear selection.
         setSelectedRows(new Set());
     };
 
@@ -107,6 +117,20 @@ export default function FinanceiroPage() {
         toast({
             title: "Visualização de Detalhes",
             description: `Em breve, será possível ver os detalhes da fatura vinculada ao processo ${processId}.`
+        });
+    };
+
+    const handleAccountClick = (accountName: string) => {
+        toast({
+            title: "Visualização de Extrato",
+            description: `A tela de extrato para a conta "${accountName}" será implementada em breve.`
+        });
+    };
+    
+    const handleOtherActions = (action: string, invoiceId: string) => {
+         toast({
+            title: 'Funcionalidade em Desenvolvimento',
+            description: `A ação "${action}" para a fatura ${invoiceId} será implementada em breve.`,
         });
     };
 
@@ -121,7 +145,7 @@ export default function FinanceiroPage() {
       
         <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
             {accounts.map(account => (
-                 <Card key={account.id}>
+                 <Card key={account.id} onClick={() => handleAccountClick(account.name)} className="cursor-pointer hover:border-primary transition-colors">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
                         <Landmark className="h-5 w-5 text-muted-foreground" />
@@ -157,7 +181,7 @@ export default function FinanceiroPage() {
               </Select>
                <Select defaultValue="all-types">
                   <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
-                  <SelectContent><SelectItem value="all-types">Todos Tipos</SelectItem><SelectItem value="credito">Crédito</SelectItem><SelectItem value="debito">Débito</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="all-types">Todos Tipos</SelectItem><SelectItem value="credit">Crédito</SelectItem><SelectItem value="debit">Débito</SelectItem></SelectContent>
               </Select>
               <Popover>
                 <PopoverTrigger asChild>
@@ -243,11 +267,11 @@ export default function FinanceiroPage() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleAction('Baixar Pagamento', entry.invoiceId)}>Baixar Pagamento</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setEntryToSettle(entry)}>Baixar Pagamento</DropdownMenuItem>
                                 {entry.type === 'credit' && (
                                     <>
-                                        <DropdownMenuItem onClick={() => handleAction('Emitir Boleto', entry.invoiceId)}>Emitir Boleto</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleAction('Emitir NF de Serviço', entry.invoiceId)}>Emitir NF de Serviço</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleOtherActions('Emitir Boleto', entry.invoiceId)}>Emitir Boleto</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleOtherActions('Emitir NF de Serviço', entry.invoiceId)}>Emitir NF de Serviço</DropdownMenuItem>
                                     </>
                                 )}
                             </DropdownMenuContent>
@@ -268,6 +292,41 @@ export default function FinanceiroPage() {
           </div>
         </CardContent>
       </Card>
+      
+        <AlertDialog open={!!entryToSettle} onOpenChange={(isOpen) => !isOpen && setEntryToSettle(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Baixa de Pagamento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecione a conta bancária para realizar a baixa da fatura <strong>{entryToSettle?.invoiceId}</strong> no valor de <strong>{entryToSettle?.currency} {entryToSettle?.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong>.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="bank-account-select">Conta Bancária</Label>
+                    <Select onValueChange={setSettlementAccountId} value={settlementAccountId}>
+                        <SelectTrigger id="bank-account-select" className="mt-2">
+                            <SelectValue placeholder="Selecione a conta..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {accounts.map(account => (
+                                <SelectItem key={account.id} value={account.id.toString()}>
+                                    {account.name} ({account.currency})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setEntryToSettle(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSettlePayment} disabled={!settlementAccountId}>
+                        Confirmar Baixa
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
     </div>
   );
 }
+
+    

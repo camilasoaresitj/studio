@@ -12,16 +12,15 @@ import {
   Eye,
   Send,
   FileText,
-  ArrowDownCircle,
-  ArrowUpCircle,
   Banknote,
   PlusCircle,
-  ShieldAlert
+  ShieldAlert,
+  Users
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -32,7 +31,7 @@ import { getShipments } from '@/lib/shipment';
 import type { Shipment } from '@/lib/shipment';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
-import { runGenerateQuotePdfHtml, runSendQuote } from '@/app/actions';
+import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote } from '@/app/actions';
 import { FinancialEntryImporter } from '@/components/financials/financial-entry-importer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exchangeRateService } from '@/services/exchange-rate-service';
@@ -215,7 +214,17 @@ export default function FinanceiroPage() {
         setEditingAccount(null);
     };
 
-    const handleGenerateInvoicePdf = async (entry: FinancialEntry) => {
+    const openGeneratedHtml = (html: string | undefined) => {
+        if (html) {
+            const newTab = window.open();
+            newTab?.document.write(html);
+            newTab?.document.close();
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao gerar fatura', description: 'O conteúdo da fatura não pôde ser gerado.' });
+        }
+    };
+
+    const handleGenerateClientInvoicePdf = async (entry: FinancialEntry) => {
         const shipment = allShipments.find(s => s.id === entry.processId);
         if (!shipment) {
             toast({ variant: 'destructive', title: 'Processo não encontrado' });
@@ -226,22 +235,20 @@ export default function FinanceiroPage() {
         const exchangeRates = await exchangeRateService.getRates();
         const ptaxRate = exchangeRates['USD'] || 5.0; // Fallback
 
-        const charges = shipment.charges.map(c => {
-            return {
-                description: c.name,
-                quantity: 1,
-                value: formatValue(c.sale),
-                total: formatValue(c.sale),
-                currency: c.saleCurrency
-            }
-        });
+        const charges = shipment.charges.map(c => ({
+            description: c.name,
+            quantity: 1,
+            value: formatValue(c.sale),
+            total: formatValue(c.sale),
+            currency: c.saleCurrency
+        }));
 
         const totalBRL = shipment.charges.reduce((sum, charge) => {
             const rate = charge.saleCurrency === 'USD' ? ptaxRate : 1;
             return sum + (charge.sale * rate);
         }, 0);
         
-        const response = await runGenerateQuotePdfHtml({
+        const response = await runGenerateClientInvoicePdf({
             invoiceNumber: entry.invoiceId,
             customerName: entry.partner,
             customerAddress: shipment.consignee?.address ? `${shipment.consignee.address.street}, ${shipment.consignee.address.city}` : 'Endereço não disponível',
@@ -250,17 +257,58 @@ export default function FinanceiroPage() {
             total: formatValue(totalBRL),
             exchangeRate: ptaxRate,
             bankDetails: {
-                bankName: "Salford & Co.",
-                accountNumber: "0123 4567 8901 2345"
+                bankName: "LTI GLOBAL",
+                accountNumber: "PIX: 10.298.168/0001-89"
             }
         });
 
-        if (response.success && response.data?.html) {
-            const newTab = window.open();
-            newTab?.document.write(response.data.html);
-            newTab?.document.close();
+        if (response.success) {
+            openGeneratedHtml(response.data?.html);
         } else {
-            toast({ variant: 'destructive', title: 'Erro ao gerar fatura', description: response.error });
+             toast({ variant: 'destructive', title: 'Erro ao gerar fatura', description: response.error });
+        }
+    };
+
+    const handleGenerateAgentInvoicePdf = async (entry: FinancialEntry) => {
+        const shipment = allShipments.find(s => s.id === entry.processId);
+        if (!shipment || !shipment.agent) {
+            toast({ variant: 'destructive', title: 'Processo ou Agente não encontrado' });
+            return;
+        }
+
+        const formatValue = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const mainCurrency = 'USD'; // Agent invoices are usually in USD
+
+        const charges = shipment.charges.map(c => {
+            const profit = (c.saleCurrency === c.costCurrency) ? c.sale - c.cost : 0;
+            return {
+                description: c.name,
+                cost: formatValue(c.cost),
+                sale: formatValue(c.sale),
+                profit: formatValue(profit),
+                currency: c.saleCurrency, // Assuming sale currency is the primary one
+            };
+        });
+
+        const totalCost = shipment.charges.reduce((sum, c) => sum + (c.costCurrency === mainCurrency ? c.cost : 0), 0);
+        const totalSale = shipment.charges.reduce((sum, c) => sum + (c.saleCurrency === mainCurrency ? c.sale : 0), 0);
+
+        const response = await runGenerateAgentInvoicePdf({
+            invoiceNumber: `AINV-${entry.invoiceId}`,
+            processId: entry.processId,
+            agentName: shipment.agent.name,
+            date: new Date().toLocaleDateString('en-US'),
+            charges,
+            totalCost: formatValue(totalCost),
+            totalSale: formatValue(totalSale),
+            totalProfit: formatValue(totalSale - totalCost),
+            currency: mainCurrency,
+        });
+        
+        if (response.success) {
+            openGeneratedHtml(response.data?.html);
+        } else {
+             toast({ variant: 'destructive', title: 'Erro ao gerar invoice do agente', description: response.error });
         }
     };
     
@@ -366,12 +414,18 @@ export default function FinanceiroPage() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEntryToSettle(entry)}>Baixar Pagamento</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleGenerateInvoicePdf(entry)}>
-                                    <Eye className="mr-2 h-4 w-4" /> Visualizar Fatura
+                                <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)}>
+                                    <Eye className="mr-2 h-4 w-4" /> Visualizar Fatura (Cliente)
                                 </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
+                                <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={!allShipments.find(s => s.id === entry.processId)?.agent}>
+                                    <Users className="mr-2 h-4 w-4" /> Visualizar Invoice (Agente)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
                                     <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setEntryToSettle(entry)}>
+                                    <DollarSign className="mr-2 h-4 w-4" /> Baixar Pagamento
                                 </DropdownMenuItem>
                                 {entry.type === 'credit' && (
                                     <>

@@ -591,10 +591,13 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       }
       
       const exchangeRates = await exchangeRateService.getRates();
+      const customerAgio = customer.exchangeRateAgio ?? 0;
       
       const totalSaleBRL = activeQuote.charges.reduce((acc, charge) => {
-        const rate = exchangeRates[charge.saleCurrency] || 1;
-        return acc + charge.sale * rate;
+        const ptaxRate = exchangeRates[charge.saleCurrency] || 1;
+        const finalRate = ptaxRate * (1 + (customerAgio / 100));
+        const rateToUse = charge.saleCurrency === 'BRL' ? 1 : finalRate;
+        return acc + charge.sale * rateToUse;
       }, 0);
 
       const finalPrice = `BRL ${totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -680,14 +683,19 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                 total: formatValue(c.sale),
             }));
 
-        const totalsByCurrency: { [key: string]: number } = {};
-        quote.charges.forEach(charge => {
-            totalsByCurrency[charge.saleCurrency] = (totalsByCurrency[charge.saleCurrency] || 0) + charge.sale;
-        });
+        const customer = partners.find(p => p.name === quote.customer);
+        const exchangeRates = await exchangeRateService.getRates();
+        const customerAgio = customer?.exchangeRateAgio ?? 0;
+        const finalPtaxUsd = exchangeRates['USD'] * (1 + (customerAgio / 100));
 
-        const totalAllIn = Object.entries(totalsByCurrency)
-            .map(([currency, total]) => `${currency} ${formatValue(total)}`)
-            .join(' + ');
+        const totalBRL = quote.charges.reduce((sum, charge) => {
+            const ptaxRate = exchangeRates[charge.saleCurrency] || 1;
+            const finalRate = ptaxRate * (1 + (customerAgio / 100));
+            const rateToUse = charge.saleCurrency === 'BRL' ? 1 : finalRate;
+            return sum + charge.sale * rateToUse;
+        }, 0);
+
+        const totalAllIn = `BRL ${formatValue(totalBRL)}`;
 
         const response = await runGenerateClientInvoicePdf({
             quoteNumber: quote.id.replace('-DRAFT', ''),

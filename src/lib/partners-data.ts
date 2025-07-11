@@ -13,7 +13,7 @@ export const partnerSchema = z.object({
   }),
   cnpj: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
-  exchangeRateAgio: z.coerce.number().optional(),
+  exchangeRateAgio: z.coerce.number().optional().default(0),
   profitAgreement: z.object({
       amount: z.number().optional(),
       unit: z.enum(['por_container', 'por_bl', 'porcentagem_lucro']).optional(),
@@ -50,6 +50,7 @@ function getInitialPartners(): Partner[] {
             roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
             cnpj: "12.345.678/0001-90",
             paymentTerm: 30,
+            exchangeRateAgio: 2.5,
             address: {
                 street: "Rua da Carga",
                 number: "123",
@@ -74,6 +75,7 @@ function getInitialPartners(): Partner[] {
             roles: { cliente: false, fornecedor: false, agente: true, comissionado: false },
             cnpj: "98.765.432/0001-09",
             paymentTerm: 45,
+            exchangeRateAgio: 0,
             profitAgreement: {
                 amount: 50,
                 unit: 'por_container',
@@ -103,6 +105,7 @@ function getInitialPartners(): Partner[] {
             roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
             cnpj: "54.321.876/0001-21",
             paymentTerm: 60,
+            exchangeRateAgio: 0,
             address: {
                 street: "Wall Street",
                 number: "100",

@@ -91,10 +91,13 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
       }
       
       const exchangeRates = await exchangeRateService.getRates();
+      const customerAgio = customer.exchangeRateAgio ?? 0;
       
       const totalSaleBRL = quoteToSend.charges.reduce((acc, charge) => {
-        const rate = exchangeRates[charge.saleCurrency] || 1;
-        return acc + charge.sale * rate;
+        const ptaxRate = exchangeRates[charge.saleCurrency] || 1;
+        const finalRate = ptaxRate * (1 + (customerAgio / 100));
+        const rateToUse = charge.saleCurrency === 'BRL' ? 1 : finalRate;
+        return acc + charge.sale * rateToUse;
       }, 0);
 
       const finalPrice = `BRL ${totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -165,9 +168,16 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 currency: c.saleCurrency
             }));
 
+            const customer = partners.find(p => p.name === quote.customer);
+            const exchangeRates = await exchangeRateService.getRates();
+            const customerAgio = customer?.exchangeRateAgio ?? 0;
+            const finalPtaxUsd = exchangeRates['USD'] * (1 + (customerAgio / 100));
+
             const totalBRL = quote.charges.reduce((sum, charge) => {
-                const rate = charge.saleCurrency === 'USD' ? 5.0 : 1; // Simplified rate
-                return sum + (charge.sale * rate);
+                const ptaxRate = exchangeRates[charge.saleCurrency] || 1;
+                const finalRate = ptaxRate * (1 + (customerAgio / 100));
+                const rateToUse = charge.saleCurrency === 'BRL' ? 1 : finalRate;
+                return sum + charge.sale * rateToUse;
             }, 0);
             
             const response = await runGenerateClientInvoicePdf({
@@ -177,7 +187,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 date: new Date().toLocaleDateString('pt-br'),
                 charges: charges,
                 total: formatValue(totalBRL),
-                exchangeRate: 5.0,
+                exchangeRate: finalPtaxUsd,
                 bankDetails: {
                     bankName: "LTI GLOBAL",
                     accountNumber: "PIX: 10.298.168/0001-89"

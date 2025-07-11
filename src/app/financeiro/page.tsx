@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, ArrowUpRight, ArrowDownRight, DollarSign, FileText, Download, Upload, Filter, MoreHorizontal, FileDown, Trash2 } from 'lucide-react';
+import { CalendarIcon, ArrowUpRight, ArrowDownRight, DollarSign, FileText, Download, Upload, Filter, MoreHorizontal, FileDown, Trash2, Landmark } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
+import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ const kpiData = {
 
 export default function FinanceiroPage() {
     const [entries, setEntries] = useState<FinancialEntry[]>(getFinancialEntries);
+    const [accounts, setAccounts] = useState<BankAccount[]>(getBankAccounts);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const { toast } = useToast();
@@ -119,46 +120,18 @@ export default function FinanceiroPage() {
       </header>
       
         <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">A Vencer Hoje</CardTitle>
-                <DollarSign className="h-5 w-5 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">R$ {kpiData.dueToday.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                <p className="text-xs text-muted-foreground">Soma de pagamentos e recebimentos.</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Faturas Vencidas</CardTitle>
-                <ArrowDownRight className="h-5 w-5 text-destructive" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-destructive">R$ {kpiData.overdue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                <p className="text-xs text-muted-foreground">Total de contas a receber vencidas.</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Receber no Mês</CardTitle>
-                <ArrowUpRight className="h-5 w-5 text-success" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-success">R$ {kpiData.receivablesMonth.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                <p className="text-xs text-muted-foreground">Expectativa de recebimentos para este mês.</p>
-              </CardContent>
-            </Card>
-             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pagar no Mês</CardTitle>
-                <ArrowDownRight className="h-5 w-5 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">R$ {kpiData.payablesMonth.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                <p className="text-xs text-muted-foreground">Expectativa de pagamentos para este mês.</p>
-              </CardContent>
-            </Card>
+            {accounts.map(account => (
+                 <Card key={account.id}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
+                        <Landmark className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{account.currency} {account.balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                        <p className="text-xs text-muted-foreground">{account.bankName} - Ag: {account.agency} C/C: {account.accountNumber}</p>
+                    </CardContent>
+                </Card>
+            ))}
         </div>
 
       <Card>
@@ -169,6 +142,15 @@ export default function FinanceiroPage() {
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
               <Input placeholder="Filtrar por Cliente/Fornecedor..." className="flex-grow" />
+              <Select defaultValue="all-accounts">
+                  <SelectTrigger className="w-full sm:w-[220px]"><SelectValue placeholder="Contas Bancárias" /></SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="all-accounts">Todas as Contas</SelectItem>
+                      {accounts.map(account => (
+                          <SelectItem key={account.id} value={account.id.toString()}>{account.name}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
               <Select defaultValue="all-status">
                   <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent><SelectItem value="all-status">Todos Status</SelectItem><SelectItem value="aberto">Aberto</SelectItem><SelectItem value="pago">Pago</SelectItem><SelectItem value="vencido">Vencido</SelectItem></SelectContent>
@@ -179,7 +161,7 @@ export default function FinanceiroPage() {
               </Select>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal sm:w-[240px]", !selectedDate && "text-muted-foreground")}>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal sm:w-auto", !selectedDate && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />{selectedDate ? format(selectedDate, 'PPP', { locale: ptBR }) : <span>Filtrar por vencimento</span>}
                   </Button>
                 </PopoverTrigger>
@@ -219,6 +201,7 @@ export default function FinanceiroPage() {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Parceiro</TableHead>
                   <TableHead>Fatura</TableHead>
+                  <TableHead>Conta</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
@@ -243,6 +226,9 @@ export default function FinanceiroPage() {
                         <a href="#" onClick={(e) => { e.preventDefault(); handleInvoiceClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
                             {entry.invoiceId}
                         </a>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                        {accounts.find(a => a.id === entry.accountId)?.name || 'N/A'}
                     </TableCell>
                     <TableCell>
                        <Badge variant={getStatusVariant(entry)} className="capitalize">{entry.status}</Badge>

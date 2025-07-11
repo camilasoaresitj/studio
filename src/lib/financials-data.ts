@@ -3,6 +3,16 @@
 
 import { addDays, subDays } from 'date-fns';
 
+export type BankAccount = {
+    id: number;
+    name: string;
+    bankName: string;
+    agency: string;
+    accountNumber: string;
+    currency: 'BRL' | 'USD' | 'EUR';
+    balance: number;
+};
+
 export type FinancialEntry = {
     id: string;
     type: 'credit' | 'debit';
@@ -13,9 +23,15 @@ export type FinancialEntry = {
     amount: number;
     currency: 'BRL' | 'USD';
     processId: string;
+    accountId: number; // Link to the BankAccount
 };
 
 const today = new Date();
+
+const initialBankAccounts: BankAccount[] = [
+    { id: 1, name: 'Conta Corrente BRL', bankName: 'Banco do Brasil', agency: '1234-5', accountNumber: '123.456-7', currency: 'BRL', balance: 250320.75 },
+    { id: 2, name: 'Conta Internacional USD', bankName: 'Bank of America', agency: '9876', accountNumber: '987654321', currency: 'USD', balance: 75250.00 },
+];
 
 const initialFinancialData: FinancialEntry[] = [
     // --- Contas a Receber (Créditos) ---
@@ -29,6 +45,7 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 12500.50,
         currency: 'BRL',
         processId: 'PROC-BL-998172',
+        accountId: 1,
     },
     {
         id: 'fin-002',
@@ -40,6 +57,7 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 8750.00,
         currency: 'BRL',
         processId: 'PROC-MAWB-314256',
+        accountId: 1,
     },
     {
         id: 'fin-003',
@@ -51,6 +69,7 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 45800.00,
         currency: 'BRL',
         processId: 'PROC-CNEE-451023',
+        accountId: 1,
     },
     {
         id: 'fin-004',
@@ -62,6 +81,7 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 3200.00,
         currency: 'USD',
         processId: 'PROC-AWB-724598',
+        accountId: 2,
     },
      {
         id: 'fin-008',
@@ -73,6 +93,7 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 7250.75,
         currency: 'BRL',
         processId: 'PROC-INV-2024-068',
+        accountId: 1,
     },
 
     // --- Contas a Pagar (Débitos) ---
@@ -86,6 +107,7 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 980.00,
         currency: 'USD',
         processId: 'PROC-BL-998172',
+        accountId: 2,
     },
     {
         id: 'fin-006',
@@ -97,6 +119,7 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 4200.00,
         currency: 'BRL',
         processId: 'PROC-MAWB-314256',
+        accountId: 1,
     },
     {
         id: 'fin-007',
@@ -108,6 +131,7 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 2150.80,
         currency: 'BRL',
         processId: 'PROC-CNEE-451023',
+        accountId: 1,
     },
     {
         id: 'fin-009',
@@ -119,11 +143,13 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 1500.00,
         currency: 'USD',
         processId: 'PROC-INV-2024-068',
+        accountId: 2,
     },
 ];
 
 // In a real app, this would fetch from a database. Here, we use local storage for persistence.
-const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v2';
+const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v3';
+const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
 export function getFinancialEntries(): FinancialEntry[] {
   if (typeof window === 'undefined') {
@@ -151,4 +177,32 @@ export function saveFinancialEntries(entries: FinancialEntry[]): void {
   } catch (error) {
     console.error("Failed to save financial entries to localStorage", error);
   }
+}
+
+export function getBankAccounts(): BankAccount[] {
+    if (typeof window === 'undefined') {
+        return [];
+    }
+    try {
+        const stored = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+        if (!stored) {
+            localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(initialBankAccounts));
+            return initialBankAccounts;
+        }
+        return JSON.parse(stored);
+    } catch (error) {
+        console.error("Failed to parse bank accounts from localStorage", error);
+        return [];
+    }
+}
+
+export function saveBankAccounts(accounts: BankAccount[]): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    try {
+        localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+    } catch (error) {
+        console.error("Failed to save bank accounts to localStorage", error);
+    }
 }

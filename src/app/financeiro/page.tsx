@@ -739,7 +739,7 @@ export default function FinanceiroPage() {
 
         <NfseGenerationDialog
             data={nfseData}
-            isOpen={!!nfse_data}
+            isOpen={!!nfseData}
             onClose={() => setNfseData(null)}
         />
         

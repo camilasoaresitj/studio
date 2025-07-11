@@ -370,10 +370,10 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         <DialogContent key={selectedQuote?.id} className="sm:max-w-7xl max-h-[90vh] p-0">
             {selectedQuote && (
                 <>
-                    <DialogHeader className="p-6 pb-0">
+                    <DialogHeader className="p-6 pb-2">
                         <DialogTitle>Detalhes da Cotação: {selectedQuote.id.replace('-DRAFT', '')}</DialogTitle>
                         <DialogDescription>
-                            Gerencie os custos, receitas e lucro desta cotação. Status: <Badge variant={getStatusVariant(selectedQuote.status)} className="text-xs">{selectedQuote.status}</Badge>
+                            Gerencie custos, vendas e lucro. Status: <Badge variant={getStatusVariant(selectedQuote.status)} className="text-xs">{selectedQuote.status}</Badge>
                         </DialogDescription>
                     </DialogHeader>
                     <div className="p-6 pt-0 flex-grow overflow-y-auto">

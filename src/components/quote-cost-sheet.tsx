@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import { Trash2, PlusCircle } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
@@ -56,12 +56,10 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
 
   React.useEffect(() => {
-    // This effect ensures the form is reset with the new quote data whenever the quote prop changes.
-    // This is the key fix for the charges not appearing.
     if (quote) {
       form.reset({ charges: quote.charges || [] });
     }
-  }, [quote, form.reset]);
+  }, [quote, form]);
 
   React.useEffect(() => {
     const fetchRates = async () => {
@@ -131,12 +129,12 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   };
 
   return (
-    <div className="flex flex-col h-full">
-        <Card className="mb-4">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Detalhes do Embarque</CardTitle>
+    <div className="flex flex-col h-full space-y-4">
+        <Card>
+            <CardHeader className="p-3">
+                <CardTitle className="text-base">Detalhes do Embarque</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-sm p-3 pt-0">
                 <div><strong className="text-muted-foreground">Origem:</strong> {quote.origin}</div>
                 <div><strong className="text-muted-foreground">Destino:</strong> {quote.destination}</div>
                 <div><strong className="text-muted-foreground">Carga:</strong> {quote.details.cargo}</div>
@@ -160,15 +158,15 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                 <Table className="min-w-[1400px]">
                   <TableHeader className="sticky top-0 bg-secondary z-10">
                     <TableRow>
-                      <TableHead className="w-[150px]">Taxa</TableHead>
-                      <TableHead className="w-[150px]">Tipo Cobrança</TableHead>
-                      <TableHead className="w-[150px]">Local Pagamento</TableHead>
-                      <TableHead className="w-[200px] text-right">Compra</TableHead>
-                      <TableHead className="w-[200px] text-right">Venda</TableHead>
-                      <TableHead className="w-[120px] text-right">Lucro</TableHead>
-                      <TableHead className="w-[150px]">Fornecedor</TableHead>
-                      <TableHead className="w-[150px]">Sacado</TableHead>
-                      <TableHead className="w-[50px]">Ação</TableHead>
+                      <TableHead className="w-[150px] h-10">Taxa</TableHead>
+                      <TableHead className="w-[150px] h-10">Tipo Cobrança</TableHead>
+                      <TableHead className="w-[150px] h-10">Local Pagamento</TableHead>
+                      <TableHead className="w-[200px] text-right h-10">Compra</TableHead>
+                      <TableHead className="w-[200px] text-right h-10">Venda</TableHead>
+                      <TableHead className="w-[120px] text-right h-10">Lucro</TableHead>
+                      <TableHead className="w-[150px] h-10">Fornecedor</TableHead>
+                      <TableHead className="w-[150px] h-10">Sacado</TableHead>
+                      <TableHead className="w-[50px] h-10">Ação</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -181,20 +179,20 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                       
                       return (
                         <TableRow key={field.id}>
-                          <TableCell>
+                          <TableCell className="p-2">
                             <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (
-                              <Input placeholder="Ex: FRETE" {...field} />
+                              <Input placeholder="Ex: FRETE" {...field} className="h-8"/>
                             )} />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="p-2">
                             <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
-                              <Input placeholder="Ex: Por Contêiner" {...field} />
+                              <Input placeholder="Ex: Por Contêiner" {...field} className="h-8"/>
                             )} />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="p-2">
                             <FormField control={form.control} name={`charges.${index}.localPagamento`} render={({ field }) => (
                               <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                                <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Origem">Origem</SelectItem>
                                     <SelectItem value="Frete">Frete</SelectItem>
@@ -203,44 +201,44 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                               </Select>
                             )} />
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right p-2">
                             <div className="flex items-center gap-1">
                               <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value}>
-                                  <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
+                                  <SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger>
                                   <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
                                 </Select>
                               )} />
                               <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
-                                <Input type="number" {...field} className="w-full" />
+                                <Input type="number" {...field} className="w-full h-8" />
                               )} />
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right p-2">
                             <div className="flex items-center gap-1">
                               <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value}>
-                                  <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
+                                  <SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger>
                                   <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
                                 </Select>
                               )} />
                               <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
-                                <Input type="number" {...field} className="w-full" />
+                                <Input type="number" {...field} className="w-full h-8" />
                               )} />
                             </div>
                           </TableCell>
-                          <TableCell className={cn('font-semibold text-right', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
+                          <TableCell className={cn('font-semibold text-right p-2', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
                               {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="p-2">
                             <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
-                              <Input placeholder="Ex: Maersk" {...field} />
+                              <Input placeholder="Ex: Maersk" {...field} className="h-8"/>
                             )} />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="p-2">
                             <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
                                 <Select onValueChange={field.onChange} value={field.value || quote.customer}>
-                                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                    <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                     <SelectContent>
                                         {clientPartners.map(p => (
                                           <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
@@ -249,7 +247,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                 </Select>
                             )} />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="p-2">
                               <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
                                   <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
@@ -265,10 +263,10 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
           
           <Separator className="!mt-auto" />
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
               <Card>
-                  <CardHeader><CardTitle className="text-lg">Custo Total (em BRL)</CardTitle></CardHeader>
-                  <CardContent className="space-y-2 text-sm">
+                  <CardHeader className="p-3"><CardTitle className="text-base">Custo Total (em BRL)</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-0 text-sm">
                       <div className="flex justify-between font-semibold">
                           <span>BRL:</span>
                           <span className="font-mono">{totalsBRL.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -276,8 +274,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                   </CardContent>
               </Card>
                <Card>
-                  <CardHeader><CardTitle className="text-lg">Venda Total (em BRL)</CardTitle></CardHeader>
-                  <CardContent className="space-y-2 text-sm">
+                  <CardHeader className="p-3"><CardTitle className="text-base">Venda Total (em BRL)</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-0 text-sm">
                        <div className="flex justify-between font-semibold">
                           <span>BRL:</span>
                           <span className="font-mono">{totalsBRL.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -285,8 +283,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                   </CardContent>
               </Card>
               <Card className={cn(totalsBRL.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
-                  <CardHeader><CardTitle className="text-lg">Lucro Total (em BRL)</CardTitle></CardHeader>
-                  <CardContent className="space-y-2 text-sm">
+                  <CardHeader className="p-3"><CardTitle className="text-base">Lucro Total (em BRL)</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-0 text-sm">
                       <div className={cn("flex justify-between font-semibold", totalsBRL.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
                           <span>BRL:</span>
                           <span className="font-mono">{totalsBRL.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -295,7 +293,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
               </Card>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-2 pt-2">
             <Button type="submit">Salvar Alterações</Button>
           </div>
         </form>

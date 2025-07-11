@@ -70,6 +70,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [detailsShipment, setDetailsShipment] = useState<(Shipment & { payments?: PartialPayment[] }) | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
     const [statusFilter, setStatusFilter] = useState<Status[]>(['Aberto', 'Vencido', 'Parcialmente Pago']);
+    const [textFilters, setTextFilters] = useState({ partner: '', processId: '', value: '' });
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
     
@@ -112,10 +113,24 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         return { status: 'Aberto', variant: 'secondary' };
     };
 
+    const applyFilters = (entry: FinancialEntry) => {
+        const lowerPartner = textFilters.partner.toLowerCase();
+        const lowerProcessId = textFilters.processId.toLowerCase();
+        const lowerValue = textFilters.value;
+
+        if (lowerPartner && !entry.partner.toLowerCase().includes(lowerPartner)) return false;
+        if (lowerProcessId && !entry.processId.toLowerCase().includes(lowerProcessId)) return false;
+        if (lowerValue && !entry.amount.toString().includes(lowerValue)) return false;
+
+        return true;
+    };
+
     const filteredEntries = useMemo(() => {
         return entries.filter(entry => {
             const { status } = getEntryStatus(entry);
             if (entry.status === 'Jurídico') return false;
+
+            if (!applyFilters(entry)) return false;
 
             const statusMatch = statusFilter.length === 0 ? true : statusFilter.includes(status);
             if (!statusMatch) return false;
@@ -132,11 +147,11 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             }
             return true;
         });
-    }, [entries, activeFilter, statusFilter]);
+    }, [entries, activeFilter, statusFilter, textFilters]);
     
     const juridicoEntries = useMemo(() => {
-        return entries.filter(e => e.status === 'Jurídico');
-    }, [entries]);
+        return entries.filter(e => e.status === 'Jurídico' && applyFilters(e));
+    }, [entries, textFilters]);
 
     const needsExchangeRate = useMemo(() => {
         if (!entryToSettle || !settlementAccountId) return false;
@@ -171,7 +186,10 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         const updatedEntries = entries.map(e => {
             if (e.id === entryToSettle.id) {
                 const updatedPayments = [...(e.payments || []), newPayment];
-                return { ...e, payments: updatedPayments };
+                const newBalance = getEntryBalance({ ...e, payments: updatedPayments });
+                // If payment settles the balance, update status.
+                const newStatus = newBalance <= 0.009 ? 'Pago' : e.status;
+                return { ...e, payments: updatedPayments, status: newStatus };
             }
             return e;
         });
@@ -489,6 +507,10 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         setEntryToSettle(entry);
     };
 
+    const handleTextFilterChange = (filterName: keyof typeof textFilters, value: string) => {
+        setTextFilters(prev => ({ ...prev, [filterName]: value }));
+    };
+
     const renderEntriesTable = (tableEntries: FinancialEntry[], isLegalTable = false) => (
         <div className="border rounded-lg">
             <Table>
@@ -496,7 +518,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                 <TableRow>
                 {!isLegalTable && <TableHead className="w-10">
                     <Checkbox
-                        checked={selectedRows.size > 0 && tableEntries.every(e => selectedRows.has(e.id))}
+                        checked={selectedRows.size > 0 && tableEntries.length > 0 && tableEntries.every(e => selectedRows.has(e.id))}
                         onCheckedChange={(checked) => {
                             if (checked) {
                                 setSelectedRows(new Set(tableEntries.map(e => e.id)));
@@ -517,7 +539,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                 <TableHead>Vencimento</TableHead>
                 <TableHead className="text-right">Valor Total</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
-                {!isLegalTable && <TableHead className="text-center">Ações</TableHead>}
+                <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -583,7 +605,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                              <TableCell className={cn("text-right font-mono font-bold", entry.type === 'credit' ? 'text-success' : 'text-destructive')}>
                                 {entry.currency} {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </TableCell>
-                            {!isLegalTable && <TableCell className="text-center">
+                            <TableCell className="text-center">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
@@ -602,7 +624,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                         <DropdownMenuItem onClick={() => handleOpenSettleDialog(entry)} disabled={status === 'Pago'}>
                                             <DollarSign className="mr-2 h-4 w-4" /> Baixar Pagamento
                                         </DropdownMenuItem>
-                                        {entry.type === 'credit' && (
+                                        {entry.type === 'credit' && !isLegalTable && (
                                             <>
                                                 <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
                                                     <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
@@ -615,7 +637,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                         )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-                            </TableCell>}
+                            </TableCell>
                         </TableRow>
                     )
                 }) : (
@@ -728,25 +750,30 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                         </div>
                     </CardHeader>
                     <CardContent>
-                    <FinancialEntryImporter onEntriesImported={handleEntriesImported} />
-                    {unifiedSettlementData && (
-                        <div className="flex items-center justify-between p-3 my-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
-                            <div className="text-sm font-medium">
-                                {unifiedSettlementData.count} item(s) selecionado(s). Totais: 
-                                {Object.entries(unifiedSettlementData.totalsByCurrency).map(([currency, total]) => (
-                                    <span key={currency} className={cn("font-bold ml-2", total >= 0 ? 'text-success' : 'text-destructive' )}>
-                                        {currency} {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </span>
-                                ))}
-                            </div>
-                            <Button size="sm" onClick={handleUnifiedSettlement}>
-                                <DollarSign className="mr-2 h-4 w-4"/>
-                                Realizar Baixa Unificada
-                            </Button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <Input placeholder="Filtrar por Parceiro..." value={textFilters.partner} onChange={(e) => handleTextFilterChange('partner', e.target.value)} />
+                            <Input placeholder="Filtrar por Processo..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
+                            <Input placeholder="Filtrar por Valor..." value={textFilters.value} onChange={(e) => handleTextFilterChange('value', e.target.value)} />
+                            <FinancialEntryImporter onEntriesImported={handleEntriesImported} />
                         </div>
-                    )}
+                        {unifiedSettlementData && (
+                            <div className="flex items-center justify-between p-3 my-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
+                                <div className="text-sm font-medium">
+                                    {unifiedSettlementData.count} item(s) selecionado(s). Totais: 
+                                    {Object.entries(unifiedSettlementData.totalsByCurrency).map(([currency, total]) => (
+                                        <span key={currency} className={cn("font-bold ml-2", total >= 0 ? 'text-success' : 'text-destructive' )}>
+                                            {currency} {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </span>
+                                    ))}
+                                </div>
+                                <Button size="sm" onClick={handleUnifiedSettlement}>
+                                    <DollarSign className="mr-2 h-4 w-4"/>
+                                    Realizar Baixa Unificada
+                                </Button>
+                            </div>
+                        )}
 
-                    {renderEntriesTable(filteredEntries)}
+                        {renderEntriesTable(filteredEntries)}
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -786,10 +813,18 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             <TabsContent value="juridico" className="mt-6">
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                           <ShieldAlert className="h-5 w-5 text-destructive" /> Processos em Jurídico
-                        </CardTitle>
-                        <CardDescription>Faturas que foram enviadas para cobrança judicial ou protesto.</CardDescription>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <CardTitle className="flex items-center gap-2">
+                                <ShieldAlert className="h-5 w-5 text-destructive" /> Processos em Jurídico
+                                </CardTitle>
+                                <CardDescription>Faturas que foram enviadas para cobrança judicial ou protesto.</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2 self-start sm:self-center">
+                                <Input placeholder="Filtrar por Parceiro..." value={textFilters.partner} onChange={(e) => handleTextFilterChange('partner', e.target.value)} className="w-48" />
+                                <Input placeholder="Filtrar por Processo..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} className="w-48" />
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {renderEntriesTable(juridicoEntries, true)}
@@ -892,4 +927,3 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     </div>
   );
 }
-

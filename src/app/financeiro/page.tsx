@@ -16,6 +16,7 @@ import { ptBR } from 'date-fns/locale';
 import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 const kpiData = {
     dueToday: 15250.75,
@@ -27,6 +28,7 @@ const kpiData = {
 export default function FinanceiroPage() {
     const [entries, setEntries] = useState<FinancialEntry[]>(getFinancialEntries);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+    const { toast } = useToast();
 
     const getStatusVariant = (entry: FinancialEntry): 'default' | 'secondary' | 'destructive' | 'success' => {
         if (entry.status === 'Pago') return 'success';
@@ -36,7 +38,10 @@ export default function FinanceiroPage() {
     };
     
     const handleAction = (action: string, entryId: string) => {
-        alert(`Ação "${action}" para a fatura ${entryId} ainda não implementada.`);
+        toast({
+            title: 'Funcionalidade em Desenvolvimento',
+            description: `A ação "${action}" para a fatura ${entryId} será implementada em breve.`,
+        });
     };
 
     return (
@@ -151,9 +156,13 @@ export default function FinanceiroPage() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleAction('Baixar', entry.id)}>Baixar Pagamento</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleAction('Emitir Boleto', entry.id)}>Emitir Boleto</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleAction('Emitir NF', entry.id)}>Emitir NF de Serviço</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAction('Baixar Pagamento', entry.invoiceId)}>Baixar Pagamento</DropdownMenuItem>
+                                {entry.type === 'credit' && (
+                                    <>
+                                        <DropdownMenuItem onClick={() => handleAction('Emitir Boleto', entry.invoiceId)}>Emitir Boleto</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleAction('Emitir NF de Serviço', entry.invoiceId)}>Emitir NF de Serviço</DropdownMenuItem>
+                                    </>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </TableCell>

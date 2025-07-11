@@ -4,13 +4,24 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, DollarSign, FileDown, MoreHorizontal, Upload, Landmark, Edit, Pencil, FileText, Send, Printer, Eye, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import {
+  MoreHorizontal,
+  DollarSign,
+  FileDown,
+  Edit,
+  Pencil,
+  FileText,
+  Send,
+  Printer,
+  Eye,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  CalendarDays,
+  ListFilter
+} from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts } from '@/lib/financials-data';
@@ -28,14 +39,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
 import { runGenerateQuotePdfHtml, runSendQuote } from '@/app/actions';
 
-type FilterType = 'all' | 'dueTodayReceivable' | 'dueTodayPayable' | 'dueMonthReceivable' | 'dueMonthPayable';
+type FilterType = 'all' | 'dueTodayReceivable' | 'dueTodayPayable' | 'dueThisMonth';
 
 export default function FinanceiroPage() {
     const [isClient, setIsClient] = useState(false);
     const [entries, setEntries] = useState<FinancialEntry[]>([]);
     const [accounts, setAccounts] = useState<BankAccount[]>([]);
     const [allShipments, setAllShipments] = useState<Shipment[]>([]);
-    const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [entryToSettle, setEntryToSettle] = useState<FinancialEntry | null>(null);
     const [settlementAccountId, setSettlementAccountId] = useState<string>('');
@@ -60,14 +70,11 @@ export default function FinanceiroPage() {
         return {
             dueTodayReceivable: todayEntries.filter(e => e.type === 'credit').reduce((sum, e) => sum + e.amount, 0),
             dueTodayPayable: todayEntries.filter(e => e.type === 'debit').reduce((sum, e) => sum + e.amount, 0),
-            dueMonthReceivable: monthEntries.filter(e => e.type === 'credit').reduce((sum, e) => sum + e.amount, 0),
-            dueMonthPayable: monthEntries.filter(e => e.type === 'debit').reduce((sum, e) => sum + e.amount, 0),
+            dueMonthTotal: monthEntries.length,
         }
     }, [entries]);
 
     const filteredEntries = useMemo(() => {
-        if (activeFilter === 'all') return entries;
-
         return entries.filter(entry => {
             const dueDate = new Date(entry.dueDate);
             switch (activeFilter) {
@@ -75,10 +82,9 @@ export default function FinanceiroPage() {
                     return isToday(dueDate) && entry.type === 'credit';
                 case 'dueTodayPayable':
                     return isToday(dueDate) && entry.type === 'debit';
-                case 'dueMonthReceivable':
-                    return isThisMonth(dueDate) && entry.type === 'credit';
-                case 'dueMonthPayable':
-                    return isThisMonth(dueDate) && entry.type === 'debit';
+                case 'dueThisMonth':
+                    return isThisMonth(dueDate);
+                case 'all':
                 default:
                     return true;
             }
@@ -300,10 +306,10 @@ export default function FinanceiroPage() {
         </p>
       </header>
       
-        <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
             <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setActiveFilter('all')}>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-medium">Visão Geral</CardTitle>
+                    <CardTitle className="text-base font-medium flex items-center gap-2"><ListFilter />Visão Geral</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">&nbsp;</div>
@@ -330,24 +336,14 @@ export default function FinanceiroPage() {
                      <p className="text-xs text-muted-foreground">Vencendo em {format(new Date(), 'dd/MM/yyyy')}</p>
                 </CardContent>
             </Card>
-             <Card className="cursor-pointer hover:ring-2 hover:ring-green-500/50 transition-all" onClick={() => setActiveFilter('dueMonthReceivable')}>
+            <Card className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 transition-all" onClick={() => setActiveFilter('dueThisMonth')}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">A Receber no Mês</CardTitle>
-                     <ArrowUpCircle className="h-5 w-5 text-success" />
+                    <CardTitle className="text-sm font-medium">Vencimentos no Mês</CardTitle>
+                    <CalendarDays className="h-5 w-5 text-blue-500" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold text-success">R$ {dashboardData.dueMonthReceivable.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                    <p className="text-xs text-muted-foreground">Mês de {format(new Date(), 'MMMM', {locale: ptBR})}</p>
-                </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:ring-2 hover:ring-red-500/50 transition-all" onClick={() => setActiveFilter('dueMonthPayable')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">A Pagar no Mês</CardTitle>
-                    <ArrowDownCircle className="h-5 w-5 text-destructive" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-destructive">R$ {dashboardData.dueMonthPayable.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                     <p className="text-xs text-muted-foreground">Mês de {format(new Date(), 'MMMM', {locale: ptBR})}</p>
+                    <div className="text-2xl font-bold text-blue-500">{dashboardData.dueMonthTotal} Lançamentos</div>
+                     <p className="text-xs text-muted-foreground">Para o mês de {format(new Date(), 'MMMM', {locale: ptBR})}</p>
                 </CardContent>
             </Card>
         </div>
@@ -650,5 +646,3 @@ export default function FinanceiroPage() {
     </div>
   );
 }
-
-    

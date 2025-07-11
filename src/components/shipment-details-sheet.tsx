@@ -17,6 +17,12 @@ import {
   SheetTitle,
   SheetDescription,
   SheetFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter as DialogFooterComponent,
 } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
@@ -45,6 +51,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf } from '@/app/actions';
 import { addFinancialEntry, getFinancialEntries } from '@/lib/financials-data';
 import { Checkbox } from './ui/checkbox';
+import type { Fee } from '@/components/fees-registry';
+import { ScrollArea } from './ui/scroll-area';
+
+// Dummy fees data, in a real app this would be fetched
+const initialFeesData: Fee[] = [
+    { id: 1, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 2, name: 'BL FEE', value: '600', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 3, name: 'ISPS', value: '35', currency: 'USD', type: 'Fixo', unit: 'Por Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 4, name: 'DESCONSOLIDAÇÃO', value: '150', currency: 'BRL', type: 'Fixo', unit: 'Por BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
+    { id: 14, name: 'DESPACHO ADUANEIRO', value: '1000', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Ambos', direction: 'Ambos' },
+    { id: 15, name: 'SEGURO INTERNACIONAL', value: '0.3', currency: 'BRL', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos' },
+];
 
 
 const containerDetailSchema = z.object({
@@ -150,6 +168,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const [isCourierSyncing, setIsCourierSyncing] = useState(false);
   const [isInvoicing, setIsInvoicing] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
+  const [isFeeDialogOpen, setIsFeeDialogOpen] = useState(false);
+  const [selectedFees, setSelectedFees] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   
@@ -317,42 +337,59 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         if (!shipment || !shipment.charges) {
             throw new Error("Dados do embarque inválidos para faturamento.");
         }
+        
+        const unbilledCharges = shipment.charges.filter(c => !c.financialEntryId);
+        if (unbilledCharges.length === 0) {
+             toast({
+                variant: 'default',
+                title: "Nenhuma nova despesa",
+                description: `Todas as despesas deste processo já foram faturadas.`,
+            });
+            setIsInvoicing(false);
+            return;
+        }
 
         let creditsCreated = 0;
         let debitsCreated = 0;
 
         // Create a single credit entry for the customer (sacado)
-        const sacado = shipment.charges[0]?.sacado || shipment.customer;
+        const sacado = unbilledCharges[0]?.sacado || shipment.customer;
         const totalSaleByCurrency: { [key: string]: number } = {};
 
-        shipment.charges.forEach(charge => {
+        unbilledCharges.forEach(charge => {
             if (!totalSaleByCurrency[charge.saleCurrency]) {
                 totalSaleByCurrency[charge.saleCurrency] = 0;
             }
             totalSaleByCurrency[charge.saleCurrency] += charge.sale;
         });
 
+        const newFinancialEntries: any[] = [];
+        const updatedChargesMap = new Map<string, string>();
+
         for (const [currency, amount] of Object.entries(totalSaleByCurrency)) {
             if (amount > 0) {
+                 const entryId = `fin-${Date.now()}-${creditsCreated}`;
                  addFinancialEntry({
+                    id: entryId,
                     type: 'credit',
                     partner: sacado,
                     invoiceId: `INV-${shipment.id}`,
-                    dueDate: new Date().toISOString(), // Or a calculated due date
+                    dueDate: new Date().toISOString(),
                     amount: amount,
                     currency: currency as 'BRL' | 'USD',
                     processId: shipment.id,
-                    accountId: 1, // Default account, should be smarter
+                    accountId: 1,
                     payments: [],
                     status: 'Aberto'
                 });
+                unbilledCharges.filter(c => c.saleCurrency === currency).forEach(c => updatedChargesMap.set(c.id, entryId));
                 creditsCreated++;
             }
         }
         
         // Create debit entries for each supplier
         const costsBySupplierAndCurrency: { [key: string]: { [currency: string]: number } } = {};
-        shipment.charges.forEach(charge => {
+        unbilledCharges.forEach(charge => {
             if (!costsBySupplierAndCurrency[charge.supplier]) {
                 costsBySupplierAndCurrency[charge.supplier] = {};
             }
@@ -366,7 +403,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
              for (const currency in costsBySupplierAndCurrency[supplier]) {
                  const amount = costsBySupplierAndCurrency[supplier][currency];
                  if (amount > 0) {
+                    const entryId = `fin-${Date.now()}-debit-${debitsCreated}`;
                     addFinancialEntry({
+                        id: entryId,
                         type: 'debit',
                         partner: supplier,
                         invoiceId: `BILL-${shipment.id}-${supplier.substring(0,3).toUpperCase()}`,
@@ -374,21 +413,32 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         amount: amount,
                         currency: currency as 'BRL' | 'USD',
                         processId: shipment.id,
-                        accountId: 2, // Default account
+                        accountId: 2,
                         payments: [],
                         status: 'Aberto'
                     });
+                     unbilledCharges.filter(c => c.supplier === supplier && c.costCurrency === currency).forEach(c => updatedChargesMap.set(c.id, entryId));
                     debitsCreated++;
                 }
              }
         }
+        
+        const finalCharges = shipment.charges.map(c => {
+            if (updatedChargesMap.has(c.id)) {
+                return { ...c, financialEntryId: updatedChargesMap.get(c.id) };
+            }
+            return c;
+        });
+
+        onUpdate({ ...shipment, charges: finalCharges as any });
+
       toast({
         title: "Processo Faturado com Sucesso!",
         description: `${creditsCreated} crédito(s) e ${debitsCreated} débito(s) gerados no módulo Financeiro.`,
         className: 'bg-success text-success-foreground'
       });
       router.refresh();
-      onOpenChange(false);
+      
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -480,20 +530,28 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       }
   };
 
-  const handleAddNewCharge = () => {
+  const handleAddSelectedFees = () => {
     if (!shipment) return;
-    appendCharge({
-        id: `extra-${Date.now()}`,
-        name: '',
-        type: 'Extra',
-        cost: 0,
-        costCurrency: 'BRL',
-        sale: 0,
-        saleCurrency: 'BRL',
-        supplier: '',
-        sacado: shipment.customer,
-        approvalStatus: 'pendente',
-    });
+    
+    const newCharges = initialFeesData
+        .filter(fee => selectedFees.has(fee.id))
+        .map((fee): QuoteCharge => ({
+            id: `fee-${fee.id}-${Date.now()}`,
+            name: fee.name,
+            type: fee.type,
+            cost: parseFloat(fee.value) || 0,
+            costCurrency: fee.currency,
+            sale: parseFloat(fee.value) || 0,
+            saleCurrency: fee.currency,
+            supplier: 'CargaInteligente',
+            sacado: shipment.customer,
+            approvalStatus: 'pendente',
+            financialEntryId: null,
+        }));
+        
+    newCharges.forEach(charge => appendCharge(charge));
+    setIsFeeDialogOpen(false);
+    setSelectedFees(new Set());
   };
   
   const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
@@ -560,11 +618,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     return watchedCharges?.some(c => c.approvalStatus === 'pendente');
   }, [watchedCharges]);
 
+  const allChargesInvoiced = useMemo(() => {
+    if (!watchedCharges || watchedCharges.length === 0) return true;
+    return watchedCharges.every(c => !!c.financialEntryId);
+  }, [watchedCharges]);
+
   if (!shipment) {
     return null;
   }
 
   return (
+      <>
       <Sheet open={open} onOpenChange={onOpenChange}>
           <SheetContent className="sm:max-w-6xl w-full flex flex-col">
               <Form {...form}>
@@ -786,7 +850,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                   <Upload className="mr-2 h-4 w-4" /> Substituir
                                                 </Button>
                                                 <Button type="button" size="sm" onClick={() => handleDocumentChange(index, 'approved')}>
-                                                  <Check className="mr-2 h-4 w-4" /> Aprovar
+                                                  <CheckCircle className="mr-2 h-4 w-4" /> Aprovar
                                                 </Button>
                                               </>
                                             )}
@@ -975,8 +1039,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 <CardHeader>
                                     <div className="flex items-center justify-between">
                                         <CardTitle className="text-lg">Detalhes Financeiros</CardTitle>
-                                        <Button type="button" variant="outline" size="sm" onClick={handleAddNewCharge}>
-                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Despesa Extra
+                                        <Button type="button" variant="outline" size="sm" onClick={() => setIsFeeDialogOpen(true)}>
+                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
                                         </Button>
                                     </div>
                                     <CardDescription>
@@ -1058,7 +1122,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </Table>
                                     </div>
                                     <div className="flex justify-end gap-2 mt-4">
-                                        <Button type="button" onClick={handleInvoiceShipment} disabled={isInvoicing || hasPendingCharges} title={hasPendingCharges ? "Existem despesas pendentes de aprovação" : ""}>
+                                        <Button type="button" onClick={handleInvoiceShipment} disabled={isInvoicing || hasPendingCharges || allChargesInvoiced} title={hasPendingCharges ? "Existem despesas pendentes de aprovação" : allChargesInvoiced ? "Todas as despesas já foram faturadas" : ""}>
                                             {isInvoicing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
                                             Faturar Processo
                                         </Button>
@@ -1079,5 +1143,52 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
               </Form>
           </SheetContent>
       </Sheet>
+
+      <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Adicionar Taxas ao Processo</DialogTitle>
+                <DialogDescription>
+                    Selecione as taxas padrão que deseja adicionar a este embarque.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <ScrollArea className="h-96">
+                    <div className="space-y-2 pr-4">
+                        {initialFeesData.map(fee => (
+                            <div key={fee.id} className="flex items-center space-x-2 p-2 border rounded-md">
+                                <Checkbox
+                                    id={`fee-${fee.id}`}
+                                    checked={selectedFees.has(fee.id)}
+                                    onCheckedChange={(checked) => {
+                                        setSelectedFees(prev => {
+                                            const newSet = new Set(prev);
+                                            if (checked) {
+                                                newSet.add(fee.id);
+                                            } else {
+                                                newSet.delete(fee.id);
+                                            }
+                                            return newSet;
+                                        });
+                                    }}
+                                />
+                                <Label htmlFor={`fee-${fee.id}`} className="flex-grow font-normal cursor-pointer">
+                                    <div className="flex justify-between">
+                                        <span>{fee.name}</span>
+                                        <Badge variant="secondary">{fee.currency} {fee.value}</Badge>
+                                    </div>
+                                </Label>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </div>
+            <DialogFooterComponent>
+                 <Button variant="outline" onClick={() => setIsFeeDialogOpen(false)}>Cancelar</Button>
+                 <Button onClick={handleAddSelectedFees}>Adicionar Taxas Selecionadas</Button>
+            </DialogFooterComponent>
+        </DialogContent>
+      </Dialog>
+      </>
   );
 }

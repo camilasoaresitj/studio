@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useState, useEffect, Suspense, ReactElement } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { runGenerateNfseXml } from '@/app/actions';
 import { Loader2, Clipboard, FileText } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 const nfseSchema = z.object({
   prestador: z.object({
@@ -42,15 +43,17 @@ const nfseSchema = z.object({
     itemListaServico: z.string().min(1, 'Obrigatório').default('04.02'),
     discriminacao: z.string().min(10, 'Descrição deve ter no mínimo 10 caracteres'),
     codigoMunicipioPrestacao: z.string().length(7, 'Código IBGE deve ter 7 dígitos').default('4208203'),
+    valorIss: z.number().optional(),
   }),
 });
 
 type NfseFormData = z.infer<typeof nfseSchema>;
 
-export default function NfsePage() {
+function NfsePageComponent() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedXml, setGeneratedXml] = useState('');
   const { toast } = useToast();
+  const searchParams = useSearchParams()
 
   const form = useForm<NfseFormData>({
     resolver: zodResolver(nfseSchema),
@@ -61,11 +64,27 @@ export default function NfsePage() {
     },
   });
 
+   useEffect(() => {
+    const dataParam = searchParams.get('data');
+    if (dataParam) {
+      try {
+        const decodedData = JSON.parse(decodeURIComponent(dataParam));
+        form.reset(decodedData.formData);
+        if (decodedData.xml) {
+            setGeneratedXml(decodedData.xml);
+        }
+      } catch (error) {
+        console.error("Failed to parse data from URL", error);
+        toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar os dados da fatura.' });
+      }
+    }
+  }, [searchParams, form, toast]);
+
   const watchedAliquota = form.watch('servico.aliquota');
   const watchedValorServicos = form.watch('servico.valorServicos');
 
   // Calculate ISS value automatically
-  React.useEffect(() => {
+  useEffect(() => {
     const valorIss = (watchedValorServicos || 0) * (watchedAliquota || 0);
     form.setValue('servico.valorIss', valorIss);
   }, [watchedAliquota, watchedValorServicos, form]);
@@ -139,7 +158,7 @@ export default function NfsePage() {
                 <FormField control={form.control} name="servico.discriminacao" render={({ field }) => (<FormItem><FormLabel>Discriminação do Serviço</FormLabel><FormControl><Textarea placeholder="Descreva o serviço prestado..." {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="servico.valorServicos" render={({ field }) => (<FormItem><FormLabel>Valor do Serviço (R$)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="servico.aliquota" render={({ field }) => (<FormItem><FormLabel>Alíquota ISS (ex: 0.05)</FormLabel><FormControl><Input type="number" step="0.0001" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="servico.aliquota" render={({ field }) => (<FormItem><FormLabel>Alíquota ISS (ex: 0.05)</FormLabel><FormControl><Input type="number" step="0.0001" {...field} /></FormControl><FormMessage /></FormMessage>)} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="servico.itemListaServico" render={({ field }) => (<FormItem><FormLabel>Item da Lista (LC 116)</FormLabel><FormControl><Input placeholder="04.02" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -185,4 +204,14 @@ export default function NfsePage() {
       </div>
     </div>
   );
+}
+
+
+// We wrap the component in Suspense to handle the useSearchParams hook
+export default function NfsePage(): ReactElement {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <NfsePageComponent />
+    </Suspense>
+  )
 }

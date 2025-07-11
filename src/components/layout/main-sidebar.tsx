@@ -28,9 +28,9 @@ const menuItems = [
   { href: '/comercial', label: 'Comercial', icon: Briefcase },
   { href: '/operacional', label: 'Operacional', icon: Truck },
   { href: '/financeiro', label: 'Financeiro', icon: Landmark },
-  { href: '/nfse', label: 'NFS-e', icon: FileText },
   { href: '/demurrage', label: 'Demurrage', icon: Clock },
   { href: '/schedules', label: 'Schedules', icon: CalendarClock },
+  { href: '/nfse', label: 'NFS-e', icon: FileText },
 ];
 
 export function MainSidebar() {

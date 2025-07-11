@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, DollarSign, FileDown, Filter, MoreHorizontal, Upload, Landmark, Edit, Pencil } from 'lucide-react';
+import { CalendarIcon, DollarSign, FileDown, Filter, MoreHorizontal, Upload, Landmark, Edit, Pencil, FileText } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts } from '@/lib/financials-data';
@@ -21,18 +21,26 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { BankAccountDialog } from '@/components/financials/bank-account-form';
-
+import { NfseGenerationDialog } from '@/components/financials/nfse-generation-dialog';
+import { getShipments } from '@/lib/shipment';
+import type { Shipment } from '@/lib/shipment';
 
 export default function FinanceiroPage() {
     const [entries, setEntries] = useState<FinancialEntry[]>(getFinancialEntries);
     const [accounts, setAccounts] = useState<BankAccount[]>(getBankAccounts);
+    const [allShipments, setAllShipments] = useState<Shipment[]>([]);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [entryToSettle, setEntryToSettle] = useState<FinancialEntry | null>(null);
     const [settlementAccountId, setSettlementAccountId] = useState<string>('');
     const [exchangeRate, setExchangeRate] = useState<string>('');
     const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
+    const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const { toast } = useToast();
+
+    useEffect(() => {
+        setAllShipments(getShipments());
+    }, []);
 
     const getStatusVariant = (entry: FinancialEntry): 'default' | 'secondary' | 'destructive' | 'success' => {
         if (entry.status === 'Pago') return 'success';
@@ -134,6 +142,19 @@ export default function FinanceiroPage() {
             title: "Visualização de Detalhes",
             description: `Em breve, será possível ver os detalhes da fatura vinculada ao processo ${processId}.`
         });
+    };
+
+    const handleOpenNfseDialog = (entry: FinancialEntry) => {
+        const relatedShipment = allShipments.find(s => s.id === entry.processId);
+        if (relatedShipment) {
+            setNfseData({ entry, shipment: relatedShipment });
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Processo não encontrado',
+                description: `Não foi possível encontrar o processo de embarque ${entry.processId} vinculado a esta fatura.`,
+            });
+        }
     };
     
     const handleOtherActions = (action: string, invoiceId: string) => {
@@ -301,7 +322,9 @@ export default function FinanceiroPage() {
                                 {entry.type === 'credit' && (
                                     <>
                                         <DropdownMenuItem onClick={() => handleOtherActions('Emitir Boleto', entry.invoiceId)}>Emitir Boleto</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleOtherActions('Emitir NF de Serviço', entry.invoiceId)}>Emitir NF de Serviço</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
+                                            <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
+                                        </DropdownMenuItem>
                                     </>
                                 )}
                             </DropdownMenuContent>
@@ -375,6 +398,12 @@ export default function FinanceiroPage() {
             onClose={() => setEditingAccount(null)}
             onSave={handleAccountSave}
             account={editingAccount}
+        />
+
+        <NfseGenerationDialog
+            data={nfseData}
+            isOpen={!!nfseData}
+            onClose={() => setNfseData(null)}
         />
 
     </div>

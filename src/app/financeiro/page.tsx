@@ -14,14 +14,11 @@ import {
   FileText,
   ArrowDownCircle,
   ArrowUpCircle,
-  CalendarDays,
-  ListFilter,
-  ShieldAlert,
   Banknote,
-  PlusCircle
+  PlusCircle,
+  ShieldAlert
 } from 'lucide-react';
-import { format, isPast, isToday, isThisMonth, startOfMonth, endOfMonth } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format, isPast, isToday, isThisMonth } from 'date-fns';
 import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -38,6 +35,7 @@ import { BankAccountStatementDialog } from '@/components/financials/bank-account
 import { runGenerateQuotePdfHtml, runSendQuote } from '@/app/actions';
 import { FinancialEntryImporter } from '@/components/financials/financial-entry-importer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { exchangeRateService } from '@/services/exchange-rate-service';
 
 
 type FilterType = 'all' | 'dueToday' | 'dueThisMonth';
@@ -63,15 +61,6 @@ export default function FinanceiroPage() {
         setAccounts(getBankAccounts());
         setAllShipments(getShipments());
     }, []);
-
-    const dashboardData = useMemo(() => {
-        const todayEntries = entries.filter(e => isToday(new Date(e.dueDate)) && e.status !== 'Pago');
-
-        return {
-            dueTodayReceivable: todayEntries.filter(e => e.type === 'credit').reduce((sum, e) => sum + e.amount, 0),
-            dueTodayPayable: todayEntries.filter(e => e.type === 'debit').reduce((sum, e) => sum + e.amount, 0),
-        }
-    }, [entries]);
 
     const filteredEntries = useMemo(() => {
         if (!isClient) return [];
@@ -151,14 +140,6 @@ export default function FinanceiroPage() {
             }
             return newSelection;
         });
-    };
-
-    const toggleSelectAll = () => {
-        if (selectedRows.size === filteredEntries.length) {
-            setSelectedRows(new Set());
-        } else {
-            setSelectedRows(new Set(filteredEntries.map(e => e.id)));
-        }
     };
 
     const unifiedSettlementData = useMemo(() => {
@@ -242,28 +223,36 @@ export default function FinanceiroPage() {
         }
 
         const formatValue = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        
-        const totalsByCurrency: { [key: string]: number } = {};
-        shipment.charges.forEach(charge => {
-            totalsByCurrency[charge.saleCurrency] = (totalsByCurrency[charge.saleCurrency] || 0) + charge.sale;
-        });
-        const totalAllIn = Object.entries(totalsByCurrency).map(([currency, total]) => `${currency} ${formatValue(total)}`).join(' + ');
+        const exchangeRates = await exchangeRateService.getRates();
+        const ptaxRate = exchangeRates['USD'] || 5.0; // Fallback
 
+        const charges = shipment.charges.map(c => {
+            return {
+                description: c.name,
+                quantity: 1,
+                value: formatValue(c.sale),
+                total: formatValue(c.sale),
+                currency: c.saleCurrency
+            }
+        });
+
+        const totalBRL = shipment.charges.reduce((sum, charge) => {
+            const rate = charge.saleCurrency === 'USD' ? ptaxRate : 1;
+            return sum + (charge.sale * rate);
+        }, 0);
+        
         const response = await runGenerateQuotePdfHtml({
-            quoteNumber: entry.invoiceId,
+            invoiceNumber: entry.invoiceId,
             customerName: entry.partner,
+            customerAddress: shipment.consignee?.address ? `${shipment.consignee.address.street}, ${shipment.consignee.address.city}` : 'Endereço não disponível',
             date: new Date().toLocaleDateString('pt-br'),
-            validity: format(new Date(entry.dueDate), 'dd/MM/yyyy'),
-            origin: shipment.origin,
-            destination: shipment.destination,
-            incoterm: shipment.details.incoterm,
-            transitTime: shipment.details.transitTime,
-            modal: shipment.details.cargo.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo',
-            equipment: shipment.details.cargo,
-            freightCharges: shipment.charges.filter(c => c.localPagamento === 'Frete').map(c => ({ name: c.name, type: c.type, currency: c.saleCurrency, total: formatValue(c.sale) })),
-            localCharges: shipment.charges.filter(c => c.localPagamento !== 'Frete').map(c => ({ name: c.name, type: c.type, currency: c.saleCurrency, total: formatValue(c.sale) })),
-            totalAllIn: totalAllIn,
-            observations: "Pagamento referente a serviços de agenciamento de carga."
+            charges: charges,
+            total: formatValue(totalBRL),
+            exchangeRate: ptaxRate,
+            bankDetails: {
+                bankName: "Salford & Co.",
+                accountNumber: "0123 4567 8901 2345"
+            }
         });
 
         if (response.success && response.data?.html) {
@@ -343,7 +332,7 @@ export default function FinanceiroPage() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {tableEntries.map((entry) => (
+                {tableEntries.length > 0 ? tableEntries.map((entry) => (
                 <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
                     <TableCell>
                         <Checkbox
@@ -370,7 +359,7 @@ export default function FinanceiroPage() {
                     <TableCell className={cn(getStatusVariant(entry) === 'destructive' && 'text-destructive font-bold')}>
                     {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
                     </TableCell>
-                    <TableCell className={cn("text-right font-mono", entry.type === 'credit' ? 'text-success' : 'text-foreground')}>
+                    <TableCell className={cn("text-right font-mono", entry.type === 'credit' ? 'text-success' : 'text-destructive')}>
                     {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className="text-center">
@@ -395,7 +384,11 @@ export default function FinanceiroPage() {
                         </DropdownMenu>
                     </TableCell>
                 </TableRow>
-                ))}
+                )) : (
+                    <TableRow>
+                        <TableCell colSpan={9} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
+                    </TableRow>
+                )}
             </TableBody>
             </Table>
         </div>

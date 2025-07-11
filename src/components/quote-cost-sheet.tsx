@@ -53,10 +53,11 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   });
 
   const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
-
   const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
 
   React.useEffect(() => {
+    // This effect ensures the form is reset with the new quote data whenever the quote prop changes.
+    // This is the fix for the table appearing empty.
     if (quote) {
       form.reset({ charges: quote.charges || [] });
     }
@@ -91,19 +92,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
 
   const watchedCharges = form.watch('charges');
 
-  const totals = React.useMemo(() => {
-    const cost: Record<string, number> = {};
-    const sale: Record<string, number> = {};
-    let totalProfitBRL = 0;
+  const totalsBRL = React.useMemo(() => {
+    let totalCostBRL = 0;
+    let totalSaleBRL = 0;
 
     watchedCharges.forEach(charge => {
         const chargeCost = Number(charge.cost) || 0;
         const chargeSale = Number(charge.sale) || 0;
 
-        cost[charge.costCurrency] = (cost[charge.costCurrency] || 0) + chargeCost;
-        sale[charge.saleCurrency] = (sale[charge.saleCurrency] || 0) + chargeSale;
-
-        // --- BRL Profit Calculation ---
         const customer = partners.find(p => p.name === charge.sacado);
         const supplier = partners.find(p => p.name === charge.supplier);
 
@@ -116,13 +112,15 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
         const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + customerAgio / 100);
         const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + supplierAgio / 100);
 
-        const saleInBRL = chargeSale * saleRate;
-        const costInBRL = chargeCost * costRate;
-        
-        totalProfitBRL += (saleInBRL - costInBRL);
+        totalSaleBRL += chargeSale * saleRate;
+        totalCostBRL += chargeCost * costRate;
     });
 
-    return { cost, sale, totalProfitBRL };
+    return { 
+        totalCostBRL, 
+        totalSaleBRL, 
+        totalProfitBRL: totalSaleBRL - totalCostBRL 
+    };
   }, [watchedCharges, partners, exchangeRates]);
 
   const onSubmit = (data: QuoteCostSheetFormData) => {
@@ -155,7 +153,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
           </div>
           <div className="flex-grow overflow-hidden border rounded-lg">
             <ScrollArea className="h-full">
-              <Table className="min-w-[1200px]">
+              <Table className="min-w-[1400px]">
                 <TableHeader className="sticky top-0 bg-secondary z-10">
                   <TableRow>
                     <TableHead className="w-[150px]">Taxa</TableHead>
@@ -264,27 +262,29 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
-                  <CardHeader><CardTitle className="text-lg">Totais de Custo</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-lg">Custo Total (em BRL)</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                      {Object.entries(totals.cost).filter(([, value]) => value !== 0).map(([key, value]) => (
-                        <div key={key} className="flex justify-between"><span>{key}:</span><span className="font-mono">{value.toFixed(2)}</span></div>
-                      ))}
+                      <div className="flex justify-between font-semibold">
+                          <span>BRL:</span>
+                          <span className="font-mono">{totalsBRL.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
                   </CardContent>
               </Card>
                <Card>
-                  <CardHeader><CardTitle className="text-lg">Totais de Venda</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-lg">Venda Total (em BRL)</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                       {Object.entries(totals.sale).filter(([, value]) => value !== 0).map(([key, value]) => (
-                        <div key={key} className="flex justify-between"><span>{key}:</span><span className="font-mono">{value.toFixed(2)}</span></div>
-                      ))}
+                       <div className="flex justify-between font-semibold">
+                          <span>BRL:</span>
+                          <span className="font-mono">{totalsBRL.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
                   </CardContent>
               </Card>
-              <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
+              <Card className={cn(totalsBRL.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
                   <CardHeader><CardTitle className="text-lg">Lucro Total (em BRL)</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                      <div className={cn("flex justify-between font-semibold", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
+                      <div className={cn("flex justify-between font-semibold", totalsBRL.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
                           <span>BRL:</span>
-                          <span className="font-mono">{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="font-mono">{totalsBRL.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                   </CardContent>
               </Card>

@@ -19,6 +19,8 @@ export type FinancialEntry = {
     partner: string;
     invoiceId: string;
     status: 'Aberto' | 'Pago' | 'Vencido' | 'Jurídico';
+    legalStatus?: 'Fase Inicial' | 'Fase de Execução' | 'Desconsideração da Personalidade Jurídica';
+    legalComments?: string;
     dueDate: string; // ISO string format
     amount: number;
     currency: 'BRL' | 'USD';
@@ -101,6 +103,8 @@ const initialFinancialData: FinancialEntry[] = [
         partner: 'Empresa Dívida Ativa',
         invoiceId: 'INV-2023-001',
         status: 'Jurídico',
+        legalStatus: 'Fase Inicial',
+        legalComments: 'Enviado para o advogado em 15/01. Aguardando notificação.',
         dueDate: subDays(today, 180).toISOString(),
         amount: 99500.00,
         currency: 'BRL',

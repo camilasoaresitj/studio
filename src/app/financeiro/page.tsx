@@ -10,13 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import {
   MoreHorizontal,
   DollarSign,
-  Eye,
   Send,
   FileText,
   Banknote,
   PlusCircle,
   ShieldAlert,
-  Users,
   Loader2,
   Printer
 } from 'lucide-react';
@@ -37,10 +35,8 @@ import { BankAccountStatementDialog } from '@/components/financials/bank-account
 import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote } from '@/app/actions';
 import { FinancialEntryImporter } from '@/components/financials/financial-entry-importer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { exchangeRateService } from '@/services/exchange-rate-service';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
+import { Input } from '@/components/ui/input';
 
 
 type FilterType = 'all' | 'dueToday' | 'dueThisMonth';
@@ -253,8 +249,6 @@ export default function FinanceiroPage() {
         }
 
         const formatValue = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const exchangeRates = await exchangeRateService.getRates();
-        const ptaxRate = exchangeRates['USD'] || 5.0; // Fallback
 
         const charges = shipment.charges.map(c => ({
             description: c.name,
@@ -265,7 +259,7 @@ export default function FinanceiroPage() {
         }));
 
         const totalBRL = shipment.charges.reduce((sum, charge) => {
-            const rate = charge.saleCurrency === 'USD' ? ptaxRate : 1;
+            const rate = charge.saleCurrency === 'USD' ? 5.0 : 1; // Simplified rate
             return sum + (charge.sale * rate);
         }, 0);
         
@@ -276,7 +270,7 @@ export default function FinanceiroPage() {
             date: new Date().toLocaleDateString('pt-br'),
             charges: charges,
             total: formatValue(totalBRL),
-            exchangeRate: ptaxRate,
+            exchangeRate: 5.0, // Simplified rate
             bankDetails: {
                 bankName: "LTI GLOBAL",
                 accountNumber: "PIX: 10.298.168/0001-89"
@@ -372,6 +366,19 @@ export default function FinanceiroPage() {
         });
     };
 
+    const handleLegalEntryUpdate = (id: string, field: 'legalStatus' | 'legalComments', value: string) => {
+        setEntries(prev => {
+            const updatedEntries = prev.map(entry => {
+                if (entry.id === id) {
+                    return { ...entry, [field]: value };
+                }
+                return entry;
+            });
+            saveFinancialEntries(updatedEntries); // Persist change
+            return updatedEntries;
+        });
+    };
+
     if (!isClient) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -380,7 +387,7 @@ export default function FinanceiroPage() {
         );
     }
 
-    const renderTable = (tableEntries: FinancialEntry[]) => (
+    const renderEntriesTable = (tableEntries: FinancialEntry[]) => (
         <div className="border rounded-lg">
             <Table>
             <TableHeader>
@@ -560,7 +567,7 @@ export default function FinanceiroPage() {
                         </div>
                     )}
 
-                    {renderTable(filteredEntries)}
+                    {renderEntriesTable(filteredEntries)}
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -606,7 +613,60 @@ export default function FinanceiroPage() {
                         <CardDescription>Faturas que foram enviadas para cobrança judicial ou protesto.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {renderTable(juridicoEntries)}
+                         <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Parceiro</TableHead>
+                                        <TableHead>Fatura</TableHead>
+                                        <TableHead>Processo</TableHead>
+                                        <TableHead>Status Jurídico</TableHead>
+                                        <TableHead>Comentários</TableHead>
+                                        <TableHead className="text-right">Valor</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {juridicoEntries.length > 0 ? juridicoEntries.map(entry => (
+                                        <TableRow key={entry.id}>
+                                            <TableCell className="font-medium">{entry.partner}</TableCell>
+                                            <TableCell>{entry.invoiceId}</TableCell>
+                                            <TableCell>
+                                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                                    {entry.processId}
+                                                </a>
+                                            </TableCell>
+                                            <TableCell className="w-48">
+                                                <Select
+                                                    value={entry.legalStatus}
+                                                    onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
+                                                >
+                                                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
+                                                        <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
+                                                        <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell className="w-64">
+                                                <Input
+                                                    value={entry.legalComments || ''}
+                                                    onChange={(e) => handleLegalEntryUpdate(entry.id, 'legalComments', e.target.value)}
+                                                    placeholder="Adicionar comentário..."
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono text-destructive">
+                                                {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-24 text-center">Nenhum processo no jurídico.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                         </div>
                     </CardContent>
                  </Card>
             </TabsContent>

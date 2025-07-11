@@ -181,7 +181,7 @@ export default function FinanceiroPage() {
     };
 
     const handleProcessClick = (processId: string) => {
-        const shipment = allShipments.find(s => s.id === processId);
+        const shipment = allShipments.find(s => s.id === processId || s.quoteId === processId);
         if (shipment) {
             setDetailsShipment(shipment);
         } else {
@@ -629,7 +629,11 @@ export default function FinanceiroPage() {
                                     {juridicoEntries.length > 0 ? juridicoEntries.map(entry => (
                                         <TableRow key={entry.id}>
                                             <TableCell className="font-medium">{entry.partner}</TableCell>
-                                            <TableCell>{entry.invoiceId}</TableCell>
+                                            <TableCell>
+                                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                                    {entry.invoiceId}
+                                                </a>
+                                            </TableCell>
                                             <TableCell>
                                                 <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
                                                     {entry.processId}
@@ -735,7 +739,7 @@ export default function FinanceiroPage() {
 
         <NfseGenerationDialog
             data={nfseData}
-            isOpen={!!nfseData}
+            isOpen={!!nfse_data}
             onClose={() => setNfseData(null)}
         />
         

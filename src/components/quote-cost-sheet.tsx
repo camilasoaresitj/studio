@@ -46,7 +46,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const form = useForm<QuoteCostSheetFormData>({
     resolver: zodResolver(quoteChargeSchema),
     defaultValues: {
-      charges: [],
+      charges: quote.charges || [],
     },
   });
 

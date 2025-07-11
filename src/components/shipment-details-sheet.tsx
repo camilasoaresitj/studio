@@ -580,9 +580,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                               <Badge variant={statusInfo.variant}>{statusInfo.text}</Badge>
                                             </div>
                                             {status !== 'pending' && fileName && (
-                                              <p className="text-xs text-muted-foreground mt-1 ml-7">
-                                                {fileName} {uploadedAt && isValid(new Date(uploadedAt)) ? ` - ${format(new Date(uploadedAt), 'dd/MM/yy HH:mm')}` : ''}
-                                              </p>
+                                                <a href="#" onClick={(e) => { e.preventDefault(); window.open('', '_blank')?.document.write(`Exibindo ${fileName}`); }} className="text-xs text-muted-foreground mt-1 ml-7 hover:underline text-primary">
+                                                    {fileName} {uploadedAt && isValid(new Date(uploadedAt)) ? ` - ${format(new Date(uploadedAt), 'dd/MM/yy HH:mm')}` : ''}
+                                                </a>
                                             )}
                                           </div>
                                           <div className="flex gap-2 self-end sm:self-center">

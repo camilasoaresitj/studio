@@ -230,7 +230,7 @@ export async function updateShipmentFromAgent(shipmentId: string, data: any) {
             const readyMilestoneIndex = updatedShipment.milestones.findIndex(m => m.name.toLowerCase().includes('carga pronta'));
             if (readyMilestoneIndex !== -1) {
                 updatedShipment.milestones[readyMilestoneIndex].status = 'completed';
-                updatedShipment.milestones[readyMilestoneIndex].effectiveDate = data.effectiveReadinessDate;
+                updatedShipment.milestones[readyMilestoneIndex].effectiveDate = new Date(data.effectiveReadinessDate);
             }
         }
         

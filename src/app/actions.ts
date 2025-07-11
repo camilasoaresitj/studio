@@ -25,6 +25,7 @@ import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { getFinancialEntries, addFinancialEntry } from "@/lib/financials-data";
 import type { Shipment } from "@/lib/shipment";
+import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 
 
 export async function runGetFreightRates(input: any) {
@@ -69,6 +70,16 @@ export async function runSendQuote(input: any) {
     console.error("Server Action Failed", error);
     return { success: false, error: error.message || "Failed to run flow" };
   }
+}
+
+export async function runSendWhatsapp(to: string, message: string) {
+    try {
+        const output = await sendWhatsappMessage({ to, message });
+        return { success: true, data: output };
+    } catch (error: any) {
+        console.error("WhatsApp Send Action Failed", error);
+        return { success: false, error: error.message || "Failed to send WhatsApp message" };
+    }
 }
 
 export async function runGenerateClientInvoicePdf(input: any) {

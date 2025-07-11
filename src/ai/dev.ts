@@ -33,4 +33,5 @@ import '@/ai/flows/send-demurrage-invoice.ts';
 import '@/ai/flows/generate-nfse-xml.ts';
 import '@/ai/flows/generate-agent-invoice-html.ts';
 import '@/ai/flows/send-to-legal.ts';
+import '@/ai/flows/send-whatsapp-message.ts';
 

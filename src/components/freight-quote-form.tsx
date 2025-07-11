@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
-import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetVesselSchedules, runGenerateClientInvoicePdf, runExtractQuoteDetailsFromText } from '@/app/actions';
+import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetVesselSchedules, runGenerateClientInvoicePdf, runExtractQuoteDetailsFromText, runSendWhatsapp } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import type { Quote, QuoteCharge, QuoteDetails } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
@@ -527,8 +527,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             incoterm: form.getValues('incoterm'),
         }
     };
-    onQuoteCreated(newQuote);
     setActiveQuote(newQuote);
+    onQuoteCreated(newQuote);
   };
   
   const handleRequestAgentQuote = async () => {
@@ -607,7 +607,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       
       const isClientAgent = customer.roles.agente === true;
 
-      const response = await runSendQuote({
+      const commsResponse = await runSendQuote({
         customerName: activeQuote.customer,
         quoteId: activeQuote.id.replace('-DRAFT', ''),
         rateDetails: {
@@ -622,7 +622,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         isClientAgent: isClientAgent,
       });
 
-      if (response.success) {
+      if (commsResponse.success) {
         if (channel === 'email') {
             const primaryContact = customer.contacts.find(c => c.departments?.includes('Comercial')) || customer.contacts[0];
             const recipient = primaryContact.email;
@@ -630,8 +630,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                 // In a real app, you would use an email service API here.
                 console.log("----- SIMULATING EMAIL SEND -----");
                 console.log("TO:", recipient);
-                console.log("SUBJECT:", response.data.emailSubject);
-                console.log("BODY (HTML):", response.data.emailBody);
+                console.log("SUBJECT:", commsResponse.data.emailSubject);
+                console.log("BODY (HTML):", commsResponse.data.emailBody);
                 console.log("---------------------------------");
                 toast({ title: 'Simulando envio de e-mail!', description: `E-mail para ${recipient} gerado no console.` });
             } else {
@@ -639,17 +639,20 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             }
         } else { // WhatsApp
             const primaryContact = customer.contacts.find(c => c.departments?.includes('Comercial')) || customer.contacts[0];
-            const phone = primaryContact.phone.replace(/\D/g, '');
+            const phone = primaryContact?.phone?.replace(/\D/g, '');
              if (phone) {
-                const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(response.data.whatsappMessage)}`;
-                window.open(whatsappUrl, '_blank');
-                toast({ title: 'Mensagem de WhatsApp gerada!', description: 'Pronto para enviar.' });
+                const whatsappResponse = await runSendWhatsapp(phone, commsResponse.data.whatsappMessage);
+                if (whatsappResponse.success) {
+                    toast({ title: 'Mensagem de WhatsApp enviada!', description: `Mensagem enviada para ${phone}.`, className: 'bg-success text-success-foreground' });
+                } else {
+                    toast({ variant: 'destructive', title: 'Falha no Envio do WhatsApp', description: whatsappResponse.error });
+                }
             } else {
                  toast({ variant: 'destructive', title: 'Telefone não encontrado', description: 'O contato principal do cliente não possui um telefone cadastrado.' });
             }
         }
       } else {
-        toast({ variant: 'destructive', title: 'Erro ao gerar comunicação', description: response.error });
+        toast({ variant: 'destructive', title: 'Erro ao gerar comunicação', description: commsResponse.error });
       }
 
       setIsSending(false);
@@ -818,7 +821,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         Gerar PDF
                     </Button>
                     <Button onClick={() => handleSendQuote('whatsapp')} disabled={isSending}>
-                        <MessageCircle className="mr-2 h-4 w-4" /> Enviar por WhatsApp
+                        {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+                        Enviar por WhatsApp
                     </Button>
                     <Button onClick={() => handleSendQuote('email')} disabled={isSending}>
                         {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}

@@ -34,10 +34,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from './ui/checkbox';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
 
@@ -50,6 +51,7 @@ const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação'
 
 export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
@@ -62,6 +64,9 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     control: form.control,
     name: 'contacts',
   });
+  
+  const watchedCnpj = form.watch('cnpj');
+  const watchedRoles = form.watch('roles');
 
   const handleOpenDialog = (partner: Partner | null) => {
     setEditingPartner(partner);
@@ -71,9 +76,45 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
         contacts: [{ name: '', email: '', phone: '', departments: [] }],
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
+        tipoCliente: { importacao: false, exportacao: false, nacional: false, internacional: false },
+        tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false, despachante: false, armazem: false },
+        tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
+        profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' }
       }
     );
     setIsDialogOpen(true);
+  };
+  
+  const handleFetchCnpjData = async () => {
+    const cnpj = form.getValues('cnpj')?.replace(/\D/g, '');
+    if (!cnpj || cnpj.length !== 14) {
+      toast({ variant: 'destructive', title: 'CNPJ inválido', description: 'Por favor, insira um CNPJ com 14 dígitos.' });
+      return;
+    }
+    setIsFetchingCnpj(true);
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!response.ok) throw new Error('Não foi possível consultar o CNPJ. Verifique se o número está correto.');
+      const data = await response.json();
+      
+      form.setValue('name', data.razao_social || '');
+      form.setValue('nomeFantasia', data.nome_fantasia || '');
+      form.setValue('address.street', data.logradouro || '');
+      form.setValue('address.number', data.numero || '');
+      form.setValue('address.complement', data.complemento || '');
+      form.setValue('address.district', data.bairro || '');
+      form.setValue('address.city', data.municipio || '');
+      form.setValue('address.state', data.uf || '');
+      form.setValue('address.zip', data.cep || '');
+      form.setValue('address.country', 'Brasil');
+      
+      toast({ title: 'Dados do CNPJ preenchidos!', className: 'bg-success text-success-foreground' });
+
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro ao buscar CNPJ', description: error.message });
+    } finally {
+      setIsFetchingCnpj(false);
+    }
   };
 
   const onSubmit = (data: PartnerFormData) => {
@@ -170,7 +211,19 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome / Razão Social</FormLabel><FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="nomeFantasia" render={({ field }) => ( <FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input placeholder="Nome fantasia" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
-                    <FormField control={form.control} name="cnpj" render={({ field }) => ( <FormItem><FormLabel>CNPJ / VAT</FormLabel><FormControl><Input placeholder="00.000.000/0001-00" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                     <FormField control={form.control} name="cnpj" render={({ field }) => ( 
+                        <FormItem>
+                            <FormLabel>CNPJ / CPF</FormLabel>
+                            <div className="flex items-center gap-2">
+                                <FormControl><Input placeholder="00.000.000/0001-00" {...field} /></FormControl>
+                                <Button type="button" onClick={handleFetchCnpjData} disabled={isFetchingCnpj || (watchedCnpj || '').replace(/\D/g, '').length !== 14}>
+                                    {isFetchingCnpj ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}
+                                    Buscar
+                                </Button>
+                            </div>
+                            <FormMessage />
+                        </FormItem> 
+                     )} />
 
                     <FormItem>
                         <FormLabel>Funções do Parceiro</FormLabel>
@@ -181,13 +234,60 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         </div>
                     </FormItem>
 
-                    <Separator className="my-4"/>
+                    {watchedRoles.cliente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                        <h4 className="font-semibold text-sm">Tipo de Cliente</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                             <FormField control={form.control} name="tipoCliente.importacao" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Importação</FormLabel></FormItem> )} />
+                             <FormField control={form.control} name="tipoCliente.exportacao" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Exportação</FormLabel></FormItem> )} />
+                        </div>
+                    </div>}
 
+                    {watchedRoles.fornecedor && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                        <h4 className="font-semibold text-sm">Tipo de Fornecedor</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            <FormField control={form.control} name="tipoFornecedor.ciaMaritima" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Cia Marítima</FormLabel></FormItem> )} />
+                            <FormField control={form.control} name="tipoFornecedor.ciaAerea" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Cia Aérea</FormLabel></FormItem> )} />
+                            <FormField control={form.control} name="tipoFornecedor.transportadora" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Transportadora</FormLabel></FormItem> )} />
+                        </div>
+                    </div>}
+                    
+                    {watchedRoles.agente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                        <h4 className="font-semibold text-sm">Tipo de Agente</h4>
+                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <FormField control={form.control} name="tipoAgente.fcl" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">FCL</FormLabel></FormItem> )} />
+                            <FormField control={form.control} name="tipoAgente.lcl" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">LCL</FormLabel></FormItem> )} />
+                            <FormField control={form.control} name="tipoAgente.air" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Aéreo</FormLabel></FormItem> )} />
+                            <FormField control={form.control} name="tipoAgente.projects" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Projetos</FormLabel></FormItem> )} />
+                        </div>
+                    </div>}
+
+                    <Separator className="my-4"/>
+                    
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="paymentTerm" render={({ field }) => ( <FormItem><FormLabel>Prazo de Pagamento (dias)</FormLabel><FormControl><Input type="number" placeholder="30" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="exchangeRateAgio" render={({ field }) => ( <FormItem><FormLabel>Ágio sobre Câmbio (%)</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        {!watchedRoles.agente && <FormField control={form.control} name="exchangeRateAgio" render={({ field }) => ( <FormItem><FormLabel>Ágio sobre Câmbio (%)</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} /></FormControl><FormMessage /></FormItem> )} />}
                     </div>
                     
+                    {watchedRoles.agente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                        <h4 className="font-semibold text-sm">Acordo de Lucro (Profit Share)</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <FormField control={form.control} name="profitAgreement.unit" render={({ field }) => (
+                                <FormItem><FormLabel>Unidade</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
+                                    <SelectItem value="por_container">Por Contêiner</SelectItem>
+                                    <SelectItem value="por_bl">Por BL/AWB</SelectItem>
+                                    <SelectItem value="porcentagem_lucro">Porcentagem do Lucro</SelectItem>
+                                </SelectContent></Select><FormMessage /></FormItem>
+                             )}/>
+                             <FormField control={form.control} name="profitAgreement.amount" render={({ field }) => ( <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" placeholder="50" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                             <FormField control={form.control} name="profitAgreement.currency" render={({ field }) => (
+                                <FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
+                                    <SelectItem value="USD">USD</SelectItem>
+                                    <SelectItem value="BRL">BRL</SelectItem>
+                                </SelectContent></Select><FormMessage /></FormItem>
+                             )}/>
+                        </div>
+                    </div>}
+
                     <Separator className="my-4"/>
                     <h4 className="text-md font-semibold">Endereço</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

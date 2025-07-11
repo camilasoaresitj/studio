@@ -12,13 +12,29 @@ export const partnerSchema = z.object({
     agente: z.boolean().default(false),
     comissionado: z.boolean().default(false),
   }),
+  // Sub-types
+  tipoCliente: z.object({
+    importacao: z.boolean().default(false),
+    exportacao: z.boolean().default(false),
+  }).optional(),
+  tipoFornecedor: z.object({
+      ciaMaritima: z.boolean().default(false),
+      ciaAerea: z.boolean().default(false),
+      transportadora: z.boolean().default(false),
+  }).optional(),
+  tipoAgente: z.object({
+      fcl: z.boolean().default(false),
+      lcl: z.boolean().default(false),
+      air: z.boolean().default(false),
+      projects: z.boolean().default(false),
+  }).optional(),
   cnpj: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
   exchangeRateAgio: z.coerce.number().optional().default(0),
   profitAgreement: z.object({
-      amount: z.number().optional(),
+      amount: z.coerce.number().optional(),
       unit: z.enum(['por_container', 'por_bl', 'porcentagem_lucro']).optional(),
-      currency: z.enum(['USD', 'BRL']).default('USD'),
+      currency: z.enum(['USD', 'BRL']).default('USD').optional(),
   }).optional(),
   address: z.object({
     street: z.string().optional(),
@@ -40,7 +56,7 @@ export const partnerSchema = z.object({
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v3';
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v4';
 
 function getInitialPartners(): Partner[] {
     return [
@@ -49,6 +65,7 @@ function getInitialPartners(): Partner[] {
             name: "Nexus Imports",
             nomeFantasia: "Nexus",
             roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
+            tipoCliente: { importacao: true, exportacao: true },
             cnpj: "12.345.678/0001-90",
             paymentTerm: 30,
             exchangeRateAgio: 2.5,
@@ -74,6 +91,7 @@ function getInitialPartners(): Partner[] {
             name: "Ocean Express Logistics",
             nomeFantasia: "OEL",
             roles: { cliente: false, fornecedor: false, agente: true, comissionado: false },
+            tipoAgente: { fcl: true, air: true, projects: true, lcl: false },
             cnpj: "98.765.432/0001-09",
             paymentTerm: 45,
             exchangeRateAgio: 0,
@@ -104,6 +122,7 @@ function getInitialPartners(): Partner[] {
             name: "Global Import Solutions",
             nomeFantasia: "GIS",
             roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
+            tipoFornecedor: { ciaMaritima: true, ciaAerea: false, transportadora: false },
             cnpj: "54.321.876/0001-21",
             paymentTerm: 60,
             exchangeRateAgio: 0,
@@ -129,6 +148,7 @@ function getInitialPartners(): Partner[] {
             name: "Advocacia Marítima XYZ",
             nomeFantasia: "Advocacia XYZ",
             roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
+            tipoFornecedor: { ciaAerea: false, ciaMaritima: false, transportadora: false},
             cnpj: "11.223.344/0001-55",
             paymentTerm: 30,
             address: {

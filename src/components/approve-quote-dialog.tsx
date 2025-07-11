@@ -172,6 +172,8 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
   const [partners, setPartners] = useState<Partner[]>(initialPartners);
   const [selectedShipperId, setSelectedShipperId] = useState<string | null>(null);
   const [selectedConsigneeId, setSelectedConsigneeId] = useState<string | null>(null);
+  const [selectedNotifyId, setSelectedNotifyId] = useState<string | null>(null);
+  const [isNotifyPopoverOpen, setIsNotifyPopoverOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('none');
   const [notifyName, setNotifyName] = useState('');
   const { toast } = useToast();
@@ -180,10 +182,21 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
     if (quote) {
       setSelectedShipperId(null);
       setSelectedConsigneeId(null);
+      setSelectedNotifyId(null);
       setSelectedAgentId('none');
       setNotifyName('');
     }
   }, [quote]);
+  
+  useEffect(() => {
+    if (selectedNotifyId) {
+        const partner = partners.find(p => p.id?.toString() === selectedNotifyId);
+        if (partner) {
+            setNotifyName(partner.name);
+        }
+    }
+  }, [selectedNotifyId, partners]);
+
 
   if (!quote) return null;
 
@@ -275,7 +288,30 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
              >
                 <div className="space-y-1 mt-4">
                     <Label htmlFor="notify-party">Notify Party (Obrigatório)</Label>
-                    <Input id="notify-party" placeholder="Nome do Notify" value={notifyName} onChange={e => setNotifyName(e.target.value)} />
+                    <Popover open={isNotifyPopoverOpen} onOpenChange={setIsNotifyPopoverOpen}>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" aria-expanded={isNotifyPopoverOpen} className="w-full justify-between font-normal">
+                                {notifyName || "Selecione um parceiro..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                            <Command>
+                                <CommandInput placeholder="Buscar parceiro..." />
+                                <CommandList>
+                                    <CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
+                                    <CommandGroup>
+                                        {partners.map(partner => (
+                                            <CommandItem value={partner.name} key={partner.id} onSelect={() => { setSelectedNotifyId(partner.id?.toString() ?? null); setIsNotifyPopoverOpen(false); }}>
+                                                <Check className={cn("mr-2 h-4 w-4", selectedNotifyId === partner.id?.toString() ? "opacity-100" : "opacity-0")} />
+                                                {partner.name}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
                 </div>
              </PartnerFormBlock>
         </div>

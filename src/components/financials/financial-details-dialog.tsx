@@ -14,13 +14,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import type { Shipment } from '@/lib/shipment';
+import type { Shipment, PartialPayment } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface FinancialDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  shipment: Shipment | null;
+  shipment: (Shipment & { payments?: PartialPayment[] }) | null;
 }
 
 export function FinancialDetailsDialog({ isOpen, onClose, shipment }: FinancialDetailsDialogProps) {
@@ -63,48 +64,82 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment }: FinancialD
         </DialogHeader>
 
         <div className="flex-grow overflow-hidden">
-          <ScrollArea className="h-full pr-4">
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Taxa</TableHead>
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead className="text-right">Custo</TableHead>
-                    <TableHead className="text-right">Venda</TableHead>
-                    <TableHead className="text-right">Lucro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {shipment.charges.map(charge => {
-                    const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
-                    const profit = canCalculateProfit ? charge.sale - charge.cost : 0;
+          <ScrollArea className="h-full pr-4 space-y-6">
+            <Card>
+                <CardHeader><CardTitle className="text-lg">Tabela de Custos e Vendas</CardTitle></CardHeader>
+                <CardContent>
+                    <div className="border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Taxa</TableHead>
+                            <TableHead>Fornecedor</TableHead>
+                            <TableHead className="text-right">Custo</TableHead>
+                            <TableHead className="text-right">Venda</TableHead>
+                            <TableHead className="text-right">Lucro</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {shipment.charges.map(charge => {
+                            const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
+                            const profit = canCalculateProfit ? charge.sale - charge.cost : 0;
 
-                    return (
-                      <TableRow key={charge.id}>
-                        <TableCell>{charge.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{charge.supplier}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {charge.costCurrency} {charge.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell className={cn(
-                          'text-right font-mono',
-                          canCalculateProfit ? (profit >= 0 ? 'text-success' : 'text-destructive') : 'text-muted-foreground'
-                        )}>
-                          {canCalculateProfit
-                            ? `${charge.saleCurrency} ${profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                            : 'N/A'
-                          }
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                            return (
+                              <TableRow key={charge.id}>
+                                <TableCell>{charge.name}</TableCell>
+                                <TableCell className="text-muted-foreground">{charge.supplier}</TableCell>
+                                <TableCell className="text-right font-mono">
+                                  {charge.costCurrency} {charge.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell className="text-right font-mono">
+                                  {charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell className={cn(
+                                  'text-right font-mono',
+                                  canCalculateProfit ? (profit >= 0 ? 'text-success' : 'text-destructive') : 'text-muted-foreground'
+                                )}>
+                                  {canCalculateProfit
+                                    ? `${charge.saleCurrency} ${profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                    : 'N/A'
+                                  }
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {shipment.payments && shipment.payments.length > 0 && (
+                <Card>
+                    <CardHeader><CardTitle className="text-lg">Histórico de Pagamentos</CardTitle></CardHeader>
+                    <CardContent>
+                         <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Data</TableHead>
+                                        <TableHead className="text-right">Valor Pago</TableHead>
+                                        <TableHead>Moeda</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {shipment.payments.map(payment => (
+                                        <TableRow key={payment.id}>
+                                            <TableCell>{format(new Date(payment.date), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell className="text-right font-mono">{payment.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell>{(shipment.charges[0]?.saleCurrency || '')}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                         </div>
+                    </CardContent>
+                </Card>
+            )}
+
           </ScrollArea>
         </div>
 

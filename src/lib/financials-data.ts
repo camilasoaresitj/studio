@@ -13,19 +13,29 @@ export type BankAccount = {
     balance: number;
 };
 
+export type PartialPayment = {
+    id: string;
+    amount: number;
+    date: string; // ISO string
+    accountId: number;
+    exchangeRate?: number;
+};
+
 export type FinancialEntry = {
     id: string;
     type: 'credit' | 'debit';
     partner: string;
     invoiceId: string;
-    status: 'Aberto' | 'Pago' | 'Vencido' | 'Jurídico';
-    legalStatus?: 'Fase Inicial' | 'Fase de Execução' | 'Desconsideração da Personalidade Jurídica';
-    legalComments?: string;
     dueDate: string; // ISO string format
     amount: number;
     currency: 'BRL' | 'USD';
     processId: string;
     accountId: number; // Link to the BankAccount
+    payments?: PartialPayment[];
+    // Deprecated status, will be calculated on the fly
+    status: 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico';
+    legalStatus?: 'Fase Inicial' | 'Fase de Execução' | 'Desconsideração da Personalidade Jurídica';
+    legalComments?: string;
 };
 
 const today = new Date();
@@ -41,61 +51,66 @@ const initialFinancialData: FinancialEntry[] = [
         id: 'fin-001',
         type: 'credit',
         partner: 'Nexus Imports',
-        invoiceId: 'COT-00125',
+        invoiceId: 'COT-00125-95015',
         status: 'Aberto',
         dueDate: addDays(today, 15).toISOString(),
         amount: 12500.50,
         currency: 'BRL',
         processId: 'PROC-00125-95015',
         accountId: 1,
+        payments: [],
     },
     {
         id: 'fin-002',
         type: 'credit',
         partner: 'TechFront Solutions',
-        invoiceId: 'COT-00124',
+        invoiceId: 'COT-00124-42898',
         status: 'Pago',
         dueDate: subDays(today, 20).toISOString(),
         amount: 8750.00,
         currency: 'BRL',
         processId: 'PROC-00124-42898',
         accountId: 1,
+        payments: [{ id: 'pay-001', amount: 8750.00, date: subDays(today, 20).toISOString(), accountId: 1 }],
     },
     {
         id: 'fin-003',
         type: 'credit',
         partner: 'Global Foods Ltda',
-        invoiceId: 'COT-00123',
+        invoiceId: 'COT-00123-51881',
         status: 'Vencido',
         dueDate: subDays(today, 5).toISOString(),
         amount: 45800.00,
         currency: 'BRL',
         processId: 'PROC-00123-51881',
         accountId: 1,
+        payments: [],
     },
     {
         id: 'fin-004',
         type: 'credit',
         partner: 'Nexus Imports',
-        invoiceId: 'COT-00122',
-        status: 'Aberto',
+        invoiceId: 'COT-00122-38416',
+        status: 'Parcialmente Pago',
         dueDate: addDays(today, 30).toISOString(),
         amount: 3200.00,
         currency: 'USD',
         processId: 'PROC-00122-38416',
         accountId: 2,
+        payments: [{ id: 'pay-002', amount: 1200.00, date: subDays(today, 2).toISOString(), accountId: 2 }],
     },
      {
         id: 'fin-008',
         type: 'credit',
         partner: 'AutoParts Express',
-        invoiceId: 'COT-00121',
+        invoiceId: 'COT-00121-72921',
         status: 'Aberto',
         dueDate: today.toISOString(),
         amount: 7250.75,
         currency: 'BRL',
         processId: 'PROC-00121-72921',
         accountId: 1,
+        payments: [],
     },
     {
         id: 'fin-010',
@@ -110,6 +125,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'BRL',
         processId: 'PROC-JURIDICO-1',
         accountId: 1,
+        payments: [],
     },
 
 
@@ -125,6 +141,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'USD',
         processId: 'PROC-00125-95015',
         accountId: 2,
+        payments: [],
     },
     {
         id: 'fin-006',
@@ -137,6 +154,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'USD',
         processId: 'PROC-00124-42898',
         accountId: 2,
+        payments: [{ id: 'pay-003', amount: 2100.00, date: subDays(today, 15).toISOString(), accountId: 2 }],
     },
     {
         id: 'fin-007',
@@ -149,6 +167,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'USD',
         processId: 'PROC-00123-51881',
         accountId: 2,
+        payments: [],
     },
     {
         id: 'fin-009',
@@ -161,11 +180,12 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'USD',
         processId: 'PROC-00121-72921',
         accountId: 2,
+        payments: [],
     },
 ];
 
 // In a real app, this would fetch from a database. Here, we use local storage for persistence.
-const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v4';
+const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v5';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
 export function getFinancialEntries(): FinancialEntry[] {

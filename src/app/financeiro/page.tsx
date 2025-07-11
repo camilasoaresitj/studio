@@ -19,7 +19,7 @@ import {
   Printer
 } from 'lucide-react';
 import { format, isPast, isToday, isThisMonth } from 'date-fns';
-import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries } from '@/lib/financials-data';
+import { getFinancialEntries, FinancialEntry, BankAccount, getBankAccounts, saveBankAccounts, saveFinancialEntries, PartialPayment } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +49,7 @@ export default function FinanceiroPage() {
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [entryToSettle, setEntryToSettle] = useState<FinancialEntry | null>(null);
     const [settlementAccountId, setSettlementAccountId] = useState<string>('');
+    const [settlementAmount, setSettlementAmount] = useState<string>('');
     const [exchangeRate, setExchangeRate] = useState<string>('');
     const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
@@ -65,6 +66,30 @@ export default function FinanceiroPage() {
         setAllShipments(getShipments());
     }, []);
 
+    const getEntryBalance = (entry: FinancialEntry): number => {
+        const totalPaid = (entry.payments || []).reduce((sum, p) => sum + p.amount, 0);
+        return entry.amount - totalPaid;
+    };
+
+    const getEntryStatus = (entry: FinancialEntry): { status: 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico'; variant: 'default' | 'secondary' | 'destructive' | 'success' } => {
+        if (entry.status === 'Jurídico') {
+            return { status: 'Jurídico', variant: 'default' };
+        }
+        const balance = getEntryBalance(entry);
+        const totalPaid = entry.amount - balance;
+
+        if (balance <= 0) {
+            return { status: 'Pago', variant: 'success' };
+        }
+        if (isPast(new Date(entry.dueDate)) && !isToday(new Date(entry.dueDate))) {
+            return { status: 'Vencido', variant: 'destructive' };
+        }
+        if (totalPaid > 0 && balance > 0) {
+            return { status: 'Parcialmente Pago', variant: 'default' };
+        }
+        return { status: 'Aberto', variant: 'secondary' };
+    };
+
     const filteredEntries = useMemo(() => {
         if (!isClient) return [];
         const nonJuridicoEntries = entries.filter(e => e.status !== 'Jurídico');
@@ -73,9 +98,10 @@ export default function FinanceiroPage() {
         }
 
         return nonJuridicoEntries.filter(entry => {
-            const dueDate = new Date(entry.dueDate);
-            if (entry.status === 'Pago') return false;
+            const { status } = getEntryStatus(entry);
+            if (status === 'Pago' || status === 'Jurídico') return false;
 
+            const dueDate = new Date(entry.dueDate);
             if (activeFilter === 'dueToday') {
                 return isToday(dueDate);
             }
@@ -91,15 +117,6 @@ export default function FinanceiroPage() {
         return entries.filter(e => e.status === 'Jurídico');
     }, [entries, isClient]);
 
-
-    const getStatusVariant = (entry: FinancialEntry): 'default' | 'secondary' | 'destructive' | 'success' => {
-        if (entry.status === 'Pago') return 'success';
-        if (entry.status === 'Jurídico') return 'default';
-        if (isPast(new Date(entry.dueDate)) && !isToday(new Date(entry.dueDate))) return 'destructive';
-        if (isToday(new Date(entry.dueDate))) return 'default';
-        return 'secondary';
-    };
-
     const needsExchangeRate = useMemo(() => {
         if (!entryToSettle || !settlementAccountId) return false;
         const account = accounts.find(a => a.id.toString() === settlementAccountId);
@@ -107,30 +124,47 @@ export default function FinanceiroPage() {
     }, [entryToSettle, settlementAccountId, accounts]);
     
     const handleSettlePayment = () => {
-        if (!entryToSettle || !settlementAccountId) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Fatura ou conta bancária não selecionada.' });
+        if (!entryToSettle || !settlementAccountId || !settlementAmount) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Todos os campos são obrigatórios.' });
             return;
         }
         if (needsExchangeRate && !exchangeRate) {
             toast({ variant: 'destructive', title: 'Erro', description: 'Taxa de câmbio é obrigatória.' });
             return;
         }
-
-        let description = `A fatura ${entryToSettle.invoiceId} foi marcada como paga na conta ID ${settlementAccountId}.`;
-        if (needsExchangeRate) {
-            description += ` Câmbio utilizado: ${exchangeRate}.`;
+        const amount = parseFloat(settlementAmount);
+        const balance = getEntryBalance(entryToSettle);
+        if (amount > balance) {
+            toast({ variant: 'destructive', title: 'Valor Inválido', description: 'O valor do pagamento não pode ser maior que o saldo devedor.' });
+            return;
         }
 
+        const newPayment: PartialPayment = {
+            id: `pay-${Date.now()}`,
+            amount,
+            date: new Date().toISOString(),
+            accountId: parseInt(settlementAccountId, 10),
+            exchangeRate: needsExchangeRate ? parseFloat(exchangeRate) : undefined,
+        };
+
+        const updatedEntries = entries.map(e => {
+            if (e.id === entryToSettle.id) {
+                const updatedPayments = [...(e.payments || []), newPayment];
+                return { ...e, payments: updatedPayments };
+            }
+            return e;
+        });
+
+        saveFinancialEntries(updatedEntries);
+        setEntries(updatedEntries);
+
         toast({
-            title: 'Baixa de Pagamento (Simulação)',
-            description,
+            title: 'Baixa de Pagamento Realizada!',
+            description: `Pagamento de ${entryToSettle.currency} ${amount.toFixed(2)} para a fatura ${entryToSettle.invoiceId} foi registrado.`,
             className: 'bg-success text-success-foreground'
         });
         
-        // In a real app, you would update the entry status here.
         setEntryToSettle(null);
-        setSettlementAccountId('');
-        setExchangeRate('');
     };
     
     const toggleRowSelection = (id: string) => {
@@ -155,7 +189,8 @@ export default function FinanceiroPage() {
             if (!totalsByCurrency[entry.currency]) {
                 totalsByCurrency[entry.currency] = 0;
             }
-            const value = entry.type === 'credit' ? entry.amount : -entry.amount;
+            const balance = getEntryBalance(entry);
+            const value = entry.type === 'credit' ? balance : -balance;
             totalsByCurrency[entry.currency] += value;
         });
 
@@ -183,7 +218,9 @@ export default function FinanceiroPage() {
     const handleProcessClick = (processId: string) => {
         const shipment = allShipments.find(s => s.id === processId || s.quoteId === processId);
         if (shipment) {
-            setDetailsShipment(shipment);
+            const relatedEntry = entries.find(e => e.processId === processId || e.invoiceId === shipment.quoteId);
+            const shipmentWithPayments = { ...shipment, payments: relatedEntry?.payments || [] };
+            setDetailsShipment(shipmentWithPayments as Shipment & { payments: PartialPayment[] });
         } else {
             toast({
                 variant: "destructive",
@@ -194,14 +231,14 @@ export default function FinanceiroPage() {
     };
 
     const handleOpenNfseDialog = (entry: FinancialEntry) => {
-        const relatedShipment = allShipments.find(s => s.id === entry.processId);
+        const relatedShipment = allShipments.find(s => s.id === entry.processId || s.invoiceId === s.quoteId);
         if (relatedShipment) {
             setNfseData({ entry, shipment: relatedShipment });
         } else {
             toast({
                 variant: 'destructive',
                 title: 'Processo não encontrado',
-                description: `Não foi possível encontrar o processo de embarque ${entry.processId} vinculado a esta fatura.`,
+                description: `Não foi possível encontrar o processo de embarque vinculado a esta fatura.`,
             });
         }
     };
@@ -229,7 +266,6 @@ export default function FinanceiroPage() {
             toast({ variant: 'destructive', title: 'Erro ao gerar fatura', description: 'O conteúdo da fatura não pôde ser gerado.' });
             return;
         }
-
         const newWindow = window.open();
         newWindow?.document.write(html);
         newWindow?.document.close();
@@ -379,6 +415,14 @@ export default function FinanceiroPage() {
         });
     };
 
+    const handleOpenSettleDialog = (entry: FinancialEntry) => {
+        const balance = getEntryBalance(entry);
+        setSettlementAmount(balance.toFixed(2));
+        setSettlementAccountId('');
+        setExchangeRate('');
+        setEntryToSettle(entry);
+    };
+
     if (!isClient) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -411,72 +455,80 @@ export default function FinanceiroPage() {
                 <TableHead>Processo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Vencimento</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-right">Valor Total</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
                 <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {tableEntries.length > 0 ? tableEntries.map((entry) => (
-                <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
-                    <TableCell>
-                        <Checkbox
-                            checked={selectedRows.has(entry.id)}
-                            onCheckedChange={() => toggleRowSelection(entry.id)}
-                            aria-label="Selecionar linha"
-                        />
-                    </TableCell>
-                    <TableCell>
-                        <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">{entry.partner}</TableCell>
-                    <TableCell>{entry.invoiceId}</TableCell>
-                    <TableCell>
-                        <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
-                            {entry.processId}
-                        </a>
-                    </TableCell>
-                    <TableCell>
-                        <Badge variant={getStatusVariant(entry)} className="capitalize">{entry.status}</Badge>
-                    </TableCell>
-                    <TableCell className={cn(getStatusVariant(entry) === 'destructive' && 'text-destructive font-bold')}>
-                    {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
-                    </TableCell>
-                    <TableCell className={cn("text-right font-mono", entry.type === 'credit' ? 'text-success' : 'text-destructive')}>
-                    {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-center">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={isGenerating}>
-                                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
-                                    Visualizar/Imprimir Fatura (Cliente)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={isGenerating || !findShipmentForEntry(entry)?.agent}>
-                                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
-                                    Visualizar/Imprimir Invoice (Agente)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
-                                    <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setEntryToSettle(entry)}>
-                                    <DollarSign className="mr-2 h-4 w-4" /> Baixar Pagamento
-                                </DropdownMenuItem>
-                                {entry.type === 'credit' && (
-                                    <>
-                                        <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
-                                            <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
+                {tableEntries.length > 0 ? tableEntries.map((entry) => {
+                    const { status, variant } = getEntryStatus(entry);
+                    const balance = getEntryBalance(entry);
+                    return (
+                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
+                            <TableCell>
+                                <Checkbox
+                                    checked={selectedRows.has(entry.id)}
+                                    onCheckedChange={() => toggleRowSelection(entry.id)}
+                                    aria-label="Selecionar linha"
+                                />
+                            </TableCell>
+                            <TableCell>
+                                <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{entry.partner}</TableCell>
+                            <TableCell>{entry.invoiceId}</TableCell>
+                            <TableCell>
+                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                    {entry.processId}
+                                </a>
+                            </TableCell>
+                            <TableCell>
+                                <Badge variant={variant} className="capitalize">{status}</Badge>
+                            </TableCell>
+                            <TableCell className={cn(variant === 'destructive' && 'text-destructive font-bold')}>
+                            {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                                {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                             <TableCell className={cn("text-right font-mono font-bold", entry.type === 'credit' ? 'text-success' : 'text-destructive')}>
+                                {entry.currency} {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="text-center">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={isGenerating}>
+                                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
+                                            Visualizar/Imprimir Fatura (Cliente)
                                         </DropdownMenuItem>
-                                    </>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                </TableRow>
-                )) : (
+                                        <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={isGenerating || !findShipmentForEntry(entry)?.agent}>
+                                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
+                                            Visualizar/Imprimir Invoice (Agente)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
+                                            <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleOpenSettleDialog(entry)} disabled={status === 'Pago'}>
+                                            <DollarSign className="mr-2 h-4 w-4" /> Baixar Pagamento
+                                        </DropdownMenuItem>
+                                        {entry.type === 'credit' && (
+                                            <>
+                                                <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
+                                                    <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
+                                                </DropdownMenuItem>
+                                            </>
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                    )
+                }) : (
                     <TableRow>
-                        <TableCell colSpan={9} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
+                        <TableCell colSpan={10} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
                     </TableRow>
                 )}
             </TableBody>
@@ -681,10 +733,21 @@ export default function FinanceiroPage() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Confirmar Baixa de Pagamento</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Selecione a conta bancária para realizar a baixa da fatura <strong>{entryToSettle?.invoiceId}</strong> no valor de <strong>{entryToSettle?.currency} {entryToSettle?.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong>.
+                        Fatura <strong>{entryToSettle?.invoiceId}</strong> | Saldo: <strong>{entryToSettle?.currency} {entryToSettle ? getEntryBalance(entryToSettle).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '0.00'}</strong>.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="py-4 space-y-4">
+                    <div>
+                        <Label htmlFor="payment-amount">Valor do Pagamento</Label>
+                        <Input
+                            id="payment-amount"
+                            type="number"
+                            placeholder="0.00"
+                            value={settlementAmount}
+                            onChange={(e) => setSettlementAmount(e.target.value)}
+                            className="mt-2"
+                        />
+                    </div>
                     <div>
                         <Label htmlFor="bank-account-select">Conta Bancária</Label>
                         <Select onValueChange={setSettlementAccountId} value={settlementAccountId}>
@@ -716,7 +779,7 @@ export default function FinanceiroPage() {
                 </div>
                 <AlertDialogFooter>
                     <AlertDialogCancel onClick={() => setEntryToSettle(null)}>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleSettlePayment} disabled={!settlementAccountId || (needsExchangeRate && !exchangeRate)}>
+                    <AlertDialogAction onClick={handleSettlePayment} disabled={!settlementAccountId || !settlementAmount || (needsExchangeRate && !exchangeRate)}>
                         Confirmar Baixa
                     </AlertDialogAction>
                 </AlertDialogFooter>

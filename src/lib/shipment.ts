@@ -4,6 +4,8 @@
 import type { Partner } from '@/lib/partners-data';
 import { addDays, isValid } from 'date-fns';
 import { runSendShippingInstructions } from '@/app/actions';
+import type { PartialPayment } from './financials-data';
+
 
 const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v2';
 
@@ -114,6 +116,7 @@ export type Shipment = {
   notifyName?: string;
   invoiceNumber?: string;
   purchaseOrderNumber?: string;
+  payments?: PartialPayment[];
   // Deprecated field, shipper/consignee are top-level
   customer: string;
   overseasPartner?: Partner;

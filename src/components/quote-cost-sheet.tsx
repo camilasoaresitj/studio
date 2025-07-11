@@ -48,20 +48,12 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const form = useForm<QuoteCostSheetFormData>({
     resolver: zodResolver(quoteChargeSchema),
     defaultValues: {
-      charges: [],
+      charges: quote.charges || [],
     },
   });
 
   const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
   const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
-
-  React.useEffect(() => {
-    // This effect now correctly resets the form whenever the quote prop changes.
-    // This is the key to solving the stale data issue.
-    if (quote) {
-      form.reset({ charges: quote.charges || [] });
-    }
-  }, [quote, form]);
 
   React.useEffect(() => {
     const fetchRates = async () => {

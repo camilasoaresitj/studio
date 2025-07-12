@@ -33,7 +33,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, ContainerDetail } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText } from 'lucide-react';
 import { Badge } from './ui/badge';
@@ -73,6 +73,7 @@ const containerDetailSchema = z.object({
   seal: z.string().min(1, "Obrigatório"),
   tare: z.string().min(1, "Obrigatório"),
   grossWeight: z.string().min(1, "Obrigatório"),
+  volumes: z.string().optional(),
   freeTime: z.string().optional(),
 });
 
@@ -132,6 +133,9 @@ const shipmentDetailsSchema = z.object({
   notifyName: z.string().optional(),
   invoiceNumber: z.string().optional(),
   purchaseOrderNumber: z.string().optional(),
+  ceMaster: z.string().optional(),
+  ceHouse: z.string().optional(),
+  manifesto: z.string().optional(),
   terminalRedestinacaoId: z.string().optional(),
   custoArmazenagem: z.coerce.number().optional(),
 });
@@ -244,7 +248,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         courierLastStatus: shipment.courierLastStatus || '',
         etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
         eta: shipment.eta && isValid(new Date(shipment.eta)) ? new Date(shipment.eta) : undefined,
-        containers: shipment.containers?.map(c => ({...c, freeTime: c.freeTime || ''})) || [],
+        containers: shipment.containers?.map(c => ({...c, freeTime: c.freeTime || '', volumes: c.volumes || ''})) || [],
         charges: shipment.charges.map(c => ({ ...c, approvalStatus: c.approvalStatus || 'aprovada' })) || [],
         documents: shipment.documents || [],
         commodityDescription: shipment.commodityDescription || '',
@@ -260,6 +264,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         notifyName: shipment.notifyName || '',
         invoiceNumber: shipment.invoiceNumber || '',
         purchaseOrderNumber: shipment.purchaseOrderNumber || '',
+        ceMaster: shipment.ceMaster || '',
+        ceHouse: shipment.ceHouse || '',
+        manifesto: shipment.manifesto || '',
         terminalRedestinacaoId: shipment.terminalRedestinacaoId || '',
         custoArmazenagem: shipment.custoArmazenagem || undefined,
       });
@@ -271,6 +278,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
   const mblPrintingAuthDate = form.watch('mblPrintingAuthDate');
   const watchedCharges = form.watch('charges');
+  const watchedContainers = form.watch('containers');
+
+  const totalsSummary = useMemo(() => {
+    if (!watchedContainers) return { containerCount: 0, totalGrossWeight: 0, totalVolumes: 0 };
+    
+    const containerCount = watchedContainers.length;
+    const totalGrossWeight = watchedContainers.reduce((sum, c) => sum + (parseFloat(c.grossWeight) || 0), 0);
+    const totalVolumes = watchedContainers.reduce((sum, c) => sum + (parseInt(c.volumes || '0') || 0), 0);
+
+    return { containerCount, totalGrossWeight, totalVolumes };
+  }, [watchedContainers]);
 
   const onSubmit = (data: ShipmentDetailsFormData) => {
     if (!shipment) return;
@@ -638,6 +656,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   if (!shipment) {
     return null;
   }
+  
+  const isMaritimeImport = shipment.destination.toUpperCase().includes('BR') && shipment.details.cargo.toLowerCase().indexOf('kg') === -1;
 
   return (
       <>
@@ -728,6 +748,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <FormField control={form.control} name="houseBillNumber" render={({ field }) => (
                                             <FormItem><FormLabel>House Bill of Lading / HAWB</FormLabel><FormControl><Input placeholder="MYHBL12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                         )}/>
+                                         <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                            <FormItem><FormLabel>Invoice Nº</FormLabel><FormControl><Input placeholder="INV-12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                                            <FormItem><FormLabel>Purchase Order (PO) Nº</FormLabel><FormControl><Input placeholder="PO-67890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="notifyName" render={({ field }) => (
+                                            <FormItem><FormLabel>Notify Party</FormLabel><FormControl><Input placeholder="Nome do Notify" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
                                         <FormField control={form.control} name="etd" render={({ field }) => (
@@ -761,18 +790,22 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <Input value={shipment.details.transitTime} disabled className="mt-2" />
                                         </div>
                                     </div>
-                                    <Separator/>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                        <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                            <FormItem><FormLabel>Invoice Nº</FormLabel><FormControl><Input placeholder="INV-12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                        <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
-                                            <FormItem><FormLabel>Purchase Order (PO) Nº</FormLabel><FormControl><Input placeholder="PO-67890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                        <FormField control={form.control} name="notifyName" render={({ field }) => (
-                                            <FormItem><FormLabel>Notify Party</FormLabel><FormControl><Input placeholder="Nome do Notify" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                    </div>
+                                    {isMaritimeImport && (
+                                        <>
+                                            <Separator/>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in-50 duration-300">
+                                                <FormField control={form.control} name="ceMaster" render={({ field }) => (
+                                                    <FormItem><FormLabel>CE MASTER</FormLabel><FormControl><Input placeholder="Nº CE Master" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                                )}/>
+                                                <FormField control={form.control} name="ceHouse" render={({ field }) => (
+                                                    <FormItem><FormLabel>CE HOUSE</FormLabel><FormControl><Input placeholder="Nº CE House" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                                )}/>
+                                                <FormField control={form.control} name="manifesto" render={({ field }) => (
+                                                    <FormItem><FormLabel>MANIFESTO</FormLabel><FormControl><Input placeholder="Nº Manifesto" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                                )}/>
+                                            </div>
+                                        </>
+                                    )}
                                 </CardContent>
                             </Card>
                             
@@ -994,6 +1027,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <FormItem><FormLabel className="flex items-center gap-2"><Weight/> Peso Líquido</FormLabel><FormControl><Input placeholder="1200 KG" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                     </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-medium p-3 bg-muted/50 rounded-lg">
+                                        <div className="flex justify-between md:flex-col"><span>Total Contêineres:</span> <span className="text-primary">{totalsSummary.containerCount}</span></div>
+                                        <div className="flex justify-between md:flex-col"><span>Peso Bruto Total:</span> <span className="text-primary">{totalsSummary.totalGrossWeight.toLocaleString('pt-BR')} KG</span></div>
+                                        <div className="flex justify-between md:flex-col"><span>Volumes Totais:</span> <span className="text-primary">{totalsSummary.totalVolumes.toLocaleString('pt-BR')}</span></div>
+                                    </div>
                                     <FormField control={form.control} name="freeTimeDemurrage" render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center gap-2"><Clock /> Free Time Demurrage / Detention</FormLabel><FormControl><Input placeholder="14 dias" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                     )}/>
@@ -1003,7 +1041,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 <CardHeader>
                                 <div className="flex justify-between items-center">
                                     <CardTitle className="text-lg">Contêineres</CardTitle>
-                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `new-${containerFields.length}`, number: '', seal: '', tare: '', grossWeight: '', freeTime: '' })}>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `new-${containerFields.length}`, number: '', seal: '', tare: '', grossWeight: '', volumes: '' })}>
                                         <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
                                     </Button>
                                 </div>
@@ -1017,6 +1055,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <TableHead>Lacre</TableHead>
                                                     <TableHead>Tara</TableHead>
                                                     <TableHead>Peso Bruto</TableHead>
+                                                    <TableHead>Volumes</TableHead>
                                                     <TableHead>Free Time</TableHead>
                                                     <TableHead></TableHead>
                                                 </TableRow>
@@ -1028,13 +1067,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
+                                                        <TableCell><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => (<Input placeholder="1000" {...field}/>)}/></TableCell>
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => (<Input placeholder="14 dias" {...field}/>)}/></TableCell>
                                                         <TableCell>
                                                             <Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                                         </TableCell>
                                                     </TableRow>
                                                 )) : (
-                                                    <TableRow><TableCell colSpan={6} className="text-center h-24">Nenhum contêiner adicionado.</TableCell></TableRow>
+                                                    <TableRow><TableCell colSpan={7} className="text-center h-24">Nenhum contêiner adicionado.</TableCell></TableRow>
                                                 )}
                                             </TableBody>
                                         </Table>

@@ -65,6 +65,7 @@ export type ContainerDetail = {
   seal: string;
   tare: string;
   grossWeight: string;
+  volumes?: string;
   freeTime?: string;
 };
 
@@ -119,6 +120,9 @@ export type Shipment = {
   notifyName?: string;
   invoiceNumber?: string;
   purchaseOrderNumber?: string;
+  ceMaster?: string;
+  ceHouse?: string;
+  manifesto?: string;
   payments?: PartialPayment[];
   // Redestinação fields
   terminalRedestinacaoId?: string;

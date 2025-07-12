@@ -18,10 +18,11 @@ import {
   Loader2,
   Printer,
   Gavel,
-  Check
+  Check,
+  Split
 } from 'lucide-react';
-import { format, isPast, isToday } from 'date-fns';
-import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getFinancialEntries, getBankAccounts, addFinancialEntry } from '@/lib/financials-data';
+import { format, isPast, isToday, addMonths } from 'date-fns';
+import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getFinancialEntries, getBankAccounts, addFinancialEntry, updateFinancialEntry, findEntryById } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -41,8 +42,10 @@ import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
 import { getShipments } from '@/lib/shipment';
 import { FinancialEntryDialog } from './financial-entry-dialog';
+import { RenegotiationDialog } from './renegotiation-dialog';
 
-type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação';
+
+type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
 const allStatuses: Status[] = ['Aberto', 'Vencido', 'Parcialmente Pago', 'Pago', 'Pendente de Aprovação'];
 
 interface FinancialPageClientProps {
@@ -58,6 +61,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [allShipments, setAllShipments] = useState<Shipment[]>(initialShipments);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [entryToSettle, setEntryToSettle] = useState<FinancialEntry | null>(null);
+    const [entryToRenegotiate, setEntryToRenegotiate] = useState<FinancialEntry | null>(null);
     const [settlementAccountId, setSettlementAccountId] = useState<string>('');
     const [settlementAmount, setSettlementAmount] = useState<string>('');
     const [exchangeRate, setExchangeRate] = useState<string>('');
@@ -95,6 +99,9 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     };
 
     const getEntryStatus = (entry: FinancialEntry): { status: Status; variant: 'default' | 'secondary' | 'destructive' | 'success' } => {
+        if (entry.status === 'Renegociado') {
+            return { status: 'Renegociado', variant: 'outline' };
+        }
         if (entry.status === 'Pendente de Aprovação') {
             return { status: 'Pendente de Aprovação', variant: 'default' };
         }
@@ -130,7 +137,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const filteredEntries = useMemo(() => {
         return entries.filter(entry => {
             const { status } = getEntryStatus(entry);
-            if (entry.status === 'Jurídico') return false;
+            if (entry.status === 'Jurídico' || entry.status === 'Renegociado') return false;
 
             if (!applyFilters(entry)) return false;
             
@@ -538,8 +545,27 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         saveFinancialEntries(updatedEntries);
         setEntries(updatedEntries);
     };
+    
+    const handleLegalImported = (importedData: { invoiceId: string }[]) => {
+        let updatedCount = 0;
+        const updatedEntries = entries.map(entry => {
+            const match = importedData.find(imp => imp.invoiceId === entry.invoiceId);
+            if (match && entry.status !== 'Jurídico') {
+                updatedCount++;
+                return { ...entry, status: 'Jurídico' as const, legalStatus: 'Fase Inicial' as const };
+            }
+            return entry;
+        });
+        saveFinancialEntries(updatedEntries);
+        setEntries(updatedEntries);
+        toast({
+            title: 'Importação para Jurídico Concluída!',
+            description: `${updatedCount} processo(s) foram movidos para a aba Jurídico.`,
+            className: 'bg-success text-success-foreground'
+        });
+    };
 
-    const handleLegalEntryUpdate = (id: string, field: 'legalStatus' | 'legalComments', value: string) => {
+    const handleLegalEntryUpdate = (id: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: string) => {
         const updatedEntries = entries.map(entry => {
             if (entry.id === id) {
                 return { ...entry, [field]: value };
@@ -558,6 +584,33 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         setEntries(updatedEntries);
         setLegalData(null);
     };
+
+    const handleRenegotiation = (installments: Omit<FinancialEntry, 'id'>[]) => {
+        if (!entryToRenegotiate) return;
+
+        // Mark original entry as Renegotiado
+        const originalEntry = findEntryById(entryToRenegotiate.id);
+        if(originalEntry) {
+            updateFinancialEntry(entryToRenegotiate.id, { status: 'Renegociado' });
+        }
+        
+        // Add new installment entries
+        let currentEntries = getFinancialEntries();
+        const newEntriesWithIds = installments.map(inst => ({
+             ...inst,
+             id: `fin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+        }));
+        
+        saveFinancialEntries([...currentEntries, ...newEntriesWithIds]);
+        setEntries(getFinancialEntries());
+
+        toast({
+            title: 'Renegociação Salva!',
+            description: `${installments.length} novas faturas de parcela foram criadas.`,
+            className: 'bg-success text-success-foreground'
+        });
+        setEntryToRenegotiate(null);
+    }
 
     const handleOpenSettleDialog = (entry: FinancialEntry) => {
         const balance = getEntryBalance(entry);
@@ -594,6 +647,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                 <TableHead>Fatura</TableHead>
                 <TableHead>Processo</TableHead>
                 <TableHead className="w-40">{isLegalTable ? 'Status Jurídico' : 'Status'}</TableHead>
+                {isLegalTable && <TableHead>Nº Processo</TableHead>}
                 {isLegalTable && <TableHead>Comentários</TableHead>}
                 <TableHead>Vencimento</TableHead>
                 <TableHead className="text-right">Valor Total</TableHead>
@@ -636,6 +690,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                     >
                                         <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="Extrajudicial">Extrajudicial</SelectItem>
                                             <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
                                             <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
                                             <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
@@ -645,6 +700,16 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                     <Badge variant={variant} className="capitalize w-[130px] justify-center">{status}</Badge>
                                 )}
                             </TableCell>
+                            {isLegalTable && (
+                                <TableCell className="w-40">
+                                    <Input
+                                        value={entry.processoJudicial || ''}
+                                        onChange={(e) => handleLegalEntryUpdate(entry.id, 'processoJudicial', e.target.value)}
+                                        placeholder="Adicionar nº"
+                                        className="h-8 text-xs"
+                                    />
+                                </TableCell>
+                            )}
                             {isLegalTable && (
                                  <TableCell className="w-64">
                                     <Input
@@ -668,19 +733,14 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={isGenerating}>
-                                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
-                                            Visualizar/Imprimir Fatura (Cliente)
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={isGenerating || !findShipmentForEntry(entry)?.agent}>
-                                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />} 
-                                            Visualizar/Imprimir Invoice (Agente)
+                                        <DropdownMenuItem onClick={() => handleProcessClick(entry.processId)}>
+                                            <FileText className="mr-2 h-4 w-4" /> Detalhes do Processo
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
                                             <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => handleOpenSettleDialog(entry)} disabled={status === 'Pago'}>
+                                        <DropdownMenuItem onClick={() => handleOpenSettleDialog(entry)} disabled={status === 'Pago' || status === 'Renegociado'}>
                                             <DollarSign className="mr-2 h-4 w-4" /> Baixar Pagamento
                                         </DropdownMenuItem>
                                         {entry.type === 'credit' && !isLegalTable && (
@@ -689,6 +749,9 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                                     <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={() => setEntryToRenegotiate(entry)} className="text-blue-600 focus:text-blue-700">
+                                                    <Split className="mr-2 h-4 w-4" /> Renegociar Dívida
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => handleOpenLegalDialog(entry)} className="text-destructive focus:text-destructive">
                                                     <Gavel className="mr-2 h-4 w-4" /> Enviar para Jurídico
                                                 </DropdownMenuItem>
@@ -701,7 +764,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     )
                 }) : (
                     <TableRow>
-                        <TableCell colSpan={isLegalTable ? 8 : 9} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
+                        <TableCell colSpan={isLegalTable ? 9 : 9} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
                     </TableRow>
                 )}
             </TableBody>
@@ -853,13 +916,17 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                 </CardTitle>
                                 <CardDescription>Faturas que foram enviadas para cobrança judicial ou protesto.</CardDescription>
                             </div>
-                            <div className="flex items-center gap-2 self-start sm:self-center">
-                                <Input placeholder="Filtrar por Parceiro..." value={textFilters.partner} onChange={(e) => handleTextFilterChange('partner', e.target.value)} className="w-48" />
-                                <Input placeholder="Filtrar por Processo..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} className="w-48" />
+                             <div className="flex items-center gap-2 self-start sm:self-center">
+                                <FinancialEntryImporter onEntriesImported={handleLegalImported} importType='legal' />
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>
+                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                            <Input placeholder="Filtrar por Parceiro..." value={textFilters.partner} onChange={(e) => handleTextFilterChange('partner', e.target.value)} />
+                            <Input placeholder="Filtrar por Processo..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
+                            <Input placeholder="Filtrar por Valor..." value={textFilters.value} onChange={(e) => handleTextFilterChange('value', e.target.value)} />
+                        </div>
                         {renderEntriesTable(juridicoEntries, true)}
                     </CardContent>
                  </Card>
@@ -942,6 +1009,13 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             entries={entries}
             isOpen={!!statementAccount}
             onClose={() => setStatementAccount(null)}
+        />
+        
+        <RenegotiationDialog
+            isOpen={!!entryToRenegotiate}
+            onClose={() => setEntryToRenegotiate(null)}
+            entry={entryToRenegotiate}
+            onConfirm={handleRenegotiation}
         />
 
         <NfseGenerationDialog

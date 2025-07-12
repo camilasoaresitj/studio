@@ -5,15 +5,15 @@ import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Upload, Loader2, Gavel } from 'lucide-react';
 import type { FinancialEntry } from '@/lib/financials-data';
 
 interface FinancialEntryImporterProps {
-  onEntriesImported: (entries: FinancialEntry[]) => void;
+  onEntriesImported: (entries: any[]) => void;
+  importType?: 'financial' | 'legal';
 }
 
-export function FinancialEntryImporter({ onEntriesImported }: FinancialEntryImporterProps) {
+export function FinancialEntryImporter({ onEntriesImported, importType = 'financial' }: FinancialEntryImporterProps) {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -32,7 +32,19 @@ export function FinancialEntryImporter({ onEntriesImported }: FinancialEntryImpo
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
-        // Use header: 1 to get array of arrays, easier to map if headers are inconsistent
+        if (importType === 'legal') {
+            const jsonData = XLSX.utils.sheet_to_json<{ invoiceId: string }>(worksheet);
+            if(jsonData.length > 0) {
+                onEntriesImported(jsonData);
+                toast({
+                    title: 'Arquivo Processado!',
+                    description: `${jsonData.length} processos encontrados para mover para o jurídico.`,
+                    className: 'bg-success text-success-foreground'
+                });
+            }
+            return;
+        }
+
         const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
         
         if (jsonData.length < 2) {
@@ -132,8 +144,8 @@ export function FinancialEntryImporter({ onEntriesImported }: FinancialEntryImpo
             accept=".xlsx, .xls, .csv"
         />
         <Button variant="outline" onClick={handleImportClick} disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-            Importar Lançamentos de Arquivo
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (importType === 'legal' ? <Gavel className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />)}
+            {importType === 'legal' ? 'Importar para Jurídico' : 'Importar Lançamentos'}
         </Button>
     </div>
   );

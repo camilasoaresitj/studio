@@ -31,13 +31,15 @@ export type FinancialEntry = {
     currency: 'BRL' | 'USD' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
     processId: string;
     payments?: PartialPayment[];
-    status: 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação';
-    legalStatus?: 'Fase Inicial' | 'Fase de Execução' | 'Desconsideração da Personalidade Jurídica';
+    status: 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
+    legalStatus?: 'Extrajudicial' | 'Fase Inicial' | 'Fase de Execução' | 'Desconsideração da Personalidade Jurídica';
     legalComments?: string;
+    processoJudicial?: string;
     // New fields for administrative expenses
     expenseType?: 'Operacional' | 'Administrativa';
     recurrence?: 'Única' | 'Mensal' | 'Anual';
     description?: string;
+    originalEntryId?: string; // For renegoriation tracking
 };
 
 const today = new Date();
@@ -122,6 +124,7 @@ const initialFinancialData: FinancialEntry[] = [
         status: 'Jurídico',
         legalStatus: 'Fase Inicial',
         legalComments: 'Enviado para o advogado em 15/01. Aguardando notificação.',
+        processoJudicial: '123456-78.2024.8.26.0001',
         dueDate: subDays(today, 180).toISOString(),
         amount: 99500.00,
         currency: 'BRL',
@@ -216,7 +219,7 @@ const initialFinancialData: FinancialEntry[] = [
     },
 ];
 
-const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v7';
+const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v8';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
 export function getFinancialEntries(): FinancialEntry[] {
@@ -257,6 +260,21 @@ export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'>): string 
   const updatedEntries = [entryWithId, ...currentEntries];
   saveFinancialEntries(updatedEntries);
   return newId;
+}
+
+export function findEntryById(id: string): FinancialEntry | undefined {
+    return getFinancialEntries().find(entry => entry.id === id);
+}
+
+export function updateFinancialEntry(id: string, updates: Partial<FinancialEntry>): void {
+    const currentEntries = getFinancialEntries();
+    const updatedEntries = currentEntries.map(entry => {
+        if (entry.id === id) {
+            return { ...entry, ...updates };
+        }
+        return entry;
+    });
+    saveFinancialEntries(updatedEntries);
 }
 
 export function getBankAccounts(): BankAccount[] {

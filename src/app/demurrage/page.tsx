@@ -21,6 +21,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
+import { LtiTariffRegistry } from '@/components/lti-tariff-registry';
+import { LtiTariff, getLtiTariffs } from '@/lib/lti-tariffs-data';
 
 
 export type DemurrageItem = {
@@ -38,6 +40,7 @@ export type DemurrageItem = {
 export default function DemurragePage() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [demurrageTariffs, setDemurrageTariffs] = useState<DemurrageTariff[]>([]);
+    const [ltiTariffs, setLtiTariffs] = useState<LtiTariff[]>([]);
     const [partners, setPartners] = useState<Partner[]>([]);
     const [isClient, setIsClient] = useState(false);
     const [selectedDemurrageItem, setSelectedDemurrageItem] = useState<DemurrageItem | null>(null);
@@ -54,6 +57,7 @@ export default function DemurragePage() {
         const handleDataChange = () => {
             setShipments(getShipments());
             setDemurrageTariffs(getDemurrageTariffs());
+            setLtiTariffs(getLtiTariffs());
             setPartners(getPartners());
         }
         
@@ -61,11 +65,14 @@ export default function DemurragePage() {
         window.addEventListener('storage', handleDataChange);
         window.addEventListener('financialsUpdated', handleDataChange);
         window.addEventListener('demurrageTariffsUpdated', handleDataChange);
+        window.addEventListener('ltiTariffsUpdated', handleDataChange);
+
 
         return () => {
             window.removeEventListener('storage', handleDataChange);
             window.removeEventListener('financialsUpdated', handleDataChange);
             window.removeEventListener('demurrageTariffsUpdated', handleDataChange);
+            window.removeEventListener('ltiTariffsUpdated', handleDataChange);
         }
 
     }, []);
@@ -200,7 +207,7 @@ export default function DemurragePage() {
             if (containerType.includes('rf') || containerType.includes('reefer')) tariffType = 'reefer';
             if (containerType.includes('ot') || containerType.includes('fr')) tariffType = 'special';
 
-            const tariff = demurrageTariffs.find(t => t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase() && t.containerType === tariffType);
+            const tariff = ltiTariffs.find(t => t.containerType === tariffType);
             if (!tariff) return;
             let itemRevenue = 0;
             let daysToCalculate = item.overdueDays;
@@ -245,9 +252,10 @@ export default function DemurragePage() {
             </header>
 
             <Tabs defaultValue="overview">
-                <TabsList className="grid w-full grid-cols-2 max-w-lg mb-6">
+                <TabsList className="grid w-full grid-cols-3 max-w-2xl mb-6">
                     <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-                    <TabsTrigger value="tariffs">Cadastro de Tarifas</TabsTrigger>
+                    <TabsTrigger value="cost_tariffs">Tarifas de Armador (Custo)</TabsTrigger>
+                    <TabsTrigger value="sale_tariffs">Tarifas de Venda (LTI)</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview">
                      <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -384,8 +392,11 @@ export default function DemurragePage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                <TabsContent value="tariffs">
+                <TabsContent value="cost_tariffs">
                     <DemurrageTariffRegistry />
+                </TabsContent>
+                <TabsContent value="sale_tariffs">
+                    <LtiTariffRegistry />
                 </TabsContent>
             </Tabs>
         </div>
@@ -393,7 +404,8 @@ export default function DemurragePage() {
             isOpen={!!selectedDemurrageItem}
             onClose={handleDialogClose}
             item={selectedDemurrageItem}
-            tariffs={demurrageTariffs}
+            costTariffs={demurrageTariffs}
+            saleTariffs={ltiTariffs}
         />
         </>
     );

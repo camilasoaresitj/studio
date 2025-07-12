@@ -23,16 +23,18 @@ import { getBankAccounts } from '@/lib/financials-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { runSendDemurrageInvoice } from '@/app/actions';
 import { DemurrageTariff } from '@/lib/demurrage-tariffs-data';
+import { LtiTariff } from '@/lib/lti-tariffs-data';
 
 interface DemurrageDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   item: DemurrageItem | null;
-  tariffs: DemurrageTariff[];
+  costTariffs: DemurrageTariff[];
+  saleTariffs: LtiTariff[];
 }
 
 
-export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: DemurrageDetailsDialogProps) {
+export function DemurrageDetailsDialog({ isOpen, onClose, item, costTariffs, saleTariffs }: DemurrageDetailsDialogProps) {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -44,21 +46,23 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
     if (containerType.includes('rf') || containerType.includes('reefer')) tariffType = 'reefer';
     if (containerType.includes('ot') || containerType.includes('fr')) tariffType = 'special';
 
-    const tariff = tariffs.find(t => 
+    const costTariff = costTariffs.find(t => 
         t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase() &&
         t.containerType === tariffType
     );
+
+    const saleTariff = saleTariffs.find(t => t.containerType === tariffType);
     
-    if (!tariff) return { breakdown: [], totalCost: 0, totalSale: 0, totalProfit: 0 };
+    if (!costTariff || !saleTariff) return { breakdown: [], totalCost: 0, totalSale: 0, totalProfit: 0, missingTariff: !costTariff ? item.shipment.carrier : "LTI Venda" };
 
     const breakdown: { period: string; days: number; costRate: number; saleRate: number; cost: number; sale: number; profit: number }[] = [];
     
     let daysToProcess = item.overdueDays;
     let periodIndex = 0;
     
-    while (daysToProcess > 0 && periodIndex < Math.max(tariff.costPeriods.length, tariff.salePeriods.length)) {
-        const costPeriod = tariff.costPeriods[periodIndex] || tariff.costPeriods[tariff.costPeriods.length - 1];
-        const salePeriod = tariff.salePeriods[periodIndex] || tariff.salePeriods[tariff.salePeriods.length - 1];
+    while (daysToProcess > 0 && periodIndex < Math.max(costTariff.costPeriods.length, saleTariff.salePeriods.length)) {
+        const costPeriod = costTariff.costPeriods[periodIndex] || costTariff.costPeriods[costTariff.costPeriods.length - 1];
+        const salePeriod = saleTariff.salePeriods[periodIndex] || saleTariff.salePeriods[saleTariff.salePeriods.length - 1];
         
         const from = Math.max(costPeriod.from, salePeriod.from);
         const to = Math.min(costPeriod.to || Infinity, salePeriod.to || Infinity);
@@ -95,17 +99,12 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
     const totalSale = breakdown.reduce((sum, row) => sum + row.sale, 0);
     const totalProfit = breakdown.reduce((sum, row) => sum + row.profit, 0);
 
-    return { breakdown, totalCost, totalSale, totalProfit };
-  }, [item, tariffs]);
+    return { breakdown, totalCost, totalSale, totalProfit, missingTariff: null };
+  }, [item, costTariffs, saleTariffs]);
 
   if (!item) return null;
   
-  const { breakdown, totalCost, totalSale, totalProfit } = financialBreakdown;
-  const containerType = item.container.type.toLowerCase();
-  let tariffType: 'dry' | 'reefer' | 'special' = 'dry';
-  if (containerType.includes('rf') || containerType.includes('reefer')) tariffType = 'reefer';
-  if (containerType.includes('ot') || containerType.includes('fr')) tariffType = 'special';
-  const selectedTariff = tariffs.find(t => t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase() && t.containerType === tariffType);
+  const { breakdown, totalCost, totalSale, totalProfit, missingTariff } = financialBreakdown;
   const isDetention = item.type === 'detention';
 
   const handleGenerateInvoice = async () => {
@@ -235,16 +234,16 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
         </div>
 
         <Card>
-            <CardHeader><CardTitle className="text-base">Detalhamento Financeiro (Tarifa: {selectedTariff ? `${selectedTariff.carrier} - ${selectedTariff.containerType}` : 'Não encontrada'})</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Detalhamento Financeiro</CardTitle></CardHeader>
             <CardContent>
-                {!selectedTariff && (
+                {missingTariff && (
                     <div className="text-center text-destructive border border-destructive/50 bg-destructive/10 p-4 rounded-md">
                         <AlertTriangle className="mx-auto h-8 w-8 mb-2" />
                         <p className="font-semibold">Tarifa não cadastrada!</p>
-                        <p className="text-sm">Nenhuma tabela de {isDetention ? 'detention' : 'demurrage'} foi encontrada para o armador '{item.shipment.carrier}' e tipo de contêiner '{tariffType}'. Os cálculos não podem ser realizados.</p>
+                        <p className="text-sm">Nenhuma tabela de {isDetention ? 'detention' : 'demurrage'} foi encontrada para '{missingTariff}'. Os cálculos não podem ser realizados.</p>
                     </div>
                 )}
-                {selectedTariff && (
+                {!missingTariff && (
                     <div className="border rounded-lg">
                         <Table>
                             <TableHeader>
@@ -286,7 +285,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
         </Card>
 
         <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={handleGenerateInvoice} disabled={isGenerating || item.status === 'invoiced' || !selectedTariff}>
+          <Button variant="outline" onClick={handleGenerateInvoice} disabled={isGenerating || item.status === 'invoiced' || !!missingTariff}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
             {item.status === 'invoiced' ? 'Faturado' : 'Gerar Fatura e Enviar'}
           </Button>

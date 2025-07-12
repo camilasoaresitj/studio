@@ -7,7 +7,7 @@ import { runSendShippingInstructions } from '@/app/actions';
 import type { PartialPayment } from './financials-data';
 
 
-const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v3';
+const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v4';
 
 // --- Type Definitions ---
 
@@ -120,6 +120,9 @@ export type Shipment = {
   invoiceNumber?: string;
   purchaseOrderNumber?: string;
   payments?: PartialPayment[];
+  // Redestinação fields
+  terminalRedestinacaoId?: string;
+  custoArmazenagem?: number;
   // Deprecated field, shipper/consignee are top-level
   customer: string;
   overseasPartner?: Partner;

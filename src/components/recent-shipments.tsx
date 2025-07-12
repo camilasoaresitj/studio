@@ -1,3 +1,7 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableHeader,
@@ -9,18 +13,54 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from './ui/button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-
-const shipmentsData = [
-  { id: 'AWB-724598', origin: 'Xangai (CN)', destination: 'Santos (BR)', status: 'Em trânsito', modal: 'Marítimo' },
-  { id: 'MAWB-314256', origin: 'Miami (US)', destination: 'Guarulhos (BR)', status: 'Entregue', modal: 'Aéreo' },
-  { id: 'BL-998172', origin: 'Roterdã (NL)', destination: 'Paranaguá (BR)', status: 'Aguardando embarque', modal: 'Marítimo' },
-  { id: 'CNEE-451023', origin: 'Frankfurt (DE)', destination: 'Viracopos (BR)', status: 'Na alfândega', modal: 'Aéreo' },
-  { id: 'INV-2024-068', origin: 'Hamburgo (DE)', destination: 'Itajaí (BR)', status: 'Em trânsito', modal: 'Marítimo' },
-];
+import { getShipments, Shipment } from '@/lib/shipment';
+import { isValid } from 'date-fns';
 
 export function RecentShipments() {
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const allShipments = getShipments();
+    const sortedShipments = allShipments.sort((a, b) => {
+        const dateA = a.etd && isValid(new Date(a.etd)) ? new Date(a.etd).getTime() : 0;
+        const dateB = b.etd && isValid(new Date(b.etd)) ? new Date(b.etd).getTime() : 0;
+        return dateB - dateA;
+    });
+    setShipments(sortedShipments.slice(0, 5));
+    setIsLoading(false);
+  }, []);
+
+  const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+    if (!shipment.milestones || shipment.milestones.length === 0) {
+      return { text: 'Não iniciado', variant: 'secondary' };
+    }
+  
+    const firstPending = shipment.milestones.find(m => m.status === 'pending' || m.status === 'in_progress');
+  
+    if (!firstPending) {
+      return { text: 'Finalizado', variant: 'outline' };
+    }
+  
+    const firstPendingName = firstPending.name.toLowerCase();
+    
+    const departureCompleted = shipment.milestones.some(m => 
+      (m.name.toLowerCase().includes('departure') || m.name.toLowerCase().includes('vessel departure') || m.name.toLowerCase().includes('embarque')) 
+      && m.status === 'completed'
+    );
+  
+    if (departureCompleted) {
+        if (firstPendingName.includes('chegada') || firstPendingName.includes('arrival') || firstPendingName.includes('discharged')) {
+            return { text: 'Chegada no Destino', variant: 'default' };
+        }
+        return { text: 'Em Trânsito', variant: 'default' };
+    }
+  
+    return { text: `Aguardando Embarque`, variant: 'secondary' };
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -29,7 +69,7 @@ export function RecentShipments() {
           <CardDescription>Acompanhe os embarques mais recentes.</CardDescription>
         </div>
         <Button asChild size="sm">
-          <Link href="/tracking">
+          <Link href="/operacional">
               Ver todos <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
@@ -46,21 +86,32 @@ export function RecentShipments() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {shipmentsData.map((shipment) => (
-              <TableRow key={shipment.id}>
-                <TableCell className="font-medium">{shipment.id}</TableCell>
-                <TableCell>{shipment.origin}</TableCell>
-                <TableCell>{shipment.destination}</TableCell>
-                <TableCell>
-                   <Badge variant={
-                     shipment.status === 'Entregue' ? 'secondary' :
-                     shipment.status === 'Na alfândega' ? 'destructive' :
-                     'default'
-                   } className="capitalize">{shipment.status}</Badge>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
-                <TableCell>{shipment.modal}</TableCell>
               </TableRow>
-            ))}
+            ) : shipments.length > 0 ? (
+              shipments.map((shipment) => {
+                const status = getShipmentStatus(shipment);
+                return (
+                  <TableRow key={shipment.id}>
+                    <TableCell className="font-medium">{shipment.id}</TableCell>
+                    <TableCell>{shipment.origin}</TableCell>
+                    <TableCell>{shipment.destination}</TableCell>
+                    <TableCell>
+                      <Badge variant={status.variant} className="capitalize">{status.text}</Badge>
+                    </TableCell>
+                    <TableCell>{shipment.details.cargo.includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
+                  </TableRow>
+                )
+              })
+            ) : (
+                 <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">Nenhum embarque recente encontrado.</TableCell>
+                </TableRow>
+            )}
           </TableBody>
         </Table>
       </CardContent>

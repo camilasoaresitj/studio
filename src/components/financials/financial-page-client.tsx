@@ -18,11 +18,10 @@ import {
   Loader2,
   Printer,
   Gavel,
-  Check,
-  ChevronsUpDown
+  Check
 } from 'lucide-react';
-import { format, isPast, isToday, isThisMonth } from 'date-fns';
-import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getFinancialEntries, getBankAccounts } from '@/lib/financials-data';
+import { format, isPast, isToday } from 'date-fns';
+import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getFinancialEntries, getBankAccounts, addFinancialEntry } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -40,12 +39,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { getShipments } from '@/lib/shipment';
+import { FinancialEntryDialog } from './financial-entry-dialog';
 
-type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico';
-const allStatuses: Status[] = ['Aberto', 'Vencido', 'Parcialmente Pago', 'Pago'];
+type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação';
+const allStatuses: Status[] = ['Aberto', 'Vencido', 'Parcialmente Pago', 'Pago', 'Pendente de Aprovação'];
 
 interface FinancialPageClientProps {
     initialEntries: FinancialEntry[];
@@ -64,11 +62,12 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [settlementAmount, setSettlementAmount] = useState<string>('');
     const [exchangeRate, setExchangeRate] = useState<string>('');
     const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
+    const [isEntryDialogOpen, setIsEntryDialogOpen] = useState(false);
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [detailsShipment, setDetailsShipment] = useState<(Shipment & { payments?: PartialPayment[] }) | null>(null);
-    const [statusFilter, setStatusFilter] = useState<string[]>(['Aberto', 'Parcialmente Pago', 'Vencido']);
+    const [statusFilter, setStatusFilter] = useState<string[]>(['Aberto', 'Parcialmente Pago', 'Vencido', 'Pendente de Aprovação']);
     const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit'>('all');
     const [textFilters, setTextFilters] = useState({ partner: '', processId: '', value: '' });
     const [isGenerating, setIsGenerating] = useState(false);
@@ -96,6 +95,9 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     };
 
     const getEntryStatus = (entry: FinancialEntry): { status: Status; variant: 'default' | 'secondary' | 'destructive' | 'success' } => {
+        if (entry.status === 'Pendente de Aprovação') {
+            return { status: 'Pendente de Aprovação', variant: 'default' };
+        }
         if (entry.status === 'Jurídico') {
             return { status: 'Jurídico', variant: 'default' };
         }
@@ -179,7 +181,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                 const newBalance = getEntryBalance({ ...e, payments: updatedPayments });
                 // If payment settles the balance, update status.
                 const newStatus = newBalance <= 0.009 ? 'Pago' : e.status;
-                return { ...e, payments: updatedPayments, status: newStatus };
+                return { ...e, payments: updatedPayments, status: newStatus as Status };
             }
             return e;
         });
@@ -209,8 +211,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         setEntries(updatedEntries);
         saveBankAccounts(updatedAccounts);
         setAccounts(updatedAccounts);
-
-        window.dispatchEvent(new Event('financialsUpdated'));
 
         toast({
             title: 'Baixa de Pagamento Realizada!',
@@ -320,7 +320,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         setEntries(updatedEntries);
         saveBankAccounts(updatedAccounts);
         setAccounts(updatedAccounts);
-        window.dispatchEvent(new Event('financialsUpdated'));
 
         toast({
             title: 'Pagamento Revertido!',
@@ -387,6 +386,17 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             className: 'bg-success text-success-foreground',
         });
         setEditingAccount(null);
+    };
+
+    const handleNewEntrySave = (newEntryData: Omit<FinancialEntry, 'id'>) => {
+        addFinancialEntry(newEntryData);
+        setEntries(getFinancialEntries()); // Refresh state
+        setIsEntryDialogOpen(false);
+        toast({
+            title: "Despesa Lançada para Aprovação!",
+            description: `A despesa para "${newEntryData.partner}" foi enviada.`,
+            className: 'bg-success text-success-foreground',
+        });
     };
 
     const openGeneratedHtml = (html: string | undefined, entryId: string) => {
@@ -579,84 +589,11 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                         aria-label="Selecionar todos"
                     />
                 </TableHead>}
-                <TableHead>
-                    <div className="flex flex-col gap-1">
-                        <span>Tipo</span>
-                         <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
-                            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                <SelectItem value="credit">Crédito</SelectItem>
-                                <SelectItem value="debit">Débito</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Parceiro</TableHead>
                 <TableHead>Fatura</TableHead>
                 <TableHead>Processo</TableHead>
-                <TableHead>
-                    <div className="flex flex-col gap-1">
-                        <span>{isLegalTable ? 'Status Jurídico' : 'Status'}</span>
-                        {!isLegalTable ? (
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className="h-7 text-xs justify-between">
-                                        <span className="truncate pr-2">
-                                        {statusFilter.length === 0 || statusFilter.length === allStatuses.length
-                                            ? "Todos"
-                                            : statusFilter.join(", ")}
-                                        </span>
-                                        <ChevronsUpDown className="h-3 w-3 text-muted-foreground" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-48 p-0" align="start">
-                                    <Command>
-                                        <CommandInput placeholder="Filtrar status..." />
-                                        <CommandList>
-                                            <CommandEmpty>Nenhum status encontrado.</CommandEmpty>
-                                            <CommandGroup>
-                                                {allStatuses.map((s) => (
-                                                    <CommandItem
-                                                    key={s}
-                                                    onSelect={() => {
-                                                        const newFilter = statusFilter.includes(s)
-                                                        ? statusFilter.filter((item) => item !== s)
-                                                        : [...statusFilter, s];
-                                                        setStatusFilter(newFilter);
-                                                    }}
-                                                    >
-                                                    <div className={cn(
-                                                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                                        statusFilter.includes(s)
-                                                        ? "bg-primary text-primary-foreground"
-                                                        : "opacity-50 [&_svg]:invisible"
-                                                    )}>
-                                                        <Check className="h-4 w-4" />
-                                                    </div>
-                                                    <span>{s}</span>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                        ) : (
-                            <Select
-                                value={(tableEntries[0] as any)?.legalStatus || ''}
-                                onValueChange={(value) => handleLegalEntryUpdate(tableEntries[0].id, 'legalStatus', value)}
-                            >
-                                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
-                                    <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
-                                    <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        )}
-                    </div>
-                </TableHead>
+                <TableHead className="w-40">{isLegalTable ? 'Status Jurídico' : 'Status'}</TableHead>
                 {isLegalTable && <TableHead>Comentários</TableHead>}
                 <TableHead>Vencimento</TableHead>
                 <TableHead className="text-right">Valor Total</TableHead>
@@ -705,7 +642,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                         </SelectContent>
                                     </Select>
                                 ) : (
-                                    <Badge variant={variant} className="capitalize">{status}</Badge>
+                                    <Badge variant={variant} className="capitalize w-[130px] justify-center">{status}</Badge>
                                 )}
                             </TableCell>
                             {isLegalTable && (
@@ -821,6 +758,9 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                     Visualize e gerencie todas as suas contas a pagar e a receber.
                                 </CardDescription>
                             </div>
+                            <Button onClick={() => setIsEntryDialogOpen(true)}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Nova Despesa
+                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -829,6 +769,25 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                             <Input placeholder="Filtrar por Processo..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
                             <Input placeholder="Filtrar por Valor..." value={textFilters.value} onChange={(e) => handleTextFilterChange('value', e.target.value)} />
                             <FinancialEntryImporter onEntriesImported={handleEntriesImported} />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
+                            <Label className="font-semibold">Filtrar por Status:</Label>
+                            {allStatuses.map((s) => (
+                                <div key={s} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`status-${s}`}
+                                        checked={statusFilter.includes(s)}
+                                        onCheckedChange={(checked) => {
+                                            setStatusFilter(prev => 
+                                                checked ? [...prev, s] : prev.filter(item => item !== s)
+                                            );
+                                        }}
+                                    />
+                                    <label htmlFor={`status-${s}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        {s}
+                                    </label>
+                                </div>
+                            ))}
                         </div>
                         {unifiedSettlementData && (
                             <div className="flex items-center justify-between p-3 my-4 border rounded-lg bg-secondary/50 animate-in fade-in-50 duration-300">
@@ -970,6 +929,12 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             onClose={() => setEditingAccount(null)}
             onSave={handleAccountSave}
             account={editingAccount}
+        />
+        
+        <FinancialEntryDialog
+            isOpen={isEntryDialogOpen}
+            onClose={() => setIsEntryDialogOpen(false)}
+            onSave={handleNewEntrySave}
         />
 
         <BankAccountStatementDialog

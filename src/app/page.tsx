@@ -2,7 +2,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Truck, DollarSign, ClipboardList, UserX, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { ShipmentsChart } from '@/components/shipments-chart';
 import { RecentShipments } from '@/components/recent-shipments';
-import { ImportantTasks } from '@/components/important-tasks';
+import { ApprovalsPanel } from '@/components/approvals-panel';
 
 export default function Home() {
 
@@ -55,7 +55,7 @@ export default function Home() {
               <ShipmentsChart />
           </div>
           <div className="lg:col-span-2">
-              <ImportantTasks />
+              <ApprovalsPanel />
           </div>
           <div className="lg:col-span-5">
               <RecentShipments />

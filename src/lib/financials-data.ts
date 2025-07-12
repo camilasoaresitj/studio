@@ -31,9 +31,13 @@ export type FinancialEntry = {
     currency: 'BRL' | 'USD' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
     processId: string;
     payments?: PartialPayment[];
-    status: 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico';
+    status: 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação';
     legalStatus?: 'Fase Inicial' | 'Fase de Execução' | 'Desconsideração da Personalidade Jurídica';
     legalComments?: string;
+    // New fields for administrative expenses
+    expenseType?: 'Operacional' | 'Administrativa';
+    recurrence?: 'Única' | 'Mensal' | 'Anual';
+    description?: string;
 };
 
 const today = new Date();
@@ -56,6 +60,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'BRL',
         processId: 'PROC-00125-95015',
         payments: [],
+        expenseType: 'Operacional',
     },
     {
         id: 'fin-002',
@@ -68,6 +73,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'BRL',
         processId: 'PROC-00124-42898',
         payments: [{ id: 'pay-001', amount: 8750.00, date: subDays(today, 20).toISOString(), accountId: 1 }],
+        expenseType: 'Operacional',
     },
     {
         id: 'fin-003',
@@ -80,6 +86,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'BRL',
         processId: 'PROC-00123-51881',
         payments: [],
+        expenseType: 'Operacional',
     },
     {
         id: 'fin-004',
@@ -92,6 +99,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'USD',
         processId: 'PROC-00122-38416',
         payments: [{ id: 'pay-002', amount: 1200.00, date: subDays(today, 2).toISOString(), accountId: 2 }],
+        expenseType: 'Operacional',
     },
      {
         id: 'fin-008',
@@ -104,6 +112,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'BRL',
         processId: 'PROC-00121-72921',
         payments: [],
+        expenseType: 'Operacional',
     },
     {
         id: 'fin-010',
@@ -118,6 +127,37 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'BRL',
         processId: 'PROC-JURIDICO-1',
         payments: [],
+        expenseType: 'Operacional',
+    },
+    {
+        id: 'fin-011',
+        type: 'debit',
+        partner: 'Locadora de Imóveis Central',
+        invoiceId: 'ALUGUEL-SEDE',
+        status: 'Pendente de Aprovação',
+        dueDate: addDays(today, 5).toISOString(),
+        amount: 8500.00,
+        currency: 'BRL',
+        processId: 'ADM-001',
+        payments: [],
+        expenseType: 'Administrativa',
+        recurrence: 'Mensal',
+        description: 'Aluguel do escritório de Itajaí.',
+    },
+    {
+        id: 'fin-012',
+        type: 'debit',
+        partner: 'Software House Inc.',
+        invoiceId: 'SOFT-SYS-2024',
+        status: 'Pendente de Aprovação',
+        dueDate: addDays(today, 10).toISOString(),
+        amount: 12000.00,
+        currency: 'BRL',
+        processId: 'ADM-002',
+        payments: [],
+        expenseType: 'Administrativa',
+        recurrence: 'Anual',
+        description: 'Licença anual do sistema de gestão.',
     },
 
 
@@ -133,6 +173,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'USD',
         processId: 'PROC-00125-95015',
         payments: [],
+        expenseType: 'Operacional',
     },
     {
         id: 'fin-006',
@@ -145,6 +186,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'USD',
         processId: 'PROC-00124-42898',
         payments: [{ id: 'pay-003', amount: 2100.00, date: subDays(today, 15).toISOString(), accountId: 2 }],
+        expenseType: 'Operacional',
     },
     {
         id: 'fin-007',
@@ -157,6 +199,7 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'USD',
         processId: 'PROC-00123-51881',
         payments: [],
+        expenseType: 'Operacional',
     },
     {
         id: 'fin-009',
@@ -169,10 +212,11 @@ const initialFinancialData: FinancialEntry[] = [
         currency: 'USD',
         processId: 'PROC-00121-72921',
         payments: [],
+        expenseType: 'Operacional',
     },
 ];
 
-const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v6';
+const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v7';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
 export function getFinancialEntries(): FinancialEntry[] {
@@ -198,6 +242,8 @@ export function saveFinancialEntries(entries: FinancialEntry[]): void {
   }
   try {
     localStorage.setItem(FINANCIALS_STORAGE_KEY, JSON.stringify(entries));
+    // Dispatch event to notify other components of the update
+    window.dispatchEvent(new Event('financialsUpdated'));
   } catch (error) {
     console.error("Failed to save financial entries to localStorage", error);
   }
@@ -236,6 +282,7 @@ export function saveBankAccounts(accounts: BankAccount[]): void {
     }
     try {
         localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+        window.dispatchEvent(new Event('financialsUpdated'));
     } catch (error) {
         console.error("Failed to save bank accounts to localStorage", error);
     }

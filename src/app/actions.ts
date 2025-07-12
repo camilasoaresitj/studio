@@ -17,7 +17,7 @@ import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
 import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
-import { getShipments, updateShipment } from "@/lib/shipment";
+import { getShipments, updateShipment, getShipmentById, type BLDraftData } from "@/lib/shipment";
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
 import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
@@ -253,4 +253,62 @@ export async function runSendToLegal(input: any) {
         console.error("Send to Legal Action Failed", error);
         return { success: false, error: error.message || "Failed to send to legal" };
     }
+}
+
+export async function fetchShipmentForDraft(id: string) {
+  try {
+    const data = getShipmentById(id);
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: "Shipment not found" };
+  }
+}
+
+export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: boolean) {
+    let shipment = getShipmentById(id);
+    if (!shipment) {
+        return { success: false, error: 'Embarque não encontrado.' };
+    }
+
+    // Update shipment with draft data
+    shipment.blDraftData = draftData;
+    
+    // Create new milestone/task for operational team
+    const draftReceivedMilestone = {
+        name: `Draft de BL Recebido`,
+        status: 'pending' as const,
+        predictedDate: new Date(),
+        effectiveDate: new Date(),
+        details: `Draft recebido do cliente. Necessário enviar ao armador.`,
+    };
+     const sendToCarrierMilestone = {
+        name: `Enviar Draft MBL ao armador`,
+        status: 'pending' as const,
+        predictedDate: new Date(),
+        effectiveDate: null,
+        details: `Verificar draft do cliente e enviar ao armador.`,
+    };
+
+    shipment.milestones.push(draftReceivedMilestone, sendToCarrierMilestone);
+    
+    // Add late fee if applicable
+    if (isLate) {
+        const lateFeeCharge = {
+            id: `late-fee-${Date.now()}`,
+            name: 'Taxa de Alteração de Draft Fora do Prazo',
+            type: 'Fixo',
+            cost: 50,
+            costCurrency: 'USD' as const,
+            sale: 50,
+            saleCurrency: 'USD' as const,
+            supplier: 'CargaInteligente',
+            sacado: shipment.customer,
+            approvalStatus: 'aprovada' as const,
+        };
+        shipment.charges.push(lateFeeCharge);
+    }
+    
+    updateShipment(shipment);
+    
+    return { success: true, data: shipment };
 }

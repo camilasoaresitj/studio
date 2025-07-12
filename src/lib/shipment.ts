@@ -89,6 +89,18 @@ export type DocumentStatus = {
     uploadedAt?: Date;
 };
 
+export type BLDraftData = {
+    shipper: string;
+    consignee: string;
+    notify: string;
+    marksAndNumbers: string;
+    descriptionOfGoods: string;
+    grossWeight: string;
+    measurement: string;
+    ncm: string;
+    blType: 'original' | 'express';
+};
+
 export type Shipment = {
   id: string; // The process number, derived from quote ID
   quoteId: string; // The original quote ID
@@ -128,6 +140,7 @@ export type Shipment = {
   ceHouse?: string;
   manifesto?: string;
   payments?: PartialPayment[];
+  blDraftData?: BLDraftData;
   // Redestinação fields
   terminalRedestinacaoId?: string;
   custoArmazenagem?: number;
@@ -142,7 +155,7 @@ const IMPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Instruções de Embarque Enviadas ao Agente': 0,
   'Carga Pronta': 7,
   'Booking Confirmado': 10,
-  'Documentos Aprovados': 12,
+  'Cut Off Documental': 12,
   'Container Gate In (Entregue no Porto)': 13,
   'Confirmação de Embarque': 14,
   'Documentos Originais Emitidos': 16,
@@ -155,6 +168,7 @@ const EXPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Confirmação de Booking': 2,
   'Retirada do Vazio': 3,
   'Coleta da Carga (se aplicável)': 4,
+  'Cut Off Documental': 6,
   'Desembaraço de Exportação': 7,
   'Embarque': 8,
   'Chegada no Destino': 0, // Placeholder
@@ -225,7 +239,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         });
     }
 
-    // Sort all milestones by date - this was missing previously
+    // Sort all milestones by date
     milestones.sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime());
     return milestones;
 }
@@ -284,6 +298,15 @@ export function getShipments(): Shipment[] {
     return [];
   }
 }
+
+/**
+ * Retrieves a single shipment by its ID.
+ */
+export function getShipmentById(id: string): Shipment | null {
+  const shipments = getShipments();
+  return shipments.find(s => s.id === id) || null;
+}
+
 
 /**
  * Saves all shipments to localStorage.

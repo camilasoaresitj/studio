@@ -27,7 +27,7 @@ export default function OperacionalPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [isClient, setIsClient] = useState(false);
-  const [taskFilter, setTaskFilter] = useState<'today' | 'week' | 'all'>('today');
+  const [taskFilter, setTaskFilter] = useState<'today' | '3days' | 'week' | 'all'>('today');
   const [newBookingNumber, setNewBookingNumber] = useState('');
   const [isFetchingBooking, setIsFetchingBooking] = useState(false);
   const { toast } = useToast();
@@ -174,6 +174,8 @@ export default function OperacionalPage() {
         switch (taskFilter) {
             case 'today':
                 return isToday(predictedDate) || isPast(predictedDate);
+            case '3days':
+                return isWithinInterval(predictedDate, { start: now, end: addDays(now, 3) }) || isPast(predictedDate);
             case 'week':
                 return isWithinInterval(predictedDate, { start: now, end: addDays(now, 7) }) || isPast(predictedDate);
             case 'all':
@@ -251,6 +253,7 @@ export default function OperacionalPage() {
                 </div>
                 <div className="flex gap-2 self-start sm:self-center">
                     <Button variant={taskFilter === 'today' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('today')}>Hoje</Button>
+                    <Button variant={taskFilter === '3days' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('3days')}>3 Dias</Button>
                     <Button variant={taskFilter === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('week')}>7 Dias</Button>
                     <Button variant={taskFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('all')}>Todas</Button>
                 </div>

@@ -93,7 +93,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       paymentTerm: 30,
       exchangeRateAgio: 0,
       profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
-      commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'USD' }
+      commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' }
     }
   });
 
@@ -125,7 +125,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         paymentTerm: 30,
         exchangeRateAgio: 0,
         profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
-        commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'USD' }
+        commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' }
       }
     );
     setIsDialogOpen(true);

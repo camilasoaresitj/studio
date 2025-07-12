@@ -174,7 +174,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         const eta = addDays(etd, transitTime);
         const freeTimeDueDate = addDays(eta, freeDays);
 
-        milestones = milestoneNames.map(name => {
+        const baseMilestones = milestoneNames.map(name => {
             let predictedDate: Date;
             if (name === 'Chegada ao Destino') {
                 predictedDate = eta;
@@ -183,16 +183,18 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
             } else {
                 predictedDate = addDays(creationDate, IMPORT_MILESTONE_DUE_DAYS[name]);
             }
-            return { name, status: 'pending', predictedDate, effectiveDate: null, isTransshipment: false };
+            return { name, status: 'pending' as const, predictedDate, effectiveDate: null, isTransshipment: false };
         });
 
-        milestones.push({
+        const demurrageMilestone: Milestone = {
             name: 'Verificar Devolução do Contêiner',
             status: 'pending',
             predictedDate: addDays(freeTimeDueDate, -2), // Reminder 2 days before
             effectiveDate: null,
             details: `Free time termina em ${freeTimeDueDate.toLocaleDateString('pt-BR')}`
-        });
+        };
+        
+        milestones = [...baseMilestones, demurrageMilestone];
 
     } else { // Export
         const milestoneNames = Object.keys(EXPORT_MILESTONE_DUE_DAYS);
@@ -212,7 +214,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         });
     }
 
-    // Sort all milestones by date
+    // Sort all milestones by date - this was missing previously
     milestones.sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime());
     return milestones;
 }

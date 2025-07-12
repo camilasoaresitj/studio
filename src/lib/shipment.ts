@@ -112,7 +112,7 @@ export type Shipment = {
   eta?: Date;
   containers?: ContainerDetail[];
   commodityDescription?: string;
-  ncm?: string;
+  ncms?: string[];
   netWeight?: string;
   packageQuantity?: string;
   freeTimeDemurrage?: string;
@@ -318,7 +318,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     packageQuantity: quoteData.details.cargo,
     freeTimeDemurrage: quoteData.details.freeTime,
     commodityDescription: 'Generic Commodity Description',
-    ncm: '0000.00.00',
+    ncms: ['0000.00.00'],
     mblPrintingAtDestination: false,
     notifyName: quoteData.notifyName,
     // Keep 'customer' for backward compatibility on display, but shipper/cnee are primary
@@ -346,7 +346,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
       thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
       commodity: newShipment.commodityDescription || 'General Cargo',
       equipmentDescription: newShipment.packageQuantity || 'N/A',
-      ncm: newShipment.ncm || 'N/A',
+      ncm: newShipment.ncms?.[0] || 'N/A',
       invoiceNumber: newShipment.invoiceNumber || 'N/A',
       purchaseOrderNumber: newShipment.purchaseOrderNumber || 'N/A',
       updateLink: agentPortalUrl,

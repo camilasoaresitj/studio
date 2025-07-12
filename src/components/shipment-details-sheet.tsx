@@ -125,10 +125,8 @@ const shipmentDetailsSchema = z.object({
   })).optional(),
   charges: z.array(quoteChargeSchemaForSheet).optional(),
   commodityDescription: z.string().optional(),
-  ncm: z.string().optional(),
+  ncms: z.array(z.string()).optional(),
   netWeight: z.string().optional(),
-  packageQuantity: z.string().optional(),
-  freeTimeDemurrage: z.string().optional(),
   transshipments: z.array(transshipmentDetailSchema).optional(),
   notifyName: z.string().optional(),
   invoiceNumber: z.string().optional(),
@@ -205,6 +203,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     name: "charges"
   });
 
+  const { fields: ncmFields, append: appendNcm, remove: removeNcm } = useFieldArray({
+    control: form.control,
+    name: "ncms",
+  });
+
   const assembledMilestones = useMemo(() => {
     if (!shipment) return [];
     
@@ -252,10 +255,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         charges: shipment.charges.map(c => ({ ...c, approvalStatus: c.approvalStatus || 'aprovada' })) || [],
         documents: shipment.documents || [],
         commodityDescription: shipment.commodityDescription || '',
-        ncm: shipment.ncm || '',
+        ncms: shipment.ncms || [],
         netWeight: shipment.netWeight || '',
-        packageQuantity: shipment.packageQuantity || shipment.details?.cargo || '',
-        freeTimeDemurrage: shipment.freeTimeDemurrage || shipment.details?.freeTime || '',
         transshipments: shipment.transshipments?.map(t => ({
           ...t,
           etd: t.etd && isValid(new Date(t.etd)) ? new Date(t.etd) : undefined,
@@ -1016,25 +1017,32 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <FormField control={form.control} name="commodityDescription" render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center gap-2"><CaseSensitive />Descrição da Mercadoria</FormLabel><FormControl><Input placeholder="Peças automotivas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                     )}/>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <FormField control={form.control} name="ncm" render={({ field }) => (
-                                            <FormItem><FormLabel className="flex items-center gap-2">NCM</FormLabel><FormControl><Input placeholder="8708.99.90" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                        <FormField control={form.control} name="packageQuantity" render={({ field }) => (
-                                            <FormItem><FormLabel className="flex items-center gap-2"><Package /> Quantidade de Volumes</FormLabel><FormControl><Input placeholder="10 caixas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <FormField control={form.control} name="netWeight" render={({ field }) => (
                                             <FormItem><FormLabel className="flex items-center gap-2"><Weight/> Peso Líquido</FormLabel><FormControl><Input placeholder="1200 KG" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                                         )}/>
+                                        <div className="space-y-2">
+                                          <Label>NCMs</Label>
+                                          {ncmFields.map((field, index) => (
+                                            <div key={field.id} className="flex items-center gap-2">
+                                              <FormField control={form.control} name={`ncms.${index}`} render={({ field }) => (
+                                                <Input {...field} placeholder="Ex: 8708.99.90" />
+                                              )} />
+                                              <Button type="button" variant="ghost" size="icon" onClick={() => removeNcm(index)} disabled={ncmFields.length <= 1}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                              </Button>
+                                            </div>
+                                          ))}
+                                          <Button type="button" variant="outline" size="sm" onClick={() => appendNcm('')}>
+                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar NCM
+                                          </Button>
+                                        </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-medium p-3 bg-muted/50 rounded-lg">
                                         <div className="flex justify-between md:flex-col"><span>Total Contêineres:</span> <span className="text-primary">{totalsSummary.containerCount}</span></div>
                                         <div className="flex justify-between md:flex-col"><span>Peso Bruto Total:</span> <span className="text-primary">{totalsSummary.totalGrossWeight.toLocaleString('pt-BR')} KG</span></div>
                                         <div className="flex justify-between md:flex-col"><span>Volumes Totais:</span> <span className="text-primary">{totalsSummary.totalVolumes.toLocaleString('pt-BR')}</span></div>
                                     </div>
-                                    <FormField control={form.control} name="freeTimeDemurrage" render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center gap-2"><Clock /> Free Time Demurrage / Detention</FormLabel><FormControl><Input placeholder="14 dias" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
                                 </CardContent>
                             </Card>
                             <Card>

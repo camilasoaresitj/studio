@@ -94,7 +94,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       exchangeRateAgio: 0,
       profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
       commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
-      terminalCommission: { amount: 0, unit: 'por_container' },
+      terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
     }
   });
 
@@ -128,7 +128,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         exchangeRateAgio: 0,
         profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
         commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
-        terminalCommission: { amount: 0, unit: 'por_container' },
+        terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
       }
     );
     setIsDialogOpen(true);
@@ -482,7 +482,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <FormField control={form.control} name="terminalCommission.unit" render={({ field }) => (
                                 <FormItem><FormLabel>Base de Cálculo</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
-                                    <SelectItem value="porcentagem_thc">% do THC</SelectItem>
+                                    <SelectItem value="porcentagem_armazenagem">% sobre Armazenagem</SelectItem>
                                     <SelectItem value="por_container">Valor Fixo por Contêiner</SelectItem>
                                 </SelectContent></Select><FormMessage /></FormItem>
                              )}/>

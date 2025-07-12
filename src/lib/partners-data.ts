@@ -57,7 +57,7 @@ export const partnerSchema = z.object({
   }).optional(),
   terminalCommission: z.object({
     amount: z.coerce.number().optional(),
-    unit: z.enum(['porcentagem_thc', 'por_container']).optional(),
+    unit: z.enum(['porcentagem_armazenagem', 'por_container']).optional(),
   }).optional(),
   address: z.object({
     street: z.string().optional(),

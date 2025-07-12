@@ -62,7 +62,7 @@ export const baseFreightQuoteFormSchema = z.object({
     redestinacao: z.boolean(),
     cargoValue: z.number(),
     deliveryCost: z.number(),
-    redestinacaoCost: z.number(),
+    warehousingCost: z.number(),
   }),
 });
 

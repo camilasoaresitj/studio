@@ -210,7 +210,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         redestinacao: false,
         cargoValue: 0,
         deliveryCost: 0,
-        redestinacaoCost: 0,
+        warehousingCost: 0,
       }
     },
   });
@@ -440,10 +440,11 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       const isOptionalSelected = 
         (fee.name.toUpperCase().includes('DESPACHO') && values.optionalServices.customsClearance) ||
         (fee.name.toUpperCase().includes('SEGURO') && values.optionalServices.insurance) ||
-        (fee.name.toUpperCase().includes('TRADING') && values.optionalServices.trading) ||
-        (fee.name.toUpperCase().includes('REDESTINA') && values.optionalServices.redestinacao);
+        (fee.name.toUpperCase().includes('TRADING') && values.optionalServices.trading);
+        
+      const isRedestinacaoSelected = fee.name.toUpperCase().includes('REDESTINA') && values.optionalServices.redestinacao;
 
-      return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected)
+      return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected || isRedestinacaoSelected);
     });
 
     relevantFees.forEach(fee => {
@@ -465,7 +466,11 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
           feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
           feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
+      } else if (values.optionalServices.redestinacao && fee.name.toUpperCase().includes('REDESTINA')) {
+          feeValue = values.optionalServices.warehousingCost;
+          feeType = `Sobre armazenagem`;
       }
+
 
       let localPagamento: 'Origem' | 'Frete' | 'Destino' = 'Frete';
       const feeNameUpper = fee.name.toUpperCase();
@@ -1202,10 +1207,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         )} />
                         <FormField control={form.control} name="optionalServices.redestinacao" render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none w-full"><FormLabel>Redestinação {redestinacaoFee ? `(${redestinacaoFee.currency} ${redestinacaoFee.value})` : ''}</FormLabel>
+                                <div className="space-y-1 leading-none w-full"><FormLabel>Redestinação</FormLabel>
                                 {optionalServices.redestinacao && (
-                                    <FormField control={form.control} name="optionalServices.redestinacaoCost" render={({ field }) => (
-                                        <FormItem className="mt-2"><FormControl><Input type="number" placeholder="Custo (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
+                                    <FormField control={form.control} name="optionalServices.warehousingCost" render={({ field }) => (
+                                        <FormItem className="mt-2"><FormLabel className="text-xs">Custo Armazenagem</FormLabel><FormControl><Input type="number" placeholder="Custo (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
                                     )} />
                                 )}
                                 </div>

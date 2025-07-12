@@ -34,13 +34,15 @@ interface ReportData {
 
 export default function Home() {
     const [kpiData, setKpiData] = useState<KpiData | null>(null);
+    const [partners, setPartners] = useState<Partner[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [report, setReport] = useState<ReportData | null>(null);
 
     useEffect(() => {
         const calculateKpis = async () => {
             const shipments = getShipments();
-            const partners = getPartners();
+            const allPartners = getPartners();
+            setPartners(allPartners);
             const rates = await exchangeRateService.getRates();
 
             // 1. Embarques no Mês
@@ -65,7 +67,7 @@ export default function Home() {
 
             // 4. Clientes Inativos (sem embarques nos últimos 90 dias)
             const ninetyDaysAgo = subDays(new Date(), 90);
-            const clientPartners = partners.filter(p => p.roles.cliente);
+            const clientPartners = allPartners.filter(p => p.roles.cliente);
             const activeClients = new Set(
                 shipments
                     .filter(s => s.etd && isValid(new Date(s.etd)) && new Date(s.etd) > ninetyDaysAgo)
@@ -96,16 +98,26 @@ export default function Home() {
                     title: 'Relatório de Embarques no Mês',
                     description: 'Lista de todos os embarques com ETD no mês corrente.',
                     data: kpiData.monthlyShipments,
-                    headers: ['Processo', 'Cliente', 'Origem', 'Destino', 'ETD'],
-                    renderRow: (item: Shipment) => (
-                        <TableRow key={item.id}>
-                            <TableCell>{item.id}</TableCell>
-                            <TableCell>{item.customer}</TableCell>
-                            <TableCell>{item.origin}</TableCell>
-                            <TableCell>{item.destination}</TableCell>
-                            <TableCell>{item.etd && isValid(new Date(item.etd)) ? format(new Date(item.etd), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                        </TableRow>
-                    ),
+                    headers: ['Processo', 'Cliente', 'Origem', 'Destino', 'ETD', 'Modal', 'Detalhe Carga'],
+                    renderRow: (item: Shipment) => {
+                        const isAir = item.details.cargo.toLowerCase().includes('kg');
+                        const modal = isAir ? 'Aéreo' : 'Marítimo';
+                        const cargoDetail = isAir 
+                            ? item.details.cargo 
+                            : item.containers?.map(c => `${c.quantity}x${c.number}`).join(', ') || item.details.cargo;
+
+                        return (
+                            <TableRow key={item.id}>
+                                <TableCell>{item.id}</TableCell>
+                                <TableCell>{item.customer}</TableCell>
+                                <TableCell>{item.origin}</TableCell>
+                                <TableCell>{item.destination}</TableCell>
+                                <TableCell>{item.etd && isValid(new Date(item.etd)) ? format(new Date(item.etd), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                <TableCell>{modal}</TableCell>
+                                <TableCell>{cargoDetail}</TableCell>
+                            </TableRow>
+                        )
+                    },
                 };
                 break;
             case 'profit':
@@ -113,16 +125,22 @@ export default function Home() {
                     title: 'Relatório de Lucro Bruto (Mês)',
                     description: 'Detalhamento do lucro por embarque no mês corrente.',
                     data: kpiData.profitableShipments.sort((a,b) => b.profit - a.profit),
-                    headers: ['Processo', 'Cliente', 'Origem', 'Destino', 'Lucro Bruto (BRL)'],
-                    renderRow: (item: Shipment & { profit: number }) => (
-                        <TableRow key={item.id}>
-                            <TableCell>{item.id}</TableCell>
-                            <TableCell>{item.customer}</TableCell>
-                             <TableCell>{item.origin}</TableCell>
-                            <TableCell>{item.destination}</TableCell>
-                            <TableCell className="text-right font-mono text-success">{item.profit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        </TableRow>
-                    ),
+                    headers: ['Processo', 'Cliente', 'Modal', 'Responsável Comercial', 'Lucro Bruto (BRL)'],
+                    renderRow: (item: Shipment & { profit: number }) => {
+                        const isAir = item.details.cargo.toLowerCase().includes('kg');
+                        const modal = isAir ? 'Aéreo' : 'Marítimo';
+                        const customerPartner = partners.find(p => p.name === item.customer);
+                        const commercialContact = customerPartner?.contacts.find(c => c.departments.includes('Comercial')) || customerPartner?.contacts[0];
+                        return (
+                            <TableRow key={item.id}>
+                                <TableCell>{item.id}</TableCell>
+                                <TableCell>{item.customer}</TableCell>
+                                <TableCell>{modal}</TableCell>
+                                <TableCell>{commercialContact?.name || 'N/A'}</TableCell>
+                                <TableCell className="text-right font-mono text-success">{item.profit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            </TableRow>
+                        )
+                    },
                 };
                 break;
             case 'tasks':
@@ -130,15 +148,19 @@ export default function Home() {
                     title: 'Relatório de Tarefas Atrasadas',
                     description: 'Lista de todas as tarefas operacionais que estão com data vencida.',
                     data: kpiData.overdueTasks,
-                    headers: ['Processo', 'Cliente', 'Tarefa', 'Data Prevista'],
-                    renderRow: (item: Shipment & { milestone: any }) => (
+                    headers: ['Processo', 'Cliente', 'Tarefa', 'Data Prevista', 'Responsável Operacional'],
+                    renderRow: (item: Shipment & { milestone: any }) => {
+                        const customerPartner = partners.find(p => p.name === item.customer);
+                        const operationalContact = customerPartner?.contacts.find(c => c.departments.includes('Operacional')) || customerPartner?.contacts[0];
+                        return (
                         <TableRow key={`${item.id}-${item.milestone.name}`}>
                             <TableCell>{item.id}</TableCell>
                             <TableCell>{item.customer}</TableCell>
                             <TableCell>{item.milestone.name}</TableCell>
                             <TableCell className="text-destructive">{format(new Date(item.milestone.predictedDate), 'dd/MM/yyyy')}</TableCell>
+                             <TableCell>{operationalContact?.name || 'N/A'}</TableCell>
                         </TableRow>
-                    ),
+                    )},
                 };
                 break;
             case 'clients':

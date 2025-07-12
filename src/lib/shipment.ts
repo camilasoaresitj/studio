@@ -246,7 +246,7 @@ export function getShipments(): Shipment[] {
 /**
  * Saves all shipments to localStorage.
  */
-function saveShipments(shipments: Shipment[]): void {
+export function saveShipments(shipments: Shipment[]): void {
   if (typeof window === 'undefined') {
     return;
   }

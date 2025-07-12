@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, isPast, isValid } from 'date-fns';
+import { format, isPast, isValid, differenceInDays, addDays } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
 import {
@@ -297,6 +297,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
     return { containerCount, totalGrossWeight, totalVolumes };
   }, [watchedContainers]);
+
+  const freeTimeInfo = useMemo(() => {
+    if (!shipment?.eta || !isValid(new Date(shipment.eta))) return null;
+    const freeTimeDays = parseInt(shipment.details.freeTime, 10);
+    if (isNaN(freeTimeDays)) return null;
+
+    const dueDate = addDays(new Date(shipment.eta), freeTimeDays);
+    const daysRemaining = differenceInDays(dueDate, new Date());
+    let variant: 'success' | 'warning' | 'destructive' = 'success';
+    if (daysRemaining <= 3) variant = 'warning';
+    if (daysRemaining < 0) variant = 'destructive';
+    
+    return {
+      dueDate: format(dueDate, 'dd/MM/yyyy'),
+      daysRemaining,
+      variant,
+    };
+  }, [shipment?.eta, shipment?.details?.freeTime]);
 
   useEffect(() => {
     if (watchedCustoArmazenagem && watchedCustoArmazenagem > 0) {
@@ -726,7 +744,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
                     <div className="flex-grow overflow-y-auto pr-6 -mr-6 space-y-6">
                         <TabsContent value="dados_embarque" className="mt-0 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <Card>
                                     <CardHeader className="pb-2"><CardTitle className="text-base">Shipper (Exportador)</CardTitle></CardHeader>
                                     <CardContent className="text-sm space-y-1">
@@ -756,7 +774,36 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         )}
                                     </CardContent>
                                 </Card>
+                                 <Card>
+                                    <CardHeader className="pb-2"><CardTitle className="text-base">Responsável</CardTitle></CardHeader>
+                                    <CardContent className="text-sm space-y-1">
+                                        <p className="font-semibold">{shipment.responsibleUser || 'Não atribuído'}</p>
+                                        <p className="text-muted-foreground">Ponto de contato interno</p>
+                                    </CardContent>
+                                </Card>
                             </div>
+                            
+                            {freeTimeInfo && (
+                                <Card className={cn("border-2", freeTimeInfo.variant === 'warning' && 'border-amber-500', freeTimeInfo.variant === 'destructive' && 'border-destructive')}>
+                                    <CardHeader className="flex flex-row items-center justify-between p-4">
+                                        <div className="space-y-1">
+                                            <CardTitle className="text-lg flex items-center gap-2">
+                                                <Clock className={cn(freeTimeInfo.variant === 'warning' && 'text-amber-500', freeTimeInfo.variant === 'destructive' && 'text-destructive')} /> Controle de Free Time
+                                            </CardTitle>
+                                            <CardDescription>
+                                                O prazo para devolução do contêiner é <strong>{freeTimeInfo.dueDate}</strong>.
+                                            </CardDescription>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={cn("text-2xl font-bold", freeTimeInfo.variant === 'warning' && 'text-amber-500', freeTimeInfo.variant === 'destructive' && 'text-destructive')}>
+                                                {freeTimeInfo.daysRemaining}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">dias restantes</p>
+                                        </div>
+                                    </CardHeader>
+                                </Card>
+                            )}
+
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-lg">Dados da Viagem/Voo e Documentos</CardTitle>

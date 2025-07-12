@@ -49,6 +49,7 @@ export type ShipmentCreationData = {
   agent?: Partner;
   notifyName: string;
   responsibleUser: string;
+  terminalRedestinacaoId?: string;
 };
 
 export type Milestone = {
@@ -329,6 +330,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     consignee: quoteData.consignee,
     agent: quoteData.agent,
     responsibleUser: quoteData.responsibleUser,
+    terminalRedestinacaoId: quoteData.terminalRedestinacaoId,
     charges: quoteData.charges.map(c => ({ ...c, approvalStatus: 'aprovada' })),
     details: quoteData.details,
     carrier: freightCharge?.supplier,

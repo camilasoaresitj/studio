@@ -132,6 +132,7 @@ const shipmentDetailsSchema = z.object({
   notifyName: z.string().optional(),
   invoiceNumber: z.string().optional(),
   purchaseOrderNumber: z.string().optional(),
+  terminalRedestinacaoId: z.string().optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -258,6 +259,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         notifyName: shipment.notifyName || '',
         invoiceNumber: shipment.invoiceNumber || '',
         purchaseOrderNumber: shipment.purchaseOrderNumber || '',
+        terminalRedestinacaoId: shipment.terminalRedestinacaoId || '',
       });
     }
   }, [shipment, form]);
@@ -692,7 +694,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 </Card>
                             </div>
                             <Card>
-                                <CardHeader><CardTitle className="text-lg">Dados da Viagem/Voo</CardTitle></CardHeader>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Dados da Viagem/Voo e Documentos</CardTitle>
+                                    <CardDescription>Cotação de origem: <span className="font-semibold text-primary">{shipment.quoteId}</span></CardDescription>
+                                </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
                                         <FormField control={form.control} name="carrier" render={({ field }) => (
@@ -754,6 +759,18 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <Input value={shipment.details.transitTime} disabled className="mt-2" />
                                         </div>
                                     </div>
+                                    <Separator/>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                        <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                            <FormItem><FormLabel>Invoice Nº</FormLabel><FormControl><Input placeholder="INV-12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                                            <FormItem><FormLabel>Purchase Order (PO) Nº</FormLabel><FormControl><Input placeholder="PO-67890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="notifyName" render={({ field }) => (
+                                            <FormItem><FormLabel>Notify Party</FormLabel><FormControl><Input placeholder="Nome do Notify" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                    </div>
                                 </CardContent>
                             </Card>
                             
@@ -805,25 +822,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </Card>
                         </TabsContent>
                          <TabsContent value="documentos" className="mt-0 space-y-6">
-                             <Card>
-                                <CardHeader className="flex flex-row justify-between items-start">
-                                    <div>
-                                        <CardTitle className="text-lg">Rastreio e Numerações</CardTitle>
-                                        <CardDescription>Cotação de origem: <span className="font-semibold text-primary">{shipment.quoteId}</span></CardDescription>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                    <FormItem><FormLabel>Invoice Nº</FormLabel><FormControl><Input placeholder="INV-12345" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
-                                    <FormItem><FormLabel>Purchase Order (PO) Nº</FormLabel><FormControl><Input placeholder="PO-67890" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                 <FormField control={form.control} name="notifyName" render={({ field }) => (
-                                    <FormItem className="md:col-span-1"><FormLabel>Notify Party</FormLabel><FormControl><Input placeholder="Nome do Notify" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                </CardContent>
-                            </Card>
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-lg">Gerenciamento de Documentos</CardTitle>

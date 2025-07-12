@@ -209,6 +209,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         trading: false,
         redestinacao: false,
         cargoValue: 0,
+        storageCost: 0,
+        terminalId: ''
       }
     },
   });
@@ -232,8 +234,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const customsFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('DESPACHO')), [fees]);
   const insuranceFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('SEGURO')), [fees]);
   const tradingFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('TRADING')), [fees]);
-  const redestinacaoFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('REDESTINA')), [fees]);
-  const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
 
   async function onSubmit(values: FreightQuoteFormData) {
     setIsLoading(true);

@@ -61,6 +61,8 @@ export const baseFreightQuoteFormSchema = z.object({
     trading: z.boolean(),
     redestinacao: z.boolean(),
     cargoValue: z.number(),
+    storageCost: z.number().optional(),
+    terminalId: z.string().optional(),
   }),
 });
 

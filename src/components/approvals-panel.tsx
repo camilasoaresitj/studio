@@ -5,12 +5,13 @@ import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertCircle, DollarSign, Settings } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, DollarSign, Settings, ArrowRight } from 'lucide-react';
 import { getFinancialEntries, saveFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { getShipments, saveShipments, Shipment, QuoteCharge } from '@/lib/shipment';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 
 type ApprovalItem = 
     | { type: 'finance'; item: FinancialEntry }
@@ -18,6 +19,7 @@ type ApprovalItem =
 
 export function ApprovalsPanel() {
     const [pendingItems, setPendingItems] = useState<ApprovalItem[]>([]);
+    const [viewingItem, setViewingItem] = useState<ApprovalItem | null>(null);
     const { toast } = useToast();
 
     const fetchPendingItems = () => {
@@ -50,10 +52,12 @@ export function ApprovalsPanel() {
         };
     }, []);
 
-    const handleApproval = (item: ApprovalItem, approved: boolean) => {
-        if (item.type === 'finance') {
+    const handleApproval = (approved: boolean) => {
+        if (!viewingItem) return;
+
+        if (viewingItem.type === 'finance') {
             const updatedEntries = getFinancialEntries().map(e => {
-                if (e.id === item.item.id) {
+                if (e.id === viewingItem.item.id) {
                     return { ...e, status: approved ? 'Aberto' : 'Aberto' }; // Let's simplify and just move it to 'Aberto' on approval
                 }
                 return e;
@@ -61,11 +65,11 @@ export function ApprovalsPanel() {
             saveFinancialEntries(updatedEntries);
             toast({
                 title: `Despesa ${approved ? 'Aprovada' : 'Rejeitada'}`,
-                description: `A despesa para ${item.item.partner} foi atualizada.`,
+                description: `A despesa para ${viewingItem.item.partner} foi atualizada.`,
                 className: approved ? 'bg-success text-success-foreground' : ''
             });
-        } else if (item.type === 'operations') {
-            const { charge, shipment } = item.item;
+        } else if (viewingItem.type === 'operations') {
+            const { charge, shipment } = viewingItem.item;
             const updatedShipments = getShipments().map(s => {
                 if (s.id === shipment.id) {
                     const updatedCharges = s.charges.map(c => {
@@ -85,35 +89,89 @@ export function ApprovalsPanel() {
                 className: approved ? 'bg-success text-success-foreground' : ''
             });
         }
+        setViewingItem(null);
         fetchPendingItems(); // Refresh the list
     };
     
     const renderFinanceItem = (item: FinancialEntry) => (
-        <>
-            <div className="flex-1">
-                <p className="text-sm font-medium leading-none">{item.description || `Despesa para ${item.partner}`}</p>
-                <p className="text-sm text-muted-foreground">
-                    <Badge variant="secondary" className="mr-2">{item.expenseType}</Badge>
-                    {item.currency} {item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                </p>
-            </div>
-        </>
+        <div className="flex-1 cursor-pointer" onClick={() => setViewingItem({ type: 'finance', item })}>
+            <p className="text-sm font-medium leading-none">{item.description || `Despesa para ${item.partner}`}</p>
+            <p className="text-sm text-muted-foreground">
+                <Badge variant="secondary" className="mr-2">{item.expenseType}</Badge>
+                {item.currency} {item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </p>
+        </div>
     );
 
     const renderOperationsItem = (item: { charge: QuoteCharge; shipment: Shipment }) => (
-         <>
-            <div className="flex-1">
-                <p className="text-sm font-medium leading-none">Aprovar alteração de despesa</p>
-                <p className="text-sm text-muted-foreground">
-                    <Badge variant="secondary" className="mr-2">Processo {item.shipment.id}</Badge>
-                    {item.charge.name}: {item.charge.saleCurrency} {item.charge.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                </p>
-            </div>
-        </>
+         <div className="flex-1 cursor-pointer" onClick={() => setViewingItem({ type: 'operations', item })}>
+            <p className="text-sm font-medium leading-none">Aprovar alteração de despesa</p>
+            <p className="text-sm text-muted-foreground">
+                <Badge variant="secondary" className="mr-2">Processo {item.shipment.id}</Badge>
+                {item.charge.name}: {item.charge.saleCurrency} {item.charge.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+            </p>
+        </div>
     );
+    
+    const renderDialogContent = () => {
+        if (!viewingItem) return null;
+
+        if (viewingItem.type === 'finance') {
+            const { item } = viewingItem;
+            return (
+                <>
+                <DialogHeader>
+                    <DialogTitle>Aprovação de Despesa Financeira</DialogTitle>
+                    <DialogDescription>
+                        Revise os detalhes da despesa antes de aprovar.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span>Fornecedor:</span> <span className="font-semibold">{item.partner}</span></div>
+                    <div className="flex justify-between"><span>Descrição:</span> <span className="font-semibold">{item.description}</span></div>
+                    <div className="flex justify-between"><span>Valor:</span> <span className="font-semibold">{item.currency} {item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></div>
+                    <div className="flex justify-between"><span>Vencimento:</span> <span className="font-semibold">{new Date(item.dueDate).toLocaleDateString('pt-BR')}</span></div>
+                    <div className="flex justify-between"><span>Tipo:</span> <span className="font-semibold">{item.expenseType}</span></div>
+                </div>
+                </>
+            );
+        }
+
+        if (viewingItem.type === 'operations') {
+            const { charge, shipment } = viewingItem.item;
+            const originalCharge = shipment.charges.find(c => c.id === charge.id); // Assuming original values are in the main shipment object for comparison
+            
+            return (
+                 <DialogHeader>
+                    <DialogTitle>Aprovação de Alteração Operacional</DialogTitle>
+                    <DialogDescription>
+                        Revise a alteração de despesa para o processo <span className="font-semibold">{shipment.id}</span>.
+                    </DialogDescription>
+                    <div className="space-y-4 pt-4 text-sm">
+                        <p><strong>Taxa:</strong> {charge.name}</p>
+                        <div className="grid grid-cols-3 gap-2 p-2 border rounded-md">
+                            <span className="font-semibold"></span>
+                            <span className="font-semibold text-muted-foreground">Original</span>
+                            <span className="font-semibold">Novo Valor</span>
+                            
+                            <span className="text-muted-foreground">Custo:</span>
+                            <span className="text-muted-foreground">{originalCharge?.costCurrency} {originalCharge?.cost.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                            <span className="font-bold flex items-center">{charge.costCurrency} {charge.cost.toLocaleString('pt-BR', {minimumFractionDigits: 2})} <ArrowRight className="h-4 w-4 ml-1 text-primary"/></span>
+
+                            <span className="text-muted-foreground">Venda:</span>
+                            <span className="text-muted-foreground">{originalCharge?.saleCurrency} {originalCharge?.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                            <span className="font-bold flex items-center">{charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})} <ArrowRight className="h-4 w-4 ml-1 text-primary"/></span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Solicitado por: {shipment.responsibleUser || 'Não definido'}</p>
+                    </div>
+                </DialogHeader>
+            )
+        }
+    };
 
 
     return (
+        <>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-4">
                 <div>
@@ -128,19 +186,11 @@ export function ApprovalsPanel() {
                 <ScrollArea className="h-[260px] pr-3">
                     <div className="space-y-4">
                         {pendingItems.length > 0 ? pendingItems.map((item, index) => (
-                            <div key={index} className="flex items-start space-x-3 p-3 border rounded-lg">
+                            <div key={index} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
                                  <div className="pt-1">
                                     {item.type === 'finance' ? <DollarSign className="h-5 w-5 text-blue-500" /> : <Settings className="h-5 w-5 text-orange-500" />}
                                 </div>
                                 {item.type === 'finance' ? renderFinanceItem(item.item as FinancialEntry) : renderOperationsItem(item.item as { charge: QuoteCharge; shipment: Shipment })}
-                                <div className="flex gap-1">
-                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleApproval(item, false)}>
-                                        <XCircle className="h-5 w-5"/>
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-success hover:bg-success/10 hover:text-success" onClick={() => handleApproval(item, true)}>
-                                        <CheckCircle className="h-5 w-5"/>
-                                    </Button>
-                                </div>
                             </div>
                         )) : (
                             <div className="text-center text-muted-foreground py-10">
@@ -152,5 +202,19 @@ export function ApprovalsPanel() {
                 </ScrollArea>
             </CardContent>
         </Card>
+        <Dialog open={!!viewingItem} onOpenChange={(isOpen) => !isOpen && setViewingItem(null)}>
+            <DialogContent>
+                {renderDialogContent()}
+                 <DialogFooter>
+                    <Button variant="destructive" onClick={() => handleApproval(false)}>
+                        <XCircle className="mr-2 h-4 w-4" /> Rejeitar
+                    </Button>
+                    <Button className="bg-success hover:bg-success/90" onClick={() => handleApproval(true)}>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Aprovar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
     )
 }

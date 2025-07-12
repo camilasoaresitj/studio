@@ -208,6 +208,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         delivery: false,
         trading: false,
         redestinacao: false,
+        terminalId: undefined,
         cargoValue: 0,
         deliveryCost: 0,
         warehousingCost: 0,
@@ -235,6 +236,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const insuranceFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('SEGURO')), [fees]);
   const tradingFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('TRADING')), [fees]);
   const redestinacaoFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('REDESTINA')), [fees]);
+  const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
 
   async function onSubmit(values: FreightQuoteFormData) {
     setIsLoading(true);
@@ -466,12 +468,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
           feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
           feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
-      } else if (values.optionalServices.redestinacao && fee.name.toUpperCase().includes('REDESTINA')) {
-          feeValue = values.optionalServices.warehousingCost;
-          feeType = `Sobre armazenagem`;
       }
-
-
+      // Note: Redestinação fee is now the warehousingCost itself, handled separately
+      
       let localPagamento: 'Origem' | 'Frete' | 'Destino' = 'Frete';
       const feeNameUpper = fee.name.toUpperCase();
       if (feeNameUpper.includes('FRETE')) {
@@ -499,6 +498,44 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         approvalStatus: 'aprovada',
       });
     });
+
+    // Handle Redestinação / Terminal Commission
+    if (values.optionalServices.redestinacao && values.optionalServices.terminalId && values.optionalServices.warehousingCost > 0) {
+        const terminal = partners.find(p => p.id?.toString() === values.optionalServices.terminalId);
+        if (terminal) {
+            charges.push({
+                id: `fee-redestinacao`,
+                name: 'TAXA DE REDESTINAÇÃO',
+                type: 'Serviço Opcional',
+                cost: values.optionalServices.warehousingCost,
+                costCurrency: 'BRL',
+                sale: values.optionalServices.warehousingCost,
+                saleCurrency: 'BRL',
+                supplier: terminal.name,
+                sacado: customer?.name,
+                localPagamento: 'Frete',
+                approvalStatus: 'aprovada'
+            });
+
+            if (terminal.terminalCommission?.amount && terminal.terminalCommission.amount > 0) {
+                const commissionPercentage = terminal.terminalCommission.amount / 100;
+                const commissionValue = values.optionalServices.warehousingCost * commissionPercentage;
+                charges.push({
+                    id: `fee-commission-${terminal.id}`,
+                    name: 'COMISSÃO TERMINAL',
+                    type: `${terminal.terminalCommission.amount}% sobre Armazenagem`,
+                    cost: -commissionValue, // Negative cost, as it's a credit for LTI
+                    costCurrency: 'BRL',
+                    sale: 0, // No sale value for this internal commission
+                    saleCurrency: 'BRL',
+                    supplier: terminal.name,
+                    sacado: 'CargaInteligente', // The charge is for us
+                    localPagamento: 'Frete',
+                    approvalStatus: 'aprovada',
+                });
+            }
+        }
+    }
 
     return charges;
   };
@@ -1209,9 +1246,23 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                 <div className="space-y-1 leading-none w-full"><FormLabel>Redestinação</FormLabel>
                                 {optionalServices.redestinacao && (
-                                    <FormField control={form.control} name="optionalServices.warehousingCost" render={({ field }) => (
-                                        <FormItem className="mt-2"><FormLabel className="text-xs">Custo Armazenagem</FormLabel><FormControl><Input type="number" placeholder="Custo (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
-                                    )} />
+                                    <div className="space-y-2 pt-2">
+                                        <FormField control={form.control} name="optionalServices.terminalId" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs">Terminal</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione um terminal" /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        {terminalPartners.map(p => <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="optionalServices.warehousingCost" render={({ field }) => (
+                                            <FormItem><FormLabel className="text-xs">Custo Armazenagem</FormLabel><FormControl><Input type="number" placeholder="Custo (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                    </div>
                                 )}
                                 </div>
                             </FormItem>

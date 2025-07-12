@@ -60,6 +60,7 @@ export const baseFreightQuoteFormSchema = z.object({
     delivery: z.boolean(),
     trading: z.boolean(),
     redestinacao: z.boolean(),
+    terminalId: z.string().optional(), // ID of the selected terminal partner
     cargoValue: z.number(),
     deliveryCost: z.number(),
     warehousingCost: z.number(),
@@ -90,6 +91,23 @@ export const freightQuoteFormSchema = baseFreightQuoteFormSchema.superRefine((da
             message: "Adicione pelo menos um contêiner para cotação FCL.",
             path: ['oceanShipment.containers'],
         });
+    }
+
+    if (data.optionalServices.redestinacao) {
+        if (!data.optionalServices.terminalId) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Por favor, selecione um terminal.",
+                path: ['optionalServices.terminalId'],
+            });
+        }
+        if (!data.optionalServices.warehousingCost || data.optionalServices.warehousingCost <= 0) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Custo de armazenagem é obrigatório.",
+                path: ['optionalServices.warehousingCost'],
+            });
+        }
     }
 });
 

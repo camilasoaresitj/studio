@@ -133,6 +133,7 @@ const shipmentDetailsSchema = z.object({
   invoiceNumber: z.string().optional(),
   purchaseOrderNumber: z.string().optional(),
   terminalRedestinacaoId: z.string().optional(),
+  custoArmazenagem: z.coerce.number().optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -260,6 +261,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         invoiceNumber: shipment.invoiceNumber || '',
         purchaseOrderNumber: shipment.purchaseOrderNumber || '',
         terminalRedestinacaoId: shipment.terminalRedestinacaoId || '',
+        custoArmazenagem: shipment.custoArmazenagem || undefined,
       });
     }
   }, [shipment, form]);
@@ -1045,9 +1047,16 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 <CardHeader>
                                     <div className="flex items-center justify-between">
                                         <CardTitle className="text-lg">Detalhes Financeiros</CardTitle>
-                                        <Button type="button" variant="outline" size="sm" onClick={() => setIsFeeDialogOpen(true)}>
-                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            <FormField control={form.control} name="terminalRedestinacaoId" render={({ field }) => (
+                                                <FormItem>
+                                                    {/* This field is now a select dropdown */}
+                                                </FormItem>
+                                            )}/>
+                                            <Button type="button" variant="outline" size="sm" onClick={() => setIsFeeDialogOpen(true)}>
+                                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
+                                            </Button>
+                                        </div>
                                     </div>
                                     <CardDescription>
                                         Adicione ou edite despesas do processo. Alterações requerem aprovação gerencial.

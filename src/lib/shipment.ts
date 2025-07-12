@@ -68,6 +68,7 @@ export type ContainerDetail = {
   volumes?: string;
   freeTime?: string;
   effectiveReturnDate?: Date;
+  effectiveGateInDate?: Date; // For detention
 };
 
 export type TransshipmentDetail = {
@@ -148,8 +149,9 @@ const IMPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
 
 const EXPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Confirmação de Booking': 2,
+  'Retirada do Vazio': 3,
   'Coleta da Carga (se aplicável)': 4,
-  'Chegada no Porto/Aeroporto': 6,
+  'Gate In no Porto': 6,
   'Desembaraço de Exportação': 7,
   'Embarque': 8,
   'Chegada no Destino': 0, // Placeholder
@@ -225,6 +227,7 @@ export function getShipments(): Shipment[] {
         containers: shipment.containers?.map((c: any) => ({
             ...c,
             effectiveReturnDate: c.effectiveReturnDate ? new Date(c.effectiveReturnDate) : undefined,
+            effectiveGateInDate: c.effectiveGateInDate ? new Date(c.effectiveGateInDate) : undefined,
         })) || [],
         documents: shipment.documents?.map((d: any) => ({
             ...d,

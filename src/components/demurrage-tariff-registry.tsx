@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { DemurrageTariff, TariffPeriod, getDemurrageTariffs, saveDemurrageTariffs } from '@/lib/demurrage-tariffs-data';
+import { DemurrageTariff, getDemurrageTariffs, saveDemurrageTariffs } from '@/lib/demurrage-tariffs-data';
 
 const periodSchema = z.object({
   from: z.coerce.number().min(1, "Obrigatório"),
@@ -40,6 +40,7 @@ const periodSchema = z.object({
 const tariffSchema = z.object({
   id: z.string().optional(),
   carrier: z.string().min(1, 'Nome do armador é obrigatório'),
+  containerType: z.enum(['dry', 'reefer', 'special']),
   costPeriods: z.array(periodSchema).min(1, 'Adicione pelo menos um período de custo.'),
   salePeriods: z.array(periodSchema).min(1, 'Adicione pelo menos um período de venda.'),
 });
@@ -73,6 +74,7 @@ export function DemurrageTariffRegistry() {
     setEditingTariff(tariff);
     form.reset(tariff || {
       carrier: '',
+      containerType: 'dry',
       costPeriods: [{ from: 1, to: 5, rate: 0 }],
       salePeriods: [{ from: 1, to: 5, rate: 0 }],
     });
@@ -82,7 +84,7 @@ export function DemurrageTariffRegistry() {
   const onSubmit = (data: TariffFormData) => {
     const newTariff: DemurrageTariff = {
       ...data,
-      id: editingTariff?.id ?? `tariff-${Date.now()}`,
+      id: editingTariff?.id ?? `tariff-${data.carrier}-${data.containerType}-${Date.now()}`,
     };
     
     const currentTariffs = getDemurrageTariffs();
@@ -101,12 +103,12 @@ export function DemurrageTariffRegistry() {
     setEditingTariff(null);
     toast({
       title: `Tarifa ${editingTariff ? 'atualizada' : 'adicionada'}!`,
-      description: `A tarifa para "${data.carrier}" foi salva com sucesso.`,
+      description: `A tarifa para "${data.carrier}" (${data.containerType}) foi salva com sucesso.`,
       className: 'bg-success text-success-foreground'
     });
   };
 
-  const renderPeriodsTable = (periods: TariffPeriod[]) => (
+  const renderPeriodsTable = (periods: z.infer<typeof periodSchema>[]) => (
     <div className="flex flex-col gap-1">
         {periods.map(p => (
             <div key={`${p.from}-${p.to}`} className="text-xs">
@@ -120,10 +122,10 @@ export function DemurrageTariffRegistry() {
     <Card>
         <CardHeader>
             <div className="flex justify-between items-center">
-                <CardTitle>Tabela de Tarifas de Demurrage</CardTitle>
+                <CardTitle>Tabela de Tarifas de Demurrage & Detention</CardTitle>
                  <Button variant="outline" onClick={() => handleOpenDialog(null)}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Adicionar Tarifa de Armador
+                    Adicionar Tarifa
                 </Button>
             </div>
         </CardHeader>
@@ -133,6 +135,7 @@ export function DemurrageTariffRegistry() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Armador</TableHead>
+                            <TableHead>Tipo de Contêiner</TableHead>
                             <TableHead>Períodos de Custo (USD)</TableHead>
                             <TableHead>Períodos de Venda (USD)</TableHead>
                             <TableHead className="text-right">Ações</TableHead>
@@ -143,6 +146,7 @@ export function DemurrageTariffRegistry() {
                             tariffs.map((tariff) => (
                                 <TableRow key={tariff.id}>
                                     <TableCell className="font-medium">{tariff.carrier}</TableCell>
+                                    <TableCell className="font-medium capitalize">{tariff.containerType}</TableCell>
                                     <TableCell>{renderPeriodsTable(tariff.costPeriods)}</TableCell>
                                     <TableCell>{renderPeriodsTable(tariff.salePeriods)}</TableCell>
                                     <TableCell className="text-right">
@@ -154,8 +158,8 @@ export function DemurrageTariffRegistry() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center">
-                                    Nenhuma tarifa de demurrage cadastrada.
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    Nenhuma tarifa cadastrada.
                                 </TableCell>
                             </TableRow>
                         )}
@@ -166,16 +170,30 @@ export function DemurrageTariffRegistry() {
          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
-                <DialogTitle>{editingTariff ? 'Editar Tarifa' : 'Nova Tarifa de Demurrage'}</DialogTitle>
+                <DialogTitle>{editingTariff ? 'Editar Tarifa' : 'Nova Tarifa de Demurrage/Detention'}</DialogTitle>
                 <DialogDescription>
-                    Defina os períodos e valores de custo e venda para o armador.
+                    Defina os períodos e valores de custo e venda para o armador e tipo de contêiner.
                 </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
-                    <FormField control={form.control} name="carrier" render={({ field }) => (
-                        <FormItem><FormLabel>Armador</FormLabel><FormControl><Input placeholder="Ex: Maersk" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="carrier" render={({ field }) => (
+                            <FormItem><FormLabel>Armador</FormLabel><FormControl><Input placeholder="Ex: Maersk" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="containerType" render={({ field }) => (
+                            <FormItem><FormLabel>Tipo de Contêiner</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="dry">Dry</SelectItem>
+                                        <SelectItem value="reefer">Reefer</SelectItem>
+                                        <SelectItem value="special">Special (OT/FR)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            <FormMessage /></FormItem>
+                        )} />
+                    </div>
 
                     <div className="grid grid-cols-2 gap-8">
                         <div>
@@ -183,7 +201,7 @@ export function DemurrageTariffRegistry() {
                              {costFields.map((field, index) => (
                                 <div key={field.id} className="flex items-center gap-2 mb-2">
                                     <FormField control={form.control} name={`costPeriods.${index}.from`} render={({ field }) => (<FormItem><FormLabel>De</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                    <FormField control={form.control} name={`costPeriods.${index}.to`} render={({ field }) => (<FormItem><FormLabel>Até</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name={`costPeriods.${index}.to`} render={({ field }) => (<FormItem><FormLabel>Até</FormLabel><FormControl><Input type="number" placeholder='(vazio)' {...field} /></FormControl></FormItem>)} />
                                     <FormField control={form.control} name={`costPeriods.${index}.rate`} render={({ field }) => (<FormItem><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
                                     <Button type="button" variant="ghost" size="icon" onClick={() => removeCost(index)} className="self-end"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 </div>
@@ -195,7 +213,7 @@ export function DemurrageTariffRegistry() {
                              {saleFields.map((field, index) => (
                                 <div key={field.id} className="flex items-center gap-2 mb-2">
                                     <FormField control={form.control} name={`salePeriods.${index}.from`} render={({ field }) => (<FormItem><FormLabel>De</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                    <FormField control={form.control} name={`salePeriods.${index}.to`} render={({ field }) => (<FormItem><FormLabel>Até</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name={`salePeriods.${index}.to`} render={({ field }) => (<FormItem><FormLabel>Até</FormLabel><FormControl><Input type="number" placeholder='(vazio)' {...field} /></FormControl></FormItem>)} />
                                     <FormField control={form.control} name={`salePeriods.${index}.rate`} render={({ field }) => (<FormItem><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
                                     <Button type="button" variant="ghost" size="icon" onClick={() => removeSale(index)} className="self-end"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 </div>

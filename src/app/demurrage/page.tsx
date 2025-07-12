@@ -9,19 +9,27 @@ import { Input } from '@/components/ui/input';
 import { getShipments, updateShipment, Shipment, ContainerDetail } from '@/lib/shipment';
 import { addDays, differenceInDays, format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, CheckCircle, Clock, DollarSign, FileCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, DollarSign, FileCheck, Ship, ArrowUp, ArrowDown } from 'lucide-react';
 import { DemurrageDetailsDialog } from '@/components/demurrage-details-dialog';
 import { getFinancialEntries } from '@/lib/financials-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DemurrageTariffRegistry } from '@/components/demurrage-tariff-registry';
 import { getDemurrageTariffs, DemurrageTariff } from '@/lib/demurrage-tariffs-data';
+import { getPartners, Partner } from '@/lib/partners-data';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+
 
 export type DemurrageItem = {
+    type: 'demurrage' | 'detention';
     container: ContainerDetail;
     shipment: Shipment;
-    arrivalDate: Date | null;
-    returnDate: Date | null;
-    effectiveReturnDate?: Date | null;
+    startDate: Date | null;
+    endDate: Date | null;
+    effectiveEndDate?: Date | null;
     freeDays: number;
     overdueDays: number;
     status: 'ok' | 'risk' | 'overdue' | 'invoiced';
@@ -30,15 +38,23 @@ export type DemurrageItem = {
 export default function DemurragePage() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [demurrageTariffs, setDemurrageTariffs] = useState<DemurrageTariff[]>([]);
+    const [partners, setPartners] = useState<Partner[]>([]);
     const [isClient, setIsClient] = useState(false);
     const [selectedDemurrageItem, setSelectedDemurrageItem] = useState<DemurrageItem | null>(null);
-    const [statusFilter, setStatusFilter] = useState<'all' | 'risk' | 'overdue'>('all');
+    const [filters, setFilters] = useState({
+        type: 'all',
+        status: 'all',
+        clientId: 'all',
+        returnDate: null as Date | null,
+    });
+
 
     useEffect(() => {
         setIsClient(true);
         const handleDataChange = () => {
             setShipments(getShipments());
             setDemurrageTariffs(getDemurrageTariffs());
+            setPartners(getPartners());
         }
         
         handleDataChange();
@@ -54,7 +70,7 @@ export default function DemurragePage() {
 
     }, []);
 
-    const handleEffectiveReturnDateChange = (containerNumber: string, dateValue: string) => {
+    const handleEffectiveDateChange = (containerNumber: string, dateValue: string, type: 'demurrage' | 'detention') => {
         const newDate = dateValue ? new Date(dateValue) : undefined;
         
         setShipments(currentShipments => {
@@ -62,10 +78,13 @@ export default function DemurragePage() {
                 const containerIndex = shipment.containers?.findIndex(c => c.number === containerNumber);
                 if (containerIndex !== -1 && shipment.containers) {
                     const newContainers = [...shipment.containers];
-                    newContainers[containerIndex] = {
-                        ...newContainers[containerIndex],
-                        effectiveReturnDate: newDate,
-                    } as any; 
+                    const containerToUpdate = newContainers[containerIndex];
+
+                    if (type === 'demurrage') {
+                        (containerToUpdate as any).effectiveReturnDate = newDate;
+                    } else { // detention
+                        (containerToUpdate as any).effectiveGateInDate = newDate;
+                    }
 
                     const updatedShipmentData = { ...shipment, containers: newContainers };
                     updateShipment(updatedShipmentData); 
@@ -77,67 +96,111 @@ export default function DemurragePage() {
         });
     };
 
-    const allDemurrageItems = useMemo((): DemurrageItem[] => {
+    const allItems = useMemo((): DemurrageItem[] => {
         if (!isClient) return [];
         
         const financialEntries = getFinancialEntries();
+        const items: DemurrageItem[] = [];
 
-        return shipments
-            .filter(shipment => shipment.destination.toUpperCase().includes('BR') && shipment.containers && shipment.containers.length > 0)
-            .flatMap(shipment => {
+        shipments.forEach(shipment => {
+            if (!shipment.containers || shipment.containers.length === 0) return;
+
+            // --- Demurrage (Import) ---
+            if (shipment.destination.toUpperCase().includes('BR')) {
                 const arrivalMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('chegada'));
                 const arrivalDate = arrivalMilestone?.effectiveDate ? new Date(arrivalMilestone.effectiveDate) : (shipment.eta ? new Date(shipment.eta) : null);
 
-                if (!arrivalDate || !isValid(arrivalDate)) return [];
+                if (arrivalDate && isValid(arrivalDate)) {
+                    shipment.containers.forEach(container => {
+                        const freeDays = parseInt(container.freeTime || shipment.details.freeTime || '7', 10);
+                        const endDate = addDays(arrivalDate, freeDays);
+                        const effectiveEndDate = (container as any).effectiveReturnDate ? new Date((container as any).effectiveReturnDate) : null;
+                        
+                        const referenceDate = effectiveEndDate && isValid(effectiveEndDate) ? effectiveEndDate : new Date();
+                        const overdueDays = differenceInDays(referenceDate, endDate);
 
-                return shipment.containers!.map(container => {
-                    const freeDays = parseInt(container.freeTime || shipment.details.freeTime || '7', 10);
-                    const returnDate = addDays(arrivalDate, freeDays);
-                    const effectiveReturnDate = (container as any).effectiveReturnDate ? new Date((container as any).effectiveReturnDate) : null;
-                    
-                    const referenceDate = effectiveReturnDate && isValid(effectiveReturnDate) ? effectiveReturnDate : new Date();
-                    const overdueDays = differenceInDays(referenceDate, returnDate);
+                        const invoiceId = `DEM-${container.number}`;
+                        const isInvoiced = financialEntries.some(e => e.invoiceId === invoiceId);
+                        let status: DemurrageItem['status'] = isInvoiced ? 'invoiced' : 'ok';
 
-                    let status: DemurrageItem['status'] = 'ok';
-                    const demurrageInvoiceId = `DEM-${container.number}`;
-                    const isInvoiced = financialEntries.some(e => e.invoiceId === demurrageInvoiceId);
+                        if (!isInvoiced) {
+                           if (overdueDays > 0) {
+                                status = 'overdue';
+                            } else if (overdueDays >= -3) { 
+                                status = 'risk';
+                            }
+                        }
 
-                    if (isInvoiced) {
-                        status = 'invoiced';
-                    } else if (overdueDays > 0) {
-                        status = 'overdue';
-                    } else if (overdueDays >= -3) { 
-                        status = 'risk';
-                    }
+                        items.push({
+                            type: 'demurrage', container, shipment, startDate: arrivalDate, endDate, effectiveEndDate,
+                            freeDays, overdueDays: overdueDays > 0 ? overdueDays : 0, status,
+                        });
+                    });
+                }
+            }
 
-                    return {
-                        container,
-                        shipment,
-                        arrivalDate,
-                        returnDate,
-                        effectiveReturnDate,
-                        freeDays,
-                        overdueDays: overdueDays > 0 ? overdueDays : 0,
-                        status,
-                    };
-                });
-            })
-            .sort((a, b) => (a.returnDate?.getTime() || 0) - (b.returnDate?.getTime() || 0));
+            // --- Detention (Export) ---
+             if (shipment.origin.toUpperCase().includes('BR')) {
+                const pickupMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('retirada do vazio'));
+                const gateinMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('gate in'));
+
+                const startDate = pickupMilestone?.effectiveDate ? new Date(pickupMilestone.effectiveDate) : null;
+
+                if (startDate && isValid(startDate)) {
+                     shipment.containers.forEach(container => {
+                        const freeDays = parseInt(container.freeTime || shipment.details.freeTime || '7', 10);
+                        const endDate = addDays(startDate, freeDays);
+                        const effectiveEndDate = (container as any).effectiveGateInDate || (gateinMilestone?.effectiveDate ? new Date(gateinMilestone.effectiveDate) : null);
+                        
+                        const referenceDate = effectiveEndDate && isValid(effectiveEndDate) ? effectiveEndDate : new Date();
+                        const overdueDays = differenceInDays(referenceDate, endDate);
+                        
+                        const invoiceId = `DET-${container.number}`;
+                        const isInvoiced = financialEntries.some(e => e.invoiceId === invoiceId);
+                        let status: DemurrageItem['status'] = isInvoiced ? 'invoiced' : 'ok';
+                        
+                         if (!isInvoiced) {
+                           if (overdueDays > 0) {
+                                status = 'overdue';
+                            } else if (overdueDays >= -3) { 
+                                status = 'risk';
+                            }
+                        }
+                        
+                        items.push({
+                            type: 'detention', container, shipment, startDate, endDate, effectiveEndDate,
+                            freeDays, overdueDays: overdueDays > 0 ? overdueDays : 0, status,
+                        });
+                    });
+                }
+            }
+        });
+
+        return items.sort((a, b) => (a.endDate?.getTime() || 0) - (b.endDate?.getTime() || 0));
+
     }, [shipments, isClient]);
 
-    const filteredDemurrageItems = useMemo(() => {
-        if (statusFilter === 'all') {
-            return allDemurrageItems;
-        }
-        return allDemurrageItems.filter(item => item.status === statusFilter);
-    }, [allDemurrageItems, statusFilter]);
+    const filteredItems = useMemo(() => {
+        return allItems.filter(item => {
+            if (filters.type !== 'all' && item.type !== filters.type) return false;
+            if (filters.status !== 'all' && item.status !== filters.status) return false;
+            if (filters.clientId !== 'all' && item.shipment.customer !== filters.clientId) return false;
+            if (filters.returnDate && (!item.endDate || format(item.endDate, 'yyyy-MM-dd') !== format(filters.returnDate, 'yyyy-MM-dd'))) return false;
+            return true;
+        });
+    }, [allItems, filters]);
 
     const dashboardData = useMemo(() => {
         let totalRevenue = 0;
-        const overdueItems = allDemurrageItems.filter(item => item.overdueDays > 0 && item.status !== 'invoiced');
+        const overdueItems = allItems.filter(item => item.overdueDays > 0 && item.status !== 'invoiced');
         
         overdueItems.forEach(item => {
-            const tariff = demurrageTariffs.find(t => t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase());
+            const containerType = item.container.type.toLowerCase();
+            let tariffType: 'dry' | 'reefer' | 'special' = 'dry';
+            if (containerType.includes('rf') || containerType.includes('reefer')) tariffType = 'reefer';
+            if (containerType.includes('ot') || containerType.includes('fr')) tariffType = 'special';
+
+            const tariff = demurrageTariffs.find(t => t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase() && t.containerType === tariffType);
             if (!tariff) return;
             let itemRevenue = 0;
             let daysToCalculate = item.overdueDays;
@@ -152,10 +215,10 @@ export default function DemurragePage() {
         
         return {
             totalRevenue,
-            overdueCount: allDemurrageItems.filter(item => item.status === 'overdue').length,
-            atRiskCount: allDemurrageItems.filter(item => item.status === 'risk').length
+            overdueCount: allItems.filter(item => item.status === 'overdue').length,
+            atRiskCount: allItems.filter(item => item.status === 'risk').length
         }
-    }, [allDemurrageItems, demurrageTariffs]);
+    }, [allItems, demurrageTariffs]);
 
     const statusConfig: Record<DemurrageItem['status'], { variant: 'default' | 'success' | 'destructive' | 'outline', icon: React.ReactNode, text: string }> = {
         ok: { variant: 'success', icon: <CheckCircle className="h-4 w-4" />, text: 'OK' },
@@ -166,7 +229,6 @@ export default function DemurragePage() {
     
     const handleDialogClose = () => {
         setSelectedDemurrageItem(null);
-        // Force a re-render to reflect new financial data
         setShipments(getShipments());
     }
 
@@ -189,23 +251,17 @@ export default function DemurragePage() {
                 </TabsList>
                 <TabsContent value="overview">
                      <div className="grid gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-3">
-                        <Card 
-                            className="cursor-pointer transition-all hover:ring-2 hover:ring-primary/50"
-                            onClick={() => setStatusFilter('all')}
-                        >
+                        <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">Lucratividade Potencial (Mês)</CardTitle>
                                 <DollarSign className="h-5 w-5 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-success">USD {dashboardData.totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
-                                <p className="text-xs text-muted-foreground">Receita a ser faturada de demurrage.</p>
+                                <p className="text-xs text-muted-foreground">Receita a ser faturada de sobrestadia.</p>
                             </CardContent>
                         </Card>
-                        <Card 
-                            className="cursor-pointer transition-all hover:ring-2 hover:ring-primary/50"
-                            onClick={() => setStatusFilter('risk')}
-                        >
+                        <Card className="cursor-pointer" onClick={() => setFilters(f => ({...f, status: 'risk'}))}>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">Contêineres em Risco</CardTitle>
                                 <Clock className="h-5 w-5 text-muted-foreground" />
@@ -215,17 +271,14 @@ export default function DemurragePage() {
                                 <p className="text-xs text-muted-foreground">Vencem nos próximos 3 dias.</p>
                             </CardContent>
                         </Card>
-                        <Card 
-                            className="cursor-pointer transition-all hover:ring-2 hover:ring-primary/50"
-                            onClick={() => setStatusFilter('overdue')}
-                        >
+                        <Card className="cursor-pointer" onClick={() => setFilters(f => ({...f, status: 'overdue'}))}>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">Contêineres Vencidos</CardTitle>
                                 <AlertTriangle className="h-5 w-5 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-destructive">{dashboardData.overdueCount}</div>
-                                <p className="text-xs text-muted-foreground">Já estão acumulando demurrage.</p>
+                                <p className="text-xs text-muted-foreground">Já estão acumulando sobrestadia.</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -233,22 +286,41 @@ export default function DemurragePage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Visão Geral dos Contêineres</CardTitle>
-                            <CardDescription>
-                            {statusFilter === 'all' && 'Clique em uma linha para ver o extrato financeiro detalhado.'}
-                            {statusFilter === 'risk' && <span className="text-primary font-medium">Mostrando contêineres em risco. Clique no card de lucratividade para limpar o filtro.</span>}
-                            {statusFilter === 'overdue' && <span className="text-destructive font-medium">Mostrando contêineres vencidos. Clique no card de lucratividade para limpar o filtro.</span>}
-                            </CardDescription>
+                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4">
+                                <Select value={filters.type} onValueChange={(v) => setFilters(f => ({...f, type: v}))}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent><SelectItem value="all">Todos os Tipos</SelectItem><SelectItem value="demurrage">Demurrage</SelectItem><SelectItem value="detention">Detention</SelectItem></SelectContent>
+                                </Select>
+                                <Select value={filters.status} onValueChange={(v) => setFilters(f => ({...f, status: v}))}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent><SelectItem value="all">Todos Status</SelectItem><SelectItem value="ok">OK</SelectItem><SelectItem value="risk">Em Risco</SelectItem><SelectItem value="overdue">Vencido</SelectItem><SelectItem value="invoiced">Faturado</SelectItem></SelectContent>
+                                </Select>
+                                 <Select value={filters.clientId} onValueChange={(v) => setFilters(f => ({...f, clientId: v}))}>
+                                    <SelectTrigger><SelectValue placeholder="Todos Clientes"/></SelectTrigger>
+                                    <SelectContent><SelectItem value="all">Todos os Clientes</SelectItem>{partners.filter(p => p.roles.cliente).map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className={cn("justify-start text-left font-normal", !filters.returnDate && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {filters.returnDate ? format(filters.returnDate, "dd/MM/yyyy") : <span>Data de Devolução</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={filters.returnDate} onSelect={(d) => setFilters(f => ({...f, returnDate: d || null}))} initialFocus /></PopoverContent>
+                                </Popover>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <div className="border rounded-lg">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
+                                            <TableHead>Tipo</TableHead>
                                             <TableHead>Contêiner</TableHead>
                                             <TableHead>Processo</TableHead>
                                             <TableHead>Cliente</TableHead>
                                             <TableHead>Armador</TableHead>
-                                            <TableHead>Chegada</TableHead>
+                                            <TableHead>Início Free Time</TableHead>
                                             <TableHead>Dias Livres</TableHead>
                                             <TableHead>Devolução</TableHead>
                                             <TableHead>Data Efetiva</TableHead>
@@ -257,28 +329,35 @@ export default function DemurragePage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredDemurrageItems.length > 0 ? (
-                                            filteredDemurrageItems.map(item => {
+                                        {filteredItems.length > 0 ? (
+                                            filteredItems.map(item => {
                                                 const config = statusConfig[item.status];
+                                                const isDetention = item.type === 'detention';
                                                 return (
                                                     <TableRow 
-                                                        key={item.container.id} 
+                                                        key={`${item.container.id}-${item.type}`} 
                                                         className={cn("cursor-pointer", item.status === 'overdue' && 'bg-destructive/10', item.status === 'invoiced' && 'bg-green-500/10')}
                                                         onClick={() => setSelectedDemurrageItem(item)}
                                                     >
+                                                        <TableCell>
+                                                            <Badge variant={isDetention ? 'default' : 'secondary'} className={cn(isDetention && 'bg-orange-500 text-white')}>
+                                                                {isDetention ? <ArrowUp className="mr-1 h-3 w-3" /> : <ArrowDown className="mr-1 h-3 w-3" />}
+                                                                {isDetention ? 'Detention' : 'Demurrage'}
+                                                            </Badge>
+                                                        </TableCell>
                                                         <TableCell className="font-medium">{item.container.number}</TableCell>
                                                         <TableCell>{item.shipment.id}</TableCell>
                                                         <TableCell>{item.shipment.customer}</TableCell>
                                                         <TableCell>{item.shipment.carrier}</TableCell>
-                                                        <TableCell>{item.arrivalDate ? format(item.arrivalDate, 'dd/MM/yy') : 'N/A'}</TableCell>
+                                                        <TableCell>{item.startDate ? format(item.startDate, 'dd/MM/yy') : 'N/A'}</TableCell>
                                                         <TableCell>{item.freeDays}</TableCell>
-                                                        <TableCell className="font-semibold">{item.returnDate ? format(item.returnDate, 'dd/MM/yy') : 'N/A'}</TableCell>
+                                                        <TableCell className="font-semibold">{item.endDate ? format(item.endDate, 'dd/MM/yy') : 'N/A'}</TableCell>
                                                         <TableCell onClick={(e) => e.stopPropagation()}>
                                                             <Input
                                                                 type="date"
                                                                 className="h-8 w-32"
-                                                                value={item.effectiveReturnDate ? format(item.effectiveReturnDate, 'yyyy-MM-dd') : ''}
-                                                                onChange={(e) => handleEffectiveReturnDateChange(item.container.number, e.target.value)}
+                                                                value={item.effectiveEndDate ? format(item.effectiveEndDate, 'yyyy-MM-dd') : ''}
+                                                                onChange={(e) => handleEffectiveDateChange(item.container.number, e.target.value, item.type)}
                                                             />
                                                         </TableCell>
                                                         <TableCell className={cn("font-bold", item.overdueDays > 0 && item.status !== 'invoiced' && 'text-destructive')}>
@@ -294,8 +373,8 @@ export default function DemurragePage() {
                                             })
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={10} className="h-24 text-center">
-                                                    Nenhum contêiner encontrado com os filtros selecionados.
+                                                <TableCell colSpan={11} className="h-24 text-center">
+                                                    Nenhum item encontrado com os filtros selecionados.
                                                 </TableCell>
                                             </TableRow>
                                         )}

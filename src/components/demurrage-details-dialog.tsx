@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from './ui/badge';
-import { FileText, Receipt, Banknote, Loader2, AlertTriangle } from 'lucide-react';
+import { FileText, Receipt, Banknote, Loader2, AlertTriangle, Ship, ArrowUp, ArrowDown } from 'lucide-react';
 import type { DemurrageItem } from '@/app/demurrage/page';
 import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +39,15 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
   const financialBreakdown = useMemo(() => {
     if (!item || item.overdueDays <= 0) return { breakdown: [], totalCost: 0, totalSale: 0, totalProfit: 0 };
     
-    const tariff = tariffs.find(t => t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase());
+    const containerType = item.container.type.toLowerCase();
+    let tariffType: 'dry' | 'reefer' | 'special' = 'dry';
+    if (containerType.includes('rf') || containerType.includes('reefer')) tariffType = 'reefer';
+    if (containerType.includes('ot') || containerType.includes('fr')) tariffType = 'special';
+
+    const tariff = tariffs.find(t => 
+        t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase() &&
+        t.containerType === tariffType
+    );
     
     if (!tariff) return { breakdown: [], totalCost: 0, totalSale: 0, totalProfit: 0 };
 
@@ -93,14 +101,19 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
   if (!item) return null;
   
   const { breakdown, totalCost, totalSale, totalProfit } = financialBreakdown;
-  const selectedTariff = tariffs.find(t => t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase());
+  const containerType = item.container.type.toLowerCase();
+  let tariffType: 'dry' | 'reefer' | 'special' = 'dry';
+  if (containerType.includes('rf') || containerType.includes('reefer')) tariffType = 'reefer';
+  if (containerType.includes('ot') || containerType.includes('fr')) tariffType = 'special';
+  const selectedTariff = tariffs.find(t => t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase() && t.containerType === tariffType);
+  const isDetention = item.type === 'detention';
 
   const handleGenerateInvoice = async () => {
-    if (!item || totalSale <= 0 || !item.effectiveReturnDate) {
+    if (!item || totalSale <= 0 || !item.effectiveEndDate) {
       toast({
         variant: 'destructive',
         title: 'Ação Bloqueada',
-        description: 'É necessário ter um valor a faturar e uma data de devolução efetiva para gerar a fatura.',
+        description: 'É necessário ter um valor a faturar e uma data de devolução/gate-in efetiva para gerar a fatura.',
       });
       return;
     }
@@ -114,7 +127,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
         throw new Error('Nenhuma conta em USD encontrada para vincular a fatura.');
         }
 
-        const invoiceId = `DEM-${item.container.number}`;
+        const invoiceId = `${isDetention ? 'DET' : 'DEM'}-${item.container.number}`;
         const dueDate = addDays(new Date(), 30);
 
         // 1. Create financial entry
@@ -128,7 +141,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
             currency: 'USD',
             processId: item.shipment.id,
             accountId: usdAccount.id,
-            description: `Demurrage/Detention ref. Container ${item.container.number}`
+            description: `${isDetention ? 'Detention' : 'Demurrage'}/Detention ref. Container ${item.container.number}`
         });
         toast({
             title: 'Lançamento Financeiro Criado!',
@@ -152,13 +165,13 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
         });
 
         if (emailResponse.success) {
-            console.log("----- SIMULATING DEMURRAGE INVOICE EMAIL -----");
+            console.log(`----- SIMULATING ${isDetention ? 'DETENTION' : 'DEMURRAGE'} INVOICE EMAIL -----`);
             console.log("SUBJECT:", emailResponse.data.emailSubject);
             console.log("BODY (HTML):", emailResponse.data.emailBody);
             console.log("-------------------------------------------");
             toast({
-                title: 'E-mail de Cobrança Enviado (Simulação)',
-                description: 'A fatura de demurrage foi enviada para o cliente.',
+                title: `E-mail de Cobrança de ${isDetention ? 'Detention' : 'Demurrage'} Enviado (Simulação)`,
+                description: 'A fatura foi enviada para o cliente.',
             });
         } else {
             throw new Error(emailResponse.error || 'Falha ao gerar o e-mail de cobrança.');
@@ -194,7 +207,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Extrato de Demurrage - Contêiner {item.container.number}</DialogTitle>
+          <DialogTitle>Extrato de {isDetention ? 'Detention' : 'Demurrage'} - Contêiner {item.container.number}</DialogTitle>
           <DialogDescription>
             Detalhes financeiros para o processo <span className="font-semibold text-primary">{item.shipment.id}</span> do cliente <span className="font-semibold text-primary">{item.shipment.customer}</span>.
           </DialogDescription>
@@ -204,10 +217,10 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
             <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-base">Resumo do Prazo</CardTitle></CardHeader>
                 <CardContent className="text-sm space-y-1">
-                    <div className="flex justify-between"><span>Chegada:</span> <span className="font-medium">{item.arrivalDate ? format(item.arrivalDate, 'dd/MM/yyyy') : 'N/A'}</span></div>
+                    <div className="flex justify-between"><span>{isDetention ? 'Retirada Vazio:' : 'Chegada:'}</span> <span className="font-medium">{item.startDate ? format(item.startDate, 'dd/MM/yyyy') : 'N/A'}</span></div>
                     <div className="flex justify-between"><span>Dias Livres:</span> <span className="font-medium">{item.freeDays}</span></div>
-                    <div className="flex justify-between"><span>Devolução Prevista:</span> <span className="font-medium">{item.returnDate ? format(item.returnDate, 'dd/MM/yyyy') : 'N/A'}</span></div>
-                    <div className="flex justify-between"><span>Devolução Efetiva:</span> <span className="font-medium">{item.effectiveReturnDate ? format(item.effectiveReturnDate, 'dd/MM/yyyy') : 'Pendente'}</span></div>
+                    <div className="flex justify-between"><span>Devolução Prevista:</span> <span className="font-medium">{item.endDate ? format(item.endDate, 'dd/MM/yyyy') : 'N/A'}</span></div>
+                    <div className="flex justify-between"><span>{isDetention ? 'Gate-In Efetivo:' : 'Devolução Efetiva:'}</span> <span className="font-medium">{item.effectiveEndDate ? format(item.effectiveEndDate, 'dd/MM/yyyy') : 'Pendente'}</span></div>
                     <div className="flex justify-between font-bold"><span>Dias Excedidos:</span> <Badge variant={item.overdueDays > 0 ? 'destructive' : 'success'}>{item.overdueDays}</Badge></div>
                 </CardContent>
             </Card>
@@ -222,13 +235,13 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
         </div>
 
         <Card>
-            <CardHeader><CardTitle className="text-base">Detalhamento Financeiro (Tarifa: {selectedTariff ? selectedTariff.carrier : 'Não encontrada'})</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Detalhamento Financeiro (Tarifa: {selectedTariff ? `${selectedTariff.carrier} - ${selectedTariff.containerType}` : 'Não encontrada'})</CardTitle></CardHeader>
             <CardContent>
                 {!selectedTariff && (
                     <div className="text-center text-destructive border border-destructive/50 bg-destructive/10 p-4 rounded-md">
                         <AlertTriangle className="mx-auto h-8 w-8 mb-2" />
                         <p className="font-semibold">Tarifa não cadastrada!</p>
-                        <p className="text-sm">Nenhuma tabela de demurrage foi encontrada para o armador '{item.shipment.carrier}'. Os cálculos não podem ser realizados.</p>
+                        <p className="text-sm">Nenhuma tabela de {isDetention ? 'detention' : 'demurrage'} foi encontrada para o armador '{item.shipment.carrier}' e tipo de contêiner '{tariffType}'. Os cálculos não podem ser realizados.</p>
                     </div>
                 )}
                 {selectedTariff && (
@@ -261,7 +274,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: Demur
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                                            Nenhum valor de demurrage a ser cobrado.
+                                            Nenhum valor a ser cobrado.
                                         </TableCell>
                                     </TableRow>
                                 )}

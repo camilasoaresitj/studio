@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from './ui/badge';
-import { FileText, Receipt, Banknote, Loader2 } from 'lucide-react';
+import { FileText, Receipt, Banknote, Loader2, AlertTriangle } from 'lucide-react';
 import type { DemurrageItem } from '@/app/demurrage/page';
 import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -22,77 +22,78 @@ import { addFinancialEntry } from '@/lib/financials-data';
 import { getBankAccounts } from '@/lib/financials-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { runSendDemurrageInvoice } from '@/app/actions';
+import { DemurrageTariff } from '@/lib/demurrage-tariffs-data';
 
 interface DemurrageDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   item: DemurrageItem | null;
+  tariffs: DemurrageTariff[];
 }
 
-// Simulated tariff data. In a real app, this would come from a database.
-const SIMULATED_TARIFFS = {
-  COST: [ // Per day rates from carrier
-    { from: 1, to: 5, rate: 75 },
-    { from: 6, to: 10, rate: 150 },
-    { from: 11, to: Infinity, rate: 300 },
-  ],
-  SALE: [ // Per day rates charged to the client
-    { from: 1, to: 5, rate: 100 },
-    { from: 6, to: 10, rate: 200 },
-    { from: 11, to: Infinity, rate: 400 },
-  ],
-};
 
-export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetailsDialogProps) {
+export function DemurrageDetailsDialog({ isOpen, onClose, item, tariffs }: DemurrageDetailsDialogProps) {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
 
   const financialBreakdown = useMemo(() => {
-    if (!item || item.overdueDays <= 0) return [];
-
-    const breakdown: { period: string; cost: number; sale: number; profit: number }[] = [];
-    let remainingDays = item.overdueDays;
+    if (!item || item.overdueDays <= 0) return { breakdown: [], totalCost: 0, totalSale: 0, totalProfit: 0 };
     
-    // Calculate cost
-    const costPeriods = [];
-    let costTotal = 0;
-    for (const tariff of SIMULATED_TARIFFS.COST) {
-        if (remainingDays <= 0) break;
-        const daysInPeriod = Math.min(remainingDays, tariff.to - tariff.from + 1);
-        const periodCost = daysInPeriod * tariff.rate;
-        costPeriods.push({ period: `De ${tariff.from} a ${tariff.to > 100 ? '...' : tariff.to} dias`, days: daysInPeriod, rate: tariff.rate, total: periodCost });
-        costTotal += periodCost;
-        remainingDays -= daysInPeriod;
+    const tariff = tariffs.find(t => t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase());
+    
+    if (!tariff) return { breakdown: [], totalCost: 0, totalSale: 0, totalProfit: 0 };
+
+    const breakdown: { period: string; days: number; costRate: number; saleRate: number; cost: number; sale: number; profit: number }[] = [];
+    
+    let daysToProcess = item.overdueDays;
+    let periodIndex = 0;
+    
+    while (daysToProcess > 0 && periodIndex < Math.max(tariff.costPeriods.length, tariff.salePeriods.length)) {
+        const costPeriod = tariff.costPeriods[periodIndex] || tariff.costPeriods[tariff.costPeriods.length - 1];
+        const salePeriod = tariff.salePeriods[periodIndex] || tariff.salePeriods[tariff.salePeriods.length - 1];
+        
+        const from = Math.max(costPeriod.from, salePeriod.from);
+        const to = Math.min(costPeriod.to || Infinity, salePeriod.to || Infinity);
+        
+        const currentPeriodStartDay = item.freeDays + (from - 1);
+        const effectivePeriodStartDay = Math.max(item.freeDays, currentPeriodStartDay);
+        
+        const daysInThisTier = Math.min(daysToProcess, (to - from + 1));
+
+        if (daysInThisTier <= 0) {
+          periodIndex++;
+          continue;
+        }
+
+        const cost = daysInThisTier * costPeriod.rate;
+        const sale = daysInThisTier * salePeriod.rate;
+        const profit = sale - cost;
+
+        breakdown.push({
+            period: `Dias ${from} a ${to === Infinity ? '...' : to}`,
+            days: daysInThisTier,
+            costRate: costPeriod.rate,
+            saleRate: salePeriod.rate,
+            cost,
+            sale,
+            profit,
+        });
+        
+        daysToProcess -= daysInThisTier;
+        periodIndex++;
     }
 
-    // Calculate sale
-    remainingDays = item.overdueDays;
-    const salePeriods = [];
-    let saleTotal = 0;
-    for (const tariff of SIMULATED_TARIFFS.SALE) {
-        if (remainingDays <= 0) break;
-        const daysInPeriod = Math.min(remainingDays, tariff.to - tariff.from + 1);
-        const periodSale = daysInPeriod * tariff.rate;
-        salePeriods.push({ period: `De ${tariff.from} a ${tariff.to > 100 ? '...' : tariff.to} dias`, days: daysInPeriod, rate: tariff.rate, total: periodSale });
-        saleTotal += periodSale;
-        remainingDays -= daysInPeriod;
-    }
-    
-    breakdown.push({
-        period: `Total Demurrage (${item.overdueDays} dias)`,
-        cost: costTotal,
-        sale: saleTotal,
-        profit: saleTotal - costTotal
-    });
+    const totalCost = breakdown.reduce((sum, row) => sum + row.cost, 0);
+    const totalSale = breakdown.reduce((sum, row) => sum + row.sale, 0);
+    const totalProfit = breakdown.reduce((sum, row) => sum + row.profit, 0);
 
-    return breakdown;
-  }, [item]);
+    return { breakdown, totalCost, totalSale, totalProfit };
+  }, [item, tariffs]);
 
   if (!item) return null;
   
-  const totalCost = financialBreakdown.reduce((sum, row) => sum + row.cost, 0);
-  const totalSale = financialBreakdown.reduce((sum, row) => sum + row.sale, 0);
-  const totalProfit = financialBreakdown.reduce((sum, row) => sum + row.profit, 0);
+  const { breakdown, totalCost, totalSale, totalProfit } = financialBreakdown;
+  const selectedTariff = tariffs.find(t => t.carrier.toLowerCase() === item.shipment.carrier?.toLowerCase());
 
   const handleGenerateInvoice = async () => {
     if (!item || totalSale <= 0 || !item.effectiveReturnDate) {
@@ -221,43 +222,58 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
         </div>
 
         <Card>
-            <CardHeader><CardTitle className="text-base">Detalhamento Financeiro</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Detalhamento Financeiro (Tarifa: {selectedTariff ? selectedTariff.carrier : 'Não encontrada'})</CardTitle></CardHeader>
             <CardContent>
-                <div className="border rounded-lg">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Período</TableHead>
-                                <TableHead className="text-right">Custo</TableHead>
-                                <TableHead className="text-right">Venda</TableHead>
-                                <TableHead className="text-right">Lucro</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {financialBreakdown.length > 0 ? (
-                                financialBreakdown.map((row, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell className="font-medium">{row.period}</TableCell>
-                                        <TableCell className="text-right font-mono">USD {row.cost.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right font-mono">USD {row.sale.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right font-mono font-semibold text-success">USD {row.profit.toFixed(2)}</TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
+                {!selectedTariff && (
+                    <div className="text-center text-destructive border border-destructive/50 bg-destructive/10 p-4 rounded-md">
+                        <AlertTriangle className="mx-auto h-8 w-8 mb-2" />
+                        <p className="font-semibold">Tarifa não cadastrada!</p>
+                        <p className="text-sm">Nenhuma tabela de demurrage foi encontrada para o armador '{item.shipment.carrier}'. Os cálculos não podem ser realizados.</p>
+                    </div>
+                )}
+                {selectedTariff && (
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                                        Nenhum valor de demurrage a ser cobrado.
-                                    </TableCell>
+                                    <TableHead>Período</TableHead>
+                                    <TableHead>Dias</TableHead>
+                                    <TableHead className="text-right">Custo (dia)</TableHead>
+                                    <TableHead className="text-right">Venda (dia)</TableHead>
+                                    <TableHead className="text-right">Total Custo</TableHead>
+                                    <TableHead className="text-right">Total Venda</TableHead>
+                                    <TableHead className="text-right">Lucro</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                            </TableHeader>
+                            <TableBody>
+                                {breakdown.length > 0 ? (
+                                    breakdown.map((row, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell className="font-medium">{row.period}</TableCell>
+                                            <TableCell>{row.days}</TableCell>
+                                            <TableCell className="text-right font-mono">USD {row.costRate.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right font-mono">USD {row.saleRate.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right font-mono">USD {row.cost.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right font-mono">USD {row.sale.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right font-mono font-semibold text-success">USD {row.profit.toFixed(2)}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                                            Nenhum valor de demurrage a ser cobrado.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
             </CardContent>
         </Card>
 
         <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={handleGenerateInvoice} disabled={isGenerating || item.status === 'invoiced'}>
+          <Button variant="outline" onClick={handleGenerateInvoice} disabled={isGenerating || item.status === 'invoiced' || !selectedTariff}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
             {item.status === 'invoiced' ? 'Faturado' : 'Gerar Fatura e Enviar'}
           </Button>

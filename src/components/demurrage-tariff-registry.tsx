@@ -1,0 +1,217 @@
+
+'use client';
+
+import { useState, useMemo, useEffect } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { DemurrageTariff, TariffPeriod, getDemurrageTariffs, saveDemurrageTariffs } from '@/lib/demurrage-tariffs-data';
+
+const periodSchema = z.object({
+  from: z.coerce.number().min(1, "Obrigatório"),
+  to: z.coerce.number().optional(),
+  rate: z.coerce.number().min(0, "Obrigatório"),
+});
+
+const tariffSchema = z.object({
+  id: z.string().optional(),
+  carrier: z.string().min(1, 'Nome do armador é obrigatório'),
+  costPeriods: z.array(periodSchema).min(1, 'Adicione pelo menos um período de custo.'),
+  salePeriods: z.array(periodSchema).min(1, 'Adicione pelo menos um período de venda.'),
+});
+
+type TariffFormData = z.infer<typeof tariffSchema>;
+
+export function DemurrageTariffRegistry() {
+  const [tariffs, setTariffs] = useState<DemurrageTariff[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTariff, setEditingTariff] = useState<DemurrageTariff | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    setTariffs(getDemurrageTariffs());
+  }, []);
+
+  const form = useForm<TariffFormData>({
+    resolver: zodResolver(tariffSchema),
+  });
+
+  const { fields: costFields, append: appendCost, remove: removeCost } = useFieldArray({
+    control: form.control,
+    name: "costPeriods",
+  });
+  const { fields: saleFields, append: appendSale, remove: removeSale } = useFieldArray({
+    control: form.control,
+    name: "salePeriods",
+  });
+
+  const handleOpenDialog = (tariff: DemurrageTariff | null) => {
+    setEditingTariff(tariff);
+    form.reset(tariff || {
+      carrier: '',
+      costPeriods: [{ from: 1, to: 5, rate: 0 }],
+      salePeriods: [{ from: 1, to: 5, rate: 0 }],
+    });
+    setIsDialogOpen(true);
+  };
+
+  const onSubmit = (data: TariffFormData) => {
+    const newTariff: DemurrageTariff = {
+      ...data,
+      id: editingTariff?.id ?? `tariff-${Date.now()}`,
+    };
+    
+    const currentTariffs = getDemurrageTariffs();
+    let updatedTariffs;
+
+    if (editingTariff) {
+      updatedTariffs = currentTariffs.map(t => t.id === newTariff.id ? newTariff : t);
+    } else {
+      updatedTariffs = [...currentTariffs, newTariff];
+    }
+
+    saveDemurrageTariffs(updatedTariffs);
+    setTariffs(updatedTariffs);
+    
+    setIsDialogOpen(false);
+    setEditingTariff(null);
+    toast({
+      title: `Tarifa ${editingTariff ? 'atualizada' : 'adicionada'}!`,
+      description: `A tarifa para "${data.carrier}" foi salva com sucesso.`,
+      className: 'bg-success text-success-foreground'
+    });
+  };
+
+  const renderPeriodsTable = (periods: TariffPeriod[]) => (
+    <div className="flex flex-col gap-1">
+        {periods.map(p => (
+            <div key={`${p.from}-${p.to}`} className="text-xs">
+                <span className="font-semibold">{p.from} - {p.to || '...'} dias:</span> USD {p.rate.toFixed(2)}
+            </div>
+        ))}
+    </div>
+  );
+
+  return (
+    <Card>
+        <CardHeader>
+            <div className="flex justify-between items-center">
+                <CardTitle>Tabela de Tarifas de Demurrage</CardTitle>
+                 <Button variant="outline" onClick={() => handleOpenDialog(null)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Adicionar Tarifa de Armador
+                </Button>
+            </div>
+        </CardHeader>
+        <CardContent>
+             <div className="border rounded-lg">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Armador</TableHead>
+                            <TableHead>Períodos de Custo (USD)</TableHead>
+                            <TableHead>Períodos de Venda (USD)</TableHead>
+                            <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {tariffs.length > 0 ? (
+                            tariffs.map((tariff) => (
+                                <TableRow key={tariff.id}>
+                                    <TableCell className="font-medium">{tariff.carrier}</TableCell>
+                                    <TableCell>{renderPeriodsTable(tariff.costPeriods)}</TableCell>
+                                    <TableCell>{renderPeriodsTable(tariff.salePeriods)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(tariff)}>
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">
+                                    Nenhuma tarifa de demurrage cadastrada.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+        </CardContent>
+         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="sm:max-w-3xl">
+                <DialogHeader>
+                <DialogTitle>{editingTariff ? 'Editar Tarifa' : 'Nova Tarifa de Demurrage'}</DialogTitle>
+                <DialogDescription>
+                    Defina os períodos e valores de custo e venda para o armador.
+                </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+                    <FormField control={form.control} name="carrier" render={({ field }) => (
+                        <FormItem><FormLabel>Armador</FormLabel><FormControl><Input placeholder="Ex: Maersk" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+
+                    <div className="grid grid-cols-2 gap-8">
+                        <div>
+                            <h4 className="font-semibold mb-2">Tabela de Custo</h4>
+                             {costFields.map((field, index) => (
+                                <div key={field.id} className="flex items-center gap-2 mb-2">
+                                    <FormField control={form.control} name={`costPeriods.${index}.from`} render={({ field }) => (<FormItem><FormLabel>De</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name={`costPeriods.${index}.to`} render={({ field }) => (<FormItem><FormLabel>Até</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name={`costPeriods.${index}.rate`} render={({ field }) => (<FormItem><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeCost(index)} className="self-end"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                </div>
+                            ))}
+                            <Button type="button" variant="outline" size="sm" onClick={() => appendCost({ from: 1, rate: 0 })}>Adicionar Período</Button>
+                        </div>
+                         <div>
+                            <h4 className="font-semibold mb-2">Tabela de Venda</h4>
+                             {saleFields.map((field, index) => (
+                                <div key={field.id} className="flex items-center gap-2 mb-2">
+                                    <FormField control={form.control} name={`salePeriods.${index}.from`} render={({ field }) => (<FormItem><FormLabel>De</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name={`salePeriods.${index}.to`} render={({ field }) => (<FormItem><FormLabel>Até</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name={`salePeriods.${index}.rate`} render={({ field }) => (<FormItem><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeSale(index)} className="self-end"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                </div>
+                            ))}
+                            <Button type="button" variant="outline" size="sm" onClick={() => appendSale({ from: 1, rate: 0 })}>Adicionar Período</Button>
+                        </div>
+                    </div>
+                    
+                    <DialogFooter className="pt-4">
+                        <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                        <Button type="submit">Salvar Tarifa</Button>
+                    </DialogFooter>
+                </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    </Card>
+  );
+}

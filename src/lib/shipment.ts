@@ -7,7 +7,7 @@ import { runSendShippingInstructions } from '@/app/actions';
 import type { PartialPayment } from './financials-data';
 
 
-const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v4';
+const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v5';
 
 // --- Type Definitions ---
 

@@ -64,10 +64,10 @@ const initialQuotesData: Quote[] = [
     date: '15/07/2024',
     details: { cargo: '1x20GP', transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias', incoterm: 'FOB' },
     charges: [
-        { id: 'charge-1', name: 'FRETE MARÍTIMO', type: 'Por Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line', sacado: 'Nexus Imports', localPagamento: 'Frete', approvalStatus: 'approved' },
-        { id: 'charge-2', name: 'THC', type: 'Por Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã', sacado: 'Nexus Imports', localPagamento: 'Origem', approvalStatus: 'approved' },
-        { id: 'charge-3', name: 'BL FEE', type: 'Por BL', cost: 500, costCurrency: 'BRL', sale: 600, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', localPagamento: 'Origem', approvalStatus: 'approved' },
-        { id: 'charge-4', name: 'DESPACHO ADUANEIRO', type: 'Por Processo', cost: 800, costCurrency: 'BRL', sale: 1000, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', localPagamento: 'Origem', approvalStatus: 'approved' },
+        { id: 'charge-1', name: 'FRETE MARÍTIMO', type: 'Por Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
+        { id: 'charge-2', name: 'THC', type: 'Por Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
+        { id: 'charge-3', name: 'BL FEE', type: 'Por BL', cost: 500, costCurrency: 'BRL', sale: 600, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
+        { id: 'charge-4', name: 'DESPACHO ADUANEIRO', type: 'Por Processo', cost: 800, costCurrency: 'BRL', sale: 1000, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
     ]
   },
   { 
@@ -79,8 +79,8 @@ const initialQuotesData: Quote[] = [
     date: '14/07/2024', 
     details: { cargo: '500kg', transitTime: '1 dia', validity: '31/10/2024', freeTime: 'N/A', incoterm: 'FCA' },
     charges: [
-        { id: 'charge-5', name: 'FRETE AÉREO', type: 'Por KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo', sacado: 'TechFront Solutions', localPagamento: 'Frete', approvalStatus: 'approved' },
-        { id: 'charge-6', name: 'HANDLING FEE', type: 'Por AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA', sacado: 'TechFront Solutions', localPagamento: 'Origem', approvalStatus: 'approved' },
+        { id: 'charge-5', name: 'FRETE AÉREO', type: 'Por KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo', sacado: 'TechFront Solutions', approvalStatus: 'aprovada' },
+        { id: 'charge-6', name: 'HANDLING FEE', type: 'Por AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA', sacado: 'TechFront Solutions', approvalStatus: 'aprovada' },
     ]
   },
   { id: 'COT-00123', customer: 'Global Foods Ltda', origin: 'Paranaguá, BR', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', details: { cargo: '1x40HC', transitTime: '35-40 dias', validity: '31/12/2024', freeTime: '7 dias', incoterm: 'CFR' }, charges: [] },
@@ -138,7 +138,6 @@ export default function ComercialPage() {
   const [fees, setFees] = useState(initialFeesData);
   const [activeTab, setActiveTab] = useState('quote');
   const [quoteFormData, setQuoteFormData] = useState<Partial<FreightQuoteFormData> | null>(null);
-  const [isSyncingAgents, setIsSyncingAgents] = useState(false);
   const { toast } = useToast();
 
   const handlePartnerSaved = (partnerToSave: Partner) => {
@@ -276,68 +275,6 @@ export default function ComercialPage() {
     setQuotes(prevQuotes => prevQuotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
   };
 
-  const handleSyncAgents = async () => {
-    setIsSyncingAgents(true);
-    toast({ title: 'Sincronizando agentes da DF Alliance...' });
-    const response = await runSyncDFAgents();
-
-    if (response.success && response.data) {
-      const syncedAgents = response.data as DFAgent[];
-      const currentPartners = getPartners();
-      const existingPartnerNames = new Set(currentPartners.map(p => p.name.toLowerCase()));
-      let newAgentsCount = 0;
-
-      const newPartners = syncedAgents.reduce((acc, agent) => {
-        if (!existingPartnerNames.has(agent.name.toLowerCase())) {
-          newAgentsCount++;
-          const newPartner: Partner = {
-            id: 0, // temp ID
-            name: agent.name,
-            nomeFantasia: agent.name,
-            roles: { agente: true, cliente: false, fornecedor: false, comissionado: false },
-            profitAgreement: { amount: 50, unit: 'por_container' },
-            paymentTerm: 30,
-            exchangeRateAgio: 0,
-            address: {
-                street: agent.website,
-                city: '',
-                state: '',
-                zip: '',
-                number: '',
-                complement: '',
-                district: '',
-                country: agent.country
-            },
-            contacts: [{ name: 'Contato Principal', email: `info@${agent.website.replace(/^(https?:\/\/)?(www\.)?/, '')}`, phone: '000000000', departments: ['Comercial'] }],
-          };
-          acc.push(newPartner);
-        }
-        return acc;
-      }, [] as Partner[]);
-
-      if (newPartners.length > 0) {
-        let currentMaxId = Math.max(0, ...currentPartners.map(p => p.id ?? 0));
-        const partnersToSave = newPartners.map(p => ({ ...p, id: ++currentMaxId }));
-        const updatedPartners = [...currentPartners, ...partnersToSave];
-        savePartners(updatedPartners);
-        setPartners(updatedPartners);
-      }
-      
-      toast({
-        title: 'Sincronização Concluída!',
-        description: `${newAgentsCount} novos agentes foram adicionados. ${syncedAgents.length} agentes no total foram encontrados.`,
-        className: 'bg-success text-success-foreground'
-      });
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Erro na Sincronização',
-        description: response.error,
-      });
-    }
-    setIsSyncingAgents(false);
-  };
-
   return (
     <div className="p-4 md:p-8">
       <header className="mb-8">
@@ -398,15 +335,11 @@ export default function ComercialPage() {
         </TabsContent>
         <TabsContent value="partners" className="mt-6">
             <Card>
-                <CardHeader className="flex flex-row justify-between items-center">
+                <CardHeader>
                     <div>
                         <CardTitle>Cadastro de Parceiros</CardTitle>
                         <CardDescription>Gerencie seus clientes, fornecedores e agentes.</CardDescription>
                     </div>
-                     <Button variant="outline" onClick={handleSyncAgents} disabled={isSyncingAgents}>
-                        {isSyncingAgents ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Globe className="mr-2 h-4 w-4" />}
-                        Sincronizar Agentes DF Alliance
-                    </Button>
                 </CardHeader>
                 <CardContent>
                     <PartnersRegistry partners={partners} onPartnerSaved={handlePartnerSaved} />

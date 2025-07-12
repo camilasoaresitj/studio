@@ -163,7 +163,7 @@ function PartnerFormBlock({ title, partners, onPartnerCreated, selectedPartnerId
 interface ApproveQuoteDialogProps {
   quote: Quote | null;
   partners: Partner[];
-  onApprovalConfirmed: (quote: Quote, shipper: Partner, consignee: Partner, agent: Partner | undefined, notifyName: string) => void;
+  onApprovalConfirmed: (quote: Quote, shipper: Partner, consignee: Partner, agent: Partner | undefined, notifyName: string, terminalId?: string) => void;
   onPartnerSaved: (partner: Partner) => void;
   onClose: () => void;
 }
@@ -175,6 +175,7 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
   const [selectedNotifyId, setSelectedNotifyId] = useState<string | null>(null);
   const [isNotifyPopoverOpen, setIsNotifyPopoverOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('none');
+  const [selectedTerminalId, setSelectedTerminalId] = useState<string | undefined>();
   const [notifyName, setNotifyName] = useState('');
   const { toast } = useToast();
 
@@ -185,6 +186,7 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
       setSelectedNotifyId(null);
       setSelectedAgentId('none');
       setNotifyName('');
+      setSelectedTerminalId(undefined);
     }
   }, [quote]);
   
@@ -201,7 +203,10 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
   if (!quote) return null;
 
   const agentPartners = partners.filter(p => p.roles.agente);
+  const terminalPartners = partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal);
   const isImport = quote.destination.toUpperCase().includes('BR');
+  const needsRedestinacao = quote.charges.some(c => c.name.toUpperCase().includes('REDESTINA'));
+
 
   const handlePartnerCreated = (newPartner: Partner) => {
     onPartnerSaved(newPartner);
@@ -231,36 +236,14 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
         return;
     }
 
-    const agent = selectedAgentId !== 'none' ? partners.find(p => p.id?.toString() === selectedAgentId) : undefined;
-    
-    const freightCharge = quote.charges.find(c => c.name.toLowerCase().includes('frete'));
-    const thcCharge = quote.charges.find(c => c.name.toLowerCase().includes('thc'));
-    const response = await runSendShippingInstructions({
-      agentName: agent?.name || 'N/A',
-      agentEmail: agent?.contacts[0]?.email || 'agent@example.com',
-      shipper: shipper,
-      consigneeName: consignee.name,
-      notifyName: notifyName,
-      freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
-      freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'N/A',
-      agentProfit: agent?.profitAgreement?.amount ? `USD ${agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
-      thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
-      commodity: quote.details.cargo || 'General Cargo',
-      ncm: 'N/A',
-      updateLink: `https://cargainteligente.com/agent-portal/`,
-    });
-    
-    if (response.success && response.data) {
-        const emailHtml = response.data.emailBody;
-        const newTab = window.open();
-        newTab?.document.write(emailHtml);
-        newTab?.document.close();
-        toast({ title: "Visualização Gerada!", description: "O e-mail de Instruções de Embarque foi aberto em uma nova aba.", className: 'bg-success text-success-foreground' });
-    } else {
-        toast({ variant: 'destructive', title: "Erro no Teste", description: response.error || 'Falha ao gerar o e-mail de teste.' });
+    if (needsRedestinacao && !selectedTerminalId) {
+        toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, selecione um terminal para a redestinação.' });
+        return;
     }
 
-    onApprovalConfirmed(quote, shipper, consignee, agent, notifyName);
+    const agent = selectedAgentId !== 'none' ? partners.find(p => p.id?.toString() === selectedAgentId) : undefined;
+    
+    onApprovalConfirmed(quote, shipper, consignee, agent, notifyName, selectedTerminalId);
   };
 
   return (
@@ -336,6 +319,27 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
                     </Select>
                 </CardContent>
             </Card>
+
+            {needsRedestinacao && (
+                 <Card className="animate-in fade-in-50 duration-500 border-primary">
+                    <CardHeader><CardTitle className="text-lg">Redestinação</CardTitle></CardHeader>
+                    <CardContent>
+                        <Label>Selecione o Terminal de Redestinação (Obrigatório)</Label>
+                        <Select onValueChange={setSelectedTerminalId}>
+                            <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Selecione um terminal..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {terminalPartners.map(terminal => (
+                                    <SelectItem key={terminal.id} value={terminal.id!.toString()}>
+                                        {terminal.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </CardContent>
+                </Card>
+            )}
         </div>
 
         <DialogFooter className="pt-4 mt-auto">

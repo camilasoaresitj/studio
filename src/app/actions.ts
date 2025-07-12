@@ -17,7 +17,6 @@ import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
 import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
-import { syncDFAgents } from "@/ai/flows/sync-df-alliance-agents";
 import { getShipments, updateShipment } from "@/lib/shipment";
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
@@ -211,66 +210,6 @@ export async function runMonitorTasks(emailSubject: string, emailContent: string
     } catch (error: any) {
         console.error("Monitor Tasks Action Failed", error);
         return { success: false, error: error.message || "Failed to monitor tasks" };
-    }
-}
-
-export async function runSyncDFAgents() {
-    try {
-        const data = await syncDFAgents();
-        return { success: true, data };
-    } catch (error: any) {
-        console.error("Sync DF Alliance Agents Action Failed", error);
-        return { success: false, error: error.message || "Failed to sync agents" };
-    }
-}
-
-export async function updateShipmentFromAgent(shipmentId: string, data: any) {
-    try {
-        const allShipments = getShipments();
-        const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
-        
-        if (shipmentIndex === -1) {
-            throw new Error('Embarque não encontrado.');
-        }
-        
-        const existingShipment = allShipments[shipmentIndex];
-        
-        // Merge the new data from the agent
-        const updatedShipment = {
-            ...existingShipment,
-            bookingNumber: data.bookingNumber,
-            vesselName: data.vesselVoyage.split('/')[0]?.trim(),
-            voyageNumber: data.vesselVoyage.split('/')[1]?.trim(),
-            etd: data.etd,
-            eta: data.eta,
-        };
-
-        // Update the "Booking Confirmado" milestone
-        const bookingMilestoneIndex = updatedShipment.milestones.findIndex(m => m.name.toLowerCase().includes('booking confirmado'));
-        if (bookingMilestoneIndex !== -1) {
-            updatedShipment.milestones[bookingMilestoneIndex].status = 'completed';
-            updatedShipment.milestones[bookingMilestoneIndex].effectiveDate = new Date();
-            updatedShipment.milestones[bookingMilestoneIndex].details = `Booking: ${data.bookingNumber} | Navio/Voo: ${data.vesselVoyage}`;
-        }
-        
-        // Update the "Carga Pronta" milestone if data is provided
-        if (data.effectiveReadinessDate) {
-            const readyMilestoneIndex = updatedShipment.milestones.findIndex(m => m.name.toLowerCase().includes('carga pronta'));
-            if (readyMilestoneIndex !== -1) {
-                updatedShipment.milestones[readyMilestoneIndex].status = 'completed';
-                updatedShipment.milestones[readyMilestoneIndex].effectiveDate = new Date(data.effectiveReadinessDate);
-            }
-        }
-        
-        updateShipment(updatedShipment);
-
-        // Here you would trigger the follow-up email to the client
-        console.log(`Shipment ${shipmentId} updated. Triggering follow-up to client...`);
-
-        return { success: true };
-    } catch (error: any) {
-        console.error("Update Shipment From Agent Action Failed", error);
-        return { success: false, error: error.message || "Failed to update shipment" };
     }
 }
 

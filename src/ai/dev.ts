@@ -25,7 +25,6 @@ import '@/ai/flows/extract-quote-details-from-text.ts';
 import '@/ai/flows/get-tracking-info.ts';
 import '@/ai/flows/get-booking-info.ts';
 import '@/ai/flows/detect-carrier-from-booking.ts';
-import '@/ai/flows/sync-df-alliance-agents.ts';
 import '@/ai/flows/send-shipping-instructions.ts';
 import '@/ai/flows/get-courier-status.ts';
 import '@/ai/flows/consult-nfse-itajai.ts';
@@ -34,4 +33,3 @@ import '@/ai/flows/generate-nfse-xml.ts';
 import '@/ai/flows/generate-agent-invoice-html.ts';
 import '@/ai/flows/send-to-legal.ts';
 import '@/ai/flows/send-whatsapp-message.ts';
-

@@ -30,7 +30,6 @@ export type FinancialEntry = {
     amount: number;
     currency: 'BRL' | 'USD' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
     processId: string;
-    accountId: number; // Link to the BankAccount
     payments?: PartialPayment[];
     status: 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico';
     legalStatus?: 'Fase Inicial' | 'Fase de Execução' | 'Desconsideração da Personalidade Jurídica';
@@ -56,7 +55,6 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 12500.50,
         currency: 'BRL',
         processId: 'PROC-00125-95015',
-        accountId: 1,
         payments: [],
     },
     {
@@ -69,7 +67,6 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 8750.00,
         currency: 'BRL',
         processId: 'PROC-00124-42898',
-        accountId: 1,
         payments: [{ id: 'pay-001', amount: 8750.00, date: subDays(today, 20).toISOString(), accountId: 1 }],
     },
     {
@@ -82,7 +79,6 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 45800.00,
         currency: 'BRL',
         processId: 'PROC-00123-51881',
-        accountId: 1,
         payments: [],
     },
     {
@@ -95,7 +91,6 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 3200.00,
         currency: 'USD',
         processId: 'PROC-00122-38416',
-        accountId: 2,
         payments: [{ id: 'pay-002', amount: 1200.00, date: subDays(today, 2).toISOString(), accountId: 2 }],
     },
      {
@@ -108,7 +103,6 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 7250.75,
         currency: 'BRL',
         processId: 'PROC-00121-72921',
-        accountId: 1,
         payments: [],
     },
     {
@@ -123,7 +117,6 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 99500.00,
         currency: 'BRL',
         processId: 'PROC-JURIDICO-1',
-        accountId: 1,
         payments: [],
     },
 
@@ -139,7 +132,6 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 2800.00,
         currency: 'USD',
         processId: 'PROC-00125-95015',
-        accountId: 2,
         payments: [],
     },
     {
@@ -152,7 +144,6 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 2100.00,
         currency: 'USD',
         processId: 'PROC-00124-42898',
-        accountId: 2,
         payments: [{ id: 'pay-003', amount: 2100.00, date: subDays(today, 15).toISOString(), accountId: 2 }],
     },
     {
@@ -165,7 +156,6 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 3800.00,
         currency: 'USD',
         processId: 'PROC-00123-51881',
-        accountId: 2,
         payments: [],
     },
     {
@@ -178,12 +168,11 @@ const initialFinancialData: FinancialEntry[] = [
         amount: 450.00,
         currency: 'USD',
         processId: 'PROC-00121-72921',
-        accountId: 2,
         payments: [],
     },
 ];
 
-const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v5';
+const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v6';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
 export function getFinancialEntries(): FinancialEntry[] {
@@ -214,13 +203,14 @@ export function saveFinancialEntries(entries: FinancialEntry[]): void {
   }
 }
 
-export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'>): void {
+export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'>): string {
   const currentEntries = getFinancialEntries();
   // Ensure unique ID by appending a random number to the timestamp
   const newId = `fin-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const entryWithId: FinancialEntry = { ...newEntry, id: newId };
   const updatedEntries = [entryWithId, ...currentEntries];
   saveFinancialEntries(updatedEntries);
+  return newId;
 }
 
 export function getBankAccounts(): BankAccount[] {

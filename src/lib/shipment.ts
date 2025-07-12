@@ -114,8 +114,6 @@ export type Shipment = {
   commodityDescription?: string;
   ncms?: string[];
   netWeight?: string;
-  packageQuantity?: string;
-  freeTimeDemurrage?: string;
   transshipments?: TransshipmentDetail[];
   notifyName?: string;
   invoiceNumber?: string;
@@ -127,7 +125,7 @@ export type Shipment = {
   // Redestinação fields
   terminalRedestinacaoId?: string;
   custoArmazenagem?: number;
-  // Deprecated field, shipper/consignee are top-level
+  // Deprecated field, shipper/cnee are top-level
   customer: string;
   overseasPartner?: Partner;
 };
@@ -315,9 +313,6 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     invoiceNumber: invoiceNumber,
     purchaseOrderNumber: purchaseOrderNumber,
-    packageQuantity: quoteData.details.cargo,
-    freeTimeDemurrage: quoteData.details.freeTime,
-    commodityDescription: 'Generic Commodity Description',
     ncms: ['0000.00.00'],
     mblPrintingAtDestination: false,
     notifyName: quoteData.notifyName,
@@ -345,7 +340,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
       agentProfit: quoteData.agent.profitAgreement?.amount ? `USD ${quoteData.agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
       thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
       commodity: newShipment.commodityDescription || 'General Cargo',
-      equipmentDescription: newShipment.packageQuantity || 'N/A',
+      equipmentDescription: newShipment.details.cargo || 'N/A',
       ncm: newShipment.ncms?.[0] || 'N/A',
       invoiceNumber: newShipment.invoiceNumber || 'N/A',
       purchaseOrderNumber: newShipment.purchaseOrderNumber || 'N/A',

@@ -7,8 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, isPast, isValid } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 import {
   Dialog,
@@ -35,7 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, ContainerDetail } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, ArrowRight, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +53,9 @@ import { addFinancialEntry, getFinancialEntries, FinancialEntry } from '@/lib/fi
 import { Checkbox } from './ui/checkbox';
 import type { Fee } from '@/components/fees-registry';
 import { ScrollArea } from './ui/scroll-area';
+import { exchangeRateService } from '@/services/exchange-rate-service';
+import type { Partner } from '@/lib/partners-data';
+import { getPartners } from '@/lib/partners-data';
 
 // Dummy fees data, in a real app this would be fetched
 const initialFeesData: Fee[] = [
@@ -170,6 +171,7 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 
 export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
   const { toast } = useToast();
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCourierSyncing, setIsCourierSyncing] = useState(false);
   const [isInvoicing, setIsInvoicing] = useState(false);
@@ -182,6 +184,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const form = useForm<ShipmentDetailsFormData>({
     resolver: zodResolver(shipmentDetailsSchema),
   });
+
+  useEffect(() => {
+    setPartners(getPartners());
+  }, [open]);
 
   const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
     control: form.control,
@@ -280,6 +286,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const mblPrintingAuthDate = form.watch('mblPrintingAuthDate');
   const watchedCharges = form.watch('charges');
   const watchedContainers = form.watch('containers');
+  const watchedCustoArmazenagem = form.watch('custoArmazenagem');
 
   const totalsSummary = useMemo(() => {
     if (!watchedContainers) return { containerCount: 0, totalGrossWeight: 0, totalVolumes: 0 };
@@ -290,6 +297,57 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
     return { containerCount, totalGrossWeight, totalVolumes };
   }, [watchedContainers]);
+
+  useEffect(() => {
+    if (watchedCustoArmazenagem && watchedCustoArmazenagem > 0) {
+        const terminalId = form.getValues('terminalRedestinacaoId');
+        const terminal = partners.find(p => p.id?.toString() === terminalId);
+        
+        // Remove existing storage/commission charges to avoid duplicates
+        const chargesWithoutStorage = watchedCharges.filter(c => 
+            c.name !== 'ARMAZENAGEM' && c.name !== 'COMISSÃO SOBRE ARMAZENAGEM'
+        );
+        
+        let newCharges = [...chargesWithoutStorage];
+        
+        // Add new storage cost
+        newCharges.push({
+            id: `storage-${Date.now()}`,
+            name: 'ARMAZENAGEM',
+            type: 'Fixo',
+            cost: watchedCustoArmazenagem,
+            costCurrency: 'BRL',
+            sale: watchedCustoArmazenagem,
+            saleCurrency: 'BRL',
+            supplier: terminal?.name || 'Terminal a Definir',
+            sacado: shipment?.customer,
+            approvalStatus: 'aprovada',
+            financialEntryId: null
+        });
+
+        // Add commission if applicable
+        if (terminal && terminal.terminalCommission && terminal.terminalCommission.amount) {
+            const commissionRate = terminal.terminalCommission.amount / 100;
+            const commissionValue = watchedCustoArmazenagem * commissionRate;
+            
+            newCharges.push({
+                id: `commission-${Date.now()}`,
+                name: 'COMISSÃO SOBRE ARMAZENAGEM',
+                type: 'Fixo',
+                cost: commissionValue, // This is a "cost" to the terminal
+                costCurrency: 'BRL',
+                sale: 0, // No sale value to the client
+                saleCurrency: 'BRL',
+                supplier: 'CargaInteligente', // We are charging the terminal
+                sacado: terminal.name, // The terminal is being billed
+                approvalStatus: 'aprovada',
+                financialEntryId: null,
+            });
+        }
+        form.setValue('charges', newCharges);
+    }
+  }, [watchedCustoArmazenagem]); // Dependency array is key here
+
 
   const onSubmit = (data: ShipmentDetailsFormData) => {
     if (!shipment) return;
@@ -359,82 +417,69 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     if (!shipment) return;
     setIsInvoicing(true);
     try {
-        if (!shipment || !shipment.charges) {
-            throw new Error("Dados do embarque inválidos para faturamento.");
-        }
-        
-        const unbilledCharges = shipment.charges.filter(c => !c.financialEntryId);
+        const unbilledCharges = (form.getValues('charges') || []).filter(c => !c.financialEntryId);
+
         if (unbilledCharges.length === 0) {
-             toast({
-                variant: 'default',
-                title: "Nenhuma nova despesa",
-                description: `Todas as despesas deste processo já foram faturadas.`,
-            });
-            setIsInvoicing(false);
+            toast({ title: "Nenhuma nova despesa", description: "Todas as despesas deste processo já foram faturadas." });
             return;
         }
 
-        let creditsCreated = 0;
-        let debitsCreated = 0;
-        
         const updatedChargesMap = new Map<string, string>();
+        let entriesCreated = 0;
 
-        // Create credit entries (Contas a Receber)
-        const salesBySacadoAndCurrency: { [sacado: string]: { [currency: string]: { amount: number, charges: QuoteCharge[] } } } = {};
+        // Group charges by partner (sacado or supplier) and currency
+        const chargesByPartnerAndCurrency: { [key: string]: { [currency: string]: { type: 'credit' | 'debit', charges: QuoteCharge[] } } } = {};
+
         unbilledCharges.forEach(charge => {
+            // Group sales (credit)
             const sacado = charge.sacado || shipment.customer;
-            if (!salesBySacadoAndCurrency[sacado]) salesBySacadoAndCurrency[sacado] = {};
-            if (!salesBySacadoAndCurrency[sacado][charge.saleCurrency]) {
-                salesBySacadoAndCurrency[sacado][charge.saleCurrency] = { amount: 0, charges: [] };
-            }
-            salesBySacadoAndCurrency[sacado][charge.saleCurrency].amount += charge.sale;
-            salesBySacadoAndCurrency[sacado][charge.saleCurrency].charges.push(charge);
+            const saleKey = `credit-${sacado}-${charge.saleCurrency}`;
+            if (!chargesByPartnerAndCurrency[saleKey]) chargesByPartnerAndCurrency[saleKey] = { type: 'credit', charges: [] };
+            chargesByPartnerAndCurrency[saleKey].charges.push(charge);
+
+            // Group costs (debit)
+            const supplier = charge.supplier;
+            const costKey = `debit-${supplier}-${charge.costCurrency}`;
+            if (!chargesByPartnerAndCurrency[costKey]) chargesByPartnerAndCurrency[costKey] = { type: 'debit', charges: [] };
+            chargesByPartnerAndCurrency[costKey].charges.push(charge);
         });
 
-        for (const sacado in salesBySacadoAndCurrency) {
-            for (const currency in salesBySacadoAndCurrency[sacado]) {
-                const { amount, charges } = salesBySacadoAndCurrency[sacado][currency];
-                if (amount > 0) {
-                    const entryId = `fin-CR-${Date.now()}-${creditsCreated}`;
-                    addFinancialEntry({
-                        id: entryId, type: 'credit', partner: sacado, invoiceId: `INV-${shipment.id}`,
-                        dueDate: new Date().toISOString(), amount, currency: currency as any,
-                        processId: shipment.id, accountId: 1, payments: [], status: 'Aberto'
-                    });
-                    charges.forEach(c => updatedChargesMap.set(c.id, entryId));
-                    creditsCreated++;
-                }
+        const exchangeRates = await exchangeRateService.getRates();
+
+        for (const groupKey in chargesByPartnerAndCurrency) {
+            const group = chargesByPartnerAndCurrency[groupKey];
+            const partnerName = group.type === 'credit' ? (group.charges[0].sacado || shipment.customer) : group.charges[0].supplier;
+            const partnerDetails = partners.find(p => p.name === partnerName);
+            const agio = partnerDetails?.exchangeRateAgio ?? 0;
+            
+            const totalAmount = group.charges.reduce((sum, charge) => {
+                const value = group.type === 'credit' ? charge.sale : charge.cost;
+                const currency = group.type === 'credit' ? charge.saleCurrency : charge.costCurrency;
+                const ptaxRate = exchangeRates[currency] || 1;
+                const finalRate = currency === 'BRL' ? 1 : ptaxRate * (1 + agio / 100);
+                return sum + (value * finalRate);
+            }, 0);
+            
+            const mainCurrency = 'BRL'; // Faturar tudo em BRL por simplicidade neste exemplo
+
+            if (totalAmount > 0) {
+                const entryId = addFinancialEntry({
+                    type: group.type,
+                    partner: partnerName,
+                    invoiceId: `${group.type === 'credit' ? 'INV' : 'BILL'}-${shipment.id}`,
+                    dueDate: new Date().toISOString(),
+                    amount: totalAmount,
+                    currency: mainCurrency,
+                    processId: shipment.id,
+                    payments: [],
+                    status: 'Aberto'
+                });
+                group.charges.forEach(c => updatedChargesMap.set(c.id, entryId));
+                entriesCreated++;
             }
         }
         
-        // Create debit entries (Contas a Pagar)
-        const costsBySupplierAndCurrency: { [supplier: string]: { [currency: string]: { amount: number, charges: QuoteCharge[] } } } = {};
-        unbilledCharges.forEach(charge => {
-            if (!costsBySupplierAndCurrency[charge.supplier]) costsBySupplierAndCurrency[charge.supplier] = {};
-            if (!costsBySupplierAndCurrency[charge.supplier][charge.costCurrency]) {
-                costsBySupplierAndCurrency[charge.supplier][charge.costCurrency] = { amount: 0, charges: [] };
-            }
-            costsBySupplierAndCurrency[charge.supplier][charge.costCurrency].amount += charge.cost;
-            costsBySupplierAndCurrency[charge.supplier][charge.costCurrency].charges.push(charge);
-        });
-        
-        for (const supplier in costsBySupplierAndCurrency) {
-             for (const currency in costsBySupplierAndCurrency[supplier]) {
-                 const { amount, charges } = costsBySupplierAndCurrency[supplier][currency];
-                 if (amount > 0) {
-                    const entryId = `fin-DB-${Date.now()}-${debitsCreated}`;
-                    addFinancialEntry({
-                        id: entryId, type: 'debit', partner: supplier, invoiceId: `BILL-${shipment.id}-${supplier.substring(0,3).toUpperCase()}`,
-                        dueDate: new Date().toISOString(), amount, currency: currency as any,
-                        processId: shipment.id, accountId: 2, payments: [], status: 'Aberto'
-                    });
-                     charges.forEach(c => updatedChargesMap.set(c.id, entryId));
-                    debitsCreated++;
-                }
-             }
-        }
-        
-        const finalCharges = shipment.charges.map(c => {
+        const finalCharges = (form.getValues('charges') || []).map(c => {
             if (updatedChargesMap.has(c.id)) {
                 return { ...c, financialEntryId: updatedChargesMap.get(c.id) };
             }
@@ -443,19 +488,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
         onUpdate({ ...shipment, charges: finalCharges as any });
 
-      toast({
-        title: "Processo Faturado com Sucesso!",
-        description: `${creditsCreated} crédito(s) e ${debitsCreated} débito(s) gerados no módulo Financeiro.`,
-        className: 'bg-success text-success-foreground'
-      });
-      router.refresh();
+        toast({
+            title: "Processo Faturado com Sucesso!",
+            description: `${entriesCreated} lançamento(s) financeiro(s) foram gerados.`,
+            className: 'bg-success text-success-foreground'
+        });
+        router.refresh();
       
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: "Erro ao Faturar",
-        description: error.message,
-      });
+        toast({ variant: 'destructive', title: "Erro ao Faturar", description: error.message });
     } finally {
         setIsInvoicing(false);
     }
@@ -807,6 +848,32 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             </div>
                                         </>
                                     )}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="terminalRedestinacaoId"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Terminal de Redestinação</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecione um terminal..." />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {partners.filter(p => p.tipoFornecedor?.terminal).map(t => (
+                                                                <SelectItem key={t.id} value={t.id!.toString()}>
+                                                                    {t.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
                                 </CardContent>
                             </Card>
                             
@@ -1096,9 +1163,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <div className="flex items-center justify-between">
                                         <CardTitle className="text-lg">Detalhes Financeiros</CardTitle>
                                         <div className="flex items-center gap-2">
-                                            <FormField control={form.control} name="terminalRedestinacaoId" render={({ field }) => (
+                                            <FormField control={form.control} name="custoArmazenagem" render={({ field }) => (
                                                 <FormItem>
-                                                    {/* This field is now a select dropdown */}
+                                                    <div className="flex items-center gap-2">
+                                                        <Label>Custo Armazenagem (BRL)</Label>
+                                                        <Input type="number" placeholder="0.00" {...field} className="w-32 h-8" />
+                                                    </div>
                                                 </FormItem>
                                             )}/>
                                             <Button type="button" variant="outline" size="sm" onClick={() => setIsFeeDialogOpen(true)}>
@@ -1130,7 +1200,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     const paymentStatus = getPaymentStatus(charge);
                                                     return (
                                                     <TableRow key={field.id} className={cn(charge.approvalStatus === 'pendente' && 'bg-amber-50')}>
-                                                        <TableCell><FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (<Input {...field} />)}/></TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-2">
+                                                                <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (<Input {...field} />)} />
+                                                                {charge.approvalStatus === 'pendente' && <Badge variant="destructive">Pendente</Badge>}
+                                                            </div>
+                                                        </TableCell>
                                                         <TableCell><FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (<Input {...field} />)}/></TableCell>
                                                         <TableCell><FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (<Input {...field} />)}/></TableCell>
                                                         <TableCell className="text-right">

@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { getShipments, updateShipment, Shipment, ContainerDetail } from '@/lib/shipment';
 import { addDays, differenceInDays, format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, DollarSign, FileCheck } from 'lucide-react';
 import { DemurrageDetailsDialog } from '@/components/demurrage-details-dialog';
+import { getFinancialEntries } from '@/lib/financials-data';
 
 export type DemurrageItem = {
     container: ContainerDetail;
@@ -20,7 +21,7 @@ export type DemurrageItem = {
     effectiveReturnDate?: Date | null;
     freeDays: number;
     overdueDays: number;
-    status: 'ok' | 'risk' | 'overdue';
+    status: 'ok' | 'risk' | 'overdue' | 'invoiced';
 };
 
 // Simulated tariff data for dashboard calculation.
@@ -41,7 +42,19 @@ export default function DemurragePage() {
         setIsClient(true);
         // We need to get the latest shipments every time the page loads or data changes.
         // For now, we load it once. A more robust solution might use a state management library.
-        setShipments(getShipments());
+        const handleDataChange = () => {
+            setShipments(getShipments());
+        }
+        
+        handleDataChange();
+        window.addEventListener('storage', handleDataChange);
+        window.addEventListener('financialsUpdated', handleDataChange);
+
+        return () => {
+            window.removeEventListener('storage', handleDataChange);
+            window.removeEventListener('financialsUpdated', handleDataChange);
+        }
+
     }, []);
 
     const handleEffectiveReturnDateChange = (containerNumber: string, dateValue: string) => {
@@ -70,6 +83,8 @@ export default function DemurragePage() {
     const allDemurrageItems = useMemo((): DemurrageItem[] => {
         if (!isClient) return [];
         
+        const financialEntries = getFinancialEntries();
+
         return shipments
             .filter(shipment => shipment.destination.toUpperCase().includes('BR') && shipment.containers && shipment.containers.length > 0)
             .flatMap(shipment => {
@@ -86,8 +101,13 @@ export default function DemurragePage() {
                     const referenceDate = effectiveReturnDate && isValid(effectiveReturnDate) ? effectiveReturnDate : new Date();
                     const overdueDays = differenceInDays(referenceDate, returnDate);
 
-                    let status: 'ok' | 'risk' | 'overdue' = 'ok';
-                    if (overdueDays > 0) {
+                    let status: DemurrageItem['status'] = 'ok';
+                    const demurrageInvoiceId = `DEM-${container.number}`;
+                    const isInvoiced = financialEntries.some(e => e.invoiceId === demurrageInvoiceId);
+
+                    if (isInvoiced) {
+                        status = 'invoiced';
+                    } else if (overdueDays > 0) {
                         status = 'overdue';
                     } else if (overdueDays >= -3) { 
                         status = 'risk';
@@ -133,16 +153,23 @@ export default function DemurragePage() {
         
         return {
             totalRevenue,
-            overdueCount: overdueItems.length,
+            overdueCount: overdueItems.filter(item => item.status === 'overdue').length,
             atRiskCount: allDemurrageItems.filter(item => item.status === 'risk').length
         }
     }, [allDemurrageItems]);
 
-    const statusConfig = {
+    const statusConfig: Record<DemurrageItem['status'], { variant: 'default' | 'success' | 'destructive' | 'outline', icon: React.ReactNode, text: string }> = {
         ok: { variant: 'success', icon: <CheckCircle className="h-4 w-4" />, text: 'OK' },
         risk: { variant: 'default', icon: <Clock className="h-4 w-4" />, text: 'Em Risco' },
         overdue: { variant: 'destructive', icon: <AlertTriangle className="h-4 w-4" />, text: 'Vencido' },
+        invoiced: { variant: 'outline', icon: <FileCheck className="h-4 w-4" />, text: 'Faturado' },
     };
+    
+    const handleDialogClose = () => {
+        setSelectedDemurrageItem(null);
+        // Force a re-render to reflect new financial data
+        setShipments(getShipments());
+    }
 
     if (!isClient) return null;
 
@@ -231,7 +258,7 @@ export default function DemurragePage() {
                                         return (
                                             <TableRow 
                                                 key={item.container.id} 
-                                                className={cn("cursor-pointer", item.status === 'overdue' && 'bg-destructive/10')}
+                                                className={cn("cursor-pointer", item.status === 'overdue' && 'bg-destructive/10', item.status === 'invoiced' && 'bg-green-500/10')}
                                                 onClick={() => setSelectedDemurrageItem(item)}
                                             >
                                                 <TableCell className="font-medium">{item.container.number}</TableCell>
@@ -249,7 +276,7 @@ export default function DemurragePage() {
                                                         onChange={(e) => handleEffectiveReturnDateChange(item.container.number, e.target.value)}
                                                     />
                                                 </TableCell>
-                                                <TableCell className={cn("font-bold", item.overdueDays > 0 && 'text-destructive')}>
+                                                <TableCell className={cn("font-bold", item.overdueDays > 0 && item.status !== 'invoiced' && 'text-destructive')}>
                                                     {item.overdueDays}
                                                 </TableCell>
                                                 <TableCell>
@@ -275,7 +302,7 @@ export default function DemurragePage() {
         </div>
         <DemurrageDetailsDialog
             isOpen={!!selectedDemurrageItem}
-            onClose={() => setSelectedDemurrageItem(null)}
+            onClose={handleDialogClose}
             item={selectedDemurrageItem}
         />
         </>

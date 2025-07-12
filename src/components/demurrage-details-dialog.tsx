@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,6 @@ import { addFinancialEntry } from '@/lib/financials-data';
 import { getBankAccounts } from '@/lib/financials-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { runSendDemurrageInvoice } from '@/app/actions';
-import { useState } from 'react';
 
 interface DemurrageDetailsDialogProps {
   isOpen: boolean;
@@ -96,11 +95,11 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
   const totalProfit = financialBreakdown.reduce((sum, row) => sum + row.profit, 0);
 
   const handleGenerateInvoice = async () => {
-    if (!item || totalSale <= 0) {
+    if (!item || totalSale <= 0 || !item.effectiveReturnDate) {
       toast({
         variant: 'destructive',
-        title: 'Fatura Vazia',
-        description: 'Não é possível gerar uma fatura sem valor de demurrage a cobrar.',
+        title: 'Ação Bloqueada',
+        description: 'É necessário ter um valor a faturar e uma data de devolução efetiva para gerar a fatura.',
       });
       return;
     }
@@ -128,6 +127,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
             currency: 'USD',
             processId: item.shipment.id,
             accountId: usdAccount.id,
+            description: `Demurrage/Detention ref. Container ${item.container.number}`
         });
         toast({
             title: 'Lançamento Financeiro Criado!',
@@ -162,6 +162,12 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
         } else {
             throw new Error(emailResponse.error || 'Falha ao gerar o e-mail de cobrança.');
         }
+        
+        toast({
+            title: "Boleto Gerado (Simulação)",
+            description: "O boleto para esta fatura foi gerado e enviado ao cliente.",
+        });
+
 
         onClose();
 
@@ -251,13 +257,9 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item }: DemurrageDetai
         </Card>
 
         <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={() => handleGenerateInvoice()} disabled={isGenerating}>
+          <Button variant="outline" onClick={handleGenerateInvoice} disabled={isGenerating || item.status === 'invoiced'}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-            Gerar Fatura e Enviar
-          </Button>
-          <Button variant="outline" onClick={() => handleOtherActions("Gerar Boleto")} disabled={isGenerating}>
-            <Banknote className="mr-2 h-4 w-4" />
-            Gerar Boleto
+            {item.status === 'invoiced' ? 'Faturado' : 'Gerar Fatura e Enviar'}
           </Button>
           <Button onClick={() => handleOtherActions("Emitir Recibo")} disabled={isGenerating}>
             <Receipt className="mr-2 h-4 w-4" />

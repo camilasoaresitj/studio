@@ -7,7 +7,7 @@ import { runSendShippingInstructions } from '@/app/actions';
 import type { PartialPayment } from './financials-data';
 
 
-const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v5';
+const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v6';
 
 // --- Type Definitions ---
 
@@ -48,6 +48,7 @@ export type ShipmentCreationData = {
   consignee: Partner;
   agent?: Partner;
   notifyName: string;
+  responsibleUser: string;
 };
 
 export type Milestone = {
@@ -94,6 +95,7 @@ export type Shipment = {
   shipper: Partner;
   consignee: Partner;
   agent?: Partner;
+  responsibleUser?: string;
   charges: QuoteCharge[];
   details: QuoteDetails;
   milestones: Milestone[];
@@ -158,15 +160,19 @@ const EXPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Confirmação de Entrega': 2, // Days after arrival
 };
 
-function generateInitialMilestones(isImport: boolean, transitTimeStr: string, creationDate: Date): Milestone[] {
+function generateInitialMilestones(isImport: boolean, transitTimeStr: string, freeTimeStr: string, creationDate: Date): Milestone[] {
     const transitTime = parseInt(transitTimeStr.split('-').pop() || '30', 10);
+    const freeDays = parseInt(freeTimeStr.replace(/\D/g,'') || '7');
+
+    let milestones: Milestone[] = [];
 
     if (isImport) {
         const milestoneNames = Object.keys(IMPORT_MILESTONE_DUE_DAYS);
         const etd = addDays(creationDate, IMPORT_MILESTONE_DUE_DAYS['Confirmação de Embarque']);
         const eta = addDays(etd, transitTime);
+        const freeTimeDueDate = addDays(eta, freeDays);
 
-        return milestoneNames.map(name => {
+        milestones = milestoneNames.map(name => {
             let predictedDate: Date;
             if (name === 'Chegada ao Destino') {
                 predictedDate = eta;
@@ -177,12 +183,21 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, cr
             }
             return { name, status: 'pending', predictedDate, effectiveDate: null, isTransshipment: false };
         });
+
+        milestones.push({
+            name: 'Verificar Devolução do Contêiner',
+            status: 'pending',
+            predictedDate: addDays(freeTimeDueDate, -2), // Reminder 2 days before
+            effectiveDate: null,
+            details: `Free time termina em ${freeTimeDueDate.toLocaleDateString('pt-BR')}`
+        });
+
     } else { // Export
         const milestoneNames = Object.keys(EXPORT_MILESTONE_DUE_DAYS);
         const etd = addDays(creationDate, EXPORT_MILESTONE_DUE_DAYS['Embarque']);
         const eta = addDays(etd, transitTime);
 
-         return milestoneNames.map(name => {
+         milestones = milestoneNames.map(name => {
             let predictedDate: Date;
             if (name.includes('Chegada no Destino')) {
                 predictedDate = eta;
@@ -194,6 +209,10 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, cr
             return { name, status: 'pending', predictedDate, effectiveDate: null, isTransshipment: false };
         });
     }
+
+    // Sort all milestones by date
+    milestones.sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime());
+    return milestones;
 }
 
 
@@ -273,7 +292,7 @@ export function saveShipments(shipments: Shipment[]): void {
 export async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
   const isImport = quoteData.destination.toUpperCase().includes('BR');
   const creationDate = new Date();
-  const milestones = generateInitialMilestones(isImport, quoteData.details.transitTime, creationDate);
+  const milestones = generateInitialMilestones(isImport, quoteData.details.transitTime, quoteData.details.freeTime, creationDate);
   
   if (milestones.length > 0 && quoteData.agent) {
       milestones[0].status = 'completed'; // Mark as "Sent"
@@ -309,6 +328,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     shipper: quoteData.shipper,
     consignee: quoteData.consignee,
     agent: quoteData.agent,
+    responsibleUser: quoteData.responsibleUser,
     charges: quoteData.charges.map(c => ({ ...c, approvalStatus: 'aprovada' })),
     details: quoteData.details,
     carrier: freightCharge?.supplier,

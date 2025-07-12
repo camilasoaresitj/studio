@@ -34,6 +34,14 @@ import { Label } from './ui/label';
 
 const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 
+// In a real app, this would be fetched from a user management service/database
+const systemUsers = [
+    { id: 'user-1', name: 'Admin Geral' },
+    { id: 'user-2', name: 'Usuário Comercial' },
+    { id: 'user-3', name: 'Usuário Operacional' },
+    { id: 'user-4', name: 'Usuário Financeiro' },
+];
+
 type PartnerFormData = z.infer<typeof newPartnerSchema>;
 
 interface PartnerFormBlockProps {
@@ -163,7 +171,7 @@ function PartnerFormBlock({ title, partners, onPartnerCreated, selectedPartnerId
 interface ApproveQuoteDialogProps {
   quote: Quote | null;
   partners: Partner[];
-  onApprovalConfirmed: (quote: Quote, shipper: Partner, consignee: Partner, agent: Partner | undefined, notifyName: string, terminalId?: string) => void;
+  onApprovalConfirmed: (quote: Quote, shipper: Partner, consignee: Partner, agent: Partner | undefined, notifyName: string, terminalId: string | undefined, responsibleUser: string) => void;
   onPartnerSaved: (partner: Partner) => void;
   onClose: () => void;
 }
@@ -176,6 +184,7 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
   const [isNotifyPopoverOpen, setIsNotifyPopoverOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('none');
   const [selectedTerminalId, setSelectedTerminalId] = useState<string | undefined>();
+  const [responsibleUserId, setResponsibleUserId] = useState<string | undefined>();
   const [notifyName, setNotifyName] = useState('');
   const { toast } = useToast();
 
@@ -187,6 +196,7 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
       setSelectedAgentId('none');
       setNotifyName('');
       setSelectedTerminalId(undefined);
+      setResponsibleUserId(undefined);
     }
   }, [quote]);
   
@@ -240,10 +250,16 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
         toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, selecione um terminal para a redestinação.' });
         return;
     }
+    
+    if (!responsibleUserId) {
+        toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, selecione um responsável pelo processo.' });
+        return;
+    }
 
     const agent = selectedAgentId !== 'none' ? partners.find(p => p.id?.toString() === selectedAgentId) : undefined;
+    const responsibleUser = systemUsers.find(u => u.id === responsibleUserId)?.name || 'N/A';
     
-    onApprovalConfirmed(quote, shipper, consignee, agent, notifyName, selectedTerminalId);
+    onApprovalConfirmed(quote, shipper, consignee, agent, notifyName, selectedTerminalId, responsibleUser);
   };
 
   return (
@@ -301,22 +317,39 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
 
         <div className="space-y-4 pt-4 border-t">
             <Card>
-                <CardHeader><CardTitle className="text-lg">Agente na Origem/Destino (Obrigatório para Importação)</CardTitle></CardHeader>
-                <CardContent>
-                    <Label>Selecione um agente ou deixe em branco para um embarque direto.</Label>
-                     <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
-                        <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Selecione um agente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="none">Nenhum (Embarque Direto)</SelectItem>
-                            {agentPartners.map(agent => (
-                                <SelectItem key={agent.id} value={agent.id?.toString() ?? ''}>
-                                    {agent.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                <CardHeader><CardTitle className="text-lg">Informações Adicionais</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <Label>Agente na Origem/Destino (Obrigatório para Importação)</Label>
+                        <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+                            <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Selecione um agente" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Nenhum (Embarque Direto)</SelectItem>
+                                {agentPartners.map(agent => (
+                                    <SelectItem key={agent.id} value={agent.id?.toString() ?? ''}>
+                                        {agent.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div>
+                        <Label>Responsável pelo Processo</Label>
+                        <Select value={responsibleUserId} onValueChange={setResponsibleUserId}>
+                            <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Selecione um usuário" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {systemUsers.map(user => (
+                                    <SelectItem key={user.id} value={user.id}>
+                                        {user.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </CardContent>
             </Card>
 

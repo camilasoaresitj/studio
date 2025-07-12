@@ -40,6 +40,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Textarea } from './ui/textarea';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
 
@@ -95,6 +96,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
       commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
       terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
+      observations: '',
     }
   });
 
@@ -129,6 +131,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
         commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
         terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
+        observations: '',
       }
     );
     setIsDialogOpen(true);
@@ -564,6 +567,27 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         </div>
                         </div>
                     ))}
+                    
+                    <Separator className="my-4"/>
+
+                    <FormField
+                      control={form.control}
+                      name="observations"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Observações (Logins, Senhas, Procedimentos)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Site: a-b-c.com&#10;Login: fulano&#10;Senha: 12345"
+                              className="min-h-[100px] font-mono text-sm"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                  </div>
                 </ScrollArea>
                 <DialogFooter className="pt-4 mt-auto border-t">

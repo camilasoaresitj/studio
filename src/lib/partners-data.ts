@@ -75,11 +75,12 @@ export const partnerSchema = z.object({
     phone: z.string().min(10, 'Telefone inválido'),
     departments: z.array(z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'])).min(1, 'Selecione pelo menos um departamento'),
   })).min(1, 'Adicione pelo menos um contato'),
+  observations: z.string().optional(),
 });
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v5';
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v6';
 
 function getInitialPartners(): Partner[] {
     return [
@@ -107,7 +108,8 @@ function getInitialPartners(): Partner[] {
                 email: "joao@nexus.com",
                 phone: "+55 11 91234-5678",
                 departments: ["Comercial", "Operacional"]
-            }]
+            }],
+            observations: "Cliente antigo, prioridade alta no atendimento.",
         },
         {
             id: 2,
@@ -138,12 +140,13 @@ function getInitialPartners(): Partner[] {
                 email: "maria@oceanexpress.com",
                 phone: "+55 21 98765-4321",
                 departments: ["Comercial", "Exportação"]
-            }]
+            }],
+            observations: "Agente parceiro para a rota da Europa. Contato principal para cotações é a Maria.",
         },
         {
             id: 3,
-            name: "Global Import Solutions",
-            nomeFantasia: "GIS",
+            name: "Maersk Line",
+            nomeFantasia: "Maersk",
             roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
             tipoFornecedor: { ciaMaritima: true, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
             cnpj: "54.321.876/0001-21",
@@ -161,10 +164,11 @@ function getInitialPartners(): Partner[] {
             },
             contacts: [{
                 name: "John Doe",
-                email: "john.doe@globalimport.com",
+                email: "john.doe@maersk.com",
                 phone: "+1 212-555-1234",
                 departments: ["Importação", "Financeiro"]
-            }]
+            }],
+            observations: "Portal: maersk.com\nLogin: lti_user\nSenha: lti_password_123",
         },
         {
             id: 4,
@@ -186,7 +190,8 @@ function getInitialPartners(): Partner[] {
                 email: "roberto.carlos@advogados.com",
                 phone: "+55 11 98888-7777",
                 departments: ["Outro"],
-            }]
+            }],
+            observations: "Especializado em cobrança de demurrage. Enviar e-mail com fatura e HBL em anexo.",
         },
     ];
 }

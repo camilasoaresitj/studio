@@ -150,8 +150,9 @@ export default function DemurragePage() {
              if (shipment.origin.toUpperCase().includes('BR')) {
                 const pickupMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('retirada do vazio'));
                 const gateinMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('gate in'));
-
-                const startDate = pickupMilestone?.effectiveDate ? new Date(pickupMilestone.effectiveDate) : null;
+                
+                // Use effective date if available, otherwise fall back to predicted date for monitoring
+                const startDate = pickupMilestone?.effectiveDate ? new Date(pickupMilestone.effectiveDate) : (pickupMilestone?.predictedDate ? new Date(pickupMilestone.predictedDate) : null);
 
                 if (startDate && isValid(startDate)) {
                      shipment.containers.forEach(container => {
@@ -225,7 +226,7 @@ export default function DemurragePage() {
             overdueCount: allItems.filter(item => item.status === 'overdue').length,
             atRiskCount: allItems.filter(item => item.status === 'risk').length
         }
-    }, [allItems, demurrageTariffs]);
+    }, [allItems, ltiTariffs]);
 
     const statusConfig: Record<DemurrageItem['status'], { variant: 'default' | 'success' | 'destructive' | 'outline', icon: React.ReactNode, text: string }> = {
         ok: { variant: 'success', icon: <CheckCircle className="h-4 w-4" />, text: 'OK' },

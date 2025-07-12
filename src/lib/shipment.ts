@@ -69,6 +69,7 @@ export type ContainerDetail = {
   grossWeight: string;
   volumes?: string;
   freeTime?: string;
+  type: string; // Add type for demurrage calculation
   effectiveReturnDate?: Date;
   effectiveGateInDate?: Date; // For detention
 };

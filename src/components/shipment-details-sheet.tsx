@@ -56,6 +56,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
+import { getShipments } from '@/lib/shipment';
 
 // Dummy fees data, in a real app this would be fetched
 const initialFeesData: Fee[] = [
@@ -217,7 +218,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const assembledMilestones = useMemo(() => {
     if (!shipment) return [];
     
-    return [...(shipment.milestones || [])].map(m => ({
+    const sortedMilestones = [...(shipment.milestones || [])].sort((a, b) => {
+        const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
+        const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return dateA - dateB;
+    });
+
+    return sortedMilestones.map(m => ({
         ...m,
         details: m.name === 'Embarque' && shipment.vesselName 
                     ? `${shipment.vesselName} / ${shipment.voyageNumber || ''}` 
@@ -299,22 +308,34 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   }, [watchedContainers]);
 
   const freeTimeInfo = useMemo(() => {
-    if (!shipment?.eta || !isValid(new Date(shipment.eta))) return null;
-    const freeTimeDays = parseInt(shipment.details.freeTime, 10);
-    if (isNaN(freeTimeDays)) return null;
+    if (!shipment || !shipment.milestones) return null;
 
-    const dueDate = addDays(new Date(shipment.eta), freeTimeDays);
-    const daysRemaining = differenceInDays(dueDate, new Date());
+    let freeTimeDueDate: Date | null = null;
+    const freeDays = parseInt(shipment.details.freeTime || '0', 10);
+    if (isNaN(freeDays)) return null;
+
+    if (shipment.destination.toUpperCase().includes('BR')) { // Import Demurrage
+        if (!shipment.eta || !isValid(new Date(shipment.eta))) return null;
+        freeTimeDueDate = addDays(new Date(shipment.eta), freeDays);
+    } else { // Export Detention
+        const gateInMilestone = shipment.milestones.find(m => m.name === 'Prazo de Entrega (Gate In)');
+        if (!gateInMilestone || !gateInMilestone.predictedDate || !isValid(new Date(gateInMilestone.predictedDate))) return null;
+        freeTimeDueDate = new Date(gateInMilestone.predictedDate);
+    }
+
+    if (!freeTimeDueDate) return null;
+
+    const daysRemaining = differenceInDays(freeTimeDueDate, new Date());
     let variant: 'success' | 'warning' | 'destructive' = 'success';
-    if (daysRemaining <= 3) variant = 'warning';
+    if (daysRemaining <= 3 && daysRemaining >= 0) variant = 'warning';
     if (daysRemaining < 0) variant = 'destructive';
     
     return {
-      dueDate: format(dueDate, 'dd/MM/yyyy'),
+      dueDate: format(freeTimeDueDate, 'dd/MM/yyyy'),
       daysRemaining,
       variant,
     };
-  }, [shipment?.eta, shipment?.details?.freeTime]);
+  }, [shipment]);
 
   useEffect(() => {
     if (watchedCustoArmazenagem && watchedCustoArmazenagem > 0) {
@@ -379,7 +400,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const handleMilestoneUpdate = (milestoneIndex: number, field: 'predictedDate' | 'effectiveDate', value: Date | undefined) => {
     if (!shipment || !value) return;
 
-    const updatedMilestones = [...shipment.milestones];
+    let updatedMilestones = [...shipment.milestones];
     const targetMilestone = updatedMilestones[milestoneIndex];
     if(targetMilestone) {
         (targetMilestone as any)[field] = value;
@@ -387,6 +408,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         if (field === 'effectiveDate' && value) {
             targetMilestone.status = 'completed';
         }
+
+        updatedMilestones.sort((a, b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
         
         onUpdate({
             ...shipment,
@@ -719,6 +742,54 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   
   const isMaritimeImport = shipment.destination.toUpperCase().includes('BR') && shipment.details.cargo.toLowerCase().indexOf('kg') === -1;
 
+  const handleViewQuote = async () => {
+    setIsGeneratingPdf(shipment.quoteId);
+     const allShipments = getShipments();
+     const relatedQuoteShipment = allShipments.find(s => s.id === shipment.id);
+     
+     if (!relatedQuoteShipment) {
+         toast({variant: 'destructive', title: 'Embarque não encontrado'});
+         setIsGeneratingPdf(null);
+         return;
+     }
+
+    const formatValue = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const charges = relatedQuoteShipment.charges.map(c => ({
+        description: c.name,
+        quantity: 1,
+        value: formatValue(c.sale),
+        total: formatValue(c.sale),
+        currency: c.saleCurrency
+    }));
+    
+    const totalBRL = relatedQuoteShipment.charges.reduce((sum, charge) => {
+        const rate = charge.saleCurrency === 'USD' ? 5.0 : 1;
+        return sum + (charge.sale * rate);
+    }, 0);
+
+    const response = await runGenerateClientInvoicePdf({
+        invoiceNumber: relatedQuoteShipment.quoteId,
+        customerName: relatedQuoteShipment.customer,
+        customerAddress: relatedQuoteShipment.consignee?.address ? `${relatedQuoteShipment.consignee.address.street}, ${relatedQuoteShipment.consignee.address.city}` : 'Endereço não disponível',
+        date: new Date(relatedQuoteShipment.milestones[0]?.predictedDate || Date.now()).toLocaleDateString('pt-br'),
+        charges,
+        total: formatValue(totalBRL),
+        exchangeRate: 5.0,
+        bankDetails: { bankName: "LTI GLOBAL", accountNumber: "PIX: 10.298.168/0001-89" }
+    });
+
+    if (response.success && response.data?.html) {
+        const newWindow = window.open();
+        newWindow?.document.write(response.data.html);
+        newWindow?.document.close();
+    } else {
+        toast({ variant: 'destructive', title: 'Erro ao gerar PDF', description: response.error });
+    }
+    setIsGeneratingPdf(null);
+};
+
+
   return (
       <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -791,7 +862,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <Clock className={cn(freeTimeInfo.variant === 'warning' && 'text-amber-500', freeTimeInfo.variant === 'destructive' && 'text-destructive')} /> Controle de Free Time
                                             </CardTitle>
                                             <CardDescription>
-                                                O prazo para devolução do contêiner é <strong>{freeTimeInfo.dueDate}</strong>.
+                                                O prazo para devolução/entrega do contêiner é <strong>{freeTimeInfo.dueDate}</strong>.
                                             </CardDescription>
                                         </div>
                                         <div className="text-right">
@@ -807,7 +878,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-lg">Dados da Viagem/Voo e Documentos</CardTitle>
-                                    <CardDescription>Cotação de origem: <span className="font-semibold text-primary">{shipment.quoteId}</span></CardDescription>
+                                    <CardDescription>
+                                        Cotação de origem:
+                                        <Button variant="link" className="p-0 h-auto ml-1 text-base" onClick={handleViewQuote} disabled={isGeneratingPdf === shipment.quoteId}>
+                                            {isGeneratingPdf === shipment.quoteId ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                            {shipment.quoteId}
+                                        </Button>
+                                    </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">

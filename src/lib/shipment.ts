@@ -155,7 +155,6 @@ const EXPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Confirmação de Booking': 2,
   'Retirada do Vazio': 3,
   'Coleta da Carga (se aplicável)': 4,
-  'Gate In no Porto': 6,
   'Desembaraço de Exportação': 7,
   'Embarque': 8,
   'Chegada no Destino': 0, // Placeholder
@@ -200,6 +199,9 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         const milestoneNames = Object.keys(EXPORT_MILESTONE_DUE_DAYS);
         const etd = addDays(creationDate, EXPORT_MILESTONE_DUE_DAYS['Embarque']);
         const eta = addDays(etd, transitTime);
+        
+        const emptyPickupDate = addDays(creationDate, EXPORT_MILESTONE_DUE_DAYS['Retirada do Vazio']);
+        const gateInDueDate = addDays(emptyPickupDate, freeDays);
 
          milestones = milestoneNames.map(name => {
             let predictedDate: Date;
@@ -211,6 +213,15 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
                 predictedDate = addDays(creationDate, EXPORT_MILESTONE_DUE_DAYS[name]);
             }
             return { name, status: 'pending', predictedDate, effectiveDate: null, isTransshipment: false };
+        });
+        
+        // Add specific gate-in milestone for detention tracking
+        milestones.push({
+            name: 'Prazo de Entrega (Gate In)',
+            status: 'pending',
+            predictedDate: gateInDueDate,
+            effectiveDate: null,
+            details: `Prazo final para evitar detention.`
         });
     }
 

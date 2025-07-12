@@ -43,6 +43,7 @@ import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog'
 import { getShipments } from '@/lib/shipment';
 import { FinancialEntryDialog } from './financial-entry-dialog';
 import { RenegotiationDialog } from './renegotiation-dialog';
+import { NfseConsulta } from './nfse-consulta';
 
 
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
@@ -875,35 +876,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             </TabsContent>
 
             <TabsContent value="nfse" className="mt-6">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Consulta de Notas Fiscais de Serviço (NFS-e)</CardTitle>
-                        <CardDescription>Visualize todas as notas fiscais emitidas.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <div className="border rounded-lg">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nº NFS-e</TableHead>
-                                        <TableHead>Tomador</TableHead>
-                                        <TableHead>Data Emissão</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Valor</TableHead>
-                                        <TableHead className="text-center">Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
-                                            Nenhuma NFS-e emitida ainda.
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                         </div>
-                    </CardContent>
-                 </Card>
+                <NfseConsulta />
             </TabsContent>
 
             <TabsContent value="juridico" className="mt-6">

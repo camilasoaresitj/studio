@@ -33,6 +33,7 @@ const ContainerDetailSchema = z.object({
   tare: z.string().describe("The container's tare weight in kg (e.g., '2200 KG')."),
   grossWeight: z.string().describe("The container's gross weight in kg (e.g., '24000 KG')."),
   freeTime: z.string().optional().describe("The free time in days (e.g., '14 dias')."),
+  effectiveReturnDate: z.date().optional().describe("The date the empty container was actually returned."),
 });
 
 const GetTrackingInfoOutputSchema = z.object({
@@ -106,13 +107,20 @@ const getTrackingInfoFlow = ai.defineFlow(
                     etd: shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETD')?.eventDateTime ? new Date(shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETD').eventDateTime) : undefined,
                     eta: shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETA')?.eventDateTime ? new Date(shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETA').eventDateTime) : undefined,
                     masterBillNumber: input.trackingNumber,
-                    containers: shipment.containers?.map((c: any) => ({
-                        id: c.containerNumber,
-                        number: c.containerNumber,
-                        seal: c.seals ? c.seals.join(', ') : 'N/A',
-                        tare: `${c.tareWeight || 0} KG`,
-                        grossWeight: `${c.grossWeight || 0} KG`,
-                    })) || [],
+                    containers: shipment.containers?.map((c: any) => {
+                        const returnEvent = shipment.events.find((e: any) => 
+                            e.eventDescription.toLowerCase().includes('empty container returned') &&
+                            e.containerNumber === c.containerNumber
+                        );
+                        return {
+                            id: c.containerNumber,
+                            number: c.containerNumber,
+                            seal: c.seals ? c.seals.join(', ') : 'N/A',
+                            tare: `${c.tareWeight || 0} KG`,
+                            grossWeight: `${c.grossWeight || 0} KG`,
+                            effectiveReturnDate: returnEvent ? new Date(returnEvent.eventDateTime) : undefined,
+                        };
+                    }) || [],
                     milestones: events.map((event: TrackingEvent) => ({
                         name: event.status,
                         status: event.completed ? 'completed' : 'pending',

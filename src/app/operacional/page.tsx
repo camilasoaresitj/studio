@@ -101,6 +101,11 @@ export default function OperacionalPage() {
                     agent: existingShipment.agent,
                     charges: existingShipment.charges,
                     details: existingShipment.details,
+                    // Preserve existing container data but update with new data if available
+                    containers: (existingShipment.containers || []).map(existingC => {
+                        const newC = shipmentDetails.containers?.find((c: any) => c.number === existingC.number);
+                        return newC ? { ...existingC, ...newC } : existingC;
+                    })
                 };
                 
                 setShipments(prev => {

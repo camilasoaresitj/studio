@@ -67,6 +67,7 @@ export type ContainerDetail = {
   grossWeight: string;
   volumes?: string;
   freeTime?: string;
+  effectiveReturnDate?: Date;
 };
 
 export type TransshipmentDetail = {
@@ -221,6 +222,10 @@ export function getShipments(): Shipment[] {
         etd: shipment.etd ? new Date(shipment.etd) : undefined,
         eta: shipment.eta ? new Date(shipment.eta) : undefined,
         mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
+        containers: shipment.containers?.map((c: any) => ({
+            ...c,
+            effectiveReturnDate: c.effectiveReturnDate ? new Date(c.effectiveReturnDate) : undefined,
+        })) || [],
         documents: shipment.documents?.map((d: any) => ({
             ...d,
             uploadedAt: d.uploadedAt ? new Date(d.uploadedAt) : undefined,

@@ -263,7 +263,9 @@ export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'>): string 
 }
 
 export function findEntryById(id: string): FinancialEntry | undefined {
-    return getFinancialEntries().find(entry => entry.id === id);
+    // Always get the latest from storage to ensure we find dynamically added entries.
+    const currentEntries = getFinancialEntries();
+    return currentEntries.find(entry => entry.id === id);
 }
 
 export function updateFinancialEntry(id: string, updates: Partial<FinancialEntry>): void {

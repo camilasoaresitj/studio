@@ -98,7 +98,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         return entry.amount - totalPaid;
     };
 
-    const getEntryStatus = (entry: FinancialEntry): { status: Status; variant: 'default' | 'secondary' | 'destructive' | 'success' } => {
+    const getEntryStatus = (entry: FinancialEntry): { status: Status; variant: 'default' | 'secondary' | 'destructive' | 'success' | 'outline' } => {
         if (entry.status === 'Renegociado') {
             return { status: 'Renegociado', variant: 'outline' };
         }
@@ -673,7 +673,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                             </TableCell>
                             <TableCell className="font-medium">{entry.partner}</TableCell>
                             <TableCell>
-                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(isLegalTable ? entry.processId : entry.invoiceId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.invoiceId); }} className="text-muted-foreground hover:text-primary hover:underline">
                                     {entry.invoiceId}
                                 </a>
                             </TableCell>
@@ -733,7 +733,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleProcessClick(entry.processId)}>
+                                        <DropdownMenuItem onClick={() => handleProcessClick(isLegalTable ? entry.processId : entry.invoiceId)}>
                                             <FileText className="mr-2 h-4 w-4" /> Detalhes do Processo
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>

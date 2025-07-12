@@ -93,7 +93,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       paymentTerm: 30,
       exchangeRateAgio: 0,
       profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
-      commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' }
+      commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
+      terminalCommission: { amount: 0, unit: 'por_container' },
     }
   });
 
@@ -105,6 +106,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const watchedCnpj = form.watch('cnpj');
   const watchedRoles = form.watch('roles');
   const isEmpresaNoExterior = form.watch('tipoCliente.empresaNoExterior');
+  const isTerminal = form.watch('tipoFornecedor.terminal');
   const documentType = isEmpresaNoExterior ? 'vat' : 'cnpj';
   const documentLabel = isEmpresaNoExterior ? 'VAT / Tax ID' : 'CNPJ / CPF';
 
@@ -125,7 +127,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         paymentTerm: 30,
         exchangeRateAgio: 0,
         profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
-        commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' }
+        commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
+        terminalCommission: { amount: 0, unit: 'por_container' },
       }
     );
     setIsDialogOpen(true);
@@ -472,6 +475,19 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                                 </SelectContent></Select><FormMessage /></FormItem>
                              )}/>
                         </div>
+                    </div>}
+
+                    {isTerminal && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                        <h4 className="font-semibold text-sm">Comissão do Terminal</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <FormField control={form.control} name="terminalCommission.unit" render={({ field }) => (
+                                <FormItem><FormLabel>Base de Cálculo</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
+                                    <SelectItem value="porcentagem_thc">% do THC</SelectItem>
+                                    <SelectItem value="por_container">Valor Fixo por Contêiner</SelectItem>
+                                </SelectContent></Select><FormMessage /></FormItem>
+                             )}/>
+                             <FormField control={form.control} name="terminalCommission.amount" render={({ field }) => ( <FormItem><FormLabel>Valor/Percentual</FormLabel><FormControl><Input type="number" placeholder="10" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                         </div>
                     </div>}
 
                     <Separator className="my-4"/>

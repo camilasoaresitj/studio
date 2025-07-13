@@ -167,7 +167,7 @@ const AutocompleteInput = ({ field, suggestions, placeholder }: { field: any, su
     );
 };
 
-export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees, initialData, onQuoteUpdate }: FreightQuoteFormProps) {
+export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees: initialFees, initialData, onQuoteUpdate }: FreightQuoteFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isRequestingAgentQuote, setIsRequestingAgentQuote] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -178,7 +178,13 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const [activeQuote, setActiveQuote] = useState<Quote | null>(null);
   const [isAutofilling, setIsAutofilling] = useState(false);
   const [autofillText, setAutofillText] = useState("");
+  const [isClient, setIsClient] = useState(false);
+  const [fees, setFees] = useState<Fee[]>(initialFees);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const form = useForm<FreightQuoteFormData>({
     resolver: zodResolver(freightQuoteFormSchema),
@@ -1218,17 +1224,17 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                     <h3 className="text-lg font-medium mb-4">Serviços Opcionais</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <FormField control={form.control} name="optionalServices.customsClearance" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Despacho {customsFee ? `(${customsFee.currency} ${customsFee.value})` : ''}</FormLabel></div></FormItem>
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Despacho {isClient && customsFee ? `(${customsFee.currency} ${customsFee.value})` : ''}</FormLabel></div></FormItem>
                         )} />
                          <FormField control={form.control} name="optionalServices.trading" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Trading {tradingFee ? `(${tradingFee.currency} ${tradingFee.value})` : ''}</FormLabel></div></FormItem>
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Trading {isClient && tradingFee ? `(${tradingFee.currency} ${tradingFee.value})` : ''}</FormLabel></div></FormItem>
                         )} />
                         <FormField control={form.control} name="optionalServices.redestinacao" render={({ field }) => (
                             <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Redestinação</FormLabel></div></FormItem>
                         )} />
                         <FormField control={form.control} name="optionalServices.insurance" render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none w-full"><FormLabel>Seguro {insuranceFee ? `(${insuranceFee.value}% V. Carga)` : ''}</FormLabel>
+                                <div className="space-y-1 leading-none w-full"><FormLabel>Seguro {isClient && insuranceFee ? `(${insuranceFee.value}% V. Carga)` : ''}</FormLabel>
                                 {optionalServices.insurance && (
                                     <FormField control={form.control} name="optionalServices.cargoValue" render={({ field }) => (
                                         <FormItem className="mt-2"><FormControl><Input type="number" placeholder="Valor Carga (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>

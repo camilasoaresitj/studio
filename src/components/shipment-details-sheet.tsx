@@ -31,9 +31,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, ContainerDetail } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, ContainerDetail, BLDraftData } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf } from '@/app/actions';
+import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateHblPdf } from '@/app/actions';
 import { addFinancialEntry, getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { Checkbox } from './ui/checkbox';
 import type { Fee } from '@/components/fees-registry';
@@ -57,6 +57,7 @@ import { exchangeRateService } from '@/services/exchange-rate-service';
 import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
 import { getShipments } from '@/lib/shipment';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 // Dummy fees data, in a real app this would be fetched
 const initialFeesData: Fee[] = [
@@ -177,6 +178,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const [isCourierSyncing, setIsCourierSyncing] = useState(false);
   const [isInvoicing, setIsInvoicing] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
+  const [isGeneratingHbl, setIsGeneratingHbl] = useState(false);
   const [isFeeDialogOpen, setIsFeeDialogOpen] = useState(false);
   const [selectedFees, setSelectedFees] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -736,6 +738,55 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     return watchedCharges.every(c => !!c.financialEntryId);
   }, [watchedCharges]);
 
+  const handleGenerateHbl = async (isOriginal: boolean) => {
+      if (!shipment) return;
+
+      if (!shipment.blDraftData) {
+          toast({ variant: 'destructive', title: 'Draft não encontrado', description: 'O cliente ainda não preencheu as instruções de embarque.' });
+          return;
+      }
+      setIsGeneratingHbl(true);
+      try {
+          const { blDraftData, carrier, etd } = shipment;
+          const payload = {
+              isOriginal,
+              blNumber: shipment.houseBillNumber || `HBL-${shipment.id}`,
+              shipper: blDraftData.shipper,
+              consignee: blDraftData.consignee,
+              notifyParty: blDraftData.notify,
+              vesselAndVoyage: `${shipment.vesselName || ''} / ${shipment.voyageNumber || ''}`,
+              portOfLoading: shipment.origin,
+              portOfDischarge: shipment.destination,
+              finalDestination: shipment.destination, // Can be refined later
+              marksAndNumbers: blDraftData.marksAndNumbers,
+              packageDescription: blDraftData.descriptionOfGoods,
+              grossWeight: blDraftData.grossWeight,
+              measurement: blDraftData.measurement,
+              containerAndSeal: shipment.containers?.map(c => `${c.number} / ${c.seal}`).join('\n') || 'N/A',
+              freightPayableAt: 'Origin',
+              numberOfOriginals: blDraftData.blType === 'original' ? '3 (TRÊS)' : '0 (ZERO)',
+              issueDate: format(new Date(), 'dd-MMM-yyyy'),
+              shippedOnBoardDate: etd ? format(etd, 'dd-MMM-yyyy') : format(new Date(), 'dd-MMM-yyyy'),
+              signatureUrl: 'https://placehold.co/200x60.png?text=Assinatura' // Placeholder
+          };
+
+          const response = await runGenerateHblPdf(payload);
+
+          if (response.success && response.data.html) {
+              const newWindow = window.open();
+              newWindow?.document.write(response.data.html);
+              newWindow?.document.close();
+          } else {
+              throw new Error(response.error || 'Falha ao gerar o HTML do HBL.');
+          }
+      } catch (e: any) {
+          toast({ variant: "destructive", title: "Erro ao Gerar HBL", description: e.message });
+      } finally {
+          setIsGeneratingHbl(false);
+      }
+  };
+
+
   if (!shipment) {
     return null;
   }
@@ -1051,7 +1102,21 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                          <TabsContent value="documentos" className="mt-0 space-y-6">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Gerenciamento de Documentos</CardTitle>
+                                    <div className="flex justify-between items-center">
+                                        <CardTitle className="text-lg">Gerenciamento de Documentos</CardTitle>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" disabled={isGeneratingHbl}>
+                                                    {isGeneratingHbl ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4" />}
+                                                    Emitir HBL
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DropdownMenuItem onClick={() => handleGenerateHbl(false)}>Gerar Draft</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleGenerateHbl(true)}>Gerar Original</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     {documentFields.map((doc, index) => {

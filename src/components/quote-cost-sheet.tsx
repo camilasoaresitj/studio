@@ -161,10 +161,6 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const handleFeeSelection = (feeName: string, index: number) => {
     const fee = fees.find(f => f.name === feeName);
     if (fee) {
-      // Set the name first to prevent concatenation issues
-      form.setValue(`charges.${index}.name`, fee.name);
-      
-      // Update the rest of the fields
       update(index, {
         ...watchedCharges[index],
         name: fee.name,
@@ -234,18 +230,18 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                             return (
                                 <TableRow key={field.id}>
                                 <TableCell className="p-1">
-                                     <FormField
+                                    <FormField
                                         control={form.control}
                                         name={`charges.${index}.name`}
                                         render={({ field }) => (
-                                        <Select onValueChange={(value) => handleFeeSelection(value, index)} value={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
+                                            <Select onValueChange={(value) => handleFeeSelection(value, index)} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
                                         )}
                                     />
                                 </TableCell>

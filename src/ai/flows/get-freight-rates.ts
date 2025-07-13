@@ -1,7 +1,6 @@
-
 'use server';
 /**
- * @fileOverview Fetches freight rates from the CargoFive and SeaRates APIs.
+ * @fileOverview Fetches freight rates from the CargoFive API.
  *
  * - getFreightRates - A function that fetches freight rates based on shipment details.
  * - GetFreightRatesInput - The input type for the getFreightRates function.
@@ -37,15 +36,16 @@ export async function getFreightRates(input: GetFreightRatesInput): Promise<GetF
 
 function buildCargoFivePayload(input: GetFreightRatesInput) {
     const shipment: any = {
-        mode_of_transport: input.modal,
+        mode_of_transport: input.modal === 'ocean' ? 'sea' : 'air',
         incoterm: input.incoterm,
     };
-
+    
+    const originParts = input.origin.split(',').map(s => s.trim());
+    const destParts = input.destination.split(',').map(s => s.trim());
+    
     if (input.modal === 'ocean') {
-        const originParts = input.origin.split(',').map(s => s.trim());
-        const destParts = input.destination.split(',').map(s => s.trim());
-        shipment.origin_port_code = originParts[0]; 
-        shipment.destination_port_code = destParts[0];
+        shipment.origin_port_code = originParts[0].toUpperCase(); 
+        shipment.destination_port_code = destParts[0].toUpperCase();
 
         if (input.oceanShipmentType === 'FCL') {
             shipment.package_type = 'container';
@@ -62,10 +62,8 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
         }
 
     } else { // air
-        const originParts = input.origin.split(',').map(s => s.trim());
-        const destParts = input.destination.split(',').map(s => s.trim());
-        shipment.origin_airport_code = originParts[0]; 
-        shipment.destination_airport_code = destParts[0];
+        shipment.origin_airport_code = originParts[0].toUpperCase();
+        shipment.destination_airport_code = destParts[0].toUpperCase();
         shipment.package_type = 'packages';
         shipment.packages = input.airShipment.pieces.map(p => ({
             quantity: p.quantity,
@@ -90,46 +88,6 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
     return payload;
 }
 
-function buildSeaRatesPayload(input: GetFreightRatesInput) {
-    const originCode = input.origin.split(',')[0].trim().toUpperCase();
-    const destinationCode = input.destination.split(',')[0].trim().toUpperCase();
-
-    const payload: any = {
-        type: input.modal === 'ocean' ? 'sea' : 'air',
-        transportation_type: input.oceanShipmentType === 'FCL' ? 'port_to_port' : 'door_to_door', // Simplified assumption
-        incoterm: input.incoterm,
-        from_location_code: originCode,
-        to_location_code: destinationCode,
-    };
-
-    if (input.modal === 'ocean' && input.oceanShipmentType === 'FCL') {
-        payload.containers = input.oceanShipment.containers.map(c => ({
-            size: c.type.replace(/[^0-9]/g, ''), // "20", "40"
-            type: c.type.includes('HC') ? 'HC' : 'DV', // Simplified: DV or HC
-            quantity: c.quantity,
-        }));
-    } else if (input.modal === 'ocean' && input.oceanShipmentType === 'LCL') {
-        payload.packages = [{
-            weight: input.lclDetails.weight,
-            length: Math.cbrt(input.lclDetails.cbm) * 100, // Approximate dimensions
-            width: Math.cbrt(input.lclDetails.cbm) * 100,
-            height: Math.cbrt(input.lclDetails.cbm) * 100,
-            quantity: 1
-        }];
-    } else { // air
-        payload.packages = input.airShipment.pieces.map(p => ({
-            weight: p.weight,
-            length: p.length,
-            width: p.width,
-            height: p.height,
-            quantity: p.quantity
-        }));
-    }
-    
-    return payload;
-}
-
-
 const getFreightRatesFlow = ai.defineFlow(
   {
     name: 'getFreightRatesFlow',
@@ -139,7 +97,6 @@ const getFreightRatesFlow = ai.defineFlow(
   async (input) => {
     
     const cargoFiveApiKey = process.env.CARGOFIVE_API_KEY;
-    const seaRatesApiKey = process.env.SEARATES_API_KEY;
 
     const origins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
     const destinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
@@ -160,13 +117,28 @@ const getFreightRatesFlow = ai.defineFlow(
         // --- CargoFive API Call ---
         if (cargoFiveApiKey) {
             const cargoFivePayload = buildCargoFivePayload(singleSearchInput);
+            console.log("Sending payload to CargoFive:", JSON.stringify(cargoFivePayload, null, 2));
+            
             const cargoFivePromise = fetch('https://api.cargofive.com/v2/forwarding_rates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-api-key': cargoFiveApiKey },
                 body: JSON.stringify(cargoFivePayload),
             })
-            .then(res => res.ok ? res.json() : res.text().then(text => Promise.reject(text)))
+            .then(async res => {
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    // Try to parse the error for a better message
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.message || errorJson.error || `CargoFive API Error (${res.status})`);
+                    } catch (e) {
+                         throw new Error(`CargoFive API Error (${res.status}): ${errorText}`);
+                    }
+                }
+                return res.json();
+            })
             .then(data => {
+                console.log("Received data from CargoFive:", JSON.stringify(data, null, 2));
                 if (!data.forwarding_rates || data.forwarding_rates.length === 0) return [];
                 return data.forwarding_rates.map((rate: any): z.infer<typeof FreightRateSchema> => {
                     const totalCost = rate.forwarding_charges.reduce((sum: number, charge: any) => sum + parseFloat(charge.amount), 0);
@@ -187,54 +159,23 @@ const getFreightRatesFlow = ai.defineFlow(
             })
             .catch(error => {
                 console.error(`CargoFive API Error for ${pair.origin} -> ${pair.destination}:`, error);
-                return []; // Return empty array on error to not fail the whole process
+                // Propagate the error message instead of returning an empty array
+                throw new Error(error.message || `Failed to fetch rates for ${pair.origin} -> ${pair.destination}`);
             });
             promises.push(cargoFivePromise);
-        }
-
-        // --- SeaRates API Call ---
-        if (seaRatesApiKey) {
-            const seaRatesPayload = buildSeaRatesPayload(singleSearchInput);
-            const seaRatesPromise = fetch('https://developers.searates.com/api/v2/partners/rates', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'api-key': seaRatesApiKey },
-                body: JSON.stringify(seaRatesPayload),
-            })
-            .then(res => res.ok ? res.json() : res.text().then(text => Promise.reject(text)))
-            .then(data => {
-                if (!data.data || data.data.length === 0) return [];
-                return data.data.map((rate: any): z.infer<typeof FreightRateSchema> => {
-                    const totalCost = parseFloat(rate.total_cost) || 0;
-                    const currency = rate.currency_code || 'USD';
-                    return {
-                        id: `searates-${rate.id}-${pair.origin}-${pair.destination}`,
-                        carrier: rate.carrier,
-                        origin: pair.origin,
-                        destination: pair.destination,
-                        transitTime: `${rate.transit_time || '?'} dias`,
-                        cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost),
-                        costValue: totalCost,
-                        carrierLogo: rate.carrier_logo || 'https://placehold.co/120x40.png',
-                        dataAiHint: input.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
-                        source: 'SeaRates API',
-                    };
-                });
-            })
-            .catch(error => {
-                console.error(`SeaRates API Error for ${pair.origin} -> ${pair.destination}:`, error);
-                return [];
-            });
-            promises.push(seaRatesPromise);
         }
 
         return Promise.all(promises);
     });
 
-    const resultsFromAllPairs = await Promise.all(allApiPromises);
-    
-    // Flatten the nested arrays: [ [ [rates1], [rates2] ], [ [rates3] ] ] -> [rates1, rates2, rates3]
-    const combinedRates = resultsFromAllPairs.flat(2);
-    
-    return combinedRates;
+    try {
+        const resultsFromAllPairs = await Promise.all(allApiPromises);
+        const combinedRates = resultsFromAllPairs.flat(2);
+        return combinedRates;
+    } catch (error: any) {
+        console.error("Error during API calls:", error);
+        // This makes sure the error from the fetch call is sent to the client
+        throw new Error(error.message || "An unknown error occurred while fetching rates.");
+    }
   }
 );

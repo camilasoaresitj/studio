@@ -383,18 +383,15 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     ncms: ['0000.00.00'],
     mblPrintingAtDestination: false,
     notifyName: quoteData.notifyName,
-    // Keep 'customer' for backward compatibility on display, but shipper/cnee are primary
     customer: quoteData.customer, 
   };
 
-  // If it's an import with an agent, send the shipping instructions automatically.
   if (isImport && quoteData.agent) {
     const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
     const agentPortalUrl = typeof window !== 'undefined' 
         ? `${window.location.origin}/agent-portal/${shipmentId}`
         : `/agent-portal/${shipmentId}`;
 
-    // Simulate sending email to agent
     await runSendShippingInstructions({
       shipmentId: newShipment.id,
       agentName: quoteData.agent.name,
@@ -442,13 +439,12 @@ export function updateShipment(updatedShipment: Shipment): Shipment[] {
 
 /**
  * Rebuilds the milestone list based on the shipment's transshipment data.
- * This ensures the milestone list is always in sync with the transshipment details.
  */
 export function rebuildMilestones(shipment: Shipment): Milestone[] {
     const baseMilestones = shipment.milestones.filter(m => !m.isTransshipment);
     
     const transshipmentMilestones: Milestone[] = (shipment.transshipments || [])
-        .filter(t => t.port && t.vessel && t.etd && t.eta) // Ensure transshipment has necessary data
+        .filter(t => t.port && t.vessel && t.etd && t.eta)
         .flatMap(t => [
             {
                 name: 'Saída do Transbordo',
@@ -470,7 +466,6 @@ export function rebuildMilestones(shipment: Shipment): Milestone[] {
 
     const allMilestones = [...baseMilestones, ...transshipmentMilestones];
     
-    // Sort everything by predicted date
     allMilestones.sort((a, b) => {
         const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
         const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;

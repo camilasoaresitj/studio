@@ -21,7 +21,8 @@ import { exchangeRateService } from '@/services/exchange-rate-service';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Checkbox } from './ui/checkbox';
-import { Fee, getFees } from '@/lib/fees-data';
+import { getFees } from '@/lib/fees-data';
+import type { Fee } from '@/lib/fees-data';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 
@@ -84,7 +85,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     fetchRates();
   }, []);
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: "charges",
   });
@@ -95,7 +96,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
       return;
     }
     const newCharges = fees
-        .filter(fee => selectedFees.has(fee.id))
+        .filter(fee => selectedFees.has(fee.id!))
         .map((fee): QuoteCharge => ({
             id: `fee-${fee.id}-${Date.now()}`,
             name: fee.name,
@@ -156,6 +157,21 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     }
     onUpdate({ charges: data.charges, details: updatedDetails });
   };
+  
+  const handleFeeSelection = (feeName: string, index: number) => {
+    const fee = fees.find(f => f.name === feeName);
+    if (fee) {
+      update(index, {
+        ...watchedCharges[index],
+        name: fee.name,
+        type: fee.unit,
+        cost: parseFloat(fee.value) || 0,
+        costCurrency: fee.currency,
+        sale: parseFloat(fee.value) || 0,
+        saleCurrency: fee.currency,
+      });
+    }
+  };
 
   return (
     <>
@@ -213,14 +229,36 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                             return (
                                 <TableRow key={field.id}>
                                 <TableCell className="p-1">
-                                    <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (
-                                    <Input placeholder="Ex: FRETE" {...field} className="h-8"/>
-                                    )} />
+                                    <FormField
+                                        control={form.control}
+                                        name={`charges.${index}.name`}
+                                        render={({ field }) => (
+                                            <Select onValueChange={(value) => handleFeeSelection(value, index)} value={field.value}>
+                                                <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                                                <SelectContent>
+                                                    {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
                                 </TableCell>
                                 <TableCell className="p-1">
-                                    <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
-                                    <Input placeholder="Ex: Por Contêiner" {...field} className="h-8"/>
-                                    )} />
+                                    <FormField
+                                        control={form.control}
+                                        name={`charges.${index}.type`}
+                                        render={({ field }) => (
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Por Contêiner">Por Contêiner</SelectItem>
+                                                    <SelectItem value="Por BL">Por BL</SelectItem>
+                                                    <SelectItem value="Por Processo">Por Processo</SelectItem>
+                                                    <SelectItem value="Por CBM/Ton">Por CBM/Ton</SelectItem>
+                                                    <SelectItem value="Fixo">Fixo</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
                                 </TableCell>
                                 <TableCell className="text-right p-1">
                                     <div className="flex items-center gap-1">
@@ -341,14 +379,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                             <div key={fee.id} className="flex items-center space-x-2 p-2 border rounded-md">
                                 <Checkbox
                                     id={`fee-${fee.id}`}
-                                    checked={selectedFees.has(fee.id)}
+                                    checked={selectedFees.has(fee.id!)}
                                     onCheckedChange={(checked) => {
                                         setSelectedFees(prev => {
                                             const newSet = new Set(prev);
                                             if (checked) {
-                                                newSet.add(fee.id);
+                                                newSet.add(fee.id!);
                                             } else {
-                                                newSet.delete(fee.id);
+                                                newSet.delete(fee.id!);
                                             }
                                             return newSet;
                                         });

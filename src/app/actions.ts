@@ -8,6 +8,7 @@ import { extractQuoteDetailsFromText } from "@/ai/flows/extract-quote-details-fr
 import { extractRatesFromText } from "@/ai/flows/extract-rates-from-text";
 import { generateQuotePdfHtml } from "@/ai/flows/generate-quote-pdf-html";
 import { generateAgentInvoiceHtml } from "@/ai/flows/generate-agent-invoice-html";
+import { generateHblHtml } from "@/ai/flows/generate-hbl-html";
 import { getFreightRates } from "@/ai/flows/get-freight-rates";
 import { monitorEmailForTasks } from "@/ai/flows/monitor-email-for-tasks";
 import { requestAgentQuote } from "@/ai/flows/request-agent-quote";
@@ -94,6 +95,16 @@ export async function runGenerateClientInvoicePdf(input: any) {
 export async function runGenerateAgentInvoicePdf(input: any) {
   try {
     const output = await generateAgentInvoiceHtml(input);
+    return { success: true, data: output };
+  } catch (error: any) {
+    console.error("Server Action Failed", error);
+    return { success: false, error: error.message || "Failed to run flow" };
+  }
+}
+
+export async function runGenerateHblPdf(input: any) {
+  try {
+    const output = await generateHblHtml(input);
     return { success: true, data: output };
   } catch (error: any) {
     console.error("Server Action Failed", error);

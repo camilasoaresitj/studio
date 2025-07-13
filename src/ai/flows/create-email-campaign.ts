@@ -45,22 +45,31 @@ export async function createEmailCampaign(input: CreateEmailCampaignInput): Prom
 
 const findRelevantClients = (instruction: string, shipments: z.infer<typeof ShipmentSchema>[], quotes: z.infer<typeof QuoteSchema>[]): string[] => {
     const instructionLower = instruction.toLowerCase();
-    
-    // Naive extraction of origin and destination.
-    const fromMatch = instructionLower.match(/de ([\w\s,]+) para|from ([\w\s,]+) to/);
-    const toMatch = instructionLower.match(/para ([\w\s,]+)|to ([\w\s,]+) oferecendo/);
+    let origin: string | null = null;
+    let destination: string | null = null;
 
-    if (!fromMatch || !toMatch) {
+    // Pattern 1: de/from ... para/to
+    const fromToMatch = instructionLower.match(/de ([\w\s,]+) para|from ([\w\s,]+) to/);
+    const toFromMatch = instructionLower.match(/para ([\w\s,]+) oferecendo|to ([\w\s,]+) offering/);
+
+    if (fromToMatch && toFromMatch) {
+        origin = (fromToMatch[1] || fromToMatch[2] || '').trim();
+        destination = (toFromMatch[1] || toFromMatch[2] || '').trim();
+    }
+    
+    // Pattern 2: Origin x Destination
+    if (!origin || !destination) {
+        const xMatch = instructionLower.match(/([\w\s,]+?)\s*x\s*([\w\s,]+)/);
+        if (xMatch) {
+            origin = (xMatch[1] || '').trim();
+            destination = (xMatch[2] || '').trim();
+        }
+    }
+    
+    if (!origin || !destination) {
         return []; // Cannot determine route
     }
-
-    const origin = (fromMatch[1] || fromMatch[2]).trim();
-    const destination = (toMatch[1] || toMatch[2]).trim();
-
-    if (!origin || !destination) {
-        return [];
-    }
-
+    
     const clientSet = new Set<string>();
 
     // Search in shipments
@@ -68,7 +77,7 @@ const findRelevantClients = (instruction: string, shipments: z.infer<typeof Ship
         const shipmentOrigin = shipment.origin.toLowerCase();
         const shipmentDestination = shipment.destination.toLowerCase();
         
-        if (shipmentOrigin.includes(origin) && shipmentDestination.includes(destination)) {
+        if (shipmentOrigin.includes(origin!) && shipmentDestination.includes(destination!)) {
             clientSet.add(shipment.customer);
         }
     });
@@ -78,11 +87,10 @@ const findRelevantClients = (instruction: string, shipments: z.infer<typeof Ship
         const quoteOrigin = quote.origin.toLowerCase();
         const quoteDestination = quote.destination.toLowerCase();
         
-        if (quoteOrigin.includes(origin) && quoteDestination.includes(destination)) {
+        if (quoteOrigin.includes(origin!) && quoteDestination.includes(destination!)) {
             clientSet.add(quote.customer);
         }
     });
-
 
     return Array.from(clientSet);
 }
@@ -138,3 +146,4 @@ const createEmailCampaignFlow = ai.defineFlow(
     };
   }
 );
+

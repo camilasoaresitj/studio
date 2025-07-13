@@ -161,14 +161,24 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const handleFeeSelection = (feeName: string, index: number) => {
     const fee = fees.find(f => f.name === feeName);
     if (fee) {
-      update(index, {
-        ...watchedCharges[index],
+      const currentCharge = watchedCharges[index];
+      // Create a new charge object based on the selected fee to replace the existing one
+      const newChargeData = {
+        ...currentCharge,
         name: fee.name,
         type: fee.unit,
         cost: parseFloat(fee.value) || 0,
         costCurrency: fee.currency,
         sale: parseFloat(fee.value) || 0,
         saleCurrency: fee.currency,
+        approvalStatus: 'pendente' as const,
+      };
+      update(index, newChargeData);
+      
+      toast({
+        title: "Taxa Atualizada",
+        description: `A despesa foi atualizada para ${fee.name} e marcada como pendente de aprovação.`,
+        className: "bg-amber-100 dark:bg-amber-900/30 border-amber-400"
       });
     }
   };
@@ -230,20 +240,23 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                             return (
                                 <TableRow key={field.id}>
                                 <TableCell className="p-1">
-                                    <FormField
-                                        control={form.control}
-                                        name={`charges.${index}.name`}
-                                        render={({ field }) => (
-                                            <Select onValueChange={(value) => handleFeeSelection(value, index)} value={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
+                                    <div className="flex items-center gap-2">
+                                        <FormField
+                                            control={form.control}
+                                            name={`charges.${index}.name`}
+                                            render={({ field }) => (
+                                                <Select onValueChange={(value) => handleFeeSelection(value, index)} value={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                        {charge.approvalStatus === 'pendente' && <Badge variant="destructive">Pendente</Badge>}
+                                    </div>
                                 </TableCell>
                                 <TableCell className="p-1">
                                     <FormField

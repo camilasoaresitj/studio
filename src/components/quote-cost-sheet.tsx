@@ -163,7 +163,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     if (fee) {
       update(index, {
         ...watchedCharges[index],
-        name: fee.name,
+        name: fee.name, // This is the crucial part: ensure name is set directly
         type: fee.unit,
         cost: parseFloat(fee.value) || 0,
         costCurrency: fee.currency,

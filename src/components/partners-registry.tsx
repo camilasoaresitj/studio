@@ -42,6 +42,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { cn } from '@/lib/utils';
+import { Label } from './ui/label';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
 

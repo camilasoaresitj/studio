@@ -40,12 +40,13 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
         incoterm: input.incoterm,
     };
     
-    const originParts = input.origin.split(',').map(s => s.trim());
-    const destParts = input.destination.split(',').map(s => s.trim());
+    // CargoFive expects only the location code, not "City, Country"
+    const originCode = input.origin.split(',')[0].trim().toUpperCase();
+    const destinationCode = input.destination.split(',')[0].trim().toUpperCase();
     
     if (input.modal === 'ocean') {
-        shipment.origin_port_code = originParts[0].toUpperCase(); 
-        shipment.destination_port_code = destParts[0].toUpperCase();
+        shipment.origin_port_code = originCode; 
+        shipment.destination_port_code = destinationCode;
 
         if (input.oceanShipmentType === 'FCL') {
             shipment.package_type = 'container';
@@ -62,8 +63,8 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
         }
 
     } else { // air
-        shipment.origin_airport_code = originParts[0].toUpperCase();
-        shipment.destination_airport_code = destParts[0].toUpperCase();
+        shipment.origin_airport_code = originCode;
+        shipment.destination_airport_code = destinationCode;
         shipment.package_type = 'packages';
         shipment.packages = input.airShipment.pieces.map(p => ({
             quantity: p.quantity,

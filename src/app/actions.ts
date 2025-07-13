@@ -337,3 +337,50 @@ export async function runCreateEmailCampaign(instruction: string, partners: Part
         return { success: false, error: error.message || "Failed to create email campaign" };
     }
 }
+
+export async function updateShipmentFromAgent(id: string, data: any) {
+    let shipment = getShipmentById(id);
+    if (!shipment) {
+        return { success: false, error: 'Embarque não encontrado.' };
+    }
+
+    shipment.bookingNumber = data.bookingNumber;
+    shipment.vesselName = data.vesselVoyage.split('/')[0]?.trim();
+    shipment.voyageNumber = data.vesselVoyage.split('/')[1]?.trim();
+    shipment.etd = data.etd;
+    shipment.eta = data.eta;
+    
+    // Update milestones
+    const updateMilestone = (name: string, newDate: Date | undefined) => {
+        const index = shipment!.milestones.findIndex(m => m.name.toLowerCase().includes(name.toLowerCase()));
+        if (index > -1 && newDate) {
+            shipment!.milestones[index].predictedDate = newDate;
+            shipment!.milestones[index].status = 'pending';
+        }
+    };
+
+    updateMilestone('embarque', data.etd);
+    updateMilestone('chegada', data.eta);
+    updateMilestone('cut off documental', data.docsCutoff);
+    
+    // Add agreed rate as a charge
+    const rateValue = parseFloat(data.rateAgreed.replace(/[^0-9.]/g, '')) || 0;
+    const currency = data.rateAgreed.toUpperCase().includes('USD') ? 'USD' : 'BRL';
+    
+    const freightCharge = {
+        id: `agent-freight-${Date.now()}`,
+        name: 'FRETE INTERNACIONAL (Custo Agente)',
+        type: 'Fixo',
+        cost: rateValue,
+        costCurrency: currency,
+        sale: rateValue, // Initially sale = cost
+        saleCurrency: currency,
+        supplier: shipment.agent?.name || 'Agente a Confirmar',
+        sacado: shipment.customer,
+        approvalStatus: 'aprovada' as const,
+    };
+    shipment.charges.push(freightCharge);
+    
+    updateShipment(shipment);
+    return { success: true, data: shipment };
+}

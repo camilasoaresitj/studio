@@ -232,8 +232,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                     <FormField
                                         control={form.control}
                                         name={`charges.${index}.name`}
-                                        render={({ field }) => (
-                                            <Select onValueChange={(value) => { field.onChange(value); handleFeeSelection(value, index); }} value={field.value}>
+                                        render={({ field: nameField }) => (
+                                            <Select onValueChange={(value) => handleFeeSelection(value, index)} value={nameField.value}>
                                                 <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
                                                 <SelectContent>
                                                     {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}

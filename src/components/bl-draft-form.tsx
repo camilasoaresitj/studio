@@ -246,4 +246,3 @@ export function BLDraftForm({ shipment }: BLDraftFormProps) {
     </Card>
   );
 }
-

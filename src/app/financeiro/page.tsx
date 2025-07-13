@@ -41,9 +41,9 @@ import { FinancialDetailsDialog } from '@/components/financials/financial-detail
 import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
 import { getShipments } from '@/lib/shipment';
-import { FinancialEntryDialog } from './financial-entry-dialog';
-import { RenegotiationDialog } from './renegotiation-dialog';
-import { NfseConsulta } from './nfse-consulta';
+import { FinancialEntryDialog } from '@/components/financials/financial-entry-dialog';
+import { RenegotiationDialog } from '@/components/financials/renegotiation-dialog';
+import { NfseConsulta } from '@/components/financials/nfse-consulta';
 import { PartnersRegistry } from '@/components/partners-registry';
 import { getPartners, savePartners, Partner } from '@/lib/partners-data';
 

@@ -34,3 +34,4 @@ import '@/ai/flows/generate-agent-invoice-html.ts';
 import '@/ai/flows/send-to-legal.ts';
 import '@/ai/flows/send-whatsapp-message.ts';
 import '@/ai/flows/generate-hbl-html.ts';
+import '@/ai/flows/create-email-campaign.ts';

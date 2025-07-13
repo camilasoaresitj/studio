@@ -34,15 +34,14 @@ interface ReportData {
 
 export default function Home() {
     const [kpiData, setKpiData] = useState<KpiData | null>(null);
-    const [partners, setPartners] = useState<Partner[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [report, setReport] = useState<ReportData | null>(null);
+
+    const allPartners = useMemo(() => getPartners(), []);
 
     useEffect(() => {
         const calculateKpis = async () => {
             const shipments = getShipments();
-            const allPartners = getPartners();
-            setPartners(allPartners);
             const rates = await exchangeRateService.getRates();
 
             // 1. Embarques no Mês
@@ -85,7 +84,7 @@ export default function Home() {
         };
 
         calculateKpis();
-    }, []);
+    }, [allPartners]);
 
     const handleOpenReport = (type: 'shipments' | 'profit' | 'tasks' | 'clients') => {
         if (!kpiData) return;
@@ -129,7 +128,7 @@ export default function Home() {
                     renderRow: (item: Shipment & { profit: number }) => {
                         const isAir = item.details.cargo.toLowerCase().includes('kg');
                         const modal = isAir ? 'Aéreo' : 'Marítimo';
-                        const customerPartner = partners.find(p => p.name === item.customer);
+                        const customerPartner = allPartners.find(p => p.name === item.customer);
                         const commercialContact = customerPartner?.contacts.find(c => c.departments.includes('Comercial')) || customerPartner?.contacts[0];
                         return (
                             <TableRow key={item.id}>
@@ -150,7 +149,7 @@ export default function Home() {
                     data: kpiData.overdueTasks,
                     headers: ['Processo', 'Cliente', 'Tarefa', 'Data Prevista', 'Responsável Operacional'],
                     renderRow: (item: Shipment & { milestone: any }) => {
-                        const customerPartner = partners.find(p => p.name === item.customer);
+                        const customerPartner = allPartners.find(p => p.name === item.customer);
                         const operationalContact = customerPartner?.contacts.find(c => c.departments.includes('Operacional')) || customerPartner?.contacts[0];
                         return (
                         <TableRow key={`${item.id}-${item.milestone.name}`}>
@@ -192,7 +191,7 @@ export default function Home() {
             { title: "Tarefas Atrasadas", value: kpiData.overdueTasks.length.toString(), change: "+5.1%", icon: <ClipboardList className="h-6 w-6 text-muted-foreground" />, positive: false, onClick: () => handleOpenReport('tasks') },
             { title: "Clientes Inativos", value: kpiData.inactiveClients.length.toString(), change: "Últimos 90 dias", icon: <UserX className="h-6 w-6 text-muted-foreground" />, positive: false, onClick: () => handleOpenReport('clients') },
         ]
-    }, [kpiData]);
+    }, [kpiData, allPartners]);
 
   if (isLoading) {
     return (

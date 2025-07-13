@@ -54,7 +54,7 @@ const findRelevantClients = (instruction: string, shipments: z.infer<typeof Ship
         const parts = instructionLower.split(/ para | to /);
         if (parts.length > 1) {
             destination = parts[1].split(' ')[0].trim();
-            origin = parts[0].replace('de ', '').replace('from ', '').trim();
+            origin = parts[0].replace('de ', '').replace('from ', '').trim().split(' ').pop()?.trim() || null;
         }
     } 
     // If not, try to parse "ORIGEM x DESTINO"

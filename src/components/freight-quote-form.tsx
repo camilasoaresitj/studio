@@ -845,7 +845,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   }
 
   const deliveryTerms = ['DAP', 'DPU', 'DDP', 'DDU'];
-  const showDeliveryAddress = optionalServices.delivery || deliveryTerms.includes(incoterm);
+  const showDeliveryAddress = optionalServices?.delivery || deliveryTerms.includes(incoterm);
 
   return (
     <div className="space-y-8">

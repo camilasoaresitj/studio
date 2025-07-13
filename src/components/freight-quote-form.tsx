@@ -792,7 +792,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   }, [rates]);
 
   const paymentType = useMemo(() => {
-    const prepaidTerms = ['CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
+    const prepaidTerms = ['CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'DDU'];
     if (prepaidTerms.includes(incoterm)) {
       return { text: 'Prepaid', variant: 'default' as const };
     }
@@ -837,6 +837,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         </Card>
     )
   }
+
+  const deliveryTerms = ['DAP', 'DPU', 'DDP', 'DDU'];
+  const showDeliveryAddress = optionalServices.delivery || deliveryTerms.includes(incoterm);
 
   return (
     <div className="space-y-8">
@@ -1022,6 +1025,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                               <SelectItem value="DAP">DAP</SelectItem>
                               <SelectItem value="DPU">DPU</SelectItem>
                               <SelectItem value="DDP">DDP</SelectItem>
+                              <SelectItem value="DDU">DDU</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -1052,6 +1056,22 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                       )}
                     />
                   </div>
+                )}
+                
+                {showDeliveryAddress && (
+                    <div className="mt-4 animate-in fade-in-50 duration-300">
+                        <FormField
+                            control={form.control}
+                            name="deliveryAddress"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Local de Entrega</FormLabel>
+                                    <FormControl><Input placeholder="Informe o endereço completo para entrega" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
                 )}
                 
                 <FormField control={form.control} name="departureDate" render={({ field }) => (
@@ -1221,17 +1241,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                              <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Entrega</FormLabel></div></FormItem>
                         )} />
                     </div>
-                    {optionalServices.delivery && (
-                        <div className="mt-4 animate-in fade-in-50 duration-300">
-                            <FormField control={form.control} name="deliveryAddress" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Local de Entrega</FormLabel>
-                                    <FormControl><Input placeholder="Informe o endereço completo para entrega" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        </div>
-                    )}
                 </div>
               
                 <div className="flex flex-col sm:flex-row gap-2 mt-4">

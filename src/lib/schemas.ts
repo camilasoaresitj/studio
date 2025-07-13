@@ -36,7 +36,7 @@ export const lclDetailsSchema = z.object({
 export const baseFreightQuoteFormSchema = z.object({
   customerId: z.string({ required_error: "Por favor, selecione um cliente."}).min(1, { message: "Por favor, selecione um cliente." }),
   modal: z.enum(['air', 'ocean']),
-  incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP']),
+  incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'DDU']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
   departureDate: z.date().optional(),
@@ -93,10 +93,11 @@ export const freightQuoteFormSchema = baseFreightQuoteFormSchema.superRefine((da
         });
     }
 
-    if (data.optionalServices.delivery && (!data.deliveryAddress || data.deliveryAddress.trim().length < 5)) {
+    const deliveryTerms = ['DAP', 'DPU', 'DDP', 'DDU'];
+    if ((data.optionalServices.delivery || deliveryTerms.includes(data.incoterm)) && (!data.deliveryAddress || data.deliveryAddress.trim().length < 5)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "O local de entrega é obrigatório quando o serviço de Entrega é selecionado.",
+            message: "O local de entrega é obrigatório para este Incoterm ou serviço selecionado.",
             path: ['deliveryAddress'],
         });
     }

@@ -110,6 +110,11 @@ const shipmentDetailsSchema = z.object({
   courierLastStatus: z.string().optional(),
   etd: z.date().optional(),
   eta: z.date().optional(),
+  origin: z.string().optional(),
+  destination: z.string().optional(),
+  collectionAddress: z.string().optional(),
+  deliveryAddress: z.string().optional(),
+  dischargeTerminal: z.string().optional(),
   containers: z.array(containerDetailSchema).optional(),
   documents: z.array(z.object({
       name: z.string(),
@@ -130,8 +135,6 @@ const shipmentDetailsSchema = z.object({
   manifesto: z.string().optional(),
   terminalRedestinacaoId: z.string().optional(),
   custoArmazenagem: z.coerce.number().optional(),
-  collectionAddress: z.string().optional(),
-  deliveryAddress: z.string().optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -263,6 +266,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         courierLastStatus: shipment.courierLastStatus || '',
         etd: shipment.etd && isValid(new Date(shipment.etd)) ? new Date(shipment.etd) : undefined,
         eta: shipment.eta && isValid(new Date(shipment.eta)) ? new Date(shipment.eta) : undefined,
+        origin: shipment.origin || '',
+        destination: shipment.destination || '',
+        collectionAddress: shipment.collectionAddress || '',
+        deliveryAddress: shipment.deliveryAddress || '',
+        dischargeTerminal: shipment.dischargeTerminal || '',
         containers: shipment.containers?.map(c => ({...c, freeTime: c.freeTime || '', volumes: c.volumes || ''})) || [],
         charges: shipment.charges.map(c => ({ ...c, approvalStatus: c.approvalStatus || 'aprovada' })) || [],
         documents: shipment.documents || [],
@@ -282,8 +290,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         manifesto: shipment.manifesto || '',
         terminalRedestinacaoId: shipment.terminalRedestinacaoId || '',
         custoArmazenagem: shipment.custoArmazenagem || undefined,
-        collectionAddress: shipment.details?.collectionAddress || '',
-        deliveryAddress: shipment.details?.deliveryAddress || '',
       });
     }
   }, [shipment, form]);
@@ -312,13 +318,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const isImport = shipment.destination.toUpperCase().includes('BR');
   
     if (isImport) { // Import Demurrage
-      const arrivalMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('chegada ao destino'));
+      const arrivalMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('chegada'));
       const arrivalDate = arrivalMilestone?.effectiveDate || arrivalMilestone?.predictedDate;
       const freeDays = parseInt(shipment.details?.freeTime || '7', 10);
 
-      if (isNaN(freeDays) || !arrivalDate || !isValid(arrivalDate)) return null;
+      if (isNaN(freeDays) || !arrivalDate || !isValid(new Date(arrivalDate))) return null;
       
-      const freeTimeDueDate = addDays(new Date(arrivalDate), freeDays);
+      const freeTimeDueDate = addDays(new Date(arrivalDate), freeDays - 1);
       const daysRemaining = differenceInDays(freeTimeDueDate, new Date());
       let variant: 'success' | 'warning' | 'destructive' = 'success';
       if (daysRemaining <= 3 && daysRemaining >= 0) variant = 'warning';
@@ -332,8 +338,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       const emptyPickupMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('retirada do vazio'));
       const emptyPickupDate = emptyPickupMilestone?.effectiveDate || emptyPickupMilestone?.predictedDate;
       const freeDays = parseInt(shipment.details?.freeTime || '7', 10);
-      if (isNaN(freeDays) || !emptyPickupDate || !isValid(emptyPickupDate)) return null;
-      const freeTimeDueDate = addDays(new Date(emptyPickupDate), freeDays);
+      if (isNaN(freeDays) || !emptyPickupDate || !isValid(new Date(emptyPickupDate))) return null;
+      const freeTimeDueDate = addDays(new Date(emptyPickupDate), freeDays - 1);
       const daysRemaining = differenceInDays(freeTimeDueDate, new Date());
       let variant: 'success' | 'warning' | 'destructive' = 'success';
       if (daysRemaining <= 3 && daysRemaining >= 0) variant = 'warning';
@@ -416,13 +422,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const onSubmit = (data: ShipmentDetailsFormData) => {
     if (!shipment) return;
     const updatedShipment: Shipment = {
-        ...shipment,
-        ...data,
-        details: {
-            ...shipment.details,
-            collectionAddress: data.collectionAddress,
-            deliveryAddress: data.deliveryAddress,
-        }
+      ...shipment,
+      ...data,
+      collectionAddress: data.collectionAddress || shipment.collectionAddress,
+      deliveryAddress: data.deliveryAddress || shipment.deliveryAddress,
+      dischargeTerminal: data.dischargeTerminal || shipment.dischargeTerminal,
     };
     onUpdate(updatedShipment);
   };
@@ -983,7 +987,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4 items-end">
                                         <FormField control={form.control} name="collectionAddress" render={({ field }) => (
                                             <FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
@@ -996,6 +1000,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <FormField control={form.control} name="destination" render={({ field }) => (
                                             <FormItem><FormLabel>Porto/Aeroporto Destino</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
+                                         {isMaritimeImport && (
+                                            <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (
+                                                <FormItem><FormLabel>Terminal de Descarga</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                         )}
                                     </div>
                                     <Separator />
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
@@ -1488,7 +1497,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                 <Select onValueChange={field.onChange} value={field.value || shipment.customer}>
                                                                     <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                                                     <SelectContent>
-                                                                        {(partners.filter(p => p.roles.cliente)).map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                                                                        {(partners.filter(p => p.roles.cliente)).map(p => (
+                                                                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                                                                        ))}
                                                                     </SelectContent>
                                                                 </Select>
                                                             )} />

@@ -23,6 +23,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Checkbox } from './ui/checkbox';
 import { Fee, getFees } from '@/lib/fees-data';
 import { Label } from './ui/label';
+import { Badge } from './ui/badge';
 
 const quoteChargeSchema = z.object({
   charges: z.array(z.object({

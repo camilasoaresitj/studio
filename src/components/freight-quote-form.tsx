@@ -373,84 +373,69 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     return `${pieceCount} piece(s) / ${totalWeight.toFixed(2)} KG`;
 }
 
- const calculateCharges = (baseFreightCharges: QuoteCharge[]) => {
+ const calculateCharges = (baseFreightCharges: QuoteCharge[]): QuoteCharge[] => {
     const values = form.getValues();
     const customer = partners.find(p => p.id?.toString() === values.customerId);
+    
+    // Determine direction
     const originIsBR = (baseFreightCharges[0]?.origin || values.origin).toUpperCase().includes('BR');
     const destinationIsBR = (baseFreightCharges[0]?.destination || values.destination).toUpperCase().includes('BR');
-    
     let direction: 'Importação' | 'Exportação' | 'Ambos' = 'Ambos';
-    if (destinationIsBR && !originIsBR) {
-      direction = 'Importação';
-    } else if (originIsBR && !destinationIsBR) {
-      direction = 'Exportação';
-    }
+    if (destinationIsBR && !originIsBR) direction = 'Importação';
+    else if (originIsBR && !destinationIsBR) direction = 'Exportação';
     
     const chargeType = values.modal === 'ocean' ? values.oceanShipmentType : 'Aéreo';
     const finalCharges: QuoteCharge[] = [...baseFreightCharges];
     
+    // Get applicable fees
     const relevantFees = fees.filter(fee => {
       const modalMatch = fee.modal === 'Ambos' || fee.modal === (values.modal === 'ocean' ? 'Marítimo' : 'Aéreo');
       const directionMatch = fee.direction === 'Ambos' || fee.direction === direction;
       const chargeTypeMatch = !fee.chargeType || fee.chargeType === chargeType || fee.chargeType === 'NONE';
-      
       const isOptionalSelected = 
         (fee.name.toUpperCase().includes('DESPACHO') && values.optionalServices.customsClearance) ||
         (fee.name.toUpperCase().includes('SEGURO') && values.optionalServices.insurance) ||
-        (fee.name.toUpperCase().includes('TRADING') && values.optionalServices.trading);
-        
-      const isRedestinacaoSelected = fee.name.toUpperCase().includes('REDESTINA') && values.optionalServices.redestinacao;
+        (fee.name.toUpperCase().includes('TRADING') && values.optionalServices.trading) ||
+        (fee.name.toUpperCase().includes('REDESTINA') && values.optionalServices.redestinacao);
 
-      return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected || isRedestinacaoSelected);
+      // Add only if it's a standard fee or a selected optional one
+      return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected);
     });
 
+    // Add fees to the list if they don't already exist
     relevantFees.forEach(fee => {
-      let feeValue = parseFloat(fee.value) || 0;
-      let feeType = fee.unit;
+      if (!finalCharges.some(c => c.name.toUpperCase() === fee.name.toUpperCase())) {
+          let feeValue = parseFloat(fee.value) || 0;
+          let feeType = fee.unit;
 
-      if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
-          const { cbm, weight } = values.lclDetails;
-          const chargeableWeight = Math.max(cbm, weight / 1000);
-          feeValue = (parseFloat(fee.value) || 0) * chargeableWeight;
-          if (fee.minValue && feeValue < fee.minValue) {
-            feeValue = fee.minValue;
+          if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
+              const { cbm, weight } = values.lclDetails;
+              const chargeableWeight = Math.max(cbm, weight / 1000);
+              feeValue = (parseFloat(fee.value) || 0) * chargeableWeight;
+              if (fee.minValue && feeValue < fee.minValue) feeValue = fee.minValue;
+              feeType = `${chargeableWeight.toFixed(2)} W/M`;
+          } else if (values.modal === 'ocean' && values.oceanShipmentType === 'FCL' && fee.unit.toLowerCase().includes('contêiner')) {
+              const totalContainers = values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0);
+              feeValue = (parseFloat(fee.value) || 0) * totalContainers;
+              feeType = `${totalContainers} x ${fee.unit}`;
+          } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
+              feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
+              feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
           }
-          feeType = `${chargeableWeight.toFixed(2)} W/M`;
-      } else if (values.modal === 'ocean' && values.oceanShipmentType === 'FCL' && fee.unit.toLowerCase().includes('contêiner')) {
-          const totalContainers = values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0);
-          feeValue = (parseFloat(fee.value) || 0) * totalContainers;
-          feeType = `${totalContainers} x ${fee.unit}`;
-      } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
-          feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
-          feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
+          
+          finalCharges.push({
+            id: `fee-${fee.id}`,
+            name: fee.name.toUpperCase(),
+            type: feeType,
+            cost: feeValue,
+            costCurrency: fee.currency,
+            sale: feeValue,
+            saleCurrency: fee.currency,
+            supplier: 'CargaInteligente',
+            sacado: customer?.name,
+            approvalStatus: 'aprovada',
+          });
       }
-      
-      let localPagamento: 'Origem' | 'Frete' | 'Destino' = 'Frete';
-      const feeNameUpper = fee.name.toUpperCase();
-      if (feeNameUpper.includes('FRETE')) {
-          localPagamento = 'Frete';
-      } else if (direction === 'Importação' && (fee.direction === 'Importação' || fee.direction === 'Ambos')) {
-          localPagamento = 'Destino';
-      } else if (direction === 'Exportação' && (fee.direction === 'Exportação' || fee.direction === 'Ambos')) {
-          localPagamento = 'Origem';
-      }
-      if (fee.type === 'Opcional') {
-          localPagamento = 'Frete';
-      }
-
-      finalCharges.push({
-        id: `fee-${fee.id}`,
-        name: fee.name.toUpperCase(),
-        type: feeType,
-        cost: feeValue,
-        costCurrency: fee.currency,
-        sale: feeValue,
-        saleCurrency: fee.currency,
-        supplier: 'CargaInteligente',
-        sacado: customer?.name,
-        localPagamento,
-        approvalStatus: 'aprovada',
-      });
     });
 
     return finalCharges;

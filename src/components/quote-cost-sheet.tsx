@@ -161,9 +161,13 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const handleFeeSelection = (feeName: string, index: number) => {
     const fee = fees.find(f => f.name === feeName);
     if (fee) {
+      // Set the name first to prevent concatenation issues
+      form.setValue(`charges.${index}.name`, fee.name);
+      
+      // Update the rest of the fields
       update(index, {
         ...watchedCharges[index],
-        name: fee.name, // This is the crucial part: ensure name is set directly
+        name: fee.name,
         type: fee.unit,
         cost: parseFloat(fee.value) || 0,
         costCurrency: fee.currency,
@@ -172,6 +176,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
       });
     }
   };
+
 
   return (
     <>
@@ -229,16 +234,18 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                             return (
                                 <TableRow key={field.id}>
                                 <TableCell className="p-1">
-                                    <FormField
+                                     <FormField
                                         control={form.control}
                                         name={`charges.${index}.name`}
-                                        render={({ field: nameField }) => (
-                                            <Select onValueChange={(value) => handleFeeSelection(value, index)} value={nameField.value}>
+                                        render={({ field }) => (
+                                        <Select onValueChange={(value) => handleFeeSelection(value, index)} value={field.value}>
+                                            <FormControl>
                                                 <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
-                                                <SelectContent>
-                                                    {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
                                         )}
                                     />
                                 </TableCell>

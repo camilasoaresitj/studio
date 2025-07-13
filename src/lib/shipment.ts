@@ -83,7 +83,7 @@ export type TransshipmentDetail = {
 };
 
 export type DocumentStatus = {
-    name: 'Draft MBL' | 'Draft HBL' | 'Original MBL' | 'Original HBL' | 'Invoice' | 'Packing List' | 'Extrato DI';
+    name: 'Draft MBL' | 'Draft HBL' | 'Original MBL' | 'Original HBL' | 'Invoice' | 'Packing List' | 'Extrato DUE';
     status: 'pending' | 'uploaded' | 'approved';
     fileName?: string;
     uploadedAt?: Date;
@@ -349,7 +349,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     { name: 'Original HBL', status: 'pending' },
     { name: 'Invoice', status: 'pending' },
     { name: 'Packing List', status: 'pending' },
-    { name: 'Extrato DI', status: 'pending' },
+    { name: 'Extrato DUE', status: 'pending' },
   ];
 
   const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));

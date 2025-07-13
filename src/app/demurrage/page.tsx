@@ -120,7 +120,7 @@ export default function DemurragePage() {
                 if (arrivalDate && isValid(arrivalDate)) {
                     shipment.containers.forEach(container => {
                         const freeDays = parseInt(container.freeTime || shipment.details.freeTime || '7', 10);
-                        const endDate = addDays(arrivalDate, freeDays);
+                        const endDate = addDays(arrivalDate, freeDays -1);
                         const effectiveEndDate = (container as any).effectiveReturnDate ? new Date((container as any).effectiveReturnDate) : null;
                         
                         const referenceDate = effectiveEndDate && isValid(effectiveEndDate) ? effectiveEndDate : new Date();
@@ -157,7 +157,7 @@ export default function DemurragePage() {
                 if (startDate && isValid(startDate)) {
                      shipment.containers.forEach(container => {
                         const freeDays = parseInt(container.freeTime || shipment.details.freeTime || '7', 10);
-                        const endDate = addDays(startDate, freeDays);
+                        const endDate = addDays(startDate, freeDays - 1);
                         const effectiveEndDate = (container as any).effectiveGateInDate || (gateinMilestone?.effectiveDate ? new Date(gateinMilestone.effectiveDate) : null);
                         
                         const referenceDate = effectiveEndDate && isValid(effectiveEndDate) ? effectiveEndDate : new Date();

@@ -44,6 +44,8 @@ import { getShipments } from '@/lib/shipment';
 import { FinancialEntryDialog } from './financial-entry-dialog';
 import { RenegotiationDialog } from './renegotiation-dialog';
 import { NfseConsulta } from './nfse-consulta';
+import { PartnersRegistry } from '../partners-registry';
+import { Partner, getPartners, savePartners } from '@/lib/partners-data';
 
 
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
@@ -60,6 +62,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [entries, setEntries] = useState<FinancialEntry[]>(initialEntries);
     const [accounts, setAccounts] = useState<BankAccount[]>(initialAccounts);
     const [allShipments, setAllShipments] = useState<Shipment[]>(initialShipments);
+    const [partners, setPartners] = useState<Partner[]>([]);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [entryToSettle, setEntryToSettle] = useState<FinancialEntry | null>(null);
     const [entryToRenegotiate, setEntryToRenegotiate] = useState<FinancialEntry | null>(null);
@@ -79,18 +82,25 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const { toast } = useToast();
     
     useEffect(() => {
-        const handleStorageChange = () => {
+        const loadData = () => {
             setEntries(getFinancialEntries());
             setAccounts(getBankAccounts());
             setAllShipments(getShipments());
+            setPartners(getPartners());
         };
+        
+        loadData();
 
-        window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('financialsUpdated', handleStorageChange);
+        window.addEventListener('storage', loadData);
+        window.addEventListener('focus', loadData);
+        window.addEventListener('financialsUpdated', loadData);
+        window.addEventListener('partnersUpdated', loadData);
         
         return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('financialsUpdated', handleStorageChange);
+            window.removeEventListener('storage', loadData);
+            window.removeEventListener('focus', loadData);
+            window.removeEventListener('financialsUpdated', loadData);
+             window.removeEventListener('partnersUpdated', loadData);
         };
     }, []);
     
@@ -296,7 +306,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             return;
         }
         
-        // Update financial entries: remove payment and reset status if needed
         const updatedEntries = entries.map(e => {
             if (e.id === entryId) {
                 return {
@@ -308,7 +317,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             return e;
         });
         
-        // Update bank account balance
         let amountInAccountCurrency = payment.amount;
         if (payment.exchangeRate && entry.currency !== account.currency) {
             amountInAccountCurrency = payment.amount * payment.exchangeRate;
@@ -625,6 +633,19 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         setTextFilters(prev => ({ ...prev, [filterName]: value }));
     };
 
+    const handlePartnerSaved = (partnerToSave: Partner) => {
+        let updatedPartners;
+        if (partnerToSave.id && partnerToSave.id !== 0) {
+            updatedPartners = partners.map(p => p.id === partnerToSave.id ? partnerToSave : p);
+        } else {
+            const newId = Math.max(0, ...partners.map(p => p.id ?? 0)) + 1;
+            updatedPartners = [...partners, { ...partnerToSave, id: newId }];
+        }
+        setPartners(updatedPartners);
+        savePartners(updatedPartners);
+        window.dispatchEvent(new Event('partnersUpdated'));
+    };
+
     const renderEntriesTable = (tableEntries: FinancialEntry[], isLegalTable = false) => (
         <div className="border rounded-lg">
             <Table>
@@ -763,7 +784,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     )
                 }) : (
                     <TableRow>
-                        <TableCell colSpan={isLegalTable ? 8 : 9} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
+                        <TableCell colSpan={isLegalTable ? 8 : 10} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
                     </TableRow>
                 )}
             </TableBody>
@@ -804,8 +825,9 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         </div>
 
         <Tabs defaultValue="lancamentos" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+            <TabsList className="grid w-full grid-cols-4 max-w-4xl">
                 <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+                <TabsTrigger value="parceiros">Parceiros</TabsTrigger>
                 <TabsTrigger value="nfse">Consulta NFS-e</TabsTrigger>
                 <TabsTrigger value="juridico">Jurídico</TabsTrigger>
             </TabsList>
@@ -873,11 +895,25 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                 </Card>
             </TabsContent>
 
+            <TabsContent value="parceiros" className="mt-6">
+                <Card>
+                    <CardHeader>
+                        <div>
+                            <CardTitle>Cadastro de Parceiros</CardTitle>
+                            <CardDescription>Gerencie seus clientes, fornecedores e agentes.</CardDescription>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <PartnersRegistry partners={partners} onPartnerSaved={handlePartnerSaved} />
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
             <TabsContent value="nfse" className="mt-6">
                 <NfseConsulta />
             </TabsContent>
 
-            <TabsContent value="juridico" className="mt-6">
+             <TabsContent value="juridico" className="mt-6">
                  <Card>
                     <CardHeader>
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -895,7 +931,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     <CardContent>
                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                             <Input placeholder="Filtrar por Parceiro..." value={textFilters.partner} onChange={(e) => handleTextFilterChange('partner', e.target.value)} />
-                            <Input placeholder="Filtrar por Fatura..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
+                            <Input placeholder="Filtrar por Nº Processo..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
                             <Input placeholder="Filtrar por Valor..." value={textFilters.value} onChange={(e) => handleTextFilterChange('value', e.target.value)} />
                         </div>
                         {renderEntriesTable(juridicoEntries, true)}

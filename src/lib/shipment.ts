@@ -150,6 +150,10 @@ export type Shipment = {
   // Deprecated field, shipper/cnee are top-level
   customer: string;
   overseasPartner?: Partner;
+  // New fields
+  collectionAddress?: string;
+  deliveryAddress?: string;
+  dischargeTerminal?: string;
 };
 
 // --- Milestone Templates & Due Date Calculation ---
@@ -188,7 +192,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         const milestoneNames = Object.keys(IMPORT_MILESTONE_DUE_DAYS);
         const etd = addDays(creationDate, IMPORT_MILESTONE_DUE_DAYS['Confirmação de Embarque']);
         const eta = addDays(etd, transitTime);
-        const freeTimeDueDate = addDays(eta, freeDays);
+        const freeTimeDueDate = addDays(eta, freeDays - 1); // Day 0 is arrival day
 
         const baseMilestones = milestoneNames.map(name => {
             let predictedDate: Date;
@@ -218,7 +222,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         const eta = addDays(etd, transitTime);
         
         const emptyPickupDate = addDays(creationDate, EXPORT_MILESTONE_DUE_DAYS['Retirada do Vazio']);
-        const gateInDueDate = addDays(emptyPickupDate, freeDays);
+        const gateInDueDate = addDays(emptyPickupDate, freeDays - 1); // Day 0 is pickup day
 
          milestones = milestoneNames.map(name => {
             let predictedDate: Date;
@@ -369,6 +373,9 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     quoteId: quoteData.id,
     origin: quoteData.origin,
     destination: quoteData.destination,
+    collectionAddress: quoteData.details.collectionAddress,
+    deliveryAddress: quoteData.details.deliveryAddress,
+    dischargeTerminal: '',
     shipper: quoteData.shipper,
     consignee: quoteData.consignee,
     agent: quoteData.agent,

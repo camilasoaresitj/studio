@@ -715,7 +715,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             origin: quote.origin,
             destination: quote.destination,
             incoterm: quote.details.incoterm,
-            transitTime: quote.details.transitTime,
             modal: quote.details.cargo.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo',
             equipment: quote.details.cargo,
             freightCharges,
@@ -724,8 +723,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             observations: "Valores sujeitos a alteração sem aviso prévio. Taxas locais na origem e destino não inclusas, exceto quando mencionadas."
         });
         
-        if (!response.success) {
-            throw new Error(response.error);
+        if (!response.success || !response.data.html) {
+            throw new Error(response.error || "A geração do HTML da fatura falhou.");
         }
         
         const element = document.createElement("div");
@@ -1346,7 +1345,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           </div>
        )}
        
-       {!isLoading && !form.formState.isSubmitted && (
+       {!isLoading && !form.formState.isSubmitted && !activeQuote && (
         <div className="mt-8">
             <Alert>
                 <Plane className="h-4 w-4" />

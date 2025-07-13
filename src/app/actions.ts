@@ -283,6 +283,7 @@ export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: 
 
     // Update shipment with draft data
     shipment.blDraftData = draftData;
+    shipment.blType = draftData.blType;
     
     // Create new milestone/task for operational team
     const draftReceivedMilestone = {

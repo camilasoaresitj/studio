@@ -141,6 +141,7 @@ export type Shipment = {
   manifesto?: string;
   payments?: PartialPayment[];
   blDraftData?: BLDraftData;
+  blType?: 'original' | 'express';
   // Redestinação fields
   terminalRedestinacaoId?: string;
   custoArmazenagem?: number;
@@ -349,8 +350,11 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     { name: 'Original HBL', status: 'pending' },
     { name: 'Invoice', status: 'pending' },
     { name: 'Packing List', status: 'pending' },
-    { name: 'Extrato DUE', status: 'pending' },
   ];
+
+  if (!isImport) {
+    documents.push({ name: 'Extrato DUE', status: 'pending' });
+  }
 
   const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
 

@@ -162,14 +162,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     const fee = fees.find(f => f.name === feeName);
     if (fee) {
       const updatedCharge = {
-        ...watchedCharges[index], // Preserve existing values like ID
-        name: fee.name, // The crucial update
+        ...watchedCharges[index],
+        name: fee.name,
         type: fee.unit,
         cost: parseFloat(fee.value) || 0,
         costCurrency: fee.currency,
         sale: parseFloat(fee.value) || 0,
         saleCurrency: fee.currency,
-        approvalStatus: 'pendente' as const, // Mark as pending for review
+        approvalStatus: 'pendente' as const,
       };
       update(index, updatedCharge);
       

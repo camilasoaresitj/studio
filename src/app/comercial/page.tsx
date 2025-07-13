@@ -101,6 +101,7 @@ export default function ComercialPage() {
             initialData={quoteFormData}
             onQuoteCreated={handleQuoteCreated} 
             partners={partners}
+            onRegisterCustomer={() => {}}
             rates={rates}
             fees={fees}
             onQuoteUpdate={handleQuoteUpdated}

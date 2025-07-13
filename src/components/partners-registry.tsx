@@ -35,12 +35,13 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from './ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Loader2, Upload } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
+import { cn } from '@/lib/utils';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
 
@@ -50,6 +51,7 @@ interface PartnersRegistryProps {
 }
 
 const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
+const mainModalsEnum = ['Marítimo', 'Aéreo'];
 
 const supplierTypes = [
     { id: 'ciaMaritima', label: 'Cia Marítima' },
@@ -75,6 +77,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [filters, setFilters] = useState({ name: '', country: '', state: '', type: '' });
+  const [routeInput, setRouteInput] = useState('');
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -97,6 +100,12 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
       terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
       observations: '',
+      kpi: {
+        manual: {
+            mainRoutes: [],
+            mainModals: [],
+        }
+      }
     }
   });
 
@@ -105,6 +114,11 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     name: 'contacts',
   });
   
+  const { fields: mainRoutes, append: appendRoute, remove: removeRoute } = useFieldArray({
+    control: form.control,
+    name: "kpi.manual.mainRoutes",
+  });
+
   const watchedCnpj = form.watch('cnpj');
   const watchedRoles = form.watch('roles');
   const isEmpresaNoExterior = form.watch('tipoCliente.empresaNoExterior');
@@ -132,6 +146,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
         terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
         observations: '',
+        kpi: { manual: { mainRoutes: [], mainModals: [] } }
       }
     );
     setIsDialogOpen(true);
@@ -296,6 +311,13 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     reader.readAsArrayBuffer(file);
   };
 
+  const handleAddRoute = () => {
+    if (routeInput.trim()) {
+        appendRoute(routeInput.trim());
+        setRouteInput('');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <input
@@ -432,6 +454,64 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             <FormField control={form.control} name="tipoAgente.projects" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Projetos</FormLabel></FormItem> )} />
                         </div>
                     </div>}
+                    
+                    <Separator className="my-4"/>
+
+                    <h4 className="text-md font-semibold">Informações de KPI (Manual)</h4>
+                    <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                        <div className="space-y-2">
+                            <Label>Principais Rotas</Label>
+                            <div className="flex gap-2">
+                                <Input value={routeInput} onChange={(e) => setRouteInput(e.target.value)} placeholder="Ex: Santos > Rotterdam"/>
+                                <Button type="button" size="sm" onClick={handleAddRoute}>Adicionar</Button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {mainRoutes.map((route, index) => (
+                                    <Badge key={route.id} variant="secondary">
+                                        {route.value}
+                                        <button type="button" onClick={() => removeRoute(index)} className="ml-2 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                                            <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                        </button>
+                                    </Badge>
+                                ))}
+                            </div>
+                        </div>
+                         <FormField
+                            control={form.control}
+                            name="kpi.manual.mainModals"
+                            render={() => (
+                            <FormItem>
+                                <FormLabel>Principais Modais</FormLabel>
+                                <div className="flex gap-4">
+                                {mainModalsEnum.map((item) => (
+                                    <FormField
+                                        key={item}
+                                        control={form.control}
+                                        name="kpi.manual.mainModals"
+                                        render={({ field }) => (
+                                            <FormItem key={item} className="flex flex-row items-center space-x-2 space-y-0">
+                                            <FormControl>
+                                                <Checkbox
+                                                checked={field.value?.includes(item)}
+                                                onCheckedChange={(checked) => {
+                                                    const currentValue = field.value || [];
+                                                    return checked
+                                                    ? field.onChange([...currentValue, item])
+                                                    : field.onChange(currentValue.filter((value) => value !== item));
+                                                }}
+                                                />
+                                            </FormControl>
+                                            <FormLabel className="text-sm font-normal">{item}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
+                                ))}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    </div>
                     
                     <Separator className="my-4"/>
                     

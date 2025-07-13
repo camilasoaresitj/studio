@@ -10,25 +10,11 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-
-const ShipmentSchema = z.object({
-  id: z.string(),
-  origin: z.string(),
-  destination: z.string(),
-  customer: z.string(),
-});
-
-const QuoteSchema = z.object({
-  id: z.string(),
-  origin: z.string(),
-  destination: z.string(),
-  customer: z.string(),
-});
+import type { Partner } from '@/lib/partners-data';
 
 const CreateEmailCampaignInputSchema = z.object({
   instruction: z.string().describe('The natural language instruction for the email campaign.'),
-  shipments: z.array(ShipmentSchema).describe('A list of all past shipments.'),
-  quotes: z.array(QuoteSchema).describe('A list of all past quotes.'),
+  partners: z.array(z.any()).describe("A list of all partners (customers).")
 });
 export type CreateEmailCampaignInput = z.infer<typeof CreateEmailCampaignInputSchema>;
 
@@ -43,57 +29,48 @@ export async function createEmailCampaign(input: CreateEmailCampaignInput): Prom
   return createEmailCampaignFlow(input);
 }
 
-const findRelevantClients = (instruction: string, shipments: z.infer<typeof ShipmentSchema>[], quotes: z.infer<typeof QuoteSchema>[]): string[] => {
+// New function to find relevant clients based on their registered KPIs
+const findRelevantClients = (instruction: string, partners: Partner[]): string[] => {
     const instructionLower = instruction.toLowerCase();
     
     let origin: string | null = null;
     let destination: string | null = null;
 
-    // Try to parse "ORIGEM to/para DESTINO" or "de/from ORIGEM to/para DESTINO"
-    if (instructionLower.includes(' para ') || instructionLower.includes(' to ')) {
-        const parts = instructionLower.split(/ para | to /);
-        if (parts.length > 1) {
-            destination = parts[1].split(' ')[0].trim();
-            origin = parts[0].replace('de ', '').replace('from ', '').trim().split(' ').pop()?.trim() || null;
-        }
-    } 
-    // If not, try to parse "ORIGEM x DESTINO"
-    else if (instructionLower.includes(' x ')) {
+    // Use a regex to find routes like "de ORIGEM para DESTINO" or "ORIGEM x DESTINO"
+    const routeRegex = /(?:de|from)\s+([a-zA-Z\s]+?)\s+(?:para|to|x)\s+([a-zA-Z\s]+)/;
+    const match = instructionLower.match(routeRegex);
+
+    if (match) {
+        origin = match[1].trim();
+        destination = match[2].trim();
+    } else if (instructionLower.includes(' x ')) {
         const parts = instructionLower.split(' x ');
         if (parts.length > 1) {
             origin = parts[0].split(' ').pop()?.trim() || null;
             destination = parts[1].split(' ')[0].trim();
         }
     }
-    
+
     if (!origin || !destination) {
         console.log("Could not determine route from instruction.");
         return [];
     }
 
-    const originNorm = origin.split(',')[0].trim();
-    const destinationNorm = destination.split(',')[0].trim();
+    const originNorm = origin;
+    const destinationNorm = destination;
 
     console.log(`Searching for clients on route: ${originNorm} -> ${destinationNorm}`);
     const clientSet = new Set<string>();
 
-    // Search in shipments
-    shipments.forEach(shipment => {
-        const shipmentOrigin = shipment.origin.toLowerCase();
-        const shipmentDestination = shipment.destination.toLowerCase();
-        
-        if (shipmentOrigin.includes(originNorm) && shipmentDestination.includes(destinationNorm)) {
-            clientSet.add(shipment.customer);
-        }
-    });
-
-    // Search in quotes
-    quotes.forEach(quote => {
-        const quoteOrigin = quote.origin.toLowerCase();
-        const quoteDestination = quote.destination.toLowerCase();
-        
-        if (quoteOrigin.includes(originNorm) && quoteDestination.includes(destinationNorm)) {
-            clientSet.add(quote.customer);
+    partners.forEach(partner => {
+        if (partner.roles.cliente && partner.kpi?.manual?.mainRoutes) {
+            const hasMatchingRoute = partner.kpi.manual.mainRoutes.some(route => {
+                const routeLower = route.toLowerCase();
+                return routeLower.includes(originNorm) && routeLower.includes(destinationNorm);
+            });
+            if (hasMatchingRoute) {
+                clientSet.add(partner.name);
+            }
         }
     });
 
@@ -107,13 +84,12 @@ const createEmailCampaignFlow = ai.defineFlow(
     inputSchema: CreateEmailCampaignInputSchema,
     outputSchema: CreateEmailCampaignOutputSchema,
   },
-  async ({ instruction, shipments, quotes }) => {
+  async ({ instruction, partners }) => {
     
-    const targetClients = findRelevantClients(instruction, shipments, quotes);
+    const targetClients = findRelevantClients(instruction, partners as Partner[]);
 
     if (targetClients.length === 0) {
-        // Even if no clients are found, we can still generate a template email.
-        console.log("No specific clients found, generating a generic email template.");
+        console.log("No specific clients found based on manual KPIs.");
     }
     
     const emailPrompt = ai.definePrompt({

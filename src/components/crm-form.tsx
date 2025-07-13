@@ -16,8 +16,7 @@ import { CreateEmailCampaignOutput } from '@/ai/flows/create-email-campaign';
 import { Loader2, User, Building, Mail, ChevronsRight, FileText, AlertTriangle, Wand2, Users, Send } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { getShipments } from '@/lib/shipment';
-import { getInitialQuotes } from '@/lib/initial-data';
+import { getPartners } from '@/lib/partners-data';
 import { ScrollArea } from './ui/scroll-area';
 
 const crmFormSchema = z.object({
@@ -72,9 +71,8 @@ export function CrmForm() {
   async function onCampaignSubmit(values: z.infer<typeof campaignFormSchema>) {
     setIsCampaignLoading(true);
     setCampaignResult(null);
-    const shipments = getShipments();
-    const quotes = getInitialQuotes();
-    const response = await runCreateEmailCampaign(values.instruction, shipments, quotes);
+    const partners = getPartners();
+    const response = await runCreateEmailCampaign(values.instruction, partners);
     if (response.success) {
       setCampaignResult(response.data);
     } else {
@@ -153,7 +151,7 @@ export function CrmForm() {
       <Card>
         <CardHeader>
             <CardTitle>Campanha de E-mail com IA</CardTitle>
-            <CardDescription>Descreva a campanha que você quer criar. A IA irá encontrar os clientes e gerar o e-mail.</CardDescription>
+            <CardDescription>Descreva a campanha que você quer criar. A IA irá encontrar os clientes-alvo com base nos KPIs do cadastro e gerar o e-mail.</CardDescription>
         </CardHeader>
         <CardContent>
             <Form {...campaignForm}>
@@ -162,7 +160,7 @@ export function CrmForm() {
                         <FormItem>
                             <FormLabel>Instrução para a Campanha</FormLabel>
                             <FormControl>
-                                <Textarea placeholder="Ex: quero mandar um email para todos os clientes que embarcam de shanghai x santos oferecendo a tarifa especial que recebemos de USD 5200/40HC" className="min-h-[100px]" {...field} />
+                                <Textarea placeholder="Ex: quero mandar um email para todos os clientes que embarcam de shanghai para santos oferecendo a tarifa especial que recebemos de USD 5200/40HC" className="min-h-[100px]" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -172,7 +170,7 @@ export function CrmForm() {
                     </Button>
                 </form>
             </Form>
-            {isCampaignLoading && <div className="text-center p-8 text-muted-foreground animate-pulse"><Loader2 className="mx-auto h-12 w-12 mb-4" /><p>Analisando seu histórico e criando a campanha...</p></div>}
+            {isCampaignLoading && <div className="text-center p-8 text-muted-foreground animate-pulse"><Loader2 className="mx-auto h-12 w-12 mb-4" /><p>Analisando seus cadastros e criando a campanha...</p></div>}
             
             {campaignResult && (
                 <div className="mt-6 grid md:grid-cols-2 gap-8 animate-in fade-in-50 duration-500">
@@ -183,7 +181,7 @@ export function CrmForm() {
                                 {campaignResult.clients.map((client, index) => (
                                     <li key={index} className="text-sm">{client}</li>
                                 ))}
-                                {campaignResult.clients.length === 0 && <p className="text-sm text-muted-foreground">Nenhum cliente encontrado para esta rota.</p>}
+                                {campaignResult.clients.length === 0 && <p className="text-sm text-muted-foreground">Nenhum cliente encontrado para esta rota nos seus cadastros.</p>}
                             </ul>
                         </ScrollArea>
                     </div>

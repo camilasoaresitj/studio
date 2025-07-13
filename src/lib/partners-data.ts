@@ -76,11 +76,28 @@ export const partnerSchema = z.object({
     departments: z.array(z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'])).min(1, 'Selecione pelo menos um departamento'),
   })).min(1, 'Adicione pelo menos um contato'),
   observations: z.string().optional(),
+  kpi: z.object({
+    manual: z.object({
+        mainRoutes: z.array(z.string()).optional().describe("Principais rotas informadas manualmente."),
+        mainModals: z.array(z.enum(['Marítimo', 'Aéreo'])).optional().describe("Principais modais informados manualmente."),
+    }).optional(),
+    automatic: z.object({
+        topRoutes: z.array(z.object({
+            route: z.string(),
+            count: z.number(),
+        })).optional().describe("Principais rotas calculadas automaticamente a partir de embarques."),
+        monthlyVolumes: z.array(z.object({
+            month: z.string(),
+            ocean: z.number(),
+            air: z.number(),
+        })).optional(),
+    }).optional(),
+  }).optional(),
 });
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v6';
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v7';
 
 function getInitialPartners(): Partner[] {
     return [
@@ -109,6 +126,12 @@ function getInitialPartners(): Partner[] {
                 phone: "+55 11 91234-5678",
                 departments: ["Comercial", "Operacional"]
             }],
+            kpi: {
+                manual: {
+                    mainRoutes: ["Shanghai > Santos", "Shenzhen > Itajai"],
+                    mainModals: ["Marítimo"]
+                }
+            },
             observations: "Cliente antigo, prioridade alta no atendimento.",
         },
         {

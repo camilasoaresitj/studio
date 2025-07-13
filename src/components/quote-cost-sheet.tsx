@@ -167,21 +167,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
         costCurrency: fee.currency,
         sale: parseFloat(fee.value) || 0,
         saleCurrency: fee.currency,
-        approvalStatus: 'pendente',
+        approvalStatus: 'aprovada',
       });
-
-      toast({
-        title: "Taxa Atualizada",
-        description: `A despesa foi atualizada para ${fee.name} e marcada como pendente de aprovação.`,
-        className: "bg-amber-100 dark:bg-amber-900/30 border-amber-400"
-      });
-    }
-  };
-  
-  const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
-    const charge = watchedCharges[index];
-    if (charge.approvalStatus === 'aprovada') {
-        update(index, { ...charge, [field]: parseFloat(value) || 0, approvalStatus: 'pendente' });
     }
   };
 
@@ -223,8 +210,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                             <TableRow>
                             <TableHead className="h-9 w-[200px]">Taxa</TableHead>
                             <TableHead className="h-9 w-[220px]">Tipo Cobrança</TableHead>
-                            <TableHead className="h-9 text-right min-w-[240px]">Compra</TableHead>
-                            <TableHead className="h-9 text-right min-w-[240px]">Venda</TableHead>
+                            <TableHead className="h-9 text-right min-w-[250px]">Compra</TableHead>
+                            <TableHead className="h-9 text-right min-w-[250px]">Venda</TableHead>
                             <TableHead className="h-9 w-[120px] text-right">Lucro</TableHead>
                             <TableHead className="h-9 w-[180px]">Fornecedor</TableHead>
                             <TableHead className="h-9 w-[180px]">Sacado</TableHead>
@@ -239,15 +226,9 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                             const profitCurrency = charge.saleCurrency;
                             const isLoss = canCalculateProfit && profit < 0;
 
-                            const currentChargeName = watchedCharges[index]?.name;
-                            const usedFeeNames = new Set(
-                                watchedCharges
-                                    .filter((_, i) => i !== index)
-                                    .map(c => c.name)
-                            );
-
+                            const usedFeeNames = new Set(watchedCharges.map(c => c.name));
                             const availableFees = fees.filter(
-                                fee => !usedFeeNames.has(fee.name) || fee.name === currentChargeName
+                                fee => !usedFeeNames.has(fee.name) || fee.name === charge.name
                             );
                             
                             return (
@@ -268,7 +249,6 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                                 </Select>
                                             )}
                                         />
-                                        {charge.approvalStatus === 'pendente' && <Badge variant="destructive">Pendente</Badge>}
                                     </div>
                                 </TableCell>
                                 <TableCell className="p-1">
@@ -289,7 +269,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         )}
                                     />
                                 </TableCell>
-                                <TableCell className="text-right p-1 min-w-[240px]">
+                                <TableCell className="text-right p-1 min-w-[250px]">
                                     <div className="flex items-center gap-1">
                                     <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
@@ -305,11 +285,11 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         </Select>
                                     )} />
                                     <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
-                                        <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'cost', e.target.value); }} className="w-full h-8" />
+                                        <Input type="number" {...field} className="w-full h-8" />
                                     )} />
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-right p-1 min-w-[240px]">
+                                <TableCell className="text-right p-1 min-w-[250px]">
                                     <div className="flex items-center gap-1">
                                     <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
@@ -325,7 +305,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         </Select>
                                     )} />
                                     <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
-                                        <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'sale', e.target.value); }} className="w-full h-8" />
+                                        <Input type="number" {...field} className="w-full h-8" />
                                     )} />
                                     </div>
                                 </TableCell>

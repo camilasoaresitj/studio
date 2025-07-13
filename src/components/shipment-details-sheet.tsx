@@ -304,33 +304,39 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
   const freeTimeInfo = useMemo(() => {
     if (!shipment || !shipment.milestones) return null;
-
-    let freeTimeDueDate: Date | null = null;
+  
     const isImport = shipment.destination.toUpperCase().includes('BR');
-    
+  
     if (isImport) { // Import Demurrage
-        const freeDays = parseInt(shipment.details.freeTime || '7', 10);
-        const arrivalDate = shipment.eta ? new Date(shipment.eta) : null;
-        if (isNaN(freeDays) || !arrivalDate || !isValid(arrivalDate)) return null;
-        freeTimeDueDate = addDays(arrivalDate, freeDays);
+      const freeDays = parseInt(shipment.details?.freeTime || '7', 10);
+      const arrivalDate = shipment.eta;
+      if (isNaN(freeDays) || !arrivalDate || !isValid(arrivalDate)) return null;
+      const freeTimeDueDate = addDays(arrivalDate, freeDays);
+      const daysRemaining = differenceInDays(freeTimeDueDate, new Date());
+      let variant: 'success' | 'warning' | 'destructive' = 'success';
+      if (daysRemaining <= 3 && daysRemaining >= 0) variant = 'warning';
+      if (daysRemaining < 0) variant = 'destructive';
+      return {
+        dueDate: format(freeTimeDueDate, 'dd/MM/yyyy'),
+        daysRemaining,
+        variant,
+      };
     } else { // Export Detention
-        const gateInMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('prazo de entrega (gate in)'));
-        if (!gateInMilestone || !gateInMilestone.predictedDate || !isValid(new Date(gateInMilestone.predictedDate))) return null;
-        freeTimeDueDate = new Date(gateInMilestone.predictedDate);
+      const emptyPickupMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('retirada do vazio'));
+      const emptyPickupDate = emptyPickupMilestone?.predictedDate;
+      const freeDays = parseInt(shipment.details?.freeTime || '7', 10);
+      if (isNaN(freeDays) || !emptyPickupDate || !isValid(emptyPickupDate)) return null;
+      const freeTimeDueDate = addDays(emptyPickupDate, freeDays);
+      const daysRemaining = differenceInDays(freeTimeDueDate, new Date());
+      let variant: 'success' | 'warning' | 'destructive' = 'success';
+      if (daysRemaining <= 3 && daysRemaining >= 0) variant = 'warning';
+      if (daysRemaining < 0) variant = 'destructive';
+      return {
+        dueDate: format(freeTimeDueDate, 'dd/MM/yyyy'),
+        daysRemaining,
+        variant,
+      };
     }
-
-    if (!freeTimeDueDate) return null;
-
-    const daysRemaining = differenceInDays(freeTimeDueDate, new Date());
-    let variant: 'success' | 'warning' | 'destructive' = 'success';
-    if (daysRemaining <= 3 && daysRemaining >= 0) variant = 'warning';
-    if (daysRemaining < 0) variant = 'destructive';
-    
-    return {
-      dueDate: format(freeTimeDueDate, 'dd/MM/yyyy'),
-      daysRemaining,
-      variant,
-    };
   }, [shipment]);
 
 
@@ -395,7 +401,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 className: 'bg-success text-success-foreground'
             });
         }
-        form.setValue('charges', newCharges);
+        form.setValue('charges', newCharges as any);
     }
   }, [watchedCustoArmazenagem]); 
 
@@ -480,7 +486,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         const updatedChargesMap = new Map<string, string>();
         let entriesCreated = 0;
 
-        const chargesByPartnerAndCurrency: { [key: string]: { [currency: string]: { type: 'credit' | 'debit', charges: QuoteCharge[] } } } = {};
+        const chargesByPartnerAndCurrency: { [key: string]: { type: 'credit' | 'debit', charges: QuoteCharge[] } } = {};
 
         unbilledCharges.forEach(charge => {
             const sacado = charge.sacado || shipment.customer;
@@ -651,7 +657,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             financialEntryId: null,
         }));
         
-    newCharges.forEach(charge => appendCharge(charge));
+    newCharges.forEach(charge => appendCharge(charge as any));
     setIsFeeDialogOpen(false);
     setSelectedFees(new Set());
   };
@@ -660,6 +666,27 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const charge = watchedCharges[index];
     if (charge.approvalStatus === 'aprovada') {
         updateCharge(index, { ...charge, [field]: parseFloat(value) || 0, approvalStatus: 'pendente' });
+    }
+  };
+  
+  const handleFeeSelection = (feeName: string, index: number) => {
+    const fee = fees.find(f => f.name === feeName);
+    if (fee) {
+      updateCharge(index, {
+        ...watchedCharges[index],
+        name: fee.name,
+        type: fee.unit,
+        cost: parseFloat(fee.value) || 0,
+        costCurrency: fee.currency,
+        sale: parseFloat(fee.value) || 0,
+        saleCurrency: fee.currency,
+        approvalStatus: 'pendente',
+      });
+       toast({
+        title: "Taxa Atualizada",
+        description: `A despesa foi atualizada para ${fee.name} e marcada como pendente de aprovação.`,
+        className: "bg-amber-100 dark:bg-amber-900/30 border-amber-400"
+      });
     }
   };
 
@@ -1106,7 +1133,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </Card>
                         </TabsContent>
                          <TabsContent value="documentos" className="mt-0 space-y-6">
-                             <Card>
+                            <Card>
                                 <CardHeader>
                                     <CardTitle className="text-lg">Envio de Documentos Originais</CardTitle>
                                     {mblPrintingAtDestination && (
@@ -1395,35 +1422,70 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     const paymentStatus = getPaymentStatus(charge);
                                                     return (
                                                     <TableRow key={field.id} className={cn(charge.approvalStatus === 'pendente' && 'bg-amber-50')}>
-                                                        <TableCell>
+                                                        <TableCell className="p-1">
                                                             <div className="flex items-center gap-2">
-                                                                <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => (<Input {...field} />)} />
+                                                                <FormField
+                                                                    control={form.control}
+                                                                    name={`charges.${index}.name`}
+                                                                    render={({ field }) => (
+                                                                        <Select onValueChange={(value) => { field.onChange(value); handleFeeSelection(value, index); }} value={field.value}>
+                                                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                                                                            <SelectContent>
+                                                                                {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    )}
+                                                                />
                                                                 {charge.approvalStatus === 'pendente' && <Badge variant="destructive">Pendente</Badge>}
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell><FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (<Input {...field} />)}/></TableCell>
-                                                        <TableCell><FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (<Input {...field} />)}/></TableCell>
-                                                        <TableCell className="text-right">
+                                                        <TableCell className="p-1">
+                                                            <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
+                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                                    <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {(partners.filter(p => p.roles.fornecedor || p.roles.agente)).map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            )} />
+                                                        </TableCell>
+                                                        <TableCell className="p-1">
+                                                            <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
+                                                                <Select onValueChange={field.onChange} value={field.value || shipment.customer}>
+                                                                    <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {(partners.filter(p => p.roles.cliente)).map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            )} />
+                                                        </TableCell>
+                                                        <TableCell className="text-right p-1">
                                                             <div className="flex items-center gap-1">
                                                                 <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
-                                                                <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
-                                                                    <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
-                                                                </Select>
+                                                                    <Select onValueChange={(value) => updateCharge(index, {...watchedCharges[index], costCurrency: value as any})} value={field.value}>
+                                                                        <SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem><SelectItem value="GBP">GBP</SelectItem><SelectItem value="JPY">JPY</SelectItem><SelectItem value="CHF">CHF</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
                                                                 )} />
                                                                 <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
-                                                                <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'cost', e.target.value); }} className="w-full h-9" />
+                                                                    <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'cost', e.target.value); }} className="w-full h-9" />
                                                                 )} />
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell className="text-right">
+                                                        <TableCell className="text-right p-1">
                                                             <div className="flex items-center gap-1">
                                                                 <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
-                                                                <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
-                                                                    <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
-                                                                </Select>
+                                                                    <Select onValueChange={(value) => updateCharge(index, {...watchedCharges[index], saleCurrency: value as any})} value={field.value}>
+                                                                        <SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem><SelectItem value="GBP">GBP</SelectItem><SelectItem value="JPY">JPY</SelectItem><SelectItem value="CHF">CHF</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
                                                                 )} />
                                                                 <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
-                                                                <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'sale', e.target.value); }} className="w-full h-9" />
+                                                                    <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'sale', e.target.value); }} className="w-full h-9" />
                                                                 )} />
                                                             </div>
                                                         </TableCell>

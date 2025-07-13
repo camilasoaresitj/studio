@@ -111,7 +111,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
             financialEntryId: null,
         }));
         
-    newCharges.forEach(charge => append(charge));
+    newCharges.forEach(charge => append(charge as any));
     setIsFeeDialogOpen(false);
     setSelectedFees(new Set());
   };
@@ -155,7 +155,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
         validity: data.details.validity || quote.details.validity,
         freeTime: data.details.freeTime || quote.details.freeTime,
     }
-    onUpdate({ charges: data.charges, details: updatedDetails });
+    onUpdate({ charges: data.charges as QuoteCharge[], details: updatedDetails });
   };
   
   const handleFeeSelection = (feeName: string, index: number) => {
@@ -265,7 +265,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                     <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
                                         <SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger>
-                                        <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
+                                        <SelectContent>
+                                          <SelectItem value="BRL">BRL</SelectItem>
+                                          <SelectItem value="USD">USD</SelectItem>
+                                          <SelectItem value="EUR">EUR</SelectItem>
+                                          <SelectItem value="GBP">GBP</SelectItem>
+                                          <SelectItem value="JPY">JPY</SelectItem>
+                                          <SelectItem value="CHF">CHF</SelectItem>
+                                        </SelectContent>
                                         </Select>
                                     )} />
                                     <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
@@ -278,7 +285,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                     <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
                                         <SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger>
-                                        <SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
+                                        <SelectContent>
+                                          <SelectItem value="BRL">BRL</SelectItem>
+                                          <SelectItem value="USD">USD</SelectItem>
+                                          <SelectItem value="EUR">EUR</SelectItem>
+                                          <SelectItem value="GBP">GBP</SelectItem>
+                                          <SelectItem value="JPY">JPY</SelectItem>
+                                          <SelectItem value="CHF">CHF</SelectItem>
+                                        </SelectContent>
                                         </Select>
                                     )} />
                                     <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (

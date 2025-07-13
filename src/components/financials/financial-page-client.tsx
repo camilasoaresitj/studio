@@ -646,9 +646,8 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                 <TableHead>Tipo</TableHead>
                 <TableHead>Parceiro</TableHead>
                 <TableHead>Fatura</TableHead>
-                <TableHead>Processo</TableHead>
-                <TableHead className="w-40">{isLegalTable ? 'Status Jurídico' : 'Status'}</TableHead>
-                {isLegalTable && <TableHead>Nº Processo</TableHead>}
+                <TableHead>{isLegalTable ? 'Nº Processo Judicial' : 'Processo LTI'}</TableHead>
+                <TableHead className="w-40">Status</TableHead>
                 {isLegalTable && <TableHead>Comentários</TableHead>}
                 <TableHead>Vencimento</TableHead>
                 <TableHead className="text-right">Valor Total</TableHead>
@@ -679,9 +678,18 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                 </a>
                             </TableCell>
                             <TableCell>
-                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
-                                    {entry.processId}
-                                </a>
+                                {isLegalTable ? (
+                                    <Input
+                                        value={entry.processoJudicial || ''}
+                                        onChange={(e) => handleLegalEntryUpdate(entry.id, 'processoJudicial', e.target.value)}
+                                        placeholder="Adicionar nº"
+                                        className="h-8 text-xs"
+                                    />
+                                ) : (
+                                    <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                        {entry.processId}
+                                    </a>
+                                )}
                             </TableCell>
                             <TableCell>
                                 {isLegalTable ? (
@@ -701,16 +709,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                     <Badge variant={variant} className="capitalize w-[130px] justify-center">{status}</Badge>
                                 )}
                             </TableCell>
-                            {isLegalTable && (
-                                <TableCell className="w-40">
-                                    <Input
-                                        value={entry.processoJudicial || ''}
-                                        onChange={(e) => handleLegalEntryUpdate(entry.id, 'processoJudicial', e.target.value)}
-                                        placeholder="Adicionar nº"
-                                        className="h-8 text-xs"
-                                    />
-                                </TableCell>
-                            )}
                             {isLegalTable && (
                                  <TableCell className="w-64">
                                     <Input
@@ -765,7 +763,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     )
                 }) : (
                     <TableRow>
-                        <TableCell colSpan={isLegalTable ? 9 : 9} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
+                        <TableCell colSpan={isLegalTable ? 8 : 9} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
                     </TableRow>
                 )}
             </TableBody>
@@ -897,7 +895,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     <CardContent>
                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                             <Input placeholder="Filtrar por Parceiro..." value={textFilters.partner} onChange={(e) => handleTextFilterChange('partner', e.target.value)} />
-                            <Input placeholder="Filtrar por Processo..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
+                            <Input placeholder="Filtrar por Fatura..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
                             <Input placeholder="Filtrar por Valor..." value={textFilters.value} onChange={(e) => handleTextFilterChange('value', e.target.value)} />
                         </div>
                         {renderEntriesTable(juridicoEntries, true)}

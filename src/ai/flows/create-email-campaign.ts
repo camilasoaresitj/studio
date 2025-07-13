@@ -46,36 +46,31 @@ export async function createEmailCampaign(input: CreateEmailCampaignInput): Prom
 const findRelevantClients = (instruction: string, shipments: z.infer<typeof ShipmentSchema>[], quotes: z.infer<typeof QuoteSchema>[]): string[] => {
     const instructionLower = instruction.toLowerCase();
     
-    // Improved regex to capture origin and destination more reliably
-    // It looks for "de/from [ORIGIN] para/to [DESTINATION]" or "[ORIGIN] x [DESTINATION]"
-    const routeRegex = /(?:de|from)\s+([\w\s,]+?)\s+(?:para|to)|([\w\s,]+?)\s*x\s*([\w\s,]+)/;
-    const match = instructionLower.match(routeRegex);
-
     let origin: string | null = null;
     let destination: string | null = null;
-    
-    if (match) {
-        // Handle "from ORIGIN to DESTINATION" pattern
-        if (match[1]) {
-            const toMatch = instructionLower.match(/(?:para|to)\s+([\w\s,]+)/);
-            if (toMatch) {
-                origin = match[1].trim();
-                destination = toMatch[1].trim();
-            }
+
+    // Try to parse "ORIGEM to/para DESTINO" or "de/from ORIGEM to/para DESTINO"
+    if (instructionLower.includes(' para ') || instructionLower.includes(' to ')) {
+        const parts = instructionLower.split(/ para | to /);
+        if (parts.length > 1) {
+            destination = parts[1].split(' ')[0].trim();
+            origin = parts[0].replace('de ', '').replace('from ', '').trim();
         }
-        // Handle "ORIGIN x DESTINATION" pattern
-        else if (match[2] && match[3]) {
-            origin = match[2].trim();
-            destination = match[3].trim();
+    } 
+    // If not, try to parse "ORIGEM x DESTINO"
+    else if (instructionLower.includes(' x ')) {
+        const parts = instructionLower.split(' x ');
+        if (parts.length > 1) {
+            origin = parts[0].split(' ').pop()?.trim() || null;
+            destination = parts[1].split(' ')[0].trim();
         }
     }
-
+    
     if (!origin || !destination) {
         console.log("Could not determine route from instruction.");
-        return []; // Cannot determine route
+        return [];
     }
 
-    // Normalize by taking the first significant part of the location name
     const originNorm = origin.split(',')[0].trim();
     const destinationNorm = destination.split(',')[0].trim();
 

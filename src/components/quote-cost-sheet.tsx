@@ -233,7 +233,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         control={form.control}
                                         name={`charges.${index}.name`}
                                         render={({ field }) => (
-                                            <Select onValueChange={(value) => handleFeeSelection(value, index)} value={field.value}>
+                                            <Select onValueChange={(value) => { field.onChange(value); handleFeeSelection(value, index); }} value={field.value}>
                                                 <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
                                                 <SelectContent>
                                                     {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
@@ -361,7 +361,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         </CardContent>
                     </Card>
                     <Card className={cn(totalsBRL.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
-                        <CardHeader className="p-2"><CardTitle className="text-base">Lucro Total (em BRL)</CardTitle></CardHeader>
+                        <CardHeader className="p-2"><CardTitle className="text-base">Resultado (Lucro)</CardTitle></CardHeader>
                         <CardContent className="p-2 pt-0 text-sm">
                             <div className={cn("flex justify-between font-semibold", totalsBRL.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
                                 <span>BRL:</span>

@@ -33,6 +33,8 @@ export type QuoteDetails = {
     validity: string;
     freeTime: string;
     incoterm: string;
+    collectionAddress?: string;
+    deliveryAddress?: string;
 };
 
 // The shape of the quote object needed to create a shipment

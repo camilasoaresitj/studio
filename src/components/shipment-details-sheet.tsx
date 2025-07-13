@@ -130,6 +130,8 @@ const shipmentDetailsSchema = z.object({
   manifesto: z.string().optional(),
   terminalRedestinacaoId: z.string().optional(),
   custoArmazenagem: z.coerce.number().optional(),
+  collectionAddress: z.string().optional(),
+  deliveryAddress: z.string().optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -280,6 +282,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         manifesto: shipment.manifesto || '',
         terminalRedestinacaoId: shipment.terminalRedestinacaoId || '',
         custoArmazenagem: shipment.custoArmazenagem || undefined,
+        collectionAddress: shipment.details?.collectionAddress || '',
+        deliveryAddress: shipment.details?.deliveryAddress || '',
       });
     }
   }, [shipment, form]);
@@ -308,10 +312,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const isImport = shipment.destination.toUpperCase().includes('BR');
   
     if (isImport) { // Import Demurrage
+      const arrivalMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('chegada ao destino'));
+      const arrivalDate = arrivalMilestone?.effectiveDate || arrivalMilestone?.predictedDate;
       const freeDays = parseInt(shipment.details?.freeTime || '7', 10);
-      const arrivalDate = shipment.eta;
+
       if (isNaN(freeDays) || !arrivalDate || !isValid(arrivalDate)) return null;
-      const freeTimeDueDate = addDays(arrivalDate, freeDays);
+      
+      const freeTimeDueDate = addDays(new Date(arrivalDate), freeDays);
       const daysRemaining = differenceInDays(freeTimeDueDate, new Date());
       let variant: 'success' | 'warning' | 'destructive' = 'success';
       if (daysRemaining <= 3 && daysRemaining >= 0) variant = 'warning';
@@ -323,10 +330,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       };
     } else { // Export Detention
       const emptyPickupMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('retirada do vazio'));
-      const emptyPickupDate = emptyPickupMilestone?.predictedDate;
+      const emptyPickupDate = emptyPickupMilestone?.effectiveDate || emptyPickupMilestone?.predictedDate;
       const freeDays = parseInt(shipment.details?.freeTime || '7', 10);
       if (isNaN(freeDays) || !emptyPickupDate || !isValid(emptyPickupDate)) return null;
-      const freeTimeDueDate = addDays(emptyPickupDate, freeDays);
+      const freeTimeDueDate = addDays(new Date(emptyPickupDate), freeDays);
       const daysRemaining = differenceInDays(freeTimeDueDate, new Date());
       let variant: 'success' | 'warning' | 'destructive' = 'success';
       if (daysRemaining <= 3 && daysRemaining >= 0) variant = 'warning';
@@ -411,6 +418,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const updatedShipment: Shipment = {
         ...shipment,
         ...data,
+        details: {
+            ...shipment.details,
+            collectionAddress: data.collectionAddress,
+            deliveryAddress: data.deliveryAddress,
+        }
     };
     onUpdate(updatedShipment);
   };
@@ -971,6 +983,21 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                                        <FormField control={form.control} name="collectionAddress" render={({ field }) => (
+                                            <FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name="deliveryAddress" render={({ field }) => (
+                                            <FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name="origin" render={({ field }) => (
+                                            <FormItem><FormLabel>Porto/Aeroporto Origem</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name="destination" render={({ field }) => (
+                                            <FormItem><FormLabel>Porto/Aeroporto Destino</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                    </div>
+                                    <Separator />
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
                                         <FormField control={form.control} name="carrier" render={({ field }) => (
                                             <FormItem><FormLabel>Armador</FormLabel><FormControl><Input placeholder="Maersk" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
@@ -1194,6 +1221,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                               </DropdownMenuContent>
                                           </DropdownMenu>
                                       </div>
+                                       {shipment.blType && (
+                                            <CardDescription>
+                                                Tipo de BL solicitado pelo cliente: <Badge>{shipment.blType === 'express' ? 'Express Release' : 'Impressão na Origem'}</Badge>
+                                            </CardDescription>
+                                        )}
                                   </CardHeader>
                                   <CardContent className="space-y-4">
                                       {documentFields.map((doc, index) => {

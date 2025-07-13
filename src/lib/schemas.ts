@@ -41,6 +41,7 @@ export const baseFreightQuoteFormSchema = z.object({
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
   departureDate: z.date().optional(),
   collectionAddress: z.string().optional(),
+  deliveryAddress: z.string().optional(),
   commodity: z.string().optional(),
   
   airShipment: z.object({
@@ -89,6 +90,14 @@ export const freightQuoteFormSchema = baseFreightQuoteFormSchema.superRefine((da
             code: z.ZodIssueCode.custom,
             message: "Adicione pelo menos um contêiner para cotação FCL.",
             path: ['oceanShipment.containers'],
+        });
+    }
+
+    if (data.optionalServices.delivery && (!data.deliveryAddress || data.deliveryAddress.trim().length < 5)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "O local de entrega é obrigatório quando o serviço de Entrega é selecionado.",
+            path: ['deliveryAddress'],
         });
     }
 });

@@ -190,6 +190,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       destination: '',
       commodity: '',
       collectionAddress: '',
+      deliveryAddress: '',
       airShipment: {
         pieces: [{ quantity: 1, length: 100, width: 100, height: 100, weight: 500 }],
         isStackable: true,
@@ -274,7 +275,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         };
       });
       
-    const customer = partners.find(p => p.id.toString() === values.customerId);
+    const customer = partners.find(p => p.id?.toString() === values.customerId);
     const primaryContact = customer?.contacts?.find(c => c.departments?.includes('Comercial')) || customer?.contacts?.[0];
 
     const finalValues = {
@@ -368,7 +369,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
  const calculateCharges = (rate: FreightRate | null) => {
     const values = form.getValues();
-    const customer = partners.find(p => p.id.toString() === values.customerId);
+    const customer = partners.find(p => p.id?.toString() === values.customerId);
     const originIsBR = (rate?.origin || values.origin).toUpperCase().includes('BR');
     const destinationIsBR = (rate?.destination || values.destination).toUpperCase().includes('BR');
     
@@ -509,7 +510,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         return;
     }
     const initialCharges = calculateCharges(rate);
-    const customer = partners.find(p => p.id.toString() === customerId);
+    const customer = partners.find(p => p.id?.toString() === customerId);
 
     const newQuote: Quote = {
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
@@ -525,6 +526,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             validity: (rate as any).validity || 'N/A',
             freeTime: (rate as any).freeTime || 'N/A',
             incoterm: form.getValues('incoterm'),
+            collectionAddress: form.getValues('collectionAddress'),
+            deliveryAddress: form.getValues('deliveryAddress'),
         }
     };
     setActiveQuote(newQuote);
@@ -561,13 +564,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     setIsRequestingAgentQuote(false);
   };
 
-  const handleUpdateQuote = (data: { charges: QuoteCharge[] }) => {
+  const handleUpdateQuote = (data: { charges: QuoteCharge[], details: Quote['details'] }) => {
     if (!activeQuote) return;
 
     // Create a new object to force re-render in the child component
     const updatedQuote: Quote = {
         ...activeQuote,
         charges: data.charges,
+        details: data.details,
         status: 'Enviada'
     };
     
@@ -881,7 +885,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                                     >
                                         {field.value
                                         ? partners.find(
-                                            (partner) => partner.id.toString() === field.value
+                                            (partner) => partner.id?.toString() === field.value
                                             )?.name
                                         : "Selecione um cliente"}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -899,14 +903,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                                                 value={partner.name}
                                                 key={partner.id}
                                                 onSelect={(currentValue) => {
-                                                    form.setValue("customerId", partner.id.toString());
+                                                    form.setValue("customerId", partner.id!.toString());
                                                     setIsCustomerPopoverOpen(false);
                                                 }}
                                                 >
                                             <Check
                                                 className={cn(
                                                 "mr-2 h-4 w-4",
-                                                partner.id.toString() === field.value
+                                                partner.id?.toString() === field.value
                                                     ? "opacity-100"
                                                     : "opacity-0"
                                                 )}
@@ -1218,6 +1222,17 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                              <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Entrega</FormLabel></div></FormItem>
                         )} />
                     </div>
+                    {optionalServices.delivery && (
+                        <div className="mt-4 animate-in fade-in-50 duration-300">
+                            <FormField control={form.control} name="deliveryAddress" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Local de Entrega</FormLabel>
+                                    <FormControl><Input placeholder="Informe o endereço completo para entrega" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </div>
+                    )}
                 </div>
               
                 <div className="flex flex-col sm:flex-row gap-2 mt-4">

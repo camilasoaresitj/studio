@@ -38,6 +38,7 @@ import { QuoteCostSheet } from './quote-cost-sheet';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Textarea } from './ui/textarea';
+import { portsAndAirports } from '@/lib/ports';
 
 
 type FreightRate = {
@@ -72,15 +73,20 @@ interface FreightQuoteFormProps {
 }
 
 // Custom Autocomplete Input Component
-const AutocompleteInput = ({ field, suggestions, placeholder }: { field: any, suggestions: string[], placeholder: string }) => {
+const AutocompleteInput = ({ field, placeholder, modal }: { field: any, placeholder: string, modal: 'ocean' | 'air' }) => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const filterSuggestions = (value: string) => {
-        const parts = value.split(',');
-        const currentPart = parts[parts.length - 1].trim().toLowerCase();
+    const suggestions = useMemo(() => {
+        const relevantPortType = modal === 'ocean' ? 'port' : 'airport';
+        return portsAndAirports
+            .filter(p => p.type === relevantPortType)
+            .map(p => `${p.name}, ${p.country}`);
+    }, [modal]);
 
+    const filterSuggestions = (value: string) => {
+        const currentPart = value.split(',').pop()?.trim().toLowerCase() ?? '';
         if (currentPart.length >= 2) {
             setFilteredSuggestions(suggestions.filter(s =>
                 s.toLowerCase().includes(currentPart)
@@ -93,22 +99,12 @@ const AutocompleteInput = ({ field, suggestions, placeholder }: { field: any, su
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         field.onChange(value);
-        if (!showSuggestions) {
-            setShowSuggestions(true);
-        }
+        if (!showSuggestions) setShowSuggestions(true);
         filterSuggestions(value);
     };
 
     const handleSelectSuggestion = (suggestion: string) => {
-        const parts = (field.value || '').split(',').map((p: string) => p.trim()).filter(Boolean);
-        if (parts.length > 0) {
-            parts[parts.length - 1] = suggestion;
-        } else {
-            parts.push(suggestion);
-        }
-        
-        const newValue = parts.join(', ') + ', ';
-        field.onChange(newValue);
+        field.onChange(suggestion);
         setShowSuggestions(false);
     };
     
@@ -135,9 +131,7 @@ const AutocompleteInput = ({ field, suggestions, placeholder }: { field: any, su
                     setShowSuggestions(true);
                 }}
                 onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                        setShowSuggestions(false);
-                    }
+                    if (e.key === 'Escape') setShowSuggestions(false);
                 }}
                 autoComplete="off"
             />
@@ -147,10 +141,7 @@ const AutocompleteInput = ({ field, suggestions, placeholder }: { field: any, su
                         filteredSuggestions.map((suggestion, index) => (
                             <div
                                 key={`${suggestion}-${index}`}
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    handleSelectSuggestion(suggestion);
-                                }}
+                                onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(suggestion); }}
                                 className="cursor-pointer rounded-sm px-3 py-2 text-sm hover:bg-accent"
                             >
                                 {suggestion}
@@ -158,7 +149,7 @@ const AutocompleteInput = ({ field, suggestions, placeholder }: { field: any, su
                         ))
                     ) : (
                         <div className="px-3 py-2 text-sm text-muted-foreground">
-                            {currentInputPart.length >= 2 ? 'Nenhum porto encontrado.' : 'Digite 2+ letras para buscar...'}
+                            {currentInputPart.length >= 2 ? 'Nenhum local encontrado.' : 'Digite 2+ letras para buscar...'}
                         </div>
                     )}
                 </div>
@@ -772,15 +763,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const watchedContainers = form.watch('oceanShipment.containers');
   const oceanShipmentType = form.watch('oceanShipmentType');
 
-  const allPortsAndAirports = useMemo(() => {
-    const locations = new Set<string>();
-    rates.forEach(rate => {
-        if (rate.origin) locations.add(rate.origin);
-        if (rate.destination) locations.add(rate.destination);
-    });
-    return Array.from(locations).sort();
-  }, [rates]);
-
   const paymentType = useMemo(() => {
     const prepaidTerms = ['CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'DDU'];
     if (prepaidTerms.includes(incoterm)) {
@@ -972,8 +954,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                           <FormControl>
                             <AutocompleteInput
                                 field={field}
-                                suggestions={allPortsAndAirports}
-                                placeholder="Ex: Santos, BR, Itajai, BR"
+                                placeholder="Ex: Santos, BR"
+                                modal={modal}
                             />
                           </FormControl>
                           <FormMessage />
@@ -984,8 +966,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                            <FormControl>
                              <AutocompleteInput
                                 field={field}
-                                suggestions={allPortsAndAirports}
                                 placeholder="Ex: Rotterdam, NL"
+                                modal={modal}
                              />
                            </FormControl>
                            <FormMessage />

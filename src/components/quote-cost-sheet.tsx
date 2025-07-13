@@ -162,14 +162,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     const fee = fees.find(f => f.name === feeName);
     if (fee) {
       update(index, {
-        ...watchedCharges[index], // keep id and other fields
+        ...watchedCharges[index],
         name: fee.name,
         type: fee.unit,
         cost: parseFloat(fee.value) || 0,
         costCurrency: fee.currency,
         sale: parseFloat(fee.value) || 0,
         saleCurrency: fee.currency,
-        approvalStatus: 'pendente', // Mark for approval after change
+        approvalStatus: 'pendente',
       });
 
       toast({
@@ -224,9 +224,9 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         <TableHeader className="sticky top-0 bg-secondary z-10">
                             <TableRow>
                             <TableHead className="h-9 w-[200px]">Taxa</TableHead>
-                            <TableHead className="h-9 w-[120px]">Tipo Cobrança</TableHead>
-                            <TableHead className="h-9 w-[180px] text-right">Compra</TableHead>
-                            <TableHead className="h-9 w-[180px] text-right">Venda</TableHead>
+                            <TableHead className="h-9 w-[150px]">Tipo Cobrança</TableHead>
+                            <TableHead className="h-9 w-[200px] text-right">Compra</TableHead>
+                            <TableHead className="h-9 w-[200px] text-right">Venda</TableHead>
                             <TableHead className="h-9 w-[120px] text-right">Lucro</TableHead>
                             <TableHead className="h-9 w-[180px]">Fornecedor</TableHead>
                             <TableHead className="h-9 w-[180px]">Sacado</TableHead>

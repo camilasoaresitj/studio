@@ -179,7 +179,7 @@ const getFreightRatesFlow = ai.defineFlow(
                         transitTime: `${rate.transit_time_in_days || '?'} dias`,
                         cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost),
                         costValue: totalCost,
-                        carrierLogo: 'https://placehold.co/120x40',
+                        carrierLogo: rate.carrier_logo || 'https://placehold.co/120x40.png',
                         dataAiHint: input.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
                         source: 'CargoFive API',
                     };
@@ -214,7 +214,7 @@ const getFreightRatesFlow = ai.defineFlow(
                         transitTime: `${rate.transit_time || '?'} dias`,
                         cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost),
                         costValue: totalCost,
-                        carrierLogo: rate.carrier_logo || 'https://placehold.co/120x40',
+                        carrierLogo: rate.carrier_logo || 'https://placehold.co/120x40.png',
                         dataAiHint: input.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
                         source: 'SeaRates API',
                     };

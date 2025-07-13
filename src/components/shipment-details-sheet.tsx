@@ -313,14 +313,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     if (!shipment || !shipment.milestones) return null;
 
     let freeTimeDueDate: Date | null = null;
-    const freeDays = parseInt(shipment.details.freeTime || '0', 10);
-    if (isNaN(freeDays)) return null;
-
-    if (shipment.destination.toUpperCase().includes('BR')) { // Import Demurrage
-        if (!shipment.eta || !isValid(new Date(shipment.eta))) return null;
+    const isImport = shipment.destination.toUpperCase().includes('BR');
+    
+    if (isImport) { // Import Demurrage
+        const freeDays = parseInt(shipment.details.freeTime || '7', 10);
+        if (isNaN(freeDays) || !shipment.eta || !isValid(new Date(shipment.eta))) return null;
         freeTimeDueDate = addDays(new Date(shipment.eta), freeDays);
     } else { // Export Detention
-        const gateInMilestone = shipment.milestones.find(m => m.name === 'Prazo de Entrega (Gate In)');
+        const gateInMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('prazo de entrega (gate in)'));
         if (!gateInMilestone || !gateInMilestone.predictedDate || !isValid(new Date(gateInMilestone.predictedDate))) return null;
         freeTimeDueDate = new Date(gateInMilestone.predictedDate);
     }
@@ -339,19 +339,18 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     };
   }, [shipment]);
 
+
   useEffect(() => {
     if (watchedCustoArmazenagem && watchedCustoArmazenagem > 0) {
         const terminalId = form.getValues('terminalRedestinacaoId');
         const terminal = partners.find(p => p.id?.toString() === terminalId);
         
-        // Remove existing storage/commission charges to avoid duplicates
         const chargesWithoutStorage = watchedCharges.filter(c => 
             c.name !== 'ARMAZENAGEM' && c.name !== 'COMISSÃO SOBRE ARMAZENAGEM'
         );
         
         let newCharges = [...chargesWithoutStorage];
         
-        // Add new storage cost
         newCharges.push({
             id: `storage-${Date.now()}`,
             name: 'ARMAZENAGEM',
@@ -366,28 +365,47 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             financialEntryId: null
         });
 
-        // Add commission if applicable
         if (terminal && terminal.terminalCommission && terminal.terminalCommission.amount) {
             const commissionRate = terminal.terminalCommission.amount / 100;
             const commissionValue = watchedCustoArmazenagem * commissionRate;
             
+            // Generate financial entry for the commission debit
+            const debitEntryId = addFinancialEntry({
+                type: 'debit',
+                partner: terminal.name,
+                invoiceId: `COMM-${shipment?.id}`,
+                dueDate: addDays(new Date(), 30).toISOString(),
+                amount: commissionValue,
+                currency: 'BRL',
+                processId: shipment!.id,
+                status: 'Aberto',
+                description: `Comissão sobre armazenagem do processo ${shipment?.id}`
+            });
+            
+             // Add charge representing the commission, linking it to the debit entry
             newCharges.push({
                 id: `commission-${Date.now()}`,
                 name: 'COMISSÃO SOBRE ARMAZENAGEM',
                 type: 'Fixo',
-                cost: commissionValue, // This is a "cost" to the terminal
+                cost: 0, // It's a "cost" to CargaInteligente from the terminal, but the payment is a debit
                 costCurrency: 'BRL',
-                sale: 0, // No sale value to the client
+                sale: commissionValue, // It's a "sale" from CargaInteligente's perspective
                 saleCurrency: 'BRL',
-                supplier: 'CargaInteligente', // We are charging the terminal
-                sacado: terminal.name, // The terminal is being billed
+                supplier: 'CargaInteligente',
+                sacado: terminal.name, 
                 approvalStatus: 'aprovada',
-                financialEntryId: null,
+                financialEntryId: debitEntryId,
+            });
+
+             toast({
+                title: 'Fatura de Comissão Gerada!',
+                description: `Uma fatura de BRL ${commissionValue.toFixed(2)} foi gerada para o terminal ${terminal.name}.`,
+                className: 'bg-success text-success-foreground'
             });
         }
         form.setValue('charges', newCharges);
     }
-  }, [watchedCustoArmazenagem]); // Dependency array is key here
+  }, [watchedCustoArmazenagem]); 
 
 
   const onSubmit = (data: ShipmentDetailsFormData) => {
@@ -410,7 +428,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         if (field === 'effectiveDate' && value) {
             targetMilestone.status = 'completed';
         }
-
+        
+        // Re-sort milestones after any date change
         updatedMilestones.sort((a, b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
         
         onUpdate({
@@ -1100,112 +1119,114 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </Card>
                         </TabsContent>
                          <TabsContent value="documentos" className="mt-0 space-y-6">
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex justify-between items-center">
-                                        <CardTitle className="text-lg">Gerenciamento de Documentos</CardTitle>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" disabled={isGeneratingHbl}>
-                                                    {isGeneratingHbl ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4" />}
-                                                    Emitir HBL
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
-                                                <DropdownMenuItem onClick={() => handleGenerateHbl(false)}>Gerar Draft</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleGenerateHbl(true)}>Gerar Original</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {documentFields.map((doc, index) => {
-                                      const { name, status, fileName, uploadedAt } = form.getValues(`documents.${index}`) as DocumentStatus;
-                                      const statusInfo = docStatusMap[status] || docStatusMap.pending;
-                                      return (
-                                        <div key={doc.id} className="p-3 border rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                          <div className="flex-grow">
-                                            <div className="flex items-center gap-2">
-                                              <statusInfo.icon className={cn("h-5 w-5", status === 'approved' && 'text-success', status === 'uploaded' && 'text-primary' )} />
-                                              <p className="font-medium">{name}</p>
-                                              <Badge variant={statusInfo.variant}>{statusInfo.text}</Badge>
-                                            </div>
-                                            {status !== 'pending' && fileName && (
-                                                <a href="#" onClick={(e) => { e.preventDefault(); window.open('', '_blank')?.document.write(`Exibindo ${fileName}`); }} className="text-xs text-muted-foreground mt-1 ml-7 hover:underline text-primary">
-                                                    {fileName} {uploadedAt && isValid(new Date(uploadedAt)) ? ` - ${format(new Date(uploadedAt), 'dd/MM/yy HH:mm')}` : ''}
-                                                </a>
-                                            )}
-                                          </div>
-                                          <div className="flex gap-2 self-end sm:self-center">
-                                            {status === 'pending' && (
-                                              <Button type="button" variant="outline" size="sm" onClick={() => handleUploadClick(index)}>
-                                                <Upload className="mr-2 h-4 w-4" /> Upload
-                                              </Button>
-                                            )}
-                                            {status === 'uploaded' && (
-                                              <>
-                                                <Button type="button" variant="outline" size="sm" onClick={() => handleUploadClick(index)}>
-                                                  <Upload className="mr-2 h-4 w-4" /> Substituir
-                                                </Button>
-                                                <Button type="button" size="sm" onClick={() => handleDocumentChange(index, 'approved')}>
-                                                  <CheckCircle className="mr-2 h-4 w-4" /> Aprovar
-                                                </Button>
-                                              </>
-                                            )}
-                                            {status === 'approved' && (
-                                              <Button type="button" variant="secondary" size="sm" onClick={() => handleUploadClick(index)}>
-                                                <Upload className="mr-2 h-4 w-4" /> Substituir
-                                              </Button>
-                                            )}
-                                          </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <Card>
+                                    <CardHeader>
+                                        <div className="flex justify-between items-center">
+                                            <CardTitle className="text-lg">Gerenciamento de Documentos</CardTitle>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="outline" disabled={isGeneratingHbl}>
+                                                        {isGeneratingHbl ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4" />}
+                                                        Emitir HBL
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuItem onClick={() => handleGenerateHbl(false)}>Gerar Draft</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleGenerateHbl(true)}>Gerar Original</DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </div>
-                                      );
-                                    })}
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">Envio de Documentos Originais</CardTitle>
-                                    {mblPrintingAtDestination && (
-                                        <CardDescription className="text-primary font-medium">Impressão do MBL será feita no destino.</CardDescription>
-                                    )}
-                                </CardHeader>
-                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                                    <FormField control={form.control} name="courier" render={({ field }) => (
-                                        <FormItem><FormLabel>Courrier</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value} disabled={mblPrintingAtDestination}>
-                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="DHL">DHL</SelectItem>
-                                                    <SelectItem value="UPS">UPS</SelectItem>
-                                                    <SelectItem value="FedEx">FedEx</SelectItem>
-                                                    <SelectItem value="Outro">Outro</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        <FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="courierNumber" render={({ field }) => (
-                                        <FormItem><FormLabel>Nº Rastreio Courrier</FormLabel><FormControl><Input placeholder="1234567890" {...field} value={field.value ?? ''} disabled={mblPrintingAtDestination} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <div className="flex items-center gap-2">
-                                        <Button type="button" variant={mblPrintingAtDestination ? 'default' : 'secondary'} className="w-full" onClick={handleToggleMblPrinting} title="Marcar/desmarcar impressão do MBL no destino">
-                                            <Printer className="mr-2 h-4 w-4" />
-                                            {mblPrintingAtDestination ? `Autorizado em ${mblPrintingAuthDate && isValid(mblPrintingAuthDate) ? format(mblPrintingAuthDate, 'dd/MM/yy') : format(new Date(), 'dd/MM/yy')}` : 'Impressão no Destino'}
-                                        </Button>
-                                    </div>
-                                    <FormField control={form.control} name="courierLastStatus" render={({ field }) => (
-                                        <FormItem className="md:col-span-3"><FormLabel>Último Status do Courrier</FormLabel>
-                                            <div className="flex items-center gap-2">
-                                                <FormControl><Input placeholder="Aguardando sincronização..." {...field} value={field.value ?? ''} /></FormControl>
-                                                <Button type="button" variant="outline" size="icon" onClick={handleSyncCourierStatus} disabled={isCourierSyncing || mblPrintingAtDestination} title="Sincronizar último status">
-                                                    {isCourierSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                                                </Button>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {documentFields.map((doc, index) => {
+                                        const { name, status, fileName, uploadedAt } = form.getValues(`documents.${index}`) as DocumentStatus;
+                                        const statusInfo = docStatusMap[status] || docStatusMap.pending;
+                                        return (
+                                            <div key={doc.id} className="p-3 border rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                            <div className="flex-grow">
+                                                <div className="flex items-center gap-2">
+                                                <statusInfo.icon className={cn("h-5 w-5", status === 'approved' && 'text-success', status === 'uploaded' && 'text-primary' )} />
+                                                <p className="font-medium">{name}</p>
+                                                <Badge variant={statusInfo.variant}>{statusInfo.text}</Badge>
+                                                </div>
+                                                {status !== 'pending' && fileName && (
+                                                    <a href="#" onClick={(e) => { e.preventDefault(); window.open('', '_blank')?.document.write(`Exibindo ${fileName}`); }} className="text-xs text-muted-foreground mt-1 ml-7 hover:underline text-primary">
+                                                        {fileName} {uploadedAt && isValid(new Date(uploadedAt)) ? ` - ${format(new Date(uploadedAt), 'dd/MM/yy HH:mm')}` : ''}
+                                                    </a>
+                                                )}
                                             </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                </CardContent>
-                            </Card>
+                                            <div className="flex gap-2 self-end sm:self-center">
+                                                {status === 'pending' && (
+                                                <Button type="button" variant="outline" size="sm" onClick={() => handleUploadClick(index)}>
+                                                    <Upload className="mr-2 h-4 w-4" /> Upload
+                                                </Button>
+                                                )}
+                                                {status === 'uploaded' && (
+                                                <>
+                                                    <Button type="button" variant="outline" size="sm" onClick={() => handleUploadClick(index)}>
+                                                    <Upload className="mr-2 h-4 w-4" /> Substituir
+                                                    </Button>
+                                                    <Button type="button" size="sm" onClick={() => handleDocumentChange(index, 'approved')}>
+                                                    <CheckCircle className="mr-2 h-4 w-4" /> Aprovar
+                                                    </Button>
+                                                </>
+                                                )}
+                                                {status === 'approved' && (
+                                                <Button type="button" variant="secondary" size="sm" onClick={() => handleUploadClick(index)}>
+                                                    <Upload className="mr-2 h-4 w-4" /> Substituir
+                                                </Button>
+                                                )}
+                                            </div>
+                                            </div>
+                                        );
+                                        })}
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-lg">Envio de Documentos Originais</CardTitle>
+                                        {mblPrintingAtDestination && (
+                                            <CardDescription className="text-primary font-medium">Impressão do MBL será feita no destino.</CardDescription>
+                                        )}
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                         <FormField control={form.control} name="courier" render={({ field }) => (
+                                            <FormItem><FormLabel>Courrier</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value} disabled={mblPrintingAtDestination}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="DHL">DHL</SelectItem>
+                                                        <SelectItem value="UPS">UPS</SelectItem>
+                                                        <SelectItem value="FedEx">FedEx</SelectItem>
+                                                        <SelectItem value="Outro">Outro</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            <FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="courierNumber" render={({ field }) => (
+                                            <FormItem><FormLabel>Nº Rastreio Courrier</FormLabel><FormControl><Input placeholder="1234567890" {...field} value={field.value ?? ''} disabled={mblPrintingAtDestination} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="courierLastStatus" render={({ field }) => (
+                                            <FormItem className=""><FormLabel>Último Status do Courrier</FormLabel>
+                                                <div className="flex items-center gap-2">
+                                                    <FormControl><Input placeholder="Aguardando sincronização..." {...field} value={field.value ?? ''} /></FormControl>
+                                                    <Button type="button" variant="outline" size="icon" onClick={handleSyncCourierStatus} disabled={isCourierSyncing || mblPrintingAtDestination} title="Sincronizar último status">
+                                                        {isCourierSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                                    </Button>
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        <div className="flex items-center gap-2 pt-2">
+                                            <Button type="button" variant={mblPrintingAtDestination ? 'default' : 'secondary'} className="w-full" onClick={handleToggleMblPrinting} title="Marcar/desmarcar impressão do MBL no destino">
+                                                <Printer className="mr-2 h-4 w-4" />
+                                                {mblPrintingAtDestination ? `Autorizado em ${mblPrintingAuthDate && isValid(mblPrintingAuthDate) ? format(mblPrintingAuthDate, 'dd/MM/yy') : format(new Date(), 'dd/MM/yy')}` : 'Impressão no Destino'}
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
                          </TabsContent>
                          <TabsContent value="milestones" className="mt-0 space-y-6">
                              <Card>

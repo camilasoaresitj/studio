@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Shipment, Milestone } from '@/lib/shipment';
 import { getShipments, updateShipment } from '@/lib/shipment';
-import { format, isPast, isToday, isWithinInterval, addDays, isValid } from 'date-fns';
+import { format, isPast, isToday, isWithinInterval, addDays, isValid, differenceInHours } from 'date-fns';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +36,62 @@ export default function OperacionalPage() {
     setIsClient(true);
     const initialShipments = getShipments();
     setShipments(initialShipments);
+
+    // Simulate checking for time-based automations when the page loads
+    checkRedestinacaoAutomation(initialShipments);
   }, []);
+  
+  // This function simulates a cron job that would run on the server.
+  // It checks for shipments that need redestinacao tasks created.
+  const checkRedestinacaoAutomation = (currentShipments: Shipment[]) => {
+      let updated = false;
+      const now = new Date();
+      const updatedShipments = [...currentShipments];
+
+      updatedShipments.forEach((shipment, index) => {
+          const eta = shipment.eta ? new Date(shipment.eta) : null;
+          const needsRedestinacao = !!shipment.terminalRedestinacaoId;
+          
+          if (eta && needsRedestinacao) {
+              const hoursToArrival = differenceInHours(eta, now);
+              const taskAlreadyExists = shipment.milestones.some(m => m.name === 'Solicitar Redestinação');
+
+              if (hoursToArrival > 0 && hoursToArrival <= 72 && !taskAlreadyExists) {
+                  const newTask: Milestone = {
+                      name: 'Solicitar Redestinação',
+                      status: 'pending',
+                      predictedDate: now,
+                      effectiveDate: null,
+                      details: `Solicitar para o terminal ID ${shipment.terminalRedestinacaoId}. ETA em ${format(eta, 'dd/MM/yyyy')}.`
+                  };
+                  
+                  const updatedMilestones = [...shipment.milestones, newTask];
+                  updatedMilestones.sort((a, b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
+
+                  updatedShipments[index] = { ...shipment, milestones: updatedMilestones };
+                  
+                  // Simulate sending the email
+                  console.log(`--- SIMULATING REDESTINACAO EMAIL ---`);
+                  console.log(`To: Terminal Contact`);
+                  console.log(`Cc: ${shipment.responsibleUser}`);
+                  console.log(`Subject: Solicitação de Redestinação - Processo ${shipment.id} / Invoice ${shipment.invoiceNumber}`);
+                  console.log(`Body: Prezados, favor proceder com a redestinação da carga do processo em referência. Documentos em anexo.`);
+                  
+                  updated = true;
+              }
+          }
+      });
+
+      if (updated) {
+          updateShipment(updatedShipments[0]); // This will save all shipments
+          setShipments(updatedShipments);
+          toast({
+              title: "Automação de Redestinação Executada",
+              description: "Novas tarefas de solicitação de redestinação foram criadas para embarques chegando em breve."
+          });
+      }
+  };
+
 
   const handleShipmentUpdate = (updatedShipmentData: Shipment) => {
     const updatedShipments = updateShipment(updatedShipmentData);

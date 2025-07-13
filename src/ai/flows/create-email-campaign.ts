@@ -45,33 +45,41 @@ export async function createEmailCampaign(input: CreateEmailCampaignInput): Prom
 
 const findRelevantClients = (instruction: string, shipments: z.infer<typeof ShipmentSchema>[], quotes: z.infer<typeof QuoteSchema>[]): string[] => {
     const instructionLower = instruction.toLowerCase();
+    
+    // Improved regex to capture origin and destination more reliably
+    // It looks for "de/from [ORIGIN] para/to [DESTINATION]" or "[ORIGIN] x [DESTINATION]"
+    const routeRegex = /(?:de|from)\s+([\w\s,]+?)\s+(?:para|to)|([\w\s,]+?)\s*x\s*([\w\s,]+)/;
+    const match = instructionLower.match(routeRegex);
+
     let origin: string | null = null;
     let destination: string | null = null;
-
-    // Pattern 1: de/from ... para/to
-    const fromToMatch = instructionLower.match(/de ([\w\s,]+) para|from ([\w\s,]+) to/);
-    const toFromMatch = instructionLower.match(/para ([\w\s,]+) oferecendo|to ([\w\s,]+) offering/);
     
-    if (fromToMatch && toFromMatch) {
-        origin = (fromToMatch[1] || fromToMatch[2] || '').trim().split(',')[0].trim();
-        destination = (toFromMatch[1] || toFromMatch[2] || '').trim().split(',')[0].trim();
-    }
-    
-    // Pattern 2: Origin x Destination
-    if (!origin || !destination) {
-        const xMatch = instructionLower.match(/([\w\s,]+?)\s*x\s*([\w\s,]+)/);
-        if (xMatch) {
-            origin = (xMatch[1] || '').trim().split(',')[0].trim();
-            destination = (xMatch[2] || '').trim().split(',')[0].trim();
+    if (match) {
+        // Handle "from ORIGIN to DESTINATION" pattern
+        if (match[1]) {
+            const toMatch = instructionLower.match(/(?:para|to)\s+([\w\s,]+)/);
+            if (toMatch) {
+                origin = match[1].trim();
+                destination = toMatch[1].trim();
+            }
+        }
+        // Handle "ORIGIN x DESTINATION" pattern
+        else if (match[2] && match[3]) {
+            origin = match[2].trim();
+            destination = match[3].trim();
         }
     }
-    
+
     if (!origin || !destination) {
         console.log("Could not determine route from instruction.");
         return []; // Cannot determine route
     }
-    
-    console.log(`Searching for clients on route: ${origin} -> ${destination}`);
+
+    // Normalize by taking the first significant part of the location name
+    const originNorm = origin.split(',')[0].trim();
+    const destinationNorm = destination.split(',')[0].trim();
+
+    console.log(`Searching for clients on route: ${originNorm} -> ${destinationNorm}`);
     const clientSet = new Set<string>();
 
     // Search in shipments
@@ -79,7 +87,7 @@ const findRelevantClients = (instruction: string, shipments: z.infer<typeof Ship
         const shipmentOrigin = shipment.origin.toLowerCase();
         const shipmentDestination = shipment.destination.toLowerCase();
         
-        if (shipmentOrigin.includes(origin!) && shipmentDestination.includes(destination!)) {
+        if (shipmentOrigin.includes(originNorm) && shipmentDestination.includes(destinationNorm)) {
             clientSet.add(shipment.customer);
         }
     });
@@ -89,7 +97,7 @@ const findRelevantClients = (instruction: string, shipments: z.infer<typeof Ship
         const quoteOrigin = quote.origin.toLowerCase();
         const quoteDestination = quote.destination.toLowerCase();
         
-        if (quoteOrigin.includes(origin!) && quoteDestination.includes(destination!)) {
+        if (quoteOrigin.includes(originNorm) && quoteDestination.includes(destinationNorm)) {
             clientSet.add(quote.customer);
         }
     });

@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
-import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, CheckCircle, XCircle } from 'lucide-react';
+import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { QuoteCostSheet } from './quote-cost-sheet';
@@ -47,6 +47,8 @@ export type QuoteDetails = {
     validity: string;
     freeTime: string;
     incoterm: string;
+    collectionAddress?: string;
+    deliveryAddress?: string;
 };
 
 export type Quote = {
@@ -66,9 +68,11 @@ interface CustomerQuotesListProps {
   partners: Partner[];
   onQuoteUpdate: (updatedQuote: Quote) => void;
   onPartnerSaved: (partner: Partner) => void;
+  onClose: () => void;
+  onEditQuote: (quote: Quote) => void;
 }
 
-export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerSaved }: CustomerQuotesListProps) {
+export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerSaved, onClose, onEditQuote }: CustomerQuotesListProps) {
     const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
     const [isSending, setIsSending] = useState(false);
     const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -313,8 +317,16 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
     <>
     <Card>
         <CardHeader>
-            <CardTitle>Cotações de Clientes</CardTitle>
-            <CardDescription>Gerencie e acompanhe o status de todas as suas propostas comerciais.</CardDescription>
+             <div className="flex justify-between items-center">
+                <div>
+                    <CardTitle>Cotações de Clientes</CardTitle>
+                    <CardDescription>Gerencie e acompanhe o status de todas as suas propostas comerciais.</CardDescription>
+                </div>
+                <Button variant="outline" onClick={onClose}>
+                    <ArrowLeft className="mr-2 h-4 w-4"/>
+                    Voltar para Cotação
+                </Button>
+            </div>
         </CardHeader>
         <CardContent>
              <div className="border rounded-lg">
@@ -332,7 +344,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                     </TableHeader>
                     <TableBody>
                     {quotes.map((quote) => (
-                        <TableRow key={quote.id} onClick={() => setSelectedQuote(quote)} className="cursor-pointer">
+                        <TableRow key={quote.id} onClick={() => onEditQuote(quote)} className="cursor-pointer">
                             <TableCell className="font-medium text-primary">{quote.id.replace('-DRAFT', '')}</TableCell>
                             <TableCell>{quote.customer}</TableCell>
                             <TableCell>{quote.origin}</TableCell>
@@ -349,7 +361,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => setSelectedQuote(quote)}>
+                                        <DropdownMenuItem onClick={() => onEditQuote(quote)}>
                                             <FileText className="mr-2 h-4 w-4" />
                                             <span>Ver/Editar Detalhes</span>
                                         </DropdownMenuItem>

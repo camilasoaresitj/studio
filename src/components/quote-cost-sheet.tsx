@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
-import { Trash2, PlusCircle } from 'lucide-react';
+import { Trash2, PlusCircle, Save } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
@@ -161,19 +161,17 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const handleFeeSelection = (feeName: string, index: number) => {
     const fee = fees.find(f => f.name === feeName);
     if (fee) {
-      const currentCharge = watchedCharges[index];
-      // Create a new charge object based on the selected fee to replace the existing one
-      const newChargeData = {
-        ...currentCharge,
-        name: fee.name,
+      const updatedCharge = {
+        ...watchedCharges[index], // Preserve existing values like ID
+        name: fee.name, // The crucial update
         type: fee.unit,
         cost: parseFloat(fee.value) || 0,
         costCurrency: fee.currency,
         sale: parseFloat(fee.value) || 0,
         saleCurrency: fee.currency,
-        approvalStatus: 'pendente' as const,
+        approvalStatus: 'pendente' as const, // Mark as pending for review
       };
-      update(index, newChargeData);
+      update(index, updatedCharge);
       
       toast({
         title: "Taxa Atualizada",
@@ -183,17 +181,16 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     }
   };
 
-
   return (
     <>
     <div className="flex flex-col h-full space-y-2">
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 flex-grow flex flex-col overflow-hidden">
                 <Card>
-                    <CardHeader className="p-3">
+                    <CardHeader className="p-4 pb-2">
                         <CardTitle className="text-base">Detalhes do Embarque</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm p-3 pt-0">
+                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm p-4 pt-0">
                         <div><strong className="text-muted-foreground">Origem:</strong> {quote.origin}</div>
                         <div><strong className="text-muted-foreground">Destino:</strong> {quote.destination}</div>
                         <div><strong className="text-muted-foreground">Carga:</strong> {quote.details.cargo}</div>
@@ -208,7 +205,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                     </CardContent>
                 </Card>
                 <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Tabela de Custos e Vendas</h3>
+                    <h3 className="text-lg font-semibold">Tabela de Custos</h3>
                     <Button type="button" variant="outline" size="sm" onClick={() => setIsFeeDialogOpen(true)}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
                     </Button>
@@ -388,7 +385,10 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
-                    <Button type="submit">Salvar Alterações</Button>
+                    <Button type="submit">
+                        <Save className="mr-2 h-4 w-4"/>
+                        Salvar Alterações
+                    </Button>
                 </div>
             </form>
         </Form>

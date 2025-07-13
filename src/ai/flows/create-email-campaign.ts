@@ -51,25 +51,27 @@ const findRelevantClients = (instruction: string, shipments: z.infer<typeof Ship
     // Pattern 1: de/from ... para/to
     const fromToMatch = instructionLower.match(/de ([\w\s,]+) para|from ([\w\s,]+) to/);
     const toFromMatch = instructionLower.match(/para ([\w\s,]+) oferecendo|to ([\w\s,]+) offering/);
-
+    
     if (fromToMatch && toFromMatch) {
-        origin = (fromToMatch[1] || fromToMatch[2] || '').trim();
-        destination = (toFromMatch[1] || toFromMatch[2] || '').trim();
+        origin = (fromToMatch[1] || fromToMatch[2] || '').trim().split(',')[0].trim();
+        destination = (toFromMatch[1] || toFromMatch[2] || '').trim().split(',')[0].trim();
     }
     
     // Pattern 2: Origin x Destination
     if (!origin || !destination) {
         const xMatch = instructionLower.match(/([\w\s,]+?)\s*x\s*([\w\s,]+)/);
         if (xMatch) {
-            origin = (xMatch[1] || '').trim();
-            destination = (xMatch[2] || '').trim();
+            origin = (xMatch[1] || '').trim().split(',')[0].trim();
+            destination = (xMatch[2] || '').trim().split(',')[0].trim();
         }
     }
     
     if (!origin || !destination) {
+        console.log("Could not determine route from instruction.");
         return []; // Cannot determine route
     }
     
+    console.log(`Searching for clients on route: ${origin} -> ${destination}`);
     const clientSet = new Set<string>();
 
     // Search in shipments
@@ -146,4 +148,3 @@ const createEmailCampaignFlow = ai.defineFlow(
     };
   }
 );
-

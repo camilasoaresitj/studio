@@ -161,18 +161,17 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const handleFeeSelection = (feeName: string, index: number) => {
     const fee = fees.find(f => f.name === feeName);
     if (fee) {
-      const updatedCharge = {
-        ...watchedCharges[index],
+      update(index, {
+        ...watchedCharges[index], // keep id and other fields
         name: fee.name,
         type: fee.unit,
         cost: parseFloat(fee.value) || 0,
         costCurrency: fee.currency,
         sale: parseFloat(fee.value) || 0,
         saleCurrency: fee.currency,
-        approvalStatus: 'pendente' as const,
-      };
-      update(index, updatedCharge);
-      
+        approvalStatus: 'pendente', // Mark for approval after change
+      });
+
       toast({
         title: "Taxa Atualizada",
         description: `A despesa foi atualizada para ${fee.name} e marcada como pendente de aprovação.`,
@@ -180,6 +179,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
       });
     }
   };
+  
+  const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
+    const charge = watchedCharges[index];
+    if (charge.approvalStatus === 'aprovada') {
+        update(index, { ...charge, [field]: parseFloat(value) || 0, approvalStatus: 'pendente' });
+    }
+  };
+
 
   return (
     <>
@@ -289,7 +296,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         </Select>
                                     )} />
                                     <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
-                                        <Input type="number" {...field} className="w-full h-8" />
+                                        <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'cost', e.target.value); }} className="w-full h-8" />
                                     )} />
                                     </div>
                                 </TableCell>
@@ -309,7 +316,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         </Select>
                                     )} />
                                     <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
-                                        <Input type="number" {...field} className="w-full h-8" />
+                                        <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'sale', e.target.value); }} className="w-full h-8" />
                                     )} />
                                     </div>
                                 </TableCell>

@@ -11,10 +11,12 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Partner } from '@/lib/partners-data';
+import type { Quote } from '@/components/customer-quotes-list';
 
 const CreateEmailCampaignInputSchema = z.object({
   instruction: z.string().describe('The natural language instruction for the email campaign.'),
-  partners: z.array(z.any()).describe("A list of all partners (customers).")
+  partners: z.array(z.any()).describe("A list of all partners (customers)."),
+  quotes: z.array(z.any()).describe("A list of all past quotes."),
 });
 export type CreateEmailCampaignInput = z.infer<typeof CreateEmailCampaignInputSchema>;
 
@@ -29,25 +31,28 @@ export async function createEmailCampaign(input: CreateEmailCampaignInput): Prom
   return createEmailCampaignFlow(input);
 }
 
-// New function to find relevant clients based on their registered KPIs
-const findRelevantClients = (instruction: string, partners: Partner[]): string[] => {
+// New function to find relevant clients based on their registered KPIs and quote history
+const findRelevantClients = (instruction: string, partners: Partner[], quotes: Quote[]): string[] => {
     const instructionLower = instruction.toLowerCase();
     
     let origin: string | null = null;
     let destination: string | null = null;
 
-    // Use a regex to find routes like "de ORIGEM para DESTINO" or "ORIGEM x DESTINO"
-    const routeRegex = /(?:de|from)\s+([a-zA-Z\s]+?)\s+(?:para|to|x)\s+([a-zA-Z\s]+)/;
+    const routeRegex = /(?:de|from)\s+([a-zA-Z\s,]+?)\s+(?:para|to|x)\s+([a-zA-Z\s,]+)/i;
     const match = instructionLower.match(routeRegex);
 
-    if (match) {
+    if (match && match[1] && match[2]) {
         origin = match[1].trim();
         destination = match[2].trim();
     } else if (instructionLower.includes(' x ')) {
         const parts = instructionLower.split(' x ');
         if (parts.length > 1) {
-            origin = parts[0].split(' ').pop()?.trim() || null;
-            destination = parts[1].split(' ')[0].trim();
+            const originPart = parts[0].split(' ').pop();
+            const destinationPart = parts[1].split(' ')[0];
+            if(originPart && destinationPart) {
+                origin = originPart.trim();
+                destination = destinationPart.trim();
+            }
         }
     }
 
@@ -56,12 +61,13 @@ const findRelevantClients = (instruction: string, partners: Partner[]): string[]
         return [];
     }
 
-    const originNorm = origin;
-    const destinationNorm = destination;
+    const originNorm = origin.toLowerCase();
+    const destinationNorm = destination.toLowerCase();
 
     console.log(`Searching for clients on route: ${originNorm} -> ${destinationNorm}`);
     const clientSet = new Set<string>();
 
+    // 1. Search in manually registered KPIs
     partners.forEach(partner => {
         if (partner.roles.cliente && partner.kpi?.manual?.mainRoutes) {
             const hasMatchingRoute = partner.kpi.manual.mainRoutes.some(route => {
@@ -71,6 +77,16 @@ const findRelevantClients = (instruction: string, partners: Partner[]): string[]
             if (hasMatchingRoute) {
                 clientSet.add(partner.name);
             }
+        }
+    });
+    
+    // 2. Search in past quotes
+    quotes.forEach(quote => {
+        const quoteOriginLower = quote.origin.toLowerCase();
+        const quoteDestinationLower = quote.destination.toLowerCase();
+        
+        if(quoteOriginLower.includes(originNorm) && quoteDestinationLower.includes(destinationNorm)) {
+            clientSet.add(quote.customer);
         }
     });
 
@@ -84,12 +100,12 @@ const createEmailCampaignFlow = ai.defineFlow(
     inputSchema: CreateEmailCampaignInputSchema,
     outputSchema: CreateEmailCampaignOutputSchema,
   },
-  async ({ instruction, partners }) => {
+  async ({ instruction, partners, quotes }) => {
     
-    const targetClients = findRelevantClients(instruction, partners as Partner[]);
+    const targetClients = findRelevantClients(instruction, partners as Partner[], quotes as Quote[]);
 
     if (targetClients.length === 0) {
-        console.log("No specific clients found based on manual KPIs.");
+        console.log("No specific clients found based on manual KPIs or quote history.");
     }
     
     const emailPrompt = ai.definePrompt({

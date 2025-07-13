@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,6 +17,8 @@ import { Loader2, User, Building, Mail, ChevronsRight, FileText, AlertTriangle, 
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { getPartners } from '@/lib/partners-data';
+import { getInitialQuotes } from '@/lib/initial-data';
+import type { Quote } from './customer-quotes-list';
 import { ScrollArea } from './ui/scroll-area';
 
 const crmFormSchema = z.object({
@@ -37,6 +39,12 @@ export function CrmForm() {
   const [isCampaignLoading, setIsCampaignLoading] = useState(false);
   const [campaignResult, setCampaignResult] = useState<CreateEmailCampaignOutput | null>(null);
   const { toast } = useToast();
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+
+  useEffect(() => {
+    // This runs only on the client, after hydration
+    setQuotes(getInitialQuotes());
+  }, []);
 
   const crmForm = useForm<z.infer<typeof crmFormSchema>>({
     resolver: zodResolver(crmFormSchema),
@@ -72,7 +80,7 @@ export function CrmForm() {
     setIsCampaignLoading(true);
     setCampaignResult(null);
     const partners = getPartners();
-    const response = await runCreateEmailCampaign(values.instruction, partners);
+    const response = await runCreateEmailCampaign(values.instruction, partners, quotes);
     if (response.success) {
       setCampaignResult(response.data);
     } else {
@@ -151,7 +159,7 @@ export function CrmForm() {
       <Card>
         <CardHeader>
             <CardTitle>Campanha de E-mail com IA</CardTitle>
-            <CardDescription>Descreva a campanha que você quer criar. A IA irá encontrar os clientes-alvo com base nos KPIs do cadastro e gerar o e-mail.</CardDescription>
+            <CardDescription>Descreva a campanha que você quer criar. A IA irá encontrar os clientes-alvo com base nos KPIs do cadastro e no histórico de cotações, e depois gerar o e-mail.</CardDescription>
         </CardHeader>
         <CardContent>
             <Form {...campaignForm}>
@@ -160,7 +168,7 @@ export function CrmForm() {
                         <FormItem>
                             <FormLabel>Instrução para a Campanha</FormLabel>
                             <FormControl>
-                                <Textarea placeholder="Ex: quero mandar um email para todos os clientes que embarcam de shanghai para santos oferecendo a tarifa especial que recebemos de USD 5200/40HC" className="min-h-[100px]" {...field} />
+                                <Textarea placeholder="Ex: quero mandar um email para todos os clientes que embarcam de shanghai x santos oferecendo a tarifa especial que recebemos de USD 5200/40HC" className="min-h-[100px]" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -181,7 +189,7 @@ export function CrmForm() {
                                 {campaignResult.clients.map((client, index) => (
                                     <li key={index} className="text-sm">{client}</li>
                                 ))}
-                                {campaignResult.clients.length === 0 && <p className="text-sm text-muted-foreground">Nenhum cliente encontrado para esta rota nos seus cadastros.</p>}
+                                {campaignResult.clients.length === 0 && <p className="text-sm text-muted-foreground">Nenhum cliente encontrado para esta rota nos seus cadastros ou histórico de cotações.</p>}
                             </ul>
                         </ScrollArea>
                     </div>

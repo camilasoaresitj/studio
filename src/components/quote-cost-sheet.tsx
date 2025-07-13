@@ -18,7 +18,7 @@ import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import { useToast } from './ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Checkbox } from './ui/checkbox';
 import { Fee, getFees } from '@/lib/fees-data';

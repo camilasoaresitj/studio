@@ -27,6 +27,7 @@ import { getFinancialEntries, addFinancialEntry } from "@/lib/financials-data";
 import type { Shipment } from "@/lib/shipment";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
+import type { Quote } from "@/components/customer-quotes-list";
 
 
 export async function runGetFreightRates(input: any) {
@@ -326,9 +327,9 @@ export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: 
     return { success: true, data: shipment };
 }
 
-export async function runCreateEmailCampaign(instruction: string, shipments: Shipment[]) {
+export async function runCreateEmailCampaign(instruction: string, shipments: Shipment[], quotes: Quote[]) {
     try {
-        const data = await createEmailCampaign({ instruction, shipments });
+        const data = await createEmailCampaign({ instruction, shipments, quotes });
         return { success: true, data };
     } catch (error: any) {
         console.error("Create Email Campaign Action Failed", error);

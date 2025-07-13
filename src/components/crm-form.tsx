@@ -17,6 +17,7 @@ import { Loader2, User, Building, Mail, ChevronsRight, FileText, AlertTriangle, 
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { getShipments } from '@/lib/shipment';
+import { getInitialQuotes } from '@/lib/initial-data';
 import { ScrollArea } from './ui/scroll-area';
 
 const crmFormSchema = z.object({
@@ -71,8 +72,9 @@ export function CrmForm() {
   async function onCampaignSubmit(values: z.infer<typeof campaignFormSchema>) {
     setIsCampaignLoading(true);
     setCampaignResult(null);
-    const shipments = getShipments(); // Fetching current shipments data
-    const response = await runCreateEmailCampaign(values.instruction, shipments);
+    const shipments = getShipments();
+    const quotes = getInitialQuotes();
+    const response = await runCreateEmailCampaign(values.instruction, shipments, quotes);
     if (response.success) {
       setCampaignResult(response.data);
     } else {

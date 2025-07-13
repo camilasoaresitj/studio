@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Shipment } from '@/lib/shipment';
 
 const ShipmentSchema = z.object({
   id: z.string(),
@@ -19,9 +18,17 @@ const ShipmentSchema = z.object({
   customer: z.string(),
 });
 
+const QuoteSchema = z.object({
+  id: z.string(),
+  origin: z.string(),
+  destination: z.string(),
+  customer: z.string(),
+});
+
 const CreateEmailCampaignInputSchema = z.object({
   instruction: z.string().describe('The natural language instruction for the email campaign.'),
-  shipments: z.array(ShipmentSchema).describe('A list of all past shipments to find relevant customers.'),
+  shipments: z.array(ShipmentSchema).describe('A list of all past shipments.'),
+  quotes: z.array(QuoteSchema).describe('A list of all past quotes.'),
 });
 export type CreateEmailCampaignInput = z.infer<typeof CreateEmailCampaignInputSchema>;
 
@@ -36,9 +43,7 @@ export async function createEmailCampaign(input: CreateEmailCampaignInput): Prom
   return createEmailCampaignFlow(input);
 }
 
-const findRelevantClients = (instruction: string, shipments: z.infer<typeof ShipmentSchema>[]): string[] => {
-    // This is a simplified keyword-based search. A more advanced implementation
-    // could use another AI call to parse the instruction and extract structured data.
+const findRelevantClients = (instruction: string, shipments: z.infer<typeof ShipmentSchema>[], quotes: z.infer<typeof QuoteSchema>[]): string[] => {
     const instructionLower = instruction.toLowerCase();
     
     // Naive extraction of origin and destination.
@@ -58,6 +63,7 @@ const findRelevantClients = (instruction: string, shipments: z.infer<typeof Ship
 
     const clientSet = new Set<string>();
 
+    // Search in shipments
     shipments.forEach(shipment => {
         const shipmentOrigin = shipment.origin.toLowerCase();
         const shipmentDestination = shipment.destination.toLowerCase();
@@ -66,6 +72,17 @@ const findRelevantClients = (instruction: string, shipments: z.infer<typeof Ship
             clientSet.add(shipment.customer);
         }
     });
+
+    // Search in quotes
+    quotes.forEach(quote => {
+        const quoteOrigin = quote.origin.toLowerCase();
+        const quoteDestination = quote.destination.toLowerCase();
+        
+        if (quoteOrigin.includes(origin) && quoteDestination.includes(destination)) {
+            clientSet.add(quote.customer);
+        }
+    });
+
 
     return Array.from(clientSet);
 }
@@ -77,9 +94,9 @@ const createEmailCampaignFlow = ai.defineFlow(
     inputSchema: CreateEmailCampaignInputSchema,
     outputSchema: CreateEmailCampaignOutputSchema,
   },
-  async ({ instruction, shipments }) => {
+  async ({ instruction, shipments, quotes }) => {
     
-    const targetClients = findRelevantClients(instruction, shipments);
+    const targetClients = findRelevantClients(instruction, shipments, quotes);
 
     if (targetClients.length === 0) {
         // Even if no clients are found, we can still generate a template email.

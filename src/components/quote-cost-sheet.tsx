@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -157,7 +157,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     setSelectedFees(new Set());
   };
 
-  const watchedCharges = form.watch('charges');
+  const watchedCharges = useWatch({ control: form.control, name: 'charges' });
 
   const totals = React.useMemo(() => {
     let totalCostBRL = 0;

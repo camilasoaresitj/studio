@@ -239,50 +239,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     setActiveQuote(null);
     setResults([]);
     
-    // For local search, we'll check if any of the provided origins/destinations match.
-    const searchOrigins = values.origin.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-    const searchDestinations = values.destination.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-
-    const localResults: FreightRate[] = rates
-      .filter(rate => {
-          const modalMatch = values.modal === 'ocean' 
-              ? rate.modal.toLowerCase().startsWith('marítimo')
-              : rate.modal.toLowerCase().startsWith('aéreo');
-          
-          if (!modalMatch) return false;
-
-          const originMatch = searchOrigins.some(o => rate.origin.toUpperCase().includes(o));
-          const destinationMatch = searchDestinations.some(d => rate.destination.toUpperCase().includes(d));
-
-          return originMatch && destinationMatch;
-      })
-      .map((rate): FreightRate => {
-        const costValue = parseFloat(rate.rate.replace(/[^0-9.]/g, '')) || 0;
-        const currency = rate.rate.includes('R$') ? 'BRL' : 'USD';
-        return {
-          id: `local-${rate.id}`,
-          carrier: rate.carrier,
-          origin: rate.origin,
-          destination: rate.destination,
-          transitTime: `${rate.transitTime}`,
-          cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(costValue),
-          costValue: costValue,
-          carrierLogo: 'https://placehold.co/120x40',
-          dataAiHint: values.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
-          source: 'Tabela'
-        };
-      });
-      
-    const customer = partners.find(p => p.id?.toString() === values.customerId);
-    const primaryContact = customer?.contacts?.find(c => c.departments?.includes('Comercial')) || customer?.contacts?.[0];
-
-    const finalValues = {
-        ...values,
-        customerEmail: primaryContact?.email,
-        customerPhone: primaryContact?.phone
-    };
-
-    const response = await runGetFreightRates(finalValues);
+    const response = await runGetFreightRates(values);
     let apiResults: FreightRate[] = [];
 
     if (response.success) {
@@ -290,26 +247,24 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     } else {
         toast({
             variant: "destructive",
-            title: "Erro ao buscar na API CargoFive",
+            title: "Erro ao buscar tarifas",
             description: response.error,
         });
     }
 
-    const allResults = [...localResults, ...apiResults].sort((a, b) => a.costValue - b.costValue);
-    
-    setResults(allResults);
+    setResults(apiResults);
 
-    if (allResults.length > 0) {
+    if (apiResults.length > 0) {
         toast({
             variant: "default",
             title: "Cotações encontradas!",
-            description: `Encontramos ${allResults.length} opções para você.`,
+            description: `Encontramos ${apiResults.length} opções para você.`,
         });
     } else {
         toast({
             variant: "default",
             title: "Nenhuma cotação encontrada",
-            description: "Nenhuma tarifa encontrada na API ou na sua tabela local. Tente alterar os parâmetros da sua busca.",
+            description: "Nenhuma tarifa encontrada na API. Tente alterar os parâmetros da sua busca.",
         });
     }
 

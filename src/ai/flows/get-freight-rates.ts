@@ -96,76 +96,85 @@ const getFreightRatesFlow = ai.defineFlow(
     );
 
     const allApiPromises = searchPairs.map(async (pair) => {
+      try {
         const singleSearchInput = { ...input, origin: pair.origin, destination: pair.destination };
+        const cargoFivePayload = buildCargoFivePayload(singleSearchInput);
         
-        // --- CargoFive API Call ---
-        // Accessing the API key directly in the check and fetch call
-        if (process.env.CARGOFIVE_API_KEY || "a256c19a3c3d85da2e35846de3205954") {
-          try {
-            const cargoFivePayload = buildCargoFivePayload(singleSearchInput);
-            console.log("Sending payload to CargoFive:", JSON.stringify(cargoFivePayload, null, 2));
-            
-            const response = await fetch('https://api.cargofive.com/v2/forwarding_rates', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-Api-Key': process.env.CARGOFIVE_API_KEY || "a256c19a3c3d85da2e35846de3205954",
-                    'User-Agent': 'CargaInteligenteApp/1.0'
-                },
-                body: JSON.stringify(cargoFivePayload),
-            });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                 try {
-                    const errorJson = JSON.parse(errorText);
-                    console.error('CargoFive API Error (JSON):', errorJson);
-                    // Lança um erro com a mensagem da API para ser exibida no frontend
-                    throw new Error(errorJson.message || errorJson.error || `CargoFive API Error (${response.status})`);
-                } catch (e) {
-                      console.error('CargoFive API Error (Text):', errorText);
-                      // Lança um erro genérico se a resposta não for JSON
-                      throw new Error(`CargoFive API Error (${response.status}): ${errorText}`);
-                }
-            }
-            
-            const data = await response.json();
-            console.log("Received data from CargoFive:", JSON.stringify(data, null, 2));
-            if (!data.forwarding_rates || data.forwarding_rates.length === 0) return [];
-            
-            return data.forwarding_rates.map((rate: any): z.infer<typeof FreightRateSchema> => {
-                const totalCost = rate.forwarding_charges.reduce((sum: number, charge: any) => sum + parseFloat(charge.amount), 0);
-                const currency = rate.forwarding_charges[0]?.currency || 'USD';
-                return {
-                    id: `cargofive-${rate.id}-${pair.origin}-${pair.destination}`,
-                    carrier: rate.carrier_name,
-                    origin: pair.origin,
-                    destination: pair.destination,
-                    transitTime: `${rate.transit_time_in_days || '?'} dias`,
-                    cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost),
-                    costValue: totalCost,
-                    carrierLogo: rate.carrier_logo || 'https://placehold.co/120x40.png',
-                    dataAiHint: input.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
-                    source: 'CargoFive API',
-                };
-            });
+        console.log("Sending payload to CargoFive:", JSON.stringify(cargoFivePayload, null, 2));
 
-          } catch (error: any) {
-             console.error(`CargoFive API Error for ${pair.origin} -> ${pair.destination}:`, error);
-             // Re-throw the error so it can be caught by the final Promise.all block
-             throw error;
+        const response = await fetch('https://api.cargofive.com/v2/forwarding_rates', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': process.env.CARGOFIVE_API_KEY || "a256c19a3c3d85da2e35846de3205954",
+            'User-Agent': 'CargaInteligenteApp/1.0',
+          },
+          body: JSON.stringify(cargoFivePayload),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          try {
+            const errorJson = JSON.parse(errorText);
+            console.error(`CargoFive API Error for ${pair.origin}->${pair.destination} (JSON):`, errorJson);
+            throw new Error(errorJson.message || errorJson.error || `CargoFive API Error (${response.status})`);
+          } catch (e) {
+            console.error(`CargoFive API Error for ${pair.origin}->${pair.destination} (Text):`, errorText);
+            throw new Error(`CargoFive API Error (${response.status}): ${errorText}`);
           }
         }
-        return [];
+        
+        const data = await response.json();
+        console.log(`Received data from CargoFive for ${pair.origin}->${pair.destination}:`, JSON.stringify(data, null, 2));
+        if (!data.forwarding_rates || data.forwarding_rates.length === 0) {
+            return [];
+        }
+        
+        return data.forwarding_rates.map((rate: any): z.infer<typeof FreightRateSchema> => {
+            const totalCost = rate.forwarding_charges.reduce((sum: number, charge: any) => sum + parseFloat(charge.amount), 0);
+            const currency = rate.forwarding_charges[0]?.currency || 'USD';
+            return {
+                id: `cargofive-${rate.id}-${pair.origin}-${pair.destination}`,
+                carrier: rate.carrier_name,
+                origin: pair.origin,
+                destination: pair.destination,
+                transitTime: `${rate.transit_time_in_days || '?'} dias`,
+                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totalCost),
+                costValue: totalCost,
+                carrierLogo: rate.carrier_logo || 'https://placehold.co/120x40.png',
+                dataAiHint: input.modal === 'ocean' ? 'shipping company logo' : 'airline logo',
+                source: 'CargoFive API',
+            };
+        });
+
+      } catch (error: any) {
+        console.error(`Failed to fetch or process rates for ${pair.origin} -> ${pair.destination}:`, error);
+        // Throw the error to be caught by Promise.allSettled
+        throw new Error(`Falha na busca para a rota ${pair.origin} -> ${pair.destination}: ${error.message}`);
+      }
     });
 
-    try {
-        const resultsFromAllPairs = await Promise.all(allApiPromises);
-        return resultsFromAllPairs.flat();
-    } catch (error: any) {
-        console.error("Error during API calls:", error);
-        // Throw a user-friendly error message to be displayed in the frontend toast
-        throw new Error(error.message || "An unknown error occurred while fetching rates.");
+    // Using Promise.allSettled to ensure all requests complete, even if some fail.
+    const results = await Promise.allSettled(allApiPromises);
+    const successfulResults: GetFreightRatesOutput = [];
+    
+    results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+            if (Array.isArray(result.value)) {
+                successfulResults.push(...result.value);
+            }
+        } else {
+            console.error(`API call for search pair ${index} failed:`, result.reason);
+            // Optionally, you can throw a single, consolidated error message if you want to notify the user of partial failures.
+            // For now, we will just log it and return successful results.
+        }
+    });
+
+    if (successfulResults.length === 0 && results.some(r => r.status === 'rejected')) {
+        const firstError = (results.find(r => r.status === 'rejected') as PromiseRejectedResult)?.reason?.message || "Ocorreu um erro desconhecido durante a busca.";
+        throw new Error(firstError);
     }
+    
+    return successfulResults.sort((a,b) => a.costValue - b.costValue);
   }
 );

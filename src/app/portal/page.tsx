@@ -6,23 +6,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight } from 'lucide-react';
+import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle } from 'lucide-react';
 import { getShipments, Shipment } from '@/lib/shipment';
 import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { useRouter } from 'next/navigation';
-import { format, isValid } from 'date-fns';
+import { format, isValid, differenceInDays, isPast } from 'date-fns';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
+
+interface DraftAlert {
+    shipment: Shipment;
+    daysRemaining: number;
+    isOverdue: boolean;
+}
 
 export default function CustomerPortalPage() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [invoices, setInvoices] = useState<FinancialEntry[]>([]);
+    const [draftAlerts, setDraftAlerts] = useState<DraftAlert[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
     // In a real app, customerId would come from an authentication context
     const customerId = "Nexus Imports"; 
 
-    useEffect(() => {
+    const fetchData = () => {
         setIsLoading(true);
         // Simulate fetching data for the logged-in customer
         const allShipments = getShipments();
@@ -32,23 +40,46 @@ export default function CustomerPortalPage() {
         const allInvoices = getFinancialEntries();
         const customerInvoices = allInvoices.filter(i => i.partner === customerId && i.type === 'credit');
         setInvoices(customerInvoices);
+
+        // Calculate Draft Alerts
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const alerts: DraftAlert[] = customerShipments
+            .map(shipment => {
+                const draftMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
+                if (!draftMilestone || !draftMilestone.predictedDate || !isValid(new Date(draftMilestone.predictedDate))) return null;
+
+                const dueDate = new Date(draftMilestone.predictedDate);
+                const draftAlreadySent = shipment.blDraftData; // Check if draft data exists
+
+                if (draftAlreadySent) return null; // Don't show alert if draft is sent
+
+                const daysRemaining = differenceInDays(dueDate, today);
+                
+                // Show alert if it's due in the next 5 days or is overdue
+                if (daysRemaining <= 5) {
+                    return {
+                        shipment,
+                        daysRemaining,
+                        isOverdue: isPast(dueDate) && daysRemaining < 0
+                    };
+                }
+                return null;
+            })
+            .filter((alert): alert is DraftAlert => alert !== null)
+            .sort((a,b) => a.daysRemaining - b.daysRemaining);
+
+        setDraftAlerts(alerts);
         
         setIsLoading(false);
+    };
+    
+    useEffect(() => {
+        fetchData();
     }, [customerId]);
 
     const handleRefresh = () => {
-        setIsLoading(true);
-        // Re-fetch data
-        setTimeout(() => {
-            const allShipments = getShipments();
-            const customerShipments = allShipments.filter(s => s.customer === customerId);
-            setShipments(customerShipments);
-
-            const allInvoices = getFinancialEntries();
-            const customerInvoices = allInvoices.filter(i => i.partner === customerId && i.type === 'credit');
-            setInvoices(customerInvoices);
-            setIsLoading(false);
-        }, 500);
+        fetchData();
     };
     
     const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
@@ -100,6 +131,34 @@ export default function CustomerPortalPage() {
                  </div>
             </header>
             
+            {draftAlerts.length > 0 && (
+                <Card className="border-destructive bg-destructive/5 animate-in fade-in-50 duration-500">
+                     <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5"/> Ações Pendentes</CardTitle>
+                        <CardDescription className="text-destructive/80">Você tem instruções de embarque que precisam da sua atenção.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        {draftAlerts.map(({ shipment, daysRemaining, isOverdue }) => (
+                            <Link key={shipment.id} href={`/bl-draft/${shipment.id}`} className="block">
+                                <div className="p-3 border rounded-lg bg-background hover:bg-muted transition-colors flex justify-between items-center">
+                                    <div>
+                                        <p className="font-semibold">Enviar Draft do BL - Processo <span className="text-primary">{shipment.id}</span></p>
+                                        <p className="text-sm text-muted-foreground">{shipment.origin} &rarr; {shipment.destination}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        {isOverdue ? (
+                                             <Badge variant="destructive">ATRASADO ({Math.abs(daysRemaining)} dias)</Badge>
+                                        ) : (
+                                             <Badge variant="default" className="bg-amber-500">Vence em {daysRemaining} dia(s)</Badge>
+                                        )}
+                                    </div>
+                                </div>
+                            </Link>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
+
             <Card>
                 <CardHeader>
                     <CardTitle>Meus Embarques</CardTitle>

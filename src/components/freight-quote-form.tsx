@@ -23,10 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2, Hand } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2, Hand, Package as PackageIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
-import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetVesselSchedules, runGenerateClientInvoicePdf, runExtractQuoteDetailsFromText, runSendWhatsapp } from '@/app/actions';
+import { runGetFreightRates, runGetCourierRates, runRequestAgentQuote, runSendQuote, runGetVesselSchedules, runGenerateClientInvoicePdf, runExtractQuoteDetailsFromText, runSendWhatsapp } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import type { Quote, QuoteCharge, QuoteDetails } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
@@ -53,6 +53,8 @@ type FreightRate = {
     carrierLogo: string;
     dataAiHint: string;
     source: string;
+    service?: string;
+    deliveryDays?: number | null;
 };
 
 type Schedule = {
@@ -74,7 +76,7 @@ interface FreightQuoteFormProps {
 }
 
 // Custom Autocomplete Input Component
-const AutocompleteInput = ({ field, placeholder, modal }: { field: any, placeholder: string, modal: 'ocean' | 'air' }) => {
+const AutocompleteInput = ({ field, placeholder, modal }: { field: any, placeholder: string, modal: 'ocean' | 'air' | 'courier' }) => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -282,19 +284,24 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     setActiveQuote(null);
     setResults([]);
     
-    const response = await runGetFreightRates(values);
     let apiResults: FreightRate[] = [];
 
-    if (response.success) {
-        apiResults = response.data as FreightRate[];
+    if (values.modal === 'courier') {
+        const response = await runGetCourierRates(values);
+        if (response.success) {
+            apiResults = response.data as FreightRate[];
+        } else {
+             toast({ variant: "destructive", title: "Erro ao buscar tarifas de courier", description: response.error });
+        }
     } else {
-        toast({
-            variant: "destructive",
-            title: "Erro ao buscar tarifas",
-            description: response.error,
-        });
+        const response = await runGetFreightRates(values);
+        if (response.success) {
+            apiResults = response.data as FreightRate[];
+        } else {
+            toast({ variant: "destructive", title: "Erro ao buscar tarifas", description: response.error });
+        }
     }
-
+    
     setResults(apiResults);
 
     if (apiResults.length > 0) {
@@ -488,7 +495,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         
         calculatedFreightCost = chargeableWeight * ratePerTon;
         freightChargeType = `Por ${chargeableWeight.toFixed(2)} W/M`;
-    } else if (values.modal === 'air') {
+    } else if (values.modal === 'air' || values.modal === 'courier') {
         const ratePerKg = rate.costValue || 0;
         const volumetricFactor = 6000;
         let totalGrossWeight = 0;
@@ -959,7 +966,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                       defaultValue="ocean"
                       className="w-auto"
                       onValueChange={(value) => {
-                          form.setValue('modal', value as 'air' | 'ocean');
+                          form.setValue('modal', value as 'air' | 'ocean' | 'courier');
                           setResults([]);
                       }}
                       value={modal}
@@ -967,6 +974,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                       <TabsList>
                         <TabsTrigger value="air"><Plane className="mr-2 h-4 w-4" />Aéreo</TabsTrigger>
                         <TabsTrigger value="ocean"><Ship className="mr-2 h-4 w-4" />Marítimo</TabsTrigger>
+                        <TabsTrigger value="courier"><PackageIcon className="mr-2 h-4 w-4" />Courier</TabsTrigger>
                       </TabsList>
                     </Tabs>
                     
@@ -1127,9 +1135,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
                 <Separator className="my-6" />
 
-                {modal === 'air' && (
+                {(modal === 'air' || modal === 'courier') && (
                   <div className="m-0 space-y-4 animate-in fade-in-50 duration-300">
-                      <h3 className="text-lg font-medium">Detalhes da Carga Aérea</h3>
+                      <h3 className="text-lg font-medium">Detalhes da Carga Aérea / Courier</h3>
                       {airPieces.map((field, index) => (
                           <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3 border rounded-md items-end">
                               <FormField control={form.control} name={`airShipment.pieces.${index}.quantity`} render={({ field }) => (
@@ -1387,8 +1395,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         <Image src={result.carrierLogo} alt={result.carrier} width={100} height={40} className="object-contain" data-ai-hint={result.dataAiHint} />
                         <div className="flex-grow">
                             <p className="font-bold text-lg">{result.carrier}</p>
-                            <p className="text-sm font-semibold">{result.origin} → {result.destination}</p>
-                            <p className="text-sm text-muted-foreground">Tempo de trânsito: {result.transitTime}</p>
+                            <p className="text-sm font-semibold">{result.service ? result.service : `${result.origin} → ${result.destination}`}</p>
+                            <p className="text-sm text-muted-foreground">
+                                Tempo de trânsito: {result.deliveryDays !== undefined ? `${result.deliveryDays || '?'} dias` : result.transitTime}
+                            </p>
                         </div>
                     </div>
                     <div className="text-left md:text-right w-full md:w-auto">

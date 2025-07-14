@@ -36,7 +36,7 @@ export const lclDetailsSchema = z.object({
 // Base schema that can be extended. It's a plain ZodObject.
 export const baseFreightQuoteFormSchema = z.object({
   customerId: z.string({ required_error: "Por favor, selecione um cliente."}).min(1, { message: "Por favor, selecione um cliente." }),
-  modal: z.enum(['air', 'ocean']),
+  modal: z.enum(['air', 'ocean', 'courier']),
   incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'DDU']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
@@ -85,6 +85,13 @@ export const freightQuoteFormSchema = baseFreightQuoteFormSchema.superRefine((da
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Adicione pelo menos uma peça para cotação aérea.",
+            path: ['airShipment.pieces'],
+        });
+    }
+    if (data.modal === 'courier' && data.airShipment.pieces.length === 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Adicione pelo menos uma peça para cotação de courier.",
             path: ['airShipment.pieces'],
         });
     }

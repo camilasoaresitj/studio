@@ -1,4 +1,5 @@
 
+
 'use server'
 
 import { detectCarrierFromBooking } from "@/ai/flows/detect-carrier-from-booking";
@@ -10,6 +11,7 @@ import { generateQuotePdfHtml } from "@/ai/flows/generate-quote-pdf-html";
 import { generateAgentInvoiceHtml } from "@/ai/flows/generate-agent-invoice-html";
 import { generateHblHtml } from "@/ai/flows/generate-hbl-html";
 import { getFreightRates } from "@/ai/flows/get-freight-rates";
+import { getCourierRates } from "@/ai/flows/get-courier-rates";
 import { monitorEmailForTasks } from "@/ai/flows/monitor-email-for-tasks";
 import { requestAgentQuote } from "@/ai/flows/request-agent-quote";
 import { sendQuote } from "@/ai/flows/send-quote";
@@ -37,6 +39,16 @@ export async function runGetFreightRates(input: any) {
         return { success: true, data };
     } catch (error: any) {
         console.error("Freight Rates Action Failed", error);
+        return { success: false, error: error.message || "Failed to run flow" };
+    }
+}
+
+export async function runGetCourierRates(input: any) {
+    try {
+        const data = await getCourierRates(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Courier Rates Action Failed", error);
         return { success: false, error: error.message || "Failed to run flow" };
     }
 }

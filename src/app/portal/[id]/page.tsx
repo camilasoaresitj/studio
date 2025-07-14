@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { format, isValid } from 'date-fns';
+import { format, isValid, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -39,16 +39,16 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 export default function ShipmentDetailPage({ params }: { params: { id: string } }) {
     const [shipment, setShipment] = useState<Shipment | null>(null);
     const router = useRouter();
+    const data = getShipmentById(params.id);
 
     useEffect(() => {
-        const data = getShipmentById(params.id);
         if (!data) {
             // In a real app with server-side fetching, you'd use the `notFound()` function from Next.js
             // For this client-side simulation, we'll handle it gracefully.
             console.log('Shipment not found');
         }
         setShipment(data);
-    }, [params.id]);
+    }, [params.id, data]);
 
     if (!shipment) {
         return (
@@ -156,4 +156,3 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
         </div>
     );
 }
-

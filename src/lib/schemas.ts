@@ -73,7 +73,8 @@ export const baseFreightQuoteFormSchema = z.object({
 
 // Refined schema with superRefine for client-side form validation. This returns a ZodEffects object.
 export const freightQuoteFormSchema = baseFreightQuoteFormSchema.superRefine((data, ctx) => {
-    if (data.incoterm === 'EXW' && (!data.collectionAddress || data.collectionAddress.trim().length < 5)) {
+    // Courier uses collectionAddress/deliveryAddress as primary, so this check is for other modals
+    if (data.modal !== 'courier' && data.incoterm === 'EXW' && (!data.collectionAddress || data.collectionAddress.trim().length < 5)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "O local de coleta é obrigatório para o incoterm EXW (mínimo 5 caracteres).",
@@ -112,7 +113,7 @@ export const freightQuoteFormSchema = baseFreightQuoteFormSchema.superRefine((da
     }
 
     const deliveryTerms = ['DAP', 'DPU', 'DDP', 'DDU'];
-    if ((data.optionalServices.delivery || deliveryTerms.includes(data.incoterm)) && (!data.deliveryAddress || data.deliveryAddress.trim().length < 5)) {
+    if (data.modal !== 'courier' && (data.optionalServices.delivery || deliveryTerms.includes(data.incoterm)) && (!data.deliveryAddress || data.deliveryAddress.trim().length < 5)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "O local de entrega é obrigatório para este Incoterm ou serviço selecionado.",

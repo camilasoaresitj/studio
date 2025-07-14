@@ -995,32 +995,42 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         </Tabs>
                     )}
                 </div>
+                
+                 <div className="grid md:grid-cols-2 gap-4 mt-6">
+                    {modal === 'courier' ? (
+                        <>
+                            <FormField control={form.control} name="collectionAddress" render={({ field }) => (
+                                <FormItem><FormLabel>Endereço de Coleta Completo</FormLabel>
+                                <FormControl><Textarea placeholder="Rua, número, cidade, estado, CEP..." {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                             <FormField control={form.control} name="deliveryAddress" render={({ field }) => (
+                                <FormItem><FormLabel>Endereço de Entrega Completo</FormLabel>
+                                <FormControl><Textarea placeholder="Rua, número, cidade, estado, CEP..." {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                        </>
+                    ) : (
+                        <>
+                            <FormField control={form.control} name="origin" render={({ field }) => (
+                                <FormItem><FormLabel>Origem (Porto/Aeroporto)</FormLabel>
+                                <FormControl>
+                                    <AutocompleteInput field={field} placeholder="Ex: Santos, BR" modal={modal}/>
+                                </FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={form.control} name="destination" render={({ field }) => (
+                                <FormItem><FormLabel>Destino (Porto/Aeroporto)</FormLabel>
+                                <FormControl>
+                                    <AutocompleteInput field={field} placeholder="Ex: Rotterdam, NL" modal={modal}/>
+                                </FormControl><FormMessage /></FormItem>
+                            )} />
+                        </>
+                    )}
+                </div>
 
                 <div className="grid md:grid-cols-4 gap-4 mt-6">
-                    <FormField control={form.control} name="origin" render={({ field }) => (
-                        <FormItem><FormLabel>Origem (Porto/Aeroporto)</FormLabel>
-                          <FormControl>
-                            <AutocompleteInput
-                                field={field}
-                                placeholder="Ex: Santos, BR"
-                                modal={modal}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                    )} />
-                    <FormField control={form.control} name="destination" render={({ field }) => (
-                        <FormItem><FormLabel>Destino (Porto/Aeroporto)</FormLabel>
-                           <FormControl>
-                             <AutocompleteInput
-                                field={field}
-                                placeholder="Ex: Rotterdam, NL"
-                                modal={modal}
-                             />
-                           </FormControl>
-                           <FormMessage />
-                        </FormItem>
-                    )} />
                     <FormField
                       control={form.control}
                       name="incoterm"
@@ -1060,7 +1070,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                     </div>
                 </div>
 
-                {incoterm === 'EXW' && (
+                {incoterm === 'EXW' && modal !== 'courier' && (
                   <div className="mt-4 animate-in fade-in-50 duration-300">
                     <FormField
                       control={form.control}
@@ -1078,7 +1088,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                   </div>
                 )}
                 
-                {showDeliveryAddress && (
+                {showDeliveryAddress && modal !== 'courier' && (
                     <div className="mt-4 animate-in fade-in-50 duration-300">
                         <FormField
                             control={form.control}

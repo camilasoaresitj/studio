@@ -171,6 +171,9 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         toast({ title: 'Gerando proposta...', description: 'Aguarde um momento.' });
 
         try {
+            const companySettings = JSON.parse(localStorage.getItem('company_settings') || '{}');
+            const logoDataUrl = companySettings.logoDataUrl;
+
             const formatValue = (value: number) => {
                  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
@@ -211,6 +214,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 totalBrl: totalBRL.toLocaleString('pt-BR', {minimumFractionDigits: 2}),
                 exchangeRate: finalPtaxUsd,
                 approvalLink: `https://cargainteligente.com/approve/${quote.id}`,
+                companyLogoUrl: logoDataUrl,
             });
             
             if (!response.success || !response.data.html) {

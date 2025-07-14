@@ -83,7 +83,7 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
       
       const logoHtml = data.companyLogoUrl
         ? `<img src="${data.companyLogoUrl}" alt="Company Logo" style="height: 50px; max-width: 180px; object-fit: contain;" />`
-        : `<img src="https://placehold.co/150x50.png?text=LTI+GLOBAL" alt="LTI Global Logo" style="height: 50px;" data-ai-hint="logo lti global">`;
+        : `<span>LTI Global</span>`;
 
       return `
       <!DOCTYPE html>

@@ -139,7 +139,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         const lowerValue = textFilters.value;
 
         if (lowerPartner && !entry.partner.toLowerCase().includes(lowerPartner)) return false;
-        if (lowerProcessId && !entry.processId.toLowerCase().includes(lowerProcessId)) return false;
+        if (lowerProcessId && !entry.processId.toLowerCase().includes(lowerProcessId) && !entry.invoiceId.toLowerCase().includes(lowerProcessId)) return false;
         if (lowerValue && !entry.amount.toString().includes(lowerValue)) return false;
 
         return true;
@@ -344,10 +344,18 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         });
     };
 
-    const handleProcessClick = (processId: string) => {
-        const shipment = allShipments.find(s => s.id === processId || s.quoteId === processId);
+    const findShipmentForEntry = (entry: FinancialEntry): Shipment | undefined => {
+        return allShipments.find(s => 
+            s.id === entry.processId || 
+            (s.quoteId && s.quoteId === entry.processId) ||
+            (s.quoteId && s.quoteId === entry.invoiceId)
+        );
+    };
+
+    const handleProcessClick = (entry: FinancialEntry) => {
+        const shipment = findShipmentForEntry(entry);
         if (shipment) {
-            const relatedEntries = entries.filter(e => e.processId === processId || e.invoiceId === shipment.quoteId);
+            const relatedEntries = entries.filter(e => e.processId === shipment.id || (shipment.quoteId && e.invoiceId === shipment.quoteId));
             const allPayments = relatedEntries.flatMap(e => e.payments || []);
             const shipmentWithPayments = { ...shipment, payments: allPayments };
             setDetailsShipment(shipmentWithPayments as Shipment & { payments: PartialPayment[] });
@@ -355,7 +363,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             toast({
                 variant: "destructive",
                 title: "Processo não encontrado",
-                description: `O embarque para o processo ${processId} não foi localizado.`
+                description: `O embarque para o processo ${entry.processId} (fatura ${entry.invoiceId}) não foi localizado.`
             });
         }
     };
@@ -424,10 +432,6 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         newWindow?.document.write(html);
         newWindow?.document.close();
     };
-
-    const findShipmentForEntry = (entry: FinancialEntry) => {
-        return allShipments.find(s => s.id === entry.processId || s.quoteId === entry.invoiceId);
-    };
     
     const handleGenerateClientInvoicePdf = async (entry: FinancialEntry) => {
         setIsGenerating(true);
@@ -483,6 +487,9 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             setIsGenerating(false);
             return;
         }
+        
+        const companySettings = JSON.parse(localStorage.getItem('company_settings') || '{}');
+        const logoDataUrl = companySettings.logoDataUrl;
 
         const formatValue = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const mainCurrency = 'USD'; // Agent invoices are usually in USD
@@ -511,6 +518,8 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             totalSale: formatValue(totalSale),
             totalProfit: formatValue(totalSale - totalCost),
             currency: mainCurrency,
+            companyLogoUrl: logoDataUrl,
+            companyName: companySettings.razaoSocial || 'CargaInteligente',
         });
         
         if (response.success) {
@@ -694,7 +703,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                             </TableCell>
                             <TableCell className="font-medium">{entry.partner}</TableCell>
                             <TableCell>
-                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.invoiceId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry); }} className="text-muted-foreground hover:text-primary hover:underline">
                                     {entry.invoiceId}
                                 </a>
                             </TableCell>
@@ -707,7 +716,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                         className="h-8 text-xs"
                                     />
                                 ) : (
-                                    <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry.processId); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                    <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry); }} className="text-muted-foreground hover:text-primary hover:underline">
                                         {entry.processId}
                                     </a>
                                 )}
@@ -753,8 +762,11 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleProcessClick(isLegalTable ? entry.processId : entry.invoiceId)}>
+                                        <DropdownMenuItem onClick={() => handleProcessClick(entry)}>
                                             <FileText className="mr-2 h-4 w-4" /> Detalhes do Processo
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={entry.type === 'credit'}>
+                                            <Printer className="mr-2 h-4 w-4" /> Imprimir Invoice Agente
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
                                             <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
@@ -850,7 +862,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             <Input placeholder="Filtrar por Parceiro..." value={textFilters.partner} onChange={(e) => handleTextFilterChange('partner', e.target.value)} />
-                            <Input placeholder="Filtrar por Processo..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
+                            <Input placeholder="Filtrar por Processo/Fatura..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
                             <Input placeholder="Filtrar por Valor..." value={textFilters.value} onChange={(e) => handleTextFilterChange('value', e.target.value)} />
                             <FinancialEntryImporter onEntriesImported={handleEntriesImported} />
                         </div>

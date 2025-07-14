@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle } from 'lucide-react';
+import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle, List, FileText } from 'lucide-react';
 import { getShipments, Shipment } from '@/lib/shipment';
 import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
+import { getInitialQuotes, Quote } from '@/lib/initial-data';
 import { useRouter } from 'next/navigation';
 import { format, isValid, differenceInDays, isPast } from 'date-fns';
 import Link from 'next/link';
@@ -23,6 +24,7 @@ interface DraftAlert {
 export default function CustomerPortalPage() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [invoices, setInvoices] = useState<FinancialEntry[]>([]);
+    const [quotes, setQuotes] = useState<Quote[]>([]);
     const [draftAlerts, setDraftAlerts] = useState<DraftAlert[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
@@ -40,6 +42,10 @@ export default function CustomerPortalPage() {
         const allInvoices = getFinancialEntries();
         const customerInvoices = allInvoices.filter(i => i.partner === customerId && i.type === 'credit');
         setInvoices(customerInvoices);
+        
+        const allQuotes = getInitialQuotes();
+        const customerQuotes = allQuotes.filter(q => q.customer === customerId && (q.status === 'Aprovada' || q.status === 'Perdida'));
+        setQuotes(customerQuotes);
 
         // Calculate Draft Alerts
         const today = new Date();
@@ -201,6 +207,51 @@ export default function CustomerPortalPage() {
                                     </TableRow>
                                 )) : (
                                     <TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle>Minhas Cotações</CardTitle>
+                    <CardDescription>Visualize o histórico de suas cotações aprovadas e reprovadas.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Cotação ID</TableHead>
+                                    <TableHead>Rota</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Data</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
+                                ) : quotes.length > 0 ? quotes.map((quote) => (
+                                    <TableRow key={quote.id}>
+                                        <TableCell className="font-medium">{quote.id.replace('-DRAFT', '')}</TableCell>
+                                        <TableCell>{quote.origin} &rarr; {quote.destination}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={quote.status === 'Aprovada' ? 'success' : 'destructive'}>
+                                                {quote.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>{quote.date}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="outline" size="sm">
+                                                <FileText className="mr-2 h-4 w-4" /> Ver Proposta
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma cotação encontrada.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>

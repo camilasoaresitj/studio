@@ -37,7 +37,15 @@ export function getInitialRates(): Rate[] {
 
 
 export function getInitialQuotes(): Quote[] {
-    return [
+    const QUOTES_STORAGE_KEY = 'freight_quotes';
+    if (typeof window === 'undefined') {
+        return [];
+    }
+    const storedQuotes = localStorage.getItem(QUOTES_STORAGE_KEY);
+    if (storedQuotes) {
+        return JSON.parse(storedQuotes);
+    }
+    const initialQuotes: Quote[] = [
       { 
         id: 'COT-01832', 
         customer: 'Nexus Imports', 
@@ -70,4 +78,6 @@ export function getInitialQuotes(): Quote[] {
       { id: 'COT-00122', customer: 'Nexus Imports', origin: 'Itajaí, BR', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', details: { cargo: '1x20GP', transitTime: '28-32 dias', validity: '30/11/2024', freeTime: '21 dias', incoterm: 'FOB' }, charges: [] },
       { id: 'COT-00121', customer: 'AutoParts Express', origin: 'Guarulhos, BR', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', details: { cargo: '100kg', transitTime: '1-2 dias', validity: '30/11/2024', freeTime: 'N/A', incoterm: 'CPT' }, charges: [] },
     ];
+    localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(initialQuotes));
+    return initialQuotes;
 }

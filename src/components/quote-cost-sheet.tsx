@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
-import { Trash2, PlusCircle, Save } from 'lucide-react';
+import { Trash2, PlusCircle, Save, ChevronsUpDown, Check } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,8 @@ import { getFees } from '@/lib/fees-data';
 import type { Fee } from '@/lib/fees-data';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 
 const quoteChargeSchema = z.object({
   charges: z.array(z.object({
@@ -53,6 +55,44 @@ interface QuoteCostSheetProps {
   quote: Quote;
   partners: Partner[];
   onUpdate: (data: { charges: QuoteCharge[], details: Quote['details'] }) => void;
+}
+
+const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
+    const [open, setOpen] = React.useState(false);
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between h-8 font-normal">
+                    {value ? value : "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+                <Command>
+                    <CommandInput placeholder="Buscar taxa..." />
+                    <CommandList>
+                        <CommandEmpty>Nenhuma taxa encontrada.</CommandEmpty>
+                        <CommandGroup>
+                            {fees.map((fee) => (
+                                <CommandItem
+                                    key={fee.id}
+                                    value={fee.name}
+                                    onSelect={(currentValue) => {
+                                        onValueChange(currentValue === value ? "" : fee.name);
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <Check className={cn("mr-2 h-4 w-4", value === fee.name ? "opacity-100" : "opacity-0")} />
+                                    {fee.name}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
 }
 
 export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProps) {
@@ -233,25 +273,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                             
                             return (
                                 <TableRow key={field.id}>
-                                <TableCell className="p-1">
-                                    <div className="flex items-center gap-2">
-                                        <FormField
-                                            control={form.control}
-                                            name={`charges.${index}.name`}
-                                            render={({ field }) => (
-                                                <Select onValueChange={(value) => handleFeeSelection(value, index)} value={field.value}>
-                                                    <FormControl>
-                                                        <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {availableFees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                            )}
-                                        />
-                                    </div>
+                                <TableCell className="p-1 align-top">
+                                    <FeeCombobox
+                                        fees={availableFees}
+                                        value={charge.name}
+                                        onValueChange={(value) => handleFeeSelection(value, index)}
+                                    />
                                 </TableCell>
-                                <TableCell className="p-1">
+                                <TableCell className="p-1 align-top">
                                     <FormField
                                         control={form.control}
                                         name={`charges.${index}.type`}
@@ -269,7 +298,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         )}
                                     />
                                 </TableCell>
-                                <TableCell className="text-right p-1 min-w-[250px]">
+                                <TableCell className="text-right p-1 align-top min-w-[250px]">
                                     <div className="flex items-center gap-1">
                                     <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
@@ -285,11 +314,11 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         </Select>
                                     )} />
                                     <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
-                                        <Input type="number" {...field} className="w-full h-8" />
+                                        <Input type="number" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} className="w-full h-8" />
                                     )} />
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-right p-1 min-w-[250px]">
+                                <TableCell className="text-right p-1 align-top min-w-[250px]">
                                     <div className="flex items-center gap-1">
                                     <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
@@ -305,14 +334,14 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         </Select>
                                     )} />
                                     <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
-                                        <Input type="number" {...field} className="w-full h-8" />
+                                        <Input type="number" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} className="w-full h-8" />
                                     )} />
                                     </div>
                                 </TableCell>
-                                <TableCell className={cn('font-semibold text-right p-1', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
+                                <TableCell className={cn('font-semibold text-right p-1 align-top', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
                                     {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
                                 </TableCell>
-                                <TableCell className="p-1">
+                                <TableCell className="p-1 align-top">
                                     <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
@@ -322,7 +351,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         </Select>
                                     )} />
                                 </TableCell>
-                                <TableCell className="p-1">
+                                <TableCell className="p-1 align-top">
                                     <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value || quote.customer}>
                                             <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -334,7 +363,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         </Select>
                                     )} />
                                 </TableCell>
-                                <TableCell className="p-1">
+                                <TableCell className="p-1 align-top">
                                     <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>

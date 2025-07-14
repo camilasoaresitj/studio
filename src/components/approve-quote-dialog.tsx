@@ -315,21 +315,25 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
              >
                 <div className="space-y-1 mt-4">
                     <Label htmlFor="notify-party">Notify Party (Obrigatório)</Label>
-                    <Popover open={isNotifyPopoverOpen} onOpenChange={setIsNotifyPopoverOpen}>
+                     <Popover open={isNotifyPopoverOpen} onOpenChange={setIsNotifyPopoverOpen}>
                         <PopoverTrigger asChild>
                             <Button variant="outline" role="combobox" aria-expanded={isNotifyPopoverOpen} className="w-full justify-between font-normal">
-                                {notifyName || "Selecione um parceiro..."}
+                                {notifyName || "Selecione um parceiro ou digite..."}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                             <Command>
-                                <CommandInput placeholder="Buscar parceiro..." />
+                                <CommandInput 
+                                    placeholder="Buscar ou digitar..."
+                                    value={notifyName}
+                                    onValueChange={setNotifyName}
+                                />
                                 <CommandList>
                                     <CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
                                     <CommandGroup>
                                         {partners.map(partner => (
-                                            <CommandItem value={partner.name} key={partner.id} onSelect={() => { setSelectedNotifyId(partner.id?.toString() ?? null); setIsNotifyPopoverOpen(false); }}>
+                                            <CommandItem value={partner.name} key={partner.id} onSelect={() => { setSelectedNotifyId(partner.id?.toString() ?? null); setNotifyName(partner.name); setIsNotifyPopoverOpen(false); }}>
                                                 <Check className={cn("mr-2 h-4 w-4", selectedNotifyId === partner.id?.toString() ? "opacity-100" : "opacity-0")} />
                                                 {partner.name}
                                             </CommandItem>

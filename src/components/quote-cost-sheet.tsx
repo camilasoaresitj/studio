@@ -100,7 +100,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const form = useForm<QuoteCostSheetFormData>({
     resolver: zodResolver(quoteChargeSchema),
     defaultValues: {
-      charges: quote.charges || [],
+      charges: quote.charges,
       details: {
         validity: quote.details.validity,
         freeTime: quote.details.freeTime,
@@ -292,6 +292,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                                     <SelectItem value="Por BL">Por BL</SelectItem>
                                                     <SelectItem value="Por Processo">Por Processo</SelectItem>
                                                     <SelectItem value="Por CBM/Ton">Por CBM/Ton</SelectItem>
+                                                    <SelectItem value="Por Lote">Por Lote</SelectItem>
                                                     <SelectItem value="Fixo">Fixo</SelectItem>
                                                 </SelectContent>
                                             </Select>

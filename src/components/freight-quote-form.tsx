@@ -365,6 +365,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
     relevantFees.forEach(fee => {
         let feeValue = parseFloat(fee.value) || 0;
+        let costValue = feeValue;
+        let saleValue = feeValue;
         let feeType = fee.unit;
         let supplier = 'CargaInteligente';
 
@@ -373,15 +375,30 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             : 0;
 
         if (fee.unit.toLowerCase().includes('contêiner') && totalContainers > 0) {
-            feeValue *= totalContainers;
+            costValue *= totalContainers;
+            saleValue *= totalContainers;
             feeType = `${totalContainers} x ${fee.unit}`;
         } else if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
             const { cbm, weight } = values.lclDetails;
             const chargeableWeight = Math.max(cbm, weight / 1000);
-            feeValue = (parseFloat(fee.value) || 0) * chargeableWeight;
-            if (fee.minValue && feeValue < fee.minValue) feeValue = fee.minValue;
+            const calculatedValue = (parseFloat(fee.value) || 0) * chargeableWeight;
+            costValue = fee.minValue && calculatedValue < fee.minValue ? fee.minValue : calculatedValue;
+            saleValue = costValue; // Assume sale is same as cost initially for this type
         } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
-            feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
+            const cargoValue = values.optionalServices.cargoValue;
+            if (cargoValue > 0) {
+                // Cost: 0.12%, Sale: 0.30%
+                costValue = cargoValue * 0.0012;
+                saleValue = cargoValue * 0.0030;
+                
+                // Check for minimums defined in fees
+                const minInsuranceCost = insuranceFee?.minValue || 0;
+                if (costValue < minInsuranceCost) costValue = minInsuranceCost;
+                if (saleValue < minInsuranceCost) saleValue = minInsuranceCost;
+            } else {
+                costValue = 0;
+                saleValue = 0;
+            }
         }
         
         if (carrierRelatedFeeNames.some(name => fee.name.toUpperCase().includes(name))) {
@@ -391,10 +408,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         finalCharges.push({
             id: `fee-${fee.id}`,
             name: fee.name.toUpperCase(),
-            type: fee.unit,
-            cost: feeValue,
+            type: feeType,
+            cost: costValue,
             costCurrency: fee.currency,
-            sale: feeValue,
+            sale: saleValue,
             saleCurrency: fee.currency,
             supplier: supplier,
             sacado: customer?.name,
@@ -1172,10 +1189,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         )} />
                         <FormField control={form.control} name="optionalServices.insurance" render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none w-full"><FormLabel>Seguro {isClient && insuranceFee ? `(${insuranceFee.value}% V. Carga)` : ''}</FormLabel>
+                                <div className="space-y-1 leading-none w-full"><FormLabel>Seguro Intl.</FormLabel>
                                 {optionalServices.insurance && (
                                     <FormField control={form.control} name="optionalServices.cargoValue" render={({ field }) => (
-                                        <FormItem className="mt-2"><FormControl><Input type="number" placeholder="Valor Carga (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
+                                        <FormItem className="mt-2">
+                                            <FormLabel className="text-xs">Valor CIF da Mercadoria</FormLabel>
+                                            <FormControl><Input type="number" placeholder="Valor Carga (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
                                     )} />
                                 )}
                                 </div>

@@ -34,7 +34,7 @@ export type Fee = {
     id: number;
     name: string;
     value: string;
-    currency: 'BRL' | 'USD';
+    currency: 'BRL' | 'USD' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
     type: 'Fixo' | 'Percentual' | 'Por CBM/Ton' | 'Opcional' | 'Por KG';
     unit: string;
     modal: 'Marítimo' | 'Aéreo' | 'Ambos';
@@ -47,7 +47,7 @@ const feeSchema = z.object({
   id: z.number().optional(),
   name: z.string().min(1, 'Nome é obrigatório'),
   value: z.string().min(1, 'Valor é obrigatório'),
-  currency: z.enum(['BRL', 'USD']),
+  currency: z.enum(['BRL', 'USD', 'EUR', 'JPY', 'CHF', 'GBP']),
   type: z.enum(['Fixo', 'Percentual', 'Por CBM/Ton', 'Opcional', 'Por KG']),
   unit: z.string().min(1, 'Unidade é obrigatória'),
   modal: z.enum(['Marítimo', 'Aéreo', 'Ambos']),
@@ -217,6 +217,10 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                               <SelectContent>
                                   <SelectItem value="BRL">BRL</SelectItem>
                                   <SelectItem value="USD">USD</SelectItem>
+                                  <SelectItem value="EUR">EUR</SelectItem>
+                                  <SelectItem value="JPY">JPY</SelectItem>
+                                  <SelectItem value="CHF">CHF</SelectItem>
+                                  <SelectItem value="GBP">GBP</SelectItem>
                               </SelectContent>
                             </Select>
                         <FormMessage /></FormItem>

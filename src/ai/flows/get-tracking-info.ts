@@ -180,6 +180,84 @@ const getTrackingInfoFlow = ai.defineFlow(
         }
     }
     
+    // --- Secondary Method: Cargo-flows API ---
+    const cargoFlowsApiKey = process.env.CARGOFLOWS_API_KEY;
+    const cargoFlowsOrgToken = process.env.CARGOFLOWS_ORG_TOKEN;
+    const baseUrl = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
+
+    if (cargoFlowsApiKey && cargoFlowsOrgToken) {
+        try {
+            console.log(`Attempting to fetch tracking from Cargo-flows API for: ${input.trackingNumber}`);
+            
+            const response = await fetch(`${baseUrl}/shipments?shipmentId=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT`, {
+                method: 'GET',
+                headers: {
+                    'accept': 'application/json',
+                    'X-DPW-ApiKey': cargoFlowsApiKey,
+                    'X-DPW-Org-Token': cargoFlowsOrgToken,
+                },
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Cargo-flows API Error (${response.status}): ${errorText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.data && data.data.length > 0 && data.data[0].events) {
+                console.log("Cargo-flows API call successful. Processing real data.");
+                const trackingData = data.data[0];
+                const events: TrackingEvent[] = trackingData.events.map((event: any) => ({
+                    status: event.description || 'N/A',
+                    date: event.timestamp,
+                    location: event.location?.name || 'N/A',
+                    completed: new Date(event.timestamp) <= new Date(),
+                    carrier: input.carrier,
+                }));
+
+                const lastCompletedEvent = events.slice().reverse().find(e => e.completed) || events[events.length - 1];
+
+                const shipmentDetails: Partial<Shipment> = {
+                    carrier: input.carrier,
+                    origin: trackingData.origin_port?.name || 'N/A',
+                    destination: trackingData.destination_port?.name || 'N/A',
+                    vesselName: trackingData.vessel_name,
+                    voyageNumber: trackingData.voyage_number,
+                    etd: trackingData.departure_date_estimated ? new Date(trackingData.departure_date_estimated) : undefined,
+                    eta: trackingData.arrival_date_estimated ? new Date(trackingData.arrival_date_estimated) : undefined,
+                    masterBillNumber: input.trackingNumber,
+                    containers: trackingData.containers?.map((c: any) => ({
+                        id: c.container_number,
+                        number: c.container_number,
+                        seal: c.seal_number || 'N/A',
+                        tare: `${c.tare_weight || 0} KG`,
+                        grossWeight: `${c.gross_weight || 0} KG`,
+                    })) || [],
+                    milestones: events.map((event: TrackingEvent) => ({
+                        name: event.status,
+                        status: event.completed ? 'completed' : 'pending',
+                        predictedDate: new Date(event.date),
+                        effectiveDate: event.completed ? new Date(event.date) : null,
+                        details: event.location,
+                        isTransshipment: event.status.toLowerCase().includes('transhipment')
+                    })),
+                };
+
+                return {
+                    status: lastCompletedEvent?.status || 'Pending',
+                    events,
+                    containers: shipmentDetails.containers,
+                    shipmentDetails: shipmentDetails,
+                };
+            }
+            console.log("Cargo-flows API call successful, but no tracking events found. Falling back to AI.");
+        } catch (error) {
+            console.warn("Cargo-flows API call failed, falling back to AI simulation. Error:", error);
+        }
+    }
+
+
     // --- Final Fallback: AI Simulation ---
     console.log("Fallback: Generating tracking info with AI for carrier:", input.carrier);
     try {

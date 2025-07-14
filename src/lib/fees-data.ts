@@ -6,7 +6,7 @@ export const feeSchema = z.object({
   id: z.number().optional(),
   name: z.string().min(1, 'Nome é obrigatório'),
   value: z.string().min(1, 'Valor é obrigatório'),
-  currency: z.enum(['BRL', 'USD']),
+  currency: z.enum(['BRL', 'USD', 'EUR', 'JPY', 'CHF', 'GBP']),
   type: z.enum(['Fixo', 'Percentual', 'Por CBM/Ton', 'Opcional', 'Por KG']),
   unit: z.string().min(1, 'Unidade é obrigatória'),
   modal: z.enum(['Marítimo', 'Aéreo', 'Ambos']),
@@ -17,7 +17,7 @@ export const feeSchema = z.object({
 
 export type Fee = z.infer<typeof feeSchema>;
 
-const FEES_STORAGE_KEY = 'cargaInteligente_fees_v1';
+const FEES_STORAGE_KEY = 'cargaInteligente_fees_v2';
 
 const initialFeesData: Fee[] = [
     // Importação Marítima FCL
@@ -52,12 +52,12 @@ const initialFeesData: Fee[] = [
     // Exportação Aérea
     { id: 28, name: 'AWB FEE', value: '50', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Exportação' },
     { id: 29, name: 'HANDLING FEE', value: '50', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Exportação' },
-    { id: 30, name: 'ARMAZENAGEM', value: '0.07', currency: 'USD', type: 'Por KG', unit: '/KG', modal: 'Aéreo', direction: 'Exportação', minValue: 10},
+    { id: 30, name: 'FRETE AÉREO', value: '0.07', currency: 'USD', type: 'Por KG', unit: '/KG', modal: 'Aéreo', direction: 'Exportação', minValue: 150},
     { id: 31, name: 'CUSTOMS CLEARANCE', value: '50', currency: 'USD', type: 'Fixo', unit: 'Por AWB', modal: 'Aéreo', direction: 'Exportação' },
 
     // Serviços Opcionais
     { id: 14, name: 'DESPACHO ADUANEIRO', value: '1000', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Ambos', direction: 'Ambos' },
-    { id: 15, name: 'SEGURO INTERNACIONAL', value: '0.3', currency: 'BRL', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos' },
+    { id: 15, name: 'SEGURO INTERNACIONAL', value: '0.3', currency: 'BRL', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos', minValue: 50 },
     { id: 32, name: 'REDESTINAÇÃO DE CARGA', value: '1200', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Marítimo', direction: 'Importação' },
 ];
 

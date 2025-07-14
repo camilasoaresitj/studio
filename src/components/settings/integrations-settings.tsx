@@ -15,12 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Separator } from '../ui/separator';
 
 const integrationsSchema = z.object({
-  // Existing
   maerskApiKey: z.string().optional(),
   cargoAiApiKey: z.string().optional(),
   shipEngineApiKey: z.string().optional(),
-
-  // New
   hapagApiKey: z.string().optional(),
   twilioAccountSid: z.string().optional(),
   twilioAuthToken: z.string().optional(),
@@ -33,6 +30,8 @@ const integrationsSchema = z.object({
   snovioUserId: z.string().optional(),
   snovioApiSecret: z.string().optional(),
   cargoFiveApiKey: z.string().optional(),
+  cargoFlowsApiKey: z.string().optional(),
+  cargoFlowsOrgToken: z.string().optional(),
 });
 
 type IntegrationsFormData = z.infer<typeof integrationsSchema>;
@@ -60,6 +59,8 @@ export function IntegrationsSettings() {
       snovioUserId: '',
       snovioApiSecret: '',
       cargoFiveApiKey: '',
+      cargoFlowsApiKey: '',
+      cargoFlowsOrgToken: '',
     },
   });
 
@@ -121,7 +122,7 @@ export function IntegrationsSettings() {
                     
                     {/* Platforms & Services */}
                     <div className="space-y-4">
-                        <h4 className="text-lg font-medium">Plataformas de Cotação</h4>
+                        <h4 className="text-lg font-medium">Plataformas de Cotação e Rastreamento</h4>
                          <FormField control={form.control} name="cargoAiApiKey" render={({ field }) => (
                             <FormItem><FormLabel className="flex items-center gap-2"><Plane className="h-4 w-4 text-green-500" /> Cargo.ai API Key</FormLabel><FormControl><Input type="password" placeholder="Chave de API da Cargo.ai" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
@@ -130,6 +131,12 @@ export function IntegrationsSettings() {
                         )}/>
                          <FormField control={form.control} name="cargoFiveApiKey" render={({ field }) => (
                             <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-red-500" /> CargoFive API Key</FormLabel><FormControl><Input type="password" placeholder="x-api-key da CargoFive" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                         <FormField control={form.control} name="cargoFlowsApiKey" render={({ field }) => (
+                            <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-cyan-500" /> Cargo-flows API Key</FormLabel><FormControl><Input type="password" placeholder="X-DPW-ApiKey da Cargo-flows" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="cargoFlowsOrgToken" render={({ field }) => (
+                            <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-cyan-500" /> Cargo-flows Org Token</FormLabel><FormControl><Input type="password" placeholder="X-DPW-Org-Token da Cargo-flows" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                     </div>
 
@@ -168,4 +175,3 @@ export function IntegrationsSettings() {
     </div>
   );
 }
-

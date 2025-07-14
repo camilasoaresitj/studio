@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -359,6 +360,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
         return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected);
     });
+    
+    const carrierRelatedFeeNames = ['THC', 'ISPS', 'IMPORT FEE', 'LOGISTIC FEE', 'TRS', 'LACRE', 'VGM'];
 
     relevantFees.forEach(fee => {
         let feeValue = parseFloat(fee.value) || 0;
@@ -372,25 +375,24 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         if (fee.unit.toLowerCase().includes('contêiner')) {
              if (totalContainers > 0) {
                 feeValue *= totalContainers;
-                feeType = `${totalContainers} x ${fee.unit}`;
-                supplier = carrierName;
              }
         } else if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
             const { cbm, weight } = values.lclDetails;
             const chargeableWeight = Math.max(cbm, weight / 1000);
             feeValue = (parseFloat(fee.value) || 0) * chargeableWeight;
             if (fee.minValue && feeValue < fee.minValue) feeValue = fee.minValue;
-            feeType = `${chargeableWeight.toFixed(2)} W/M`;
-            supplier = carrierName;
         } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
             feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
-            feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
+        }
+        
+        if (carrierRelatedFeeNames.some(name => fee.name.toUpperCase().includes(name))) {
+            supplier = carrierName;
         }
         
         finalCharges.push({
             id: `fee-${fee.id}`,
             name: fee.name.toUpperCase(),
-            type: feeType,
+            type: feeType, // Use the unit from the fee registry
             cost: feeValue,
             costCurrency: fee.currency,
             sale: feeValue,
@@ -445,7 +447,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         }
     } else { // Ocean FCL
         calculatedFreightCost = rate.costValue;
-        freightChargeType = 'Por Lote'; // FCL Freight is typically per lot/container set
+        freightChargeType = 'Por Lote';
     }
 
     const freightCharge: QuoteCharge = {

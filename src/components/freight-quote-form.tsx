@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2 } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2, Hand } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Label } from './ui/label';
 import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runGetVesselSchedules, runGenerateClientInvoicePdf, runExtractQuoteDetailsFromText, runSendWhatsapp } from '@/app/actions';
@@ -159,6 +159,49 @@ const AutocompleteInput = ({ field, placeholder, modal }: { field: any, placehol
     );
 };
 
+const ManualFreightForm = ({ onManualRateAdd }: { onManualRateAdd: (rate: Omit<FreightRate, 'id' | 'carrierLogo' | 'dataAiHint' | 'source'>) => void }) => {
+    const [supplier, setSupplier] = useState('');
+    const [cost, setCost] = useState('');
+    const [currency, setCurrency] = useState<'USD' | 'BRL'>('USD');
+    const [transitTime, setTransitTime] = useState('');
+
+    const handleSubmit = () => {
+        onManualRateAdd({
+            carrier: supplier,
+            origin: '', // These are taken from the main form
+            destination: '',
+            transitTime: transitTime,
+            cost: `${currency} ${cost}`,
+            costValue: parseFloat(cost) || 0,
+        });
+    };
+
+    return (
+        <Card className="mt-4 bg-secondary/50">
+            <CardHeader>
+                <CardTitle className="text-lg">Adicionar Frete Manualmente</CardTitle>
+                <CardDescription>Insira os detalhes da tarifa que você negociou.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <Input placeholder="Fornecedor" value={supplier} onChange={(e) => setSupplier(e.target.value)} />
+                <Input placeholder="Valor do Frete" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
+                <Select value={currency} onValueChange={(v: 'USD'|'BRL') => setCurrency(v)}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="BRL">BRL</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Input placeholder="Tempo de Trânsito" value={transitTime} onChange={(e) => setTransitTime(e.target.value)} />
+                <Button onClick={handleSubmit} className="sm:col-span-4">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Adicionar e Criar Cotação
+                </Button>
+            </CardContent>
+        </Card>
+    );
+};
+
 export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees: initialFees, initialData, onQuoteUpdate }: FreightQuoteFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isRequestingAgentQuote, setIsRequestingAgentQuote] = useState(false);
@@ -264,7 +307,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         toast({
             variant: "default",
             title: "Nenhuma cotação encontrada",
-            description: "Nenhuma tarifa encontrada na API. Tente alterar os parâmetros da sua busca.",
+            description: "Nenhuma tarifa encontrada na API. Considere adicionar o frete manualmente.",
         });
     }
 
@@ -348,7 +391,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     const relevantFees = fees.filter(fee => {
         if (existingChargeNames.has(fee.name.toUpperCase())) return false;
         
-        // Custom logic for EXW/COLETA fees
         const isExwFee = fee.name.toUpperCase().includes('EXW') || fee.name.toUpperCase().includes('COLETA');
         if (isExwFee && (values.incoterm !== 'EXW' || direction !== 'Importação')) {
             return false;
@@ -390,11 +432,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
             const cargoValue = values.optionalServices.cargoValue;
             if (cargoValue > 0) {
-                // Cost: 0.12%, Sale: 0.30%
                 costValue = parseFloat((cargoValue * 0.0012).toFixed(2));
                 saleValue = parseFloat((cargoValue * 0.0030).toFixed(2));
                 
-                // Check for minimums defined in fees
                 const minInsuranceCost = insuranceFee?.minValue || 0;
                 if (costValue < minInsuranceCost) costValue = minInsuranceCost;
                 if (saleValue < minInsuranceCost) saleValue = minInsuranceCost;
@@ -425,7 +465,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     return finalCharges;
 };
 
-  const handleSelectRate = (rate: FreightRate) => {
+  const handleSelectRate = (rate: Partial<FreightRate>) => {
     const customerId = form.getValues('customerId');
     if (!customerId) {
         toast({
@@ -439,17 +479,17 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     const customer = partners.find(p => p.id?.toString() === customerId);
     let calculatedFreightCost: number;
     let freightChargeType: string;
-    let freightCurrency: 'BRL' | 'USD' = rate.cost.includes('R$') ? 'BRL' : 'USD';
+    let freightCurrency: 'BRL' | 'USD' = rate.cost?.includes('R$') ? 'BRL' : 'USD';
     
     if (values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
-        const ratePerTon = rate.costValue;
+        const ratePerTon = rate.costValue || 0;
         const { cbm, weight } = values.lclDetails;
         const chargeableWeight = Math.max(cbm, weight / 1000);
         
         calculatedFreightCost = chargeableWeight * ratePerTon;
         freightChargeType = `Por ${chargeableWeight.toFixed(2)} W/M`;
     } else if (values.modal === 'air') {
-        const ratePerKg = rate.costValue;
+        const ratePerKg = rate.costValue || 0;
         const volumetricFactor = 6000;
         let totalGrossWeight = 0;
         let totalVolumetricWeight = 0;
@@ -472,32 +512,32 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             freightChargeType = `Mínimo (${chargeableWeight.toFixed(2)} kg)`;
         }
     } else { // Ocean FCL
-        calculatedFreightCost = rate.costValue;
+        calculatedFreightCost = rate.costValue || 0;
         freightChargeType = 'Por Lote';
     }
 
     const freightCharge: QuoteCharge = {
-        id: `freight-${rate.id}`,
+        id: `freight-${rate.id || 'manual'}`,
         name: 'FRETE INTERNACIONAL',
         type: freightChargeType,
         cost: parseFloat(calculatedFreightCost.toFixed(2)),
         costCurrency: freightCurrency,
         sale: parseFloat(calculatedFreightCost.toFixed(2)),
         saleCurrency: freightCurrency,
-        supplier: rate.carrier,
+        supplier: rate.carrier || 'A ser definido',
         sacado: customer?.name,
         localPagamento: 'Frete',
         approvalStatus: 'aprovada',
     };
 
-    const initialCharges = calculateCharges([freightCharge], rate.carrier);
+    const initialCharges = calculateCharges([freightCharge], rate.carrier || 'A ser definido');
     const validityDate = form.getValues('validityDate');
 
     const newQuote: Quote = {
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
         customer: customer?.name || 'N/A',
-        origin: rate.origin,
-        destination: rate.destination,
+        origin: rate.origin || values.origin,
+        destination: rate.destination || values.destination,
         status: 'Rascunho',
         date: new Date().toLocaleDateString('pt-BR'),
         charges: initialCharges,
@@ -1220,8 +1260,16 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         )} />
                         <FormField control={form.control} name="optionalServices.insurance" render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 col-span-1 lg:col-span-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none w-full"><FormLabel>Seguro Intl.</FormLabel>
+                                <div className="space-y-1 leading-none w-full">
+                                <FormLabel>Seguro Internacional</FormLabel>
                                 {optionalServices.insurance && (
+                                    <div className="animate-in fade-in-50 duration-300">
+                                    <Alert variant="default" className="mt-2 border-primary/50">
+                                        <Info className="h-4 w-4" />
+                                        <AlertDescription>
+                                            Por favor, informe o valor da mercadoria (CIF) e a moeda abaixo para o cálculo do seguro.
+                                        </AlertDescription>
+                                    </Alert>
                                     <div className="grid grid-cols-2 gap-2 pt-2">
                                         <FormField control={form.control} name="optionalServices.cargoValue" render={({ field }) => (
                                             <FormItem>
@@ -1245,6 +1293,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                                                 <FormMessage />
                                             </FormItem>
                                         )} />
+                                    </div>
                                     </div>
                                 )}
                                 </div>
@@ -1356,14 +1405,15 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       )}
 
        {!isLoading && results.length === 0 && form.formState.isSubmitted && (
-          <div className="mt-8">
+          <div className="mt-8 space-y-4">
               <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Nenhuma tarifa encontrada</AlertTitle>
                   <AlertDescription>
-                  Não encontramos nenhuma tarifa para os critérios informados. Por favor, verifique os dados ou tente novamente.
+                  Não encontramos nenhuma tarifa para os critérios informados. Você pode solicitar a cotação a um agente ou adicionar o frete manualmente.
                   </AlertDescription>
               </Alert>
+              <ManualFreightForm onManualRateAdd={handleSelectRate} />
           </div>
        )}
        

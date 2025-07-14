@@ -82,7 +82,8 @@ const getFreightRatesFlow = ai.defineFlow(
   },
   async (input) => {
     
-    const cargoFiveApiKey = process.env.CARGOFIVE_API_KEY;
+    const cargoFiveApiKey = "a256c19a3c3d85da2e35846de3205954";
+    process.env.CARGOFIVE_API_KEY = cargoFiveApiKey;
 
     // Split potentially comma-separated origins/destinations
     const searchOrigins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
@@ -110,7 +111,7 @@ const getFreightRatesFlow = ai.defineFlow(
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'X-Api-Key': cargoFiveApiKey, // Correct capitalization
+                    'X-Api-Key': cargoFiveApiKey,
                     'User-Agent': 'CargaInteligenteApp/1.0'
                 },
                 body: JSON.stringify(cargoFivePayload),
@@ -121,9 +122,11 @@ const getFreightRatesFlow = ai.defineFlow(
                  try {
                     const errorJson = JSON.parse(errorText);
                     console.error('CargoFive API Error (JSON):', errorJson);
+                    // Lança um erro com a mensagem da API para ser exibida no frontend
                     throw new Error(errorJson.message || errorJson.error || `CargoFive API Error (${response.status})`);
                 } catch (e) {
                       console.error('CargoFive API Error (Text):', errorText);
+                      // Lança um erro genérico se a resposta não for JSON
                       throw new Error(`CargoFive API Error (${response.status}): ${errorText}`);
                 }
             }
@@ -151,6 +154,7 @@ const getFreightRatesFlow = ai.defineFlow(
 
           } catch (error: any) {
              console.error(`CargoFive API Error for ${pair.origin} -> ${pair.destination}:`, error);
+             // Re-throw the error so it can be caught by the final Promise.all block
              throw error;
           }
         }
@@ -162,6 +166,7 @@ const getFreightRatesFlow = ai.defineFlow(
         return resultsFromAllPairs.flat();
     } catch (error: any) {
         console.error("Error during API calls:", error);
+        // Throw a user-friendly error message to be displayed in the frontend toast
         throw new Error(error.message || "An unknown error occurred while fetching rates.");
     }
   }

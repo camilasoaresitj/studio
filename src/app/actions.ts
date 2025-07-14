@@ -372,9 +372,9 @@ export async function updateShipmentFromAgent(id: string, data: any) {
         name: 'FRETE INTERNACIONAL (Custo Agente)',
         type: 'Fixo',
         cost: rateValue,
-        costCurrency: currency,
+        costCurrency: currency as 'USD' | 'BRL',
         sale: rateValue, // Initially sale = cost
-        saleCurrency: currency,
+        saleCurrency: currency as 'USD' | 'BRL',
         supplier: shipment.agent?.name || 'Agente a Confirmar',
         sacado: shipment.customer,
         approvalStatus: 'aprovada' as const,

@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -69,6 +70,14 @@ export default function SchedulesPage() {
     }
     setIsLoading(false);
   };
+  
+  const formatDate = (dateString: string) => {
+    const date = parseISO(dateString);
+    if (isValid(date)) {
+        return format(date, 'dd/MM/yyyy HH:mm');
+    }
+    return 'Data inválida';
+  }
 
   return (
     <div className="p-4 md:p-8">
@@ -118,8 +127,8 @@ export default function SchedulesPage() {
                     ) : vesselSchedules.length > 0 ? (
                       vesselSchedules.map((s, i) => (
                         <TableRow key={i}><TableCell className="font-medium">{s.vesselName}</TableCell><TableCell>{s.voyage}</TableCell>
-                        <TableCell>{s.carrier}</TableCell><TableCell>{format(new Date(s.etd), 'dd/MM/yyyy HH:mm')}</TableCell>
-                        <TableCell>{format(new Date(s.eta), 'dd/MM/yyyy HH:mm')}</TableCell><TableCell>{s.transitTime}</TableCell>
+                        <TableCell>{s.carrier}</TableCell><TableCell>{formatDate(s.etd)}</TableCell>
+                        <TableCell>{formatDate(s.eta)}</TableCell><TableCell>{s.transitTime}</TableCell>
                         </TableRow>
                       ))
                     ) : (
@@ -166,8 +175,8 @@ export default function SchedulesPage() {
                     ) : flightSchedules.length > 0 ? (
                       flightSchedules.map((s, i) => (
                          <TableRow key={i}><TableCell className="font-medium">{s.carrier}</TableCell><TableCell>{s.flightNumber}</TableCell>
-                        <TableCell>{s.aircraft}</TableCell><TableCell>{format(new Date(s.etd), 'dd/MM/yyyy HH:mm')}</TableCell>
-                        <TableCell>{format(new Date(s.eta), 'dd/MM/yyyy HH:mm')}</TableCell><TableCell>{s.transitTime}</TableCell>
+                        <TableCell>{s.aircraft}</TableCell><TableCell>{formatDate(s.etd)}</TableCell>
+                        <TableCell>{formatDate(s.eta)}</TableCell><TableCell>{s.transitTime}</TableCell>
                         </TableRow>
                       ))
                     ) : (

@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileDown, PlusCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight } from 'lucide-react';
 import { getShipments, Shipment } from '@/lib/shipment';
 import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
+import Link from 'next/link';
 
 export default function CustomerPortalPage() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -49,6 +50,34 @@ export default function CustomerPortalPage() {
             setIsLoading(false);
         }, 500);
     };
+    
+    const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+        if (!shipment.milestones || shipment.milestones.length === 0) {
+          return { text: 'Não iniciado', variant: 'secondary' };
+        }
+      
+        const firstPending = shipment.milestones.find(m => m.status === 'pending' || m.status === 'in_progress');
+      
+        if (!firstPending) {
+          return { text: 'Finalizado', variant: 'outline' };
+        }
+      
+        const firstPendingName = firstPending.name.toLowerCase();
+        
+        const departureCompleted = shipment.milestones.some(m => 
+          (m.name.toLowerCase().includes('departure') || m.name.toLowerCase().includes('vessel departure') || m.name.toLowerCase().includes('embarque')) 
+          && m.status === 'completed'
+        );
+      
+        if (departureCompleted) {
+            if (firstPendingName.includes('chegada') || firstPendingName.includes('arrival') || firstPendingName.includes('discharged')) {
+                return { text: 'Chegada no Destino', variant: 'default' };
+            }
+            return { text: 'Em Trânsito', variant: 'default' };
+        }
+      
+        return { text: `Aguardando Embarque`, variant: 'secondary' };
+    };
 
     return (
         <div className="p-4 md:p-8 space-y-8">
@@ -86,21 +115,33 @@ export default function CustomerPortalPage() {
                                     <TableHead>Master / AWB</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>ETA</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
                                 ) : shipments.length > 0 ? shipments.map((shipment) => (
-                                    <TableRow key={shipment.id}>
-                                        <TableCell className="font-medium">{shipment.id}</TableCell>
+                                    <TableRow key={shipment.id} className="hover:bg-muted/50">
+                                        <TableCell className="font-medium text-primary">
+                                             <Link href={`/portal/${shipment.id}`} className="hover:underline">
+                                                {shipment.id}
+                                            </Link>
+                                        </TableCell>
                                         <TableCell>{shipment.origin} &rarr; {shipment.destination}</TableCell>
                                         <TableCell>{shipment.masterBillNumber || 'N/A'}</TableCell>
-                                        <TableCell><Badge>Em Trânsito</Badge></TableCell>
-                                        <TableCell>{shipment.eta ? format(shipment.eta, 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                        <TableCell><Badge variant={getShipmentStatus(shipment).variant}>{getShipmentStatus(shipment).text}</Badge></TableCell>
+                                        <TableCell>{shipment.eta && isValid(new Date(shipment.eta)) ? format(new Date(shipment.eta), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" asChild>
+                                                <Link href={`/portal/${shipment.id}`}>
+                                                    Ver Detalhes <ArrowRight className="ml-2 h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 )) : (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>

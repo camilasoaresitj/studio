@@ -375,6 +375,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         if (fee.unit.toLowerCase().includes('contêiner')) {
              if (totalContainers > 0) {
                 feeValue *= totalContainers;
+                feeType = `${totalContainers} x ${fee.unit}`;
              }
         } else if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
             const { cbm, weight } = values.lclDetails;

@@ -249,7 +249,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         <TableHeader className="sticky top-0 bg-secondary z-10">
                             <TableRow>
                             <TableHead className="h-9 w-[200px]">Taxa</TableHead>
-                            <TableHead className="h-9 w-[220px]">Tipo Cobrança</TableHead>
+                            <TableHead className="h-9 w-[250px]">Tipo Cobrança</TableHead>
                             <TableHead className="h-9 text-right min-w-[250px]">Compra</TableHead>
                             <TableHead className="h-9 text-right min-w-[250px]">Venda</TableHead>
                             <TableHead className="h-9 w-[120px] text-right">Lucro</TableHead>

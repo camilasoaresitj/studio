@@ -109,8 +109,8 @@ const getTrackingInfoFlow = ai.defineFlow(
     tools: [addShipmentToCargoFlows]
   },
   async (input) => {
-    const cargoFlowsApiKey = process.env.CARGOFLOWS_API_KEY || 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const cargoFlowsOrgToken = process.env.CARGOFLOWS_ORG_TOKEN || '9H31zRWYCGihV5U3th5JJXZI3h7LGen6';
+    const cargoFlowsApiKey = process.env.CARGOFLOWS_API_KEY;
+    const cargoFlowsOrgToken = process.env.CARGOFLOWS_ORG_TOKEN;
     const baseUrl = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 
     if (cargoFlowsApiKey && cargoFlowsOrgToken) {
@@ -228,4 +228,3 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
-    

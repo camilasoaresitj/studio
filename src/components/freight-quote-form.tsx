@@ -361,7 +361,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected);
     });
     
-    const carrierRelatedFeeNames = ['THC', 'ISPS', 'IMPORT FEE', 'LOGISTIC FEE', 'TRS', 'LACRE', 'VGM'];
+    const carrierRelatedFeeNames = ['THC', 'ISPS', 'IMPORT FEE', 'LOGISTIC FEE', 'TRS', 'LACRE', 'VGM', 'BL FEE'];
 
     relevantFees.forEach(fee => {
         let feeValue = parseFloat(fee.value) || 0;

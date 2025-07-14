@@ -10,7 +10,7 @@ import { extractRatesFromText } from "@/ai/flows/extract-rates-from-text";
 import { generateQuotePdfHtml } from "@/ai/flows/generate-quote-pdf-html";
 import { generateAgentInvoiceHtml } from "@/ai/flows/generate-agent-invoice-html";
 import { generateHblHtml } from "@/ai/flows/generate-hbl-html";
-import { getFreightRates } from "@/ai/flows/get-freight-rates";
+import { getFreightRates, getAirFreightRates } from "@/ai/flows/get-freight-rates";
 import { getCourierRates } from "@/ai/flows/get-courier-rates";
 import { monitorEmailForTasks } from "@/ai/flows/monitor-email-for-tasks";
 import { requestAgentQuote } from "@/ai/flows/request-agent-quote";
@@ -35,7 +35,12 @@ import type { Quote } from "@/components/customer-quotes-list";
 
 export async function runGetFreightRates(input: any) {
     try {
-        const data = await getFreightRates(input);
+        let data;
+        if (input.modal === 'air') {
+            data = await getAirFreightRates(input);
+        } else {
+            data = await getFreightRates(input);
+        }
         return { success: true, data };
     } catch (error: any) {
         console.error("Freight Rates Action Failed", error);

@@ -10,70 +10,46 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Mail, Server } from 'lucide-react';
+import { Loader2, Save, Mail, Server, KeyRound, Building } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
-import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
-import { Separator } from '../ui/separator';
 
 const integrationsSchema = z.object({
-  gmailEmail: z.string().email('Por favor, insira um endereço de e-mail válido.').optional().or(z.literal('')),
-  gmailAppPassword: z.string().optional(),
-});
-
-const smtpSchema = z.object({
-    smtpServer: z.string().optional(),
-    smtpPort: z.coerce.number().optional(),
-    imapServer: z.string().optional(),
-    imapPort: z.coerce.number().optional(),
-    encryption: z.enum(['none', 'ssl', 'tls']).optional(),
+  maerskApiKey: z.string().optional(),
+  cargoAiApiKey: z.string().optional(),
+  shipEngineApiKey: z.string().optional(),
 });
 
 type IntegrationsFormData = z.infer<typeof integrationsSchema>;
-type SmtpFormData = z.infer<typeof smtpSchema>;
 
 export function IntegrationsSettings() {
-  const [isGmailSaving, setIsGmailSaving] = useState(false);
-  const [isSmtpSaving, setIsSmtpSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const gmailForm = useForm<IntegrationsFormData>({
+  const form = useForm<IntegrationsFormData>({
     resolver: zodResolver(integrationsSchema),
+    // TODO: Fetch these values from a secure backend/service
     defaultValues: {
-      gmailEmail: '',
-      gmailAppPassword: '',
-    },
-  });
-  
-  const smtpForm = useForm<SmtpFormData>({
-    resolver: zodResolver(smtpSchema),
-    defaultValues: {
-      encryption: 'ssl',
+      maerskApiKey: '',
+      cargoAiApiKey: '',
+      shipEngineApiKey: '',
     },
   });
 
-  const onGmailSubmit = async (data: IntegrationsFormData) => {
-    setIsGmailSaving(true);
+  const onSubmit = async (data: IntegrationsFormData) => {
+    setIsSaving(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Saving integration credentials:', { email: data.gmailEmail, password: '***' });
+    // In a real app, you would send this to your backend to be stored securely
+    console.log('Saving integration credentials:', {
+        maersk: data.maerskApiKey ? '***' : '',
+        cargoAi: data.cargoAiApiKey ? '***' : '',
+        shipEngine: data.shipEngineApiKey ? '***' : ''
+    });
     toast({
       title: 'Credenciais Salvas!',
-      description: 'A integração com o Gmail foi configurada com sucesso.',
+      description: 'As chaves de API foram atualizadas com sucesso.',
       className: 'bg-success text-success-foreground'
     });
-    setIsGmailSaving(false);
-  };
-  
-  const onSmtpSubmit = async (data: SmtpFormData) => {
-    setIsSmtpSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Saving SMTP/IMAP credentials:', data);
-    toast({
-      title: 'Credenciais Salvas!',
-      description: 'A integração com seu servidor de e-mail foi configurada com sucesso.',
-      className: 'bg-success text-success-foreground'
-    });
-    setIsSmtpSaving(false);
+    setIsSaving(false);
   };
 
   return (
@@ -81,50 +57,41 @@ export function IntegrationsSettings() {
         <Card>
         <CardHeader>
             <CardTitle className="flex items-center gap-2">
-                <Server className="h-5 w-5"/>
-                Configuração Avançada de E-mail (SMTP/IMAP)
+                <KeyRound className="h-5 w-5"/>
+                Gerenciamento de Chaves de API
             </CardTitle>
             <CardDescription>
-                Configure seu próprio servidor de e-mail para envio e leitura. As credenciais individuais (e-mail/senha) devem ser configuradas no cadastro de cada usuário.
+                Configure as credenciais para se conectar aos serviços de parceiros.
             </CardDescription>
         </CardHeader>
         <CardContent>
-            <Form {...smtpForm}>
-                <form onSubmit={smtpForm.handleSubmit(onSmtpSubmit)} className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <FormField control={smtpForm.control} name="smtpServer" render={({ field }) => (
-                            <FormItem><FormLabel>Servidor de Saída (SMTP)</FormLabel><FormControl><Input placeholder="smtp.seudominio.com" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                        <FormField control={smtpForm.control} name="smtpPort" render={({ field }) => (
-                            <FormItem><FormLabel>Porta SMTP</FormLabel><FormControl><Input type="number" placeholder="465" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <FormField control={smtpForm.control} name="imapServer" render={({ field }) => (
-                            <FormItem><FormLabel>Servidor de Entrada (IMAP)</FormLabel><FormControl><Input placeholder="imap.seudominio.com" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                        <FormField control={smtpForm.control} name="imapPort" render={({ field }) => (
-                            <FormItem><FormLabel>Porta IMAP</FormLabel><FormControl><Input type="number" placeholder="993" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                    </div>
-                    <FormField control={smtpForm.control} name="encryption" render={({ field }) => (
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField control={form.control} name="maerskApiKey" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Criptografia</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="ssl">SSL/TLS</SelectItem>
-                                    <SelectItem value="tls">STARTTLS</SelectItem>
-                                    <SelectItem value="none">Nenhuma</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <FormLabel className="flex items-center gap-2"><Building className="h-4 w-4 text-blue-500" /> Maersk API Key</FormLabel>
+                            <FormControl><Input type="password" placeholder="Chave de API da Maersk" {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                     <FormField control={form.control} name="cargoAiApiKey" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-2"><Mail className="h-4 w-4 text-green-500" /> Cargo.ai API Key</FormLabel>
+                            <FormControl><Input type="password" placeholder="Chave de API da Cargo.ai" {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                     <FormField control={form.control} name="shipEngineApiKey" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-2"><Server className="h-4 w-4 text-purple-500" /> ShipEngine API Key</FormLabel>
+                            <FormControl><Input type="password" placeholder="Chave de API da ShipEngine" {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}/>
                     <div className="flex justify-end">
-                        <Button type="submit" disabled={isSmtpSaving}>
-                            {isSmtpSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                            Salvar Configuração SMTP
+                        <Button type="submit" disabled={isSaving}>
+                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                            Salvar Todas as Chaves
                         </Button>
                     </div>
                 </form>

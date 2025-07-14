@@ -96,6 +96,14 @@ export const freightQuoteFormSchema = baseFreightQuoteFormSchema.superRefine((da
         });
     }
 
+    if (data.optionalServices.insurance && (!data.optionalServices.cargoValue || data.optionalServices.cargoValue <= 0)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "O valor da mercadoria é obrigatório para cotar o seguro.",
+            path: ['optionalServices.cargoValue'],
+        });
+    }
+
     const deliveryTerms = ['DAP', 'DPU', 'DDP', 'DDU'];
     if ((data.optionalServices.delivery || deliveryTerms.includes(data.incoterm)) && (!data.deliveryAddress || data.deliveryAddress.trim().length < 5)) {
         ctx.addIssue({
@@ -129,6 +137,7 @@ const PartnerSchemaForPrompt = z.object({
         name: z.string(),
         email: z.string(),
         phone: z.string(),
+        departments: z.array(z.string()),
     })),
 });
 

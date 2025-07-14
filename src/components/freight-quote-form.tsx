@@ -232,9 +232,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     name: "oceanShipment.containers",
   });
 
-  const customsFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('DESPACHO')), [fees]);
   const insuranceFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('SEGURO')), [fees]);
-  const tradingFee = useMemo(() => fees.find(f => f.name.toUpperCase().includes('TRADING')), [fees]);
 
   async function onSubmit(values: FreightQuoteFormData) {
     setIsLoading(true);
@@ -1227,7 +1225,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                                     <div className="grid grid-cols-2 gap-2 pt-2">
                                         <FormField control={form.control} name="optionalServices.cargoValue" render={({ field }) => (
                                             <FormItem>
-                                                <FormControl><Input type="number" placeholder="Valor Carga" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl>
+                                                <FormControl><Input type="number" placeholder="Valor CIF Mercadoria" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )} />

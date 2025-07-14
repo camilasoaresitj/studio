@@ -38,7 +38,7 @@ export type QuoteDetails = {
 };
 
 export type UploadedDocument = {
-    name: 'Negociação NET' | 'Invoice' | 'Packing List';
+    name: 'Negociação NET' | 'Invoice' | 'Packing List' | 'Outro';
     file: File;
 };
 
@@ -362,12 +362,14 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   const eta = addDays(etd, transitTime);
   
   const baseDocuments: DocumentStatus[] = [
+    { name: 'Negociação NET', status: 'pending' },
     { name: 'Draft MBL', status: 'pending' },
     { name: 'Draft HBL', status: 'pending' },
     { name: 'Original MBL', status: 'pending' },
     { name: 'Original HBL', status: 'pending' },
     { name: 'Invoice', status: 'pending' },
     { name: 'Packing List', status: 'pending' },
+    { name: 'Outros', status: 'pending' },
   ];
 
   if (!isImport) {

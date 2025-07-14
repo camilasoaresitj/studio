@@ -2,7 +2,7 @@
 'use client';
 
 import type { Partner } from '@/lib/partners-data';
-import { addDays, isValid } from 'date-fns';
+import { addDays, isValid, subDays } from 'date-fns';
 import { runSendShippingInstructions } from '@/app/actions';
 import type { PartialPayment } from './financials-data';
 
@@ -146,6 +146,8 @@ export type Shipment = {
   blType?: 'original' | 'express';
   // Redestinação fields
   terminalRedestinacaoId?: string;
+  emptyPickupTerminalId?: string;
+  fullDeliveryTerminalId?: string;
   custoArmazenagem?: number;
   // Deprecated field, shipper/cnee are top-level
   customer: string;
@@ -236,11 +238,13 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
             return { name, status: 'pending', predictedDate, effectiveDate: null, isTransshipment: false };
         });
         
+        const deadLineCargaDate = milestones.find(m => m.name === 'Cut Off Documental')?.predictedDate;
+
         // Add specific gate-in milestone for detention tracking
         milestones.push({
             name: 'Prazo de Entrega (Gate In)',
             status: 'pending',
-            predictedDate: gateInDueDate,
+            predictedDate: deadLineCargaDate ? subDays(deadLineCargaDate, 2) : gateInDueDate,
             effectiveDate: null,
             details: `Prazo final para evitar detention.`
         });

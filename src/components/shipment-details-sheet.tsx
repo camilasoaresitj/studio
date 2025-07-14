@@ -134,6 +134,8 @@ const shipmentDetailsSchema = z.object({
   ceHouse: z.string().optional(),
   manifesto: z.string().optional(),
   terminalRedestinacaoId: z.string().optional(),
+  emptyPickupTerminalId: z.string().optional(),
+  fullDeliveryTerminalId: z.string().optional(),
   custoArmazenagem: z.coerce.number().optional(),
 });
 
@@ -289,6 +291,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         ceHouse: shipment.ceHouse || '',
         manifesto: shipment.manifesto || '',
         terminalRedestinacaoId: shipment.terminalRedestinacaoId || '',
+        emptyPickupTerminalId: shipment.emptyPickupTerminalId || '',
+        fullDeliveryTerminalId: shipment.fullDeliveryTerminalId || '',
         custoArmazenagem: shipment.custoArmazenagem || undefined,
       });
     }
@@ -841,6 +845,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   }
   
   const isMaritimeImport = shipment.destination.toUpperCase().includes('BR') && shipment.details.cargo.toLowerCase().indexOf('kg') === -1;
+  const isMaritimeExport = shipment.origin.toUpperCase().includes('BR') && shipment.details.cargo.toLowerCase().indexOf('kg') === -1;
 
   const handleViewQuote = async () => {
     setIsGeneratingPdf(shipment.quoteId);
@@ -1000,11 +1005,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <FormField control={form.control} name="destination" render={({ field }) => (
                                             <FormItem><FormLabel>Porto/Aeroporto Destino</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
-                                         {isMaritimeImport && (
+                                         {isMaritimeImport && !isMaritimeExport && (
                                             <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (
                                                 <FormItem><FormLabel>Terminal de Descarga</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                             )} />
                                          )}
+                                        {isMaritimeExport && (
+                                            <>
+                                                <FormField control={form.control} name="emptyPickupTerminalId" render={({ field }) => (
+                                                    <FormItem><FormLabel>Terminal de Retirada (Vazio)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                                )} />
+                                                <FormField control={form.control} name="fullDeliveryTerminalId" render={({ field }) => (
+                                                    <FormItem><FormLabel>Terminal de Entrega (Cheio)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                                )} />
+                                            </>
+                                        )}
+                                        <FormField control={form.control} name="details.incoterm" render={({ field }) => (
+                                            <FormItem><FormLabel>Incoterm</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
+                                        )} />
                                     </div>
                                     <Separator />
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
@@ -1092,32 +1110,34 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             </div>
                                         </>
                                     )}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <FormField
-                                            control={form.control}
-                                            name="terminalRedestinacaoId"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Terminal de Redestinação</FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Selecione um terminal..." />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            {partners.filter(p => p.tipoFornecedor?.terminal).map(t => (
-                                                                <SelectItem key={t.id} value={t.id!.toString()}>
-                                                                    {t.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
+                                    {isMaritimeImport && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField
+                                                control={form.control}
+                                                name="terminalRedestinacaoId"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Terminal de Redestinação</FormLabel>
+                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                            <FormControl>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Selecione um terminal..." />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                {partners.filter(p => p.tipoFornecedor?.terminal).map(t => (
+                                                                    <SelectItem key={t.id} value={t.id!.toString()}>
+                                                                        {t.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                             

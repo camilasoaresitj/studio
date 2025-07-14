@@ -42,7 +42,6 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
         incoterm: input.incoterm,
     };
     
-    // Use the port library to find the correct UN/LOCODE
     const originPort = findPortByTerm(input.origin);
     const destinationPort = findPortByTerm(input.destination);
 
@@ -52,25 +51,14 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
     if (input.modal === 'ocean') {
         shipment.origin_port_code = originPort.unlocode; 
         shipment.destination_port_code = destinationPort.unlocode;
-
-        if (input.oceanShipmentType === 'FCL') {
-            shipment.package_type = 'container';
-            shipment.containers = input.oceanShipment.containers.map(c => ({
-                container_type: c.type,
-                quantity: c.quantity,
-            }));
-        } else { // LCL
-            shipment.package_type = 'packages';
-            shipment.packages = [{
-                total_volume_in_cbm: input.lclDetails.cbm,
-                total_weight_in_kg: input.lclDetails.weight,
-            }];
-        }
-
+        shipment.package_type = 'container';
+        shipment.containers = input.oceanShipment.containers.map(c => ({
+            container_type: c.type,
+            quantity: c.quantity,
+        }));
     } else { // air
         shipment.origin_airport_code = originPort.unlocode;
         shipment.destination_airport_code = destinationPort.unlocode;
-        shipment.package_type = 'packages';
         shipment.packages = input.airShipment.pieces.map(p => ({
             quantity: p.quantity,
             weight_in_kg: p.weight,
@@ -83,15 +71,7 @@ function buildCargoFivePayload(input: GetFreightRatesInput) {
         shipment.is_stackable = input.airShipment.isStackable;
     }
     
-    const payload: any = {
-      shipment: shipment
-    };
-
-    if (input.departureDate) {
-        payload.departure_date = input.departureDate.toISOString().split('T')[0];
-    }
-    
-    return payload;
+    return { shipment };
 }
 
 const getFreightRatesFlow = ai.defineFlow(
@@ -134,7 +114,6 @@ const getFreightRatesFlow = ai.defineFlow(
             
             if (!response.ok) {
                 const errorText = await response.text();
-                // Try to parse the error for a better message
                 try {
                     const errorJson = JSON.parse(errorText);
                     throw new Error(errorJson.message || errorJson.error || `CargoFive API Error (${response.status})`);
@@ -166,21 +145,17 @@ const getFreightRatesFlow = ai.defineFlow(
 
           } catch (error: any) {
              console.error(`CargoFive API Error for ${pair.origin} -> ${pair.destination}:`, error);
-             // Re-throw to be caught by the main try-catch block
              throw error;
           }
         }
-        // Return empty array if no API key
         return [];
     });
 
     try {
         const resultsFromAllPairs = await Promise.all(allApiPromises);
-        // Flatten the array of arrays into a single array
         return resultsFromAllPairs.flat();
     } catch (error: any) {
         console.error("Error during API calls:", error);
-        // This makes sure the error from the fetch call is sent to the client
         throw new Error(error.message || "An unknown error occurred while fetching rates.");
     }
   }

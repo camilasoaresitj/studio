@@ -38,7 +38,7 @@ import { QuoteCostSheet } from './quote-cost-sheet';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Textarea } from './ui/textarea';
-import { portsAndAirports } from '@/lib/ports';
+import { findPortByTerm, portsAndAirports } from '@/lib/ports';
 
 
 type FreightRate = {
@@ -329,9 +329,21 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         return;
     }
 
+    const originCode = findPortByTerm(origin)?.unlocode;
+    const destinationCode = findPortByTerm(destination)?.unlocode;
+    
+    if(!originCode || !destinationCode) {
+        toast({
+            variant: "destructive",
+            title: "Códigos de Rota inválidos",
+            description: "Não foi possível encontrar códigos válidos para a origem ou destino informados.",
+        });
+        return;
+    }
+
     setIsFetchingSchedules(true);
     setSchedules([]);
-    const response = await runGetVesselSchedules({ origin, destination });
+    const response = await runGetVesselSchedules({ origin: originCode, destination: destinationCode });
     if (response.success) {
         setSchedules(response.data as Schedule[]);
     } else {
@@ -368,7 +380,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     const values = form.getValues();
     const customer = partners.find(p => p.id?.toString() === values.customerId);
     
-    // Determine direction
     const originIsBR = (baseFreightCharges[0]?.origin || values.origin).toUpperCase().includes('BR');
     const destinationIsBR = (baseFreightCharges[0]?.destination || values.destination).toUpperCase().includes('BR');
     let direction: 'Importação' | 'Exportação' | 'Ambos' = 'Ambos';
@@ -377,44 +388,43 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     
     const chargeType = values.modal === 'ocean' ? values.oceanShipmentType : 'Aéreo';
     const finalCharges: QuoteCharge[] = [...baseFreightCharges];
-    
-    // Get applicable fees
-    const relevantFees = fees.filter(fee => {
-      const modalMatch = fee.modal === 'Ambos' || fee.modal === (values.modal === 'ocean' ? 'Marítimo' : 'Aéreo');
-      const directionMatch = fee.direction === 'Ambos' || fee.direction === direction;
-      const chargeTypeMatch = !fee.chargeType || fee.chargeType === chargeType || fee.chargeType === 'NONE';
-      const isOptionalSelected = 
-        (fee.name.toUpperCase().includes('DESPACHO') && values.optionalServices.customsClearance) ||
-        (fee.name.toUpperCase().includes('SEGURO') && values.optionalServices.insurance) ||
-        (fee.name.toUpperCase().includes('TRADING') && values.optionalServices.trading) ||
-        (fee.name.toUpperCase().includes('REDESTINA') && values.optionalServices.redestinacao);
+    const existingChargeNames = new Set(finalCharges.map(c => c.name.toUpperCase()));
 
-      // Add only if it's a standard fee or a selected optional one
-      return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected);
+    const relevantFees = fees.filter(fee => {
+        if (existingChargeNames.has(fee.name.toUpperCase())) return false;
+
+        const modalMatch = fee.modal === 'Ambos' || fee.modal === (values.modal === 'ocean' ? 'Marítimo' : 'Aéreo');
+        const directionMatch = fee.direction === 'Ambos' || fee.direction === direction;
+        const chargeTypeMatch = !fee.chargeType || fee.chargeType === chargeType || fee.chargeType === 'NONE';
+        const isOptionalSelected = 
+            (fee.name.toUpperCase().includes('DESPACHO') && values.optionalServices.customsClearance) ||
+            (fee.name.toUpperCase().includes('SEGURO') && values.optionalServices.insurance) ||
+            (fee.name.toUpperCase().includes('TRADING') && values.optionalServices.trading) ||
+            (fee.name.toUpperCase().includes('REDESTINA') && values.optionalServices.redestinacao);
+
+        return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected);
     });
 
-    // Add fees to the list if they don't already exist
     relevantFees.forEach(fee => {
-      if (!finalCharges.some(c => c.name.toUpperCase() === fee.name.toUpperCase())) {
-          let feeValue = parseFloat(fee.value) || 0;
-          let feeType = fee.unit;
+        let feeValue = parseFloat(fee.value) || 0;
+        let feeType = fee.unit;
 
-          if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
-              const { cbm, weight } = values.lclDetails;
-              const chargeableWeight = Math.max(cbm, weight / 1000);
-              feeValue = (parseFloat(fee.value) || 0) * chargeableWeight;
-              if (fee.minValue && feeValue < fee.minValue) feeValue = fee.minValue;
-              feeType = `${chargeableWeight.toFixed(2)} W/M`;
-          } else if (values.modal === 'ocean' && values.oceanShipmentType === 'FCL' && fee.unit.toLowerCase().includes('contêiner')) {
-              const totalContainers = values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0);
-              feeValue = (parseFloat(fee.value) || 0) * totalContainers;
-              feeType = `${totalContainers} x ${fee.unit}`;
-          } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
-              feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
-              feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
-          }
-          
-          finalCharges.push({
+        if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
+            const { cbm, weight } = values.lclDetails;
+            const chargeableWeight = Math.max(cbm, weight / 1000);
+            feeValue = (parseFloat(fee.value) || 0) * chargeableWeight;
+            if (fee.minValue && feeValue < fee.minValue) feeValue = fee.minValue;
+            feeType = `${chargeableWeight.toFixed(2)} W/M`;
+        } else if (values.modal === 'ocean' && values.oceanShipmentType === 'FCL' && fee.unit.toLowerCase().includes('contêiner')) {
+            const totalContainers = values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0);
+            feeValue = (parseFloat(fee.value) || 0) * totalContainers;
+            feeType = `${totalContainers} x ${fee.unit}`;
+        } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
+            feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
+            feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
+        }
+        
+        finalCharges.push({
             id: `fee-${fee.id}`,
             name: fee.name.toUpperCase(),
             type: feeType,
@@ -425,13 +435,11 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             supplier: 'CargaInteligente',
             sacado: customer?.name,
             approvalStatus: 'aprovada',
-          });
-      }
+        });
     });
 
     return finalCharges;
-  };
-
+};
 
   const handleSelectRate = (rate: FreightRate) => {
     const customerId = form.getValues('customerId');

@@ -37,6 +37,11 @@ export type QuoteDetails = {
     deliveryAddress?: string;
 };
 
+export type UploadedDocument = {
+    name: 'Negociação NET' | 'Invoice' | 'Packing List';
+    file: File;
+};
+
 // The shape of the quote object needed to create a shipment
 export type ShipmentCreationData = {
   id: string;
@@ -52,6 +57,9 @@ export type ShipmentCreationData = {
   notifyName: string;
   responsibleUser: string;
   terminalRedestinacaoId?: string;
+  invoiceNumber: string;
+  purchaseOrderNumber: string;
+  uploadedDocs: UploadedDocument[];
 };
 
 export type Milestone = {
@@ -85,7 +93,7 @@ export type TransshipmentDetail = {
 };
 
 export type DocumentStatus = {
-    name: 'Draft MBL' | 'Draft HBL' | 'Original MBL' | 'Original HBL' | 'Invoice' | 'Packing List' | 'Extrato DUE';
+    name: 'Draft MBL' | 'Draft HBL' | 'Original MBL' | 'Original HBL' | 'Invoice' | 'Packing List' | 'Extrato DUE' | 'Negociação NET' | 'Outros';
     status: 'pending' | 'uploaded' | 'approved';
     fileName?: string;
     uploadedAt?: Date;
@@ -353,7 +361,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   const etd = addDays(creationDate, etdDays);
   const eta = addDays(etd, transitTime);
   
-  const documents: DocumentStatus[] = [
+  const baseDocuments: DocumentStatus[] = [
     { name: 'Draft MBL', status: 'pending' },
     { name: 'Draft HBL', status: 'pending' },
     { name: 'Original MBL', status: 'pending' },
@@ -363,14 +371,25 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   ];
 
   if (!isImport) {
-    documents.push({ name: 'Extrato DUE', status: 'pending' });
+    baseDocuments.push({ name: 'Extrato DUE', status: 'pending' });
   }
+
+  // Add documents from the approval dialog
+  const uploadedDocuments: DocumentStatus[] = quoteData.uploadedDocs.map(doc => ({
+      name: doc.name,
+      status: 'uploaded',
+      fileName: doc.file.name,
+      uploadedAt: new Date(),
+  }));
+  
+  const documents: DocumentStatus[] = baseDocuments.map(doc => {
+      const uploaded = uploadedDocuments.find(ud => ud.name === doc.name);
+      return uploaded || doc;
+  });
 
   const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
 
   const shipmentId = `PROC-${quoteData.id.replace('COT-', '')}-${Date.now().toString().slice(-5)}`;
-  const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
-  const purchaseOrderNumber = `PO-${Date.now().toString().slice(-6)}`;
 
   const newShipment: Shipment = {
     id: shipmentId,
@@ -395,8 +414,8 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     masterBillNumber: `MSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    invoiceNumber: invoiceNumber,
-    purchaseOrderNumber: purchaseOrderNumber,
+    invoiceNumber: quoteData.invoiceNumber,
+    purchaseOrderNumber: quoteData.purchaseOrderNumber,
     ncms: ['0000.00.00'],
     mblPrintingAtDestination: false,
     notifyName: quoteData.notifyName,

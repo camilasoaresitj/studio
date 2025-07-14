@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { partnerSchema as newPartnerSchema } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
@@ -19,7 +19,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Wand2, PlusCircle, Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Wand2, PlusCircle, Trash2, Check, ChevronsUpDown, FileUp, Paperclip } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
@@ -27,10 +27,11 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { runExtractPartnerInfo, runSendShippingInstructions } from '@/app/actions';
+import { runExtractPartnerInfo } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import type { Quote } from './customer-quotes-list';
 import { Label } from './ui/label';
+import type { UploadedDocument } from '@/lib/shipment';
 
 const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 
@@ -168,10 +169,22 @@ function PartnerFormBlock({ title, partners, onPartnerCreated, selectedPartnerId
     );
 }
 
+const FileUploadField = ({ label, file, onFileChange }: { label: string, file: File | null, onFileChange: (file: File | null) => void }) => {
+    return (
+        <div>
+            <Label>{label}</Label>
+            <div className="flex items-center gap-2 mt-1">
+                <Input type="file" onChange={(e) => onFileChange(e.target.files ? e.target.files[0] : null)} className="flex-grow" />
+                {file && <span className="text-sm text-muted-foreground truncate flex items-center gap-1"><Paperclip className="h-4 w-4" /> {file.name}</span>}
+            </div>
+        </div>
+    );
+};
+
 interface ApproveQuoteDialogProps {
   quote: Quote | null;
   partners: Partner[];
-  onApprovalConfirmed: (quote: Quote, shipper: Partner, consignee: Partner, agent: Partner | undefined, notifyName: string, terminalId: string | undefined, responsibleUser: string) => void;
+  onApprovalConfirmed: (quote: Quote, shipper: Partner, consignee: Partner, agent: Partner | undefined, notifyName: string, terminalId: string | undefined, responsibleUser: string, invoiceNumber: string, poNumber: string, uploadedDocs: UploadedDocument[]) => void;
   onPartnerSaved: (partner: Partner) => void;
   onClose: () => void;
 }
@@ -186,6 +199,11 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
   const [selectedTerminalId, setSelectedTerminalId] = useState<string | undefined>();
   const [responsibleUserId, setResponsibleUserId] = useState<string | undefined>();
   const [notifyName, setNotifyName] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [poNumber, setPoNumber] = useState('');
+  const [netFile, setNetFile] = useState<File | null>(null);
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [packingFile, setPackingFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -197,6 +215,11 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
       setNotifyName('');
       setSelectedTerminalId(undefined);
       setResponsibleUserId(undefined);
+      setInvoiceNumber('');
+      setPoNumber('');
+      setNetFile(null);
+      setInvoiceFile(null);
+      setPackingFile(null);
     }
   }, [quote]);
   
@@ -255,11 +278,16 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
         toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, selecione um responsável pelo processo.' });
         return;
     }
+    
+    const uploadedDocs: UploadedDocument[] = [];
+    if(netFile) uploadedDocs.push({ name: 'Negociação NET', file: netFile });
+    if(invoiceFile) uploadedDocs.push({ name: 'Invoice', file: invoiceFile });
+    if(packingFile) uploadedDocs.push({ name: 'Packing List', file: packingFile });
 
     const agent = selectedAgentId !== 'none' ? partners.find(p => p.id?.toString() === selectedAgentId) : undefined;
     const responsibleUser = systemUsers.find(u => u.id === responsibleUserId)?.name || 'N/A';
     
-    onApprovalConfirmed(quote, shipper, consignee, agent, notifyName, selectedTerminalId, responsibleUser);
+    onApprovalConfirmed(quote, shipper, consignee, agent, notifyName, selectedTerminalId, responsibleUser, invoiceNumber, poNumber, uploadedDocs);
   };
 
   return (
@@ -350,6 +378,18 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
                             </SelectContent>
                         </Select>
                     </div>
+                    <div>
+                        <Label>Nº Invoice Cliente</Label>
+                        <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="INV-CLIENT-123" />
+                    </div>
+                    <div>
+                        <Label>Nº Purchase Order (PO) Cliente</Label>
+                        <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="PO-XYZ-456" />
+                    </div>
+                    <FileUploadField label="Negociação NET" file={netFile} onFileChange={setNetFile} />
+                    <FileUploadField label="Invoice" file={invoiceFile} onFileChange={setInvoiceFile} />
+                    <FileUploadField label="Packing List" file={packingFile} onFileChange={setPackingFile} />
+
                 </CardContent>
             </Card>
 

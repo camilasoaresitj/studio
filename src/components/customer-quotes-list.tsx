@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
-import { createShipment } from '@/lib/shipment';
+import { createShipment, type UploadedDocument } from '@/lib/shipment';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -268,7 +268,10 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         agent: Partner | undefined, 
         notifyName: string,
         terminalId: string | undefined,
-        responsibleUser: string
+        responsibleUser: string,
+        invoiceNumber: string,
+        poNumber: string,
+        uploadedDocs: UploadedDocument[]
     ) => {
         // If the shipper is new, save it.
         if (!partners.some(p => p.id === shipper.id)) {
@@ -291,6 +294,10 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
           agent,
           notifyName,
           responsibleUser,
+          terminalRedestinacaoId: terminalId,
+          invoiceNumber: invoiceNumber,
+          purchaseOrderNumber: poNumber,
+          uploadedDocs: uploadedDocs,
         });
 
         toast({

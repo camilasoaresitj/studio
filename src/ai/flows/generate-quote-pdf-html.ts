@@ -59,7 +59,7 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
     function applyTemplate(data: GenerateQuotePdfHtmlInput): string {
       const chargesHtml = data.charges.map((charge) => {
         const totalInBRL = (parseFloat(charge.total.replace(',', '.')) * (charge.currency === 'BRL' ? 1 : data.exchangeRate)).toFixed(2);
-        const exchangeRateDisplay = charge.currency === 'BRL' ? '---' : (data.exchangeRate ? data.exchangeRate.toFixed(4) : 'N/A');
+        const exchangeRateDisplay = charge.currency === 'BRL' ? '---' : data.exchangeRate.toFixed(4);
         return `
           <tr>
             <td style="padding: 10px 15px; border-bottom: 1px solid #eee;">${charge.description}</td>
@@ -102,7 +102,6 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
                 </td>
                 <td style="width: 40%; text-align: right; vertical-align: bottom;">
                   <img src="https://placehold.co/150x50.png?text=LTI+GLOBAL" alt="LTI Global Logo" style="height: 50px;" data-ai-hint="logo lti global">
-                  <p style="margin: 5px 0 0 0; font-size: 12px;">We Listen and Act</p>
                 </td>
               </tr>
             </table>
@@ -124,6 +123,7 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
                   <p style="margin: 5px 0;"><strong style="color: #555; display: inline-block; width: 120px;">INCOTERM</strong> ${data.incoterm}</p>
                   <p style="margin: 5px 0;"><strong style="color: #555; display: inline-block; width: 120px;">TRANSIT TIME</strong> ${data.transitTime}</p>
                   <p style="margin: 5px 0;"><strong style="color: #555; display: inline-block; width: 120px;">FREE TIME</strong> ${data.freeTime}</p>
+                   <p style="margin: 5px 0;"><strong style="color: #555; display: inline-block; width: 120px;">VALIDADE</strong> ${data.validity}</p>
                 </td>
               </tr>
             </table>

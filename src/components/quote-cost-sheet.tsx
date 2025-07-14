@@ -301,6 +301,9 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         <TableBody>
                             {fields.map((field, index) => {
                             const charge = watchedCharges[index];
+                             if (!charge) {
+                                return null; // or a loading skeleton
+                            }
                             const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
                             const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
                             const profitCurrency = charge.saleCurrency;

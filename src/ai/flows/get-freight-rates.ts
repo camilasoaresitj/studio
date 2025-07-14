@@ -101,12 +101,15 @@ const getFreightRatesFlow = ai.defineFlow(
         const cargoFivePayload = buildCargoFivePayload(singleSearchInput);
         
         console.log("Sending payload to CargoFive:", JSON.stringify(cargoFivePayload, null, 2));
+        
+        // **CRITICAL FIX**: Using a new, valid API key.
+        const CARGOFIVE_API_KEY = process.env.CARGOFIVE_API_KEY || "131a985f3a53239a509a2595f99d69cb";
 
         const response = await fetch('https://api.cargofive.com/v2/forwarding_rates', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Api-Key': process.env.CARGOFIVE_API_KEY || "a256c19a3c3d85da2e35846de3205954",
+            'X-Api-Key': CARGOFIVE_API_KEY,
             'User-Agent': 'CargaInteligenteApp/1.0',
           },
           body: JSON.stringify(cargoFivePayload),

@@ -108,16 +108,22 @@ const getFreightRatesFlow = ai.defineFlow(
             
             const response = await fetch('https://api.cargofive.com/v2/forwarding_rates', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-api-key': cargoFiveApiKey },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': cargoFiveApiKey, // Correct capitalization
+                    'User-Agent': 'CargaInteligenteApp/1.0'
+                },
                 body: JSON.stringify(cargoFivePayload),
             });
             
             if (!response.ok) {
                 const errorText = await response.text();
-                try {
+                 try {
                     const errorJson = JSON.parse(errorText);
+                    console.error('CargoFive API Error (JSON):', errorJson);
                     throw new Error(errorJson.message || errorJson.error || `CargoFive API Error (${response.status})`);
                 } catch (e) {
+                      console.error('CargoFive API Error (Text):', errorText);
                       throw new Error(`CargoFive API Error (${response.status}): ${errorText}`);
                 }
             }

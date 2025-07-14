@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -285,17 +286,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         control={form.control}
                                         name={`charges.${index}.type`}
                                         render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Por Contêiner">Por Contêiner</SelectItem>
-                                                    <SelectItem value="Por BL">Por BL</SelectItem>
-                                                    <SelectItem value="Por Processo">Por Processo</SelectItem>
-                                                    <SelectItem value="Por CBM/Ton">Por CBM/Ton</SelectItem>
-                                                    <SelectItem value="Por Lote">Por Lote</SelectItem>
-                                                    <SelectItem value="Fixo">Fixo</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <Input {...field} className="h-8" />
                                         )}
                                     />
                                 </TableCell>

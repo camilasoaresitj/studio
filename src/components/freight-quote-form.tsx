@@ -372,11 +372,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             ? values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0)
             : 0;
 
-        if (fee.unit.toLowerCase().includes('contêiner')) {
-             if (totalContainers > 0) {
-                feeValue *= totalContainers;
-                feeType = `${totalContainers} x ${fee.unit}`;
-             }
+        if (fee.unit.toLowerCase().includes('contêiner') && totalContainers > 0) {
+            feeValue *= totalContainers;
+            feeType = `${totalContainers} x ${fee.unit}`;
         } else if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
             const { cbm, weight } = values.lclDetails;
             const chargeableWeight = Math.max(cbm, weight / 1000);
@@ -393,7 +391,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         finalCharges.push({
             id: `fee-${fee.id}`,
             name: fee.name.toUpperCase(),
-            type: feeType, // Use the unit from the fee registry
+            type: fee.unit,
             cost: feeValue,
             costCurrency: fee.currency,
             sale: feeValue,

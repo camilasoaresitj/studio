@@ -82,7 +82,6 @@ const getFreightRatesFlow = ai.defineFlow(
   },
   async (input) => {
     
-    // Split potentially comma-separated origins/destinations
     const searchOrigins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
     const searchDestinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
 
@@ -90,7 +89,6 @@ const getFreightRatesFlow = ai.defineFlow(
         return []; 
     }
     
-    // Create all pairs of origin-destination to search
     const searchPairs = searchOrigins.flatMap(origin => 
         searchDestinations.map(destination => ({ origin, destination }))
     );
@@ -102,8 +100,7 @@ const getFreightRatesFlow = ai.defineFlow(
         
         console.log("Sending payload to CargoFive:", JSON.stringify(cargoFivePayload, null, 2));
         
-        // **CRITICAL FIX**: Using a new, valid API key.
-        const CARGOFIVE_API_KEY = process.env.CARGOFIVE_API_KEY || "131a985f3a53239a509a2595f99d69cb";
+        const CARGOFIVE_API_KEY = process.env.CARGOFIVE_API_KEY || "a256c19a3c3d85da2e35846de3205954";
 
         const response = await fetch('https://api.cargofive.com/v2/forwarding_rates', {
           method: 'POST',
@@ -152,12 +149,10 @@ const getFreightRatesFlow = ai.defineFlow(
 
       } catch (error: any) {
         console.error(`Failed to fetch or process rates for ${pair.origin} -> ${pair.destination}:`, error);
-        // Throw the error to be caught by Promise.allSettled
         throw new Error(`Falha na busca para a rota ${pair.origin} -> ${pair.destination}: ${error.message}`);
       }
     });
 
-    // Using Promise.allSettled to ensure all requests complete, even if some fail.
     const results = await Promise.allSettled(allApiPromises);
     const successfulResults: GetFreightRatesOutput = [];
     
@@ -168,8 +163,6 @@ const getFreightRatesFlow = ai.defineFlow(
             }
         } else {
             console.error(`API call for search pair ${index} failed:`, result.reason);
-            // Optionally, you can throw a single, consolidated error message if you want to notify the user of partial failures.
-            // For now, we will just log it and return successful results.
         }
     });
 

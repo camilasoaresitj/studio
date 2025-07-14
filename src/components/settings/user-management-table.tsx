@@ -2,6 +2,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Table,
   TableHeader,
@@ -12,7 +15,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Upload, User, Image as ImageIcon } from 'lucide-react';
+import { PlusCircle, Edit, Upload, User, Image as ImageIcon, CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -24,17 +27,30 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '../ui/input';
 import Image from 'next/image';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Calendar } from '../ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '../ui/scroll-area';
 
-type User = {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-    status: string;
-    signatureUrl?: string;
-};
+const userSchema = z.object({
+  id: z.number(),
+  name: z.string().min(1, "Nome é obrigatório."),
+  email: z.string().email("E-mail inválido."),
+  role: z.string(),
+  status: z.string(),
+  signatureUrl: z.string().url().optional(),
+  admissionDate: z.date().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  rg: z.string().optional(),
+  cpf: z.string().optional(),
+});
 
-const initialUsers: User[] = [
+type UserFormData = z.infer<typeof userSchema>;
+
+const initialUsers: UserFormData[] = [
     { id: 1, name: 'Admin Geral', email: 'admin@cargainteligente.com', role: 'Administrador', status: 'Ativo', signatureUrl: 'https://placehold.co/200x60.png?text=Assinatura' },
     { id: 2, name: 'Usuário Comercial', email: 'comercial@cargainteligente.com', role: 'Comercial', status: 'Ativo' },
     { id: 3, name: 'Usuário Operacional', email: 'operacional@cargainteligente.com', role: 'Operacional', status: 'Ativo' },
@@ -43,10 +59,14 @@ const initialUsers: User[] = [
 ];
 
 export function UserManagementTable() {
-    const [users, setUsers] = useState<User[]>(initialUsers);
-    const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [users, setUsers] = useState<UserFormData[]>(initialUsers);
+    const [editingUser, setEditingUser] = useState<UserFormData | null>(null);
     const { toast } = useToast();
 
+    const form = useForm<UserFormData>({
+        resolver: zodResolver(userSchema),
+    });
+    
     const handleAction = (action: string, userName: string) => {
         toast({
             title: `Ação: ${action}`,
@@ -54,26 +74,29 @@ export function UserManagementTable() {
         });
     };
 
-    const handleOpenEditDialog = (user: User) => {
+    const handleOpenEditDialog = (user: UserFormData) => {
         setEditingUser(user);
+        form.reset(user);
     };
 
-    const handleSaveSignature = () => {
-        if (!editingUser) return;
-        
-        // In a real app, you would handle the file upload here.
-        // For simulation, we'll just update the user with a placeholder URL.
-        const updatedUsers = users.map(u => 
-            u.id === editingUser.id ? { ...u, signatureUrl: `https://placehold.co/200x60.png?text=${editingUser.name.split(' ')[0]}` } : u
-        );
+    const onSubmit = (data: UserFormData) => {
+        const updatedUsers = users.map(u => u.id === data.id ? data : u);
         setUsers(updatedUsers);
         setEditingUser(null);
         toast({
-            title: 'Assinatura Salva!',
-            description: `A assinatura para ${editingUser.name} foi atualizada (simulação).`,
+            title: 'Usuário Atualizado!',
+            description: `Os dados de ${data.name} foram salvos com sucesso.`,
             className: 'bg-success text-success-foreground'
         });
     };
+    
+    const handleSignatureUpload = (file: File | null) => {
+        if (!file || !editingUser) return;
+        // In a real app, this would be an API call.
+        const signatureUrl = URL.createObjectURL(file);
+        form.setValue('signatureUrl', signatureUrl);
+        toast({ title: 'Assinatura carregada!', description: 'Clique em "Salvar Alterações" para confirmar.', className: 'bg-primary text-primary-foreground' });
+    }
 
   return (
     <>
@@ -120,40 +143,102 @@ export function UserManagementTable() {
         </div>
     </div>
     <Dialog open={!!editingUser} onOpenChange={(isOpen) => !isOpen && setEditingUser(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh]">
             <DialogHeader>
-                <DialogTitle>Editar Usuário: {editingUser?.name}</DialogTitle>
+                <DialogTitle>Editar Funcionário: {editingUser?.name}</DialogTitle>
                 <DialogDescription>
                     Gerencie os dados e a assinatura do usuário.
                 </DialogDescription>
             </DialogHeader>
-            <div className="py-4 space-y-4">
-                <div className="flex flex-col items-center text-center p-6 border-2 border-dashed rounded-lg">
-                    {editingUser?.signatureUrl ? (
-                        <Image src={editingUser.signatureUrl} alt="Assinatura" width={200} height={60} className="mb-4" />
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-20 mb-4 text-muted-foreground">
-                            <ImageIcon className="h-8 w-8" />
-                            <span className="text-sm mt-2">Nenhuma assinatura cadastrada</span>
-                        </div>
-                    )}
-                    <h3 className="text-lg font-semibold">Assinatura Digitalizada</h3>
-                    <p className="text-sm text-muted-foreground mt-1 mb-4">
-                        Faça o upload de uma imagem .png com fundo transparente.
-                    </p>
-                    <Button asChild variant="outline">
-                        <label htmlFor="signature-upload">
-                            <Upload className="mr-2 h-4 w-4" />
-                            {editingUser?.signatureUrl ? 'Alterar Assinatura' : 'Carregar Assinatura'}
-                            <Input id="signature-upload" type="file" className="hidden" accept="image/png" />
-                        </label>
-                    </Button>
+            <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+            <ScrollArea className="h-[65vh] pr-4">
+                <div className="py-4 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="name" render={({ field }) => (
+                            <FormItem><FormLabel>Nome Completo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="email" render={({ field }) => (
+                            <FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="cpf" render={({ field }) => (
+                            <FormItem><FormLabel>CPF</FormLabel><FormControl><Input placeholder="000.000.000-00" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                         <FormField control={form.control} name="rg" render={({ field }) => (
+                            <FormItem><FormLabel>RG</FormLabel><FormControl><Input placeholder="00.000.000-0" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                    </div>
+                    <FormField control={form.control} name="address" render={({ field }) => (
+                        <FormItem><FormLabel>Endereço Completo</FormLabel><FormControl><Input placeholder="Rua, número, cidade, estado, CEP" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="phone" render={({ field }) => (
+                            <FormItem><FormLabel>Telefone</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField
+                            control={form.control}
+                            name="admissionDate"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Data de Admissão</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}
+                                        >
+                                        {field.value ? (format(field.value, "PPP")) : (<span>Selecione a data</span>)}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    
+                    <div className="flex flex-col items-center text-center p-6 border-2 border-dashed rounded-lg">
+                        {form.watch('signatureUrl') ? (
+                            <Image src={form.watch('signatureUrl')!} alt="Assinatura" width={200} height={60} className="mb-4" />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-20 mb-4 text-muted-foreground">
+                                <ImageIcon className="h-8 w-8" />
+                                <span className="text-sm mt-2">Nenhuma assinatura cadastrada</span>
+                            </div>
+                        )}
+                        <h3 className="text-lg font-semibold">Assinatura Digitalizada</h3>
+                        <p className="text-sm text-muted-foreground mt-1 mb-4">
+                            Faça o upload de uma imagem .png com fundo transparente.
+                        </p>
+                        <Button asChild variant="outline" type="button">
+                            <label htmlFor="signature-upload">
+                                <Upload className="mr-2 h-4 w-4" />
+                                {form.watch('signatureUrl') ? 'Alterar Assinatura' : 'Carregar Assinatura'}
+                                <Input id="signature-upload" type="file" className="hidden" accept="image/png" onChange={(e) => handleSignatureUpload(e.target.files?.[0] || null)} />
+                            </label>
+                        </Button>
+                    </div>
                 </div>
-            </div>
-            <DialogFooter>
+            </ScrollArea>
+            <DialogFooter className="pt-4 border-t">
                  <Button type="button" variant="outline" onClick={() => setEditingUser(null)}>Cancelar</Button>
-                 <Button type="button" onClick={handleSaveSignature}>Salvar Alterações</Button>
+                 <Button type="submit">Salvar Alterações</Button>
             </DialogFooter>
+            </form>
+            </Form>
         </DialogContent>
     </Dialog>
     </>

@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { CompanySettingsForm } from "@/components/settings/company-settings-form";
 import { UserManagementTable } from "@/components/settings/user-management-table";
 import { CertificateSettings } from "@/components/settings/certificate-settings";
+import { IntegrationsSettings } from "@/components/settings/integrations-settings";
 
 export default function SettingsPage() {
   return (
@@ -17,10 +18,11 @@ export default function SettingsPage() {
         </p>
       </header>
       <Tabs defaultValue="company" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
           <TabsTrigger value="company">Dados da Empresa</TabsTrigger>
           <TabsTrigger value="users">Usuários e Permissões</TabsTrigger>
           <TabsTrigger value="certificate">Certificado Digital</TabsTrigger>
+          <TabsTrigger value="integrations">Integrações</TabsTrigger>
         </TabsList>
         <TabsContent value="company" className="mt-6">
           <Card>
@@ -60,6 +62,19 @@ export default function SettingsPage() {
                     <CertificateSettings />
                 </CardContent>
             </Card>
+        </TabsContent>
+        <TabsContent value="integrations" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configuração de Integrações</CardTitle>
+              <CardDescription>
+                Gerencie as credenciais para serviços externos, como o envio de e-mails.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <IntegrationsSettings />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

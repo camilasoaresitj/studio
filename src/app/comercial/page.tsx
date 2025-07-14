@@ -163,6 +163,15 @@ export default function ComercialPage() {
                     <RateImporter onRatesImported={handleRatesImported} />
                 </CardContent>
             </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Taxas Padrão</CardTitle>
+                     <CardDescription>Configure as taxas padrão que serão usadas nas cotações.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <FeesRegistry fees={fees} onSave={handleFeeSaved} />
+                </CardContent>
+            </Card>
             <RatesTable rates={rates} onRatesChange={handleRatesChange} onSelectRate={() => {}} />
         </TabsContent>
         <TabsContent value="cadastros" className="mt-6 space-y-6">
@@ -173,15 +182,6 @@ export default function ComercialPage() {
                 </CardHeader>
                 <CardContent>
                     <PartnersRegistry partners={partners} onPartnerSaved={handlePartnerSaved} />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Taxas Padrão</CardTitle>
-                     <CardDescription>Configure as taxas padrão que serão usadas nas cotações.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <FeesRegistry fees={fees} onSave={handleFeeSaved} />
                 </CardContent>
             </Card>
         </TabsContent>

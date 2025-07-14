@@ -435,9 +435,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             calculatedFreightCost = minCharge;
             freightChargeType = `Mínimo (${chargeableWeight.toFixed(2)} kg)`;
         }
-    } else { // Ocean
+    } else { // Ocean FCL
         calculatedFreightCost = rate.costValue;
-        freightChargeType = 'Por Lote';
+        freightChargeType = 'Por Lote'; // FCL Freight is typically per lot/container set
     }
 
     const freightCharge: QuoteCharge = {

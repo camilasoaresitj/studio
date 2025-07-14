@@ -188,7 +188,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             const customer = partners.find(p => p.name === quote.customer);
             const exchangeRates = await exchangeRateService.getRates();
             const customerAgio = customer?.exchangeRateAgio ?? 0;
-            const finalPtaxUsd = exchangeRates['USD'] * (1 + (customerAgio / 100));
+            const finalPtaxUsd = parseFloat((exchangeRates['USD'] * (1 + (customerAgio / 100))).toFixed(4));
 
             const totalBRL = quote.charges.reduce((sum, charge) => {
                 const ptaxRate = exchangeRates[charge.saleCurrency] || 1;
@@ -198,17 +198,20 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             }, 0);
             
             const response = await runGenerateClientInvoicePdf({
-                invoiceNumber: quote.id.replace('-DRAFT', ''),
+                quoteNumber: quote.id.replace('-DRAFT', ''),
                 customerName: quote.customer,
-                customerAddress: "Endereço do Cliente",
                 date: new Date().toLocaleDateString('pt-br'),
-                charges: charges,
-                total: formatValue(totalBRL),
+                validity: quote.details.validity,
+                origin: quote.origin,
+                destination: quote.destination,
+                modal: quote.details.cargo.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo',
+                equipment: quote.details.cargo,
+                incoterm: quote.details.incoterm,
+                transitTime: quote.details.transitTime,
+                freeTime: quote.details.freeTime,
+                charges,
+                totalBrl: totalBRL.toLocaleString('pt-BR', {minimumFractionDigits: 2}),
                 exchangeRate: finalPtaxUsd,
-                bankDetails: {
-                    bankName: "LTI GLOBAL",
-                    accountNumber: "PIX: 10.298.168/0001-89"
-                },
                 approvalLink: `https://cargainteligente.com/approve/${quote.id}`,
             });
             

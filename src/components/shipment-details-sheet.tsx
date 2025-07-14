@@ -137,6 +137,10 @@ const shipmentDetailsSchema = z.object({
   emptyPickupTerminalId: z.string().optional(),
   fullDeliveryTerminalId: z.string().optional(),
   custoArmazenagem: z.coerce.number().optional(),
+  details: z.object({ // Add details object to the schema
+    incoterm: z.string().optional(),
+    cargo: z.string().optional(),
+  }),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -294,6 +298,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         emptyPickupTerminalId: shipment.emptyPickupTerminalId || '',
         fullDeliveryTerminalId: shipment.fullDeliveryTerminalId || '',
         custoArmazenagem: shipment.custoArmazenagem || undefined,
+        details: {
+          incoterm: shipment.details?.incoterm,
+          cargo: shipment.details?.cargo,
+        }
       });
     }
   }, [shipment, form]);
@@ -305,6 +313,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const watchedCharges = form.watch('charges');
   const watchedContainers = form.watch('containers');
   const watchedCustoArmazenagem = form.watch('custoArmazenagem');
+  const incoterm = form.watch('details.incoterm');
 
   const totalsSummary = useMemo(() => {
     if (!watchedContainers) return { containerCount: 0, totalGrossWeight: 0, totalVolumes: 0 };
@@ -844,8 +853,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     return null;
   }
   
-  const isMaritimeImport = shipment.destination.toUpperCase().includes('BR') && shipment.details.cargo.toLowerCase().indexOf('kg') === -1;
-  const isMaritimeExport = shipment.origin.toUpperCase().includes('BR') && shipment.details.cargo.toLowerCase().indexOf('kg') === -1;
+  const cargoDescription = shipment.details?.cargo?.toLowerCase() || '';
+  const isMaritimeImport = shipment.destination.toUpperCase().includes('BR') && !cargoDescription.includes('kg');
+  const isMaritimeExport = shipment.origin.toUpperCase().includes('BR') && !cargoDescription.includes('kg');
+  const deliveryIncoterms = ['DAP', 'DPU', 'DDP', 'DDU'];
+  const showDeliveryField = deliveryIncoterms.includes(incoterm || '');
 
   const handleViewQuote = async () => {
     setIsGeneratingPdf(shipment.quoteId);
@@ -893,6 +905,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }
     setIsGeneratingPdf(null);
 };
+
+const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
 
 
   return (
@@ -993,31 +1007,61 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4 items-end">
-                                        <FormField control={form.control} name="collectionAddress" render={({ field }) => (
-                                            <FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                        )} />
-                                        <FormField control={form.control} name="deliveryAddress" render={({ field }) => (
-                                            <FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                        )} />
+                                        {incoterm === 'EXW' && (
+                                            <FormField control={form.control} name="collectionAddress" render={({ field }) => (
+                                                <FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                        )}
+                                        {showDeliveryField && (
+                                            <FormField control={form.control} name="deliveryAddress" render={({ field }) => (
+                                                <FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                        )}
                                         <FormField control={form.control} name="origin" render={({ field }) => (
                                             <FormItem><FormLabel>Porto/Aeroporto Origem</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
                                         <FormField control={form.control} name="destination" render={({ field }) => (
                                             <FormItem><FormLabel>Porto/Aeroporto Destino</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
-                                         {isMaritimeImport && !isMaritimeExport && (
+                                         {isMaritimeImport && (
                                             <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (
                                                 <FormItem><FormLabel>Terminal de Descarga</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                             )} />
                                          )}
                                         {isMaritimeExport && (
                                             <>
-                                                <FormField control={form.control} name="emptyPickupTerminalId" render={({ field }) => (
-                                                    <FormItem><FormLabel>Terminal de Retirada (Vazio)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                                )} />
-                                                <FormField control={form.control} name="fullDeliveryTerminalId" render={({ field }) => (
-                                                    <FormItem><FormLabel>Terminal de Entrega (Cheio)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                                )} />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="emptyPickupTerminalId"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Terminal de Retirada (Vazio)</FormLabel>
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                                                <SelectContent>
+                                                                    {terminalPartners.map(t => (<SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="fullDeliveryTerminalId"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Terminal de Entrega (Cheio)</FormLabel>
+                                                             <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                                                <SelectContent>
+                                                                    {terminalPartners.map(t => (<SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
                                             </>
                                         )}
                                         <FormField control={form.control} name="details.incoterm" render={({ field }) => (
@@ -1125,7 +1169,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
-                                                                {partners.filter(p => p.tipoFornecedor?.terminal).map(t => (
+                                                                {terminalPartners.map(t => (
                                                                     <SelectItem key={t.id} value={t.id!.toString()}>
                                                                         {t.name}
                                                                     </SelectItem>

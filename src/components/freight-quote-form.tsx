@@ -367,7 +367,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         let feeValue = parseFloat(fee.value) || 0;
         let costValue = feeValue;
         let saleValue = feeValue;
-        let feeType = fee.unit;
         let supplier = 'CargaInteligente';
 
         const totalContainers = values.modal === 'ocean' && values.oceanShipmentType === 'FCL' 
@@ -377,7 +376,6 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         if (fee.unit.toLowerCase().includes('contêiner') && totalContainers > 0) {
             costValue *= totalContainers;
             saleValue *= totalContainers;
-            feeType = `${totalContainers} x ${fee.unit}`;
         } else if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
             const { cbm, weight } = values.lclDetails;
             const chargeableWeight = Math.max(cbm, weight / 1000);
@@ -408,7 +406,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         finalCharges.push({
             id: `fee-${fee.id}`,
             name: fee.name.toUpperCase(),
-            type: feeType,
+            type: fee.unit,
             cost: costValue,
             costCurrency: fee.currency,
             sale: saleValue,
@@ -481,6 +479,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     };
 
     const initialCharges = calculateCharges([freightCharge], rate.carrier);
+    const validityDate = form.getValues('validityDate');
 
     const newQuote: Quote = {
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,
@@ -493,7 +492,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         details: {
             cargo: getCargoDetails(form.getValues()),
             transitTime: rate.transitTime || 'N/A',
-            validity: (rate as any).validity || 'N/A',
+            validity: validityDate ? format(validityDate, 'dd/MM/yyyy') : 'N/A',
             freeTime: (rate as any).freeTime || 'N/A',
             incoterm: form.getValues('incoterm'),
             collectionAddress: form.getValues('collectionAddress'),
@@ -1035,24 +1034,44 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                     </div>
                 )}
                 
-                <FormField control={form.control} name="departureDate" render={({ field }) => (
-                    <FormItem className="flex flex-col mt-4"><FormLabel>Data de Embarque (Opcional)</FormLabel>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                        {field.value ? (format(field.value, "PPP")) : (<span>Selecione a data</span>)}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} initialFocus />
-                            </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                    </FormItem>
-                )} />
+                <div className="grid md:grid-cols-2 gap-4 mt-4">
+                    <FormField control={form.control} name="departureDate" render={({ field }) => (
+                        <FormItem className="flex flex-col"><FormLabel>Data de Embarque (Opcional)</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                            {field.value ? (format(field.value, "PPP")) : (<span>Selecione a data</span>)}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="validityDate" render={({ field }) => (
+                        <FormItem className="flex flex-col"><FormLabel>Data de Validade da Cotação</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                            {field.value ? (format(field.value, "PPP")) : (<span>Selecione a data</span>)}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                </div>
 
                 <Separator className="my-6" />
 
@@ -1179,10 +1198,10 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                     <h3 className="text-lg font-medium mb-4">Serviços Opcionais</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <FormField control={form.control} name="optionalServices.customsClearance" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Despacho {isClient && customsFee ? `(${customsFee.currency} ${customsFee.value})` : ''}</FormLabel></div></FormItem>
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Despacho Aduaneiro</FormLabel></div></FormItem>
                         )} />
                          <FormField control={form.control} name="optionalServices.trading" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Trading {isClient && tradingFee ? `(${tradingFee.currency} ${tradingFee.value})` : ''}</FormLabel></div></FormItem>
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Trading</FormLabel></div></FormItem>
                         )} />
                         <FormField control={form.control} name="optionalServices.redestinacao" render={({ field }) => (
                             <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Redestinação</FormLabel></div></FormItem>

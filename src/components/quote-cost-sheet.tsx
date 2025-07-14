@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
-import { Trash2, PlusCircle, Save, ChevronsUpDown, Check } from 'lucide-react';
+import { Trash2, PlusCircle, Save, ChevronsUpDown, Check, CalendarIcon } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,8 @@ import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
 
 const quoteChargeSchema = z.object({
   charges: z.array(z.object({
@@ -45,7 +47,7 @@ const quoteChargeSchema = z.object({
     financialEntryId: z.string().nullable().optional(),
   })),
   details: z.object({
-      validity: z.string().optional(),
+      validityDate: z.date().optional(),
       freeTime: z.string().optional(),
   })
 });
@@ -103,7 +105,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     defaultValues: {
       charges: quote.charges,
       details: {
-        validity: quote.details.validity,
+        validityDate: quote.details.validity && quote.details.validity !== 'N/A' ? new Date(quote.details.validity.split('/').reverse().join('-')) : undefined,
         freeTime: quote.details.freeTime,
       }
     },
@@ -191,7 +193,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   const onSubmit = (data: QuoteCostSheetFormData) => {
     const updatedDetails = {
         ...quote.details,
-        validity: data.details.validity || quote.details.validity,
+        validity: data.details.validityDate ? format(data.details.validityDate, 'dd/MM/yyyy') : quote.details.validity,
         freeTime: data.details.freeTime || quote.details.freeTime,
     }
     onUpdate({ charges: data.charges as QuoteCharge[], details: updatedDetails });
@@ -232,8 +234,34 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         <FormField control={form.control} name="details.freeTime" render={({ field }) => (
                             <FormItem><FormLabel className="text-muted-foreground">Free Time:</FormLabel><FormControl><Input {...field} className="h-7"/></FormControl></FormItem>
                         )} />
-                         <FormField control={form.control} name="details.validity" render={({ field }) => (
-                            <FormItem className="col-span-2"><FormLabel className="text-muted-foreground">Validade:</FormLabel><FormControl><Input {...field} className="h-7"/></FormControl></FormItem>
+                         <FormField control={form.control} name="details.validityDate" render={({ field }) => (
+                           <FormItem className="flex flex-col col-span-2">
+                                <FormLabel className="text-muted-foreground">Validade:</FormLabel>
+                                <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                        "h-7 justify-start text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {field.value ? format(field.value, "PPP") : <span>Selecione a data</span>}
+                                    </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    initialFocus
+                                    />
+                                </PopoverContent>
+                                </Popover>
+                            </FormItem>
                         )} />
                     </CardContent>
                 </Card>

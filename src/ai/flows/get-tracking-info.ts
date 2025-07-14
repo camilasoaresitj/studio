@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to generate tracking information using the Maersk or Cargo-flows API, with an AI model as fallback.
+ * @fileOverview A Genkit flow to generate tracking information using the Cargo-flows API, with an AI model as fallback.
  *
  * getTrackingInfo - A function that generates tracking events.
  * GetTrackingInfoInput - The input type for the function.
@@ -91,96 +91,6 @@ const getTrackingInfoFlow = ai.defineFlow(
     outputSchema: GetTrackingInfoOutputSchema,
   },
   async (input) => {
-    const maerskApiKey = process.env.MAERSK_API_KEY;
-    
-    // --- Primary Method: Maersk Direct API ---
-    if (input.carrier.toLowerCase().includes('maersk') && maerskApiKey) {
-        try {
-            console.log(`Attempting to fetch tracking from Maersk API for: ${input.trackingNumber}`);
-            const maerskResponse = await fetch(`https://api.maersk.com/v2/track/shipments-summary?trackingNumber=${input.trackingNumber}`, {
-                method: 'GET',
-                headers: { 
-                  'Authorization': `Bearer ${maerskApiKey}`,
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                }
-            });
-            
-            if (!maerskResponse.ok) {
-                const errorText = await maerskResponse.text();
-                throw new Error(`Maersk API Error (${maerskResponse.status}): ${errorText}`);
-            }
-
-            let data;
-            try {
-                data = await maerskResponse.json();
-            } catch (jsonError) {
-                console.error("Maersk API did not return valid JSON:", await maerskResponse.text());
-                throw new Error("A API da Maersk retornou uma resposta inesperada (não-JSON). Verifique a chave de API.");
-            }
-            
-            const shipment = data.shipments?.[0];
-
-            if (shipment) {
-                console.log("Maersk API call successful. Processing real data.");
-                
-                const events: TrackingEvent[] = (shipment.events || []).map((event: any) => ({
-                    status: event.eventDescription || 'N/A',
-                    date: event.eventDateTime,
-                    location: `${event.eventLocation.cityName}, ${event.eventLocation.countryCode}`,
-                    completed: new Date(event.eventDateTime) <= new Date(),
-                    carrier: 'Maersk',
-                }));
-
-                const lastCompletedEvent = events.slice().reverse().find(e => e.completed) || events[events.length - 1];
-
-                const shipmentDetails: Partial<Shipment> = {
-                    carrier: 'Maersk',
-                    origin: shipment.origin.locationName,
-                    destination: shipment.destination.locationName,
-                    vesselName: shipment.transportPlan.vessels[0]?.vesselName,
-                    voyageNumber: shipment.transportPlan.vessels[0]?.voyageReference,
-                    etd: shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETD')?.eventDateTime ? new Date(shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETD').eventDateTime) : undefined,
-                    eta: shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETA')?.eventDateTime ? new Date(shipment.transportPlan.events.find((e: any) => e.transportPlanEventTypeCode === 'ETA').eventDateTime) : undefined,
-                    masterBillNumber: input.trackingNumber,
-                    containers: shipment.containers?.map((c: any) => {
-                        const returnEvent = shipment.events.find((e: any) => 
-                            e.eventDescription.toLowerCase().includes('empty container returned') &&
-                            e.containerNumber === c.containerNumber
-                        );
-                        return {
-                            id: c.containerNumber,
-                            number: c.containerNumber,
-                            seal: c.seals ? c.seals.join(', ') : 'N/A',
-                            tare: `${c.tareWeight || 0} KG`,
-                            grossWeight: `${c.grossWeight || 0} KG`,
-                            effectiveReturnDate: returnEvent ? new Date(returnEvent.eventDateTime) : undefined,
-                        };
-                    }) || [],
-                    milestones: events.map((event: TrackingEvent) => ({
-                        name: event.status,
-                        status: event.completed ? 'completed' : 'pending',
-                        predictedDate: new Date(event.date),
-                        effectiveDate: event.completed ? new Date(event.date) : null,
-                        details: event.location,
-                        isTransshipment: event.status.toLowerCase().includes('transhipment')
-                    })),
-                };
-
-                return {
-                    status: lastCompletedEvent?.status || 'Pending',
-                    events,
-                    containers: shipmentDetails.containers,
-                    shipmentDetails: shipmentDetails,
-                };
-            }
-             console.warn("Maersk API call successful, but no shipment data found. Falling back.");
-        } catch (error: any) {
-             console.warn("Maersk API call failed. Error:", error);
-             throw new Error(error.message || "A chamada para a API da Maersk falhou.");
-        }
-    }
-    
-    // --- Secondary Method: Cargo-flows API ---
     const cargoFlowsApiKey = process.env.CARGOFLOWS_API_KEY;
     const cargoFlowsOrgToken = process.env.CARGOFLOWS_ORG_TOKEN;
     const baseUrl = 'https://connect.cargoes.com/flow/api/public_tracking/v1';

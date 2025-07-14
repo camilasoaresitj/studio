@@ -31,6 +31,8 @@ const GenerateHblHtmlInputSchema = z.object({
   issueDate: z.string().describe("Date the BL was issued (e.g., '12-Jul-2024')."),
   shippedOnBoardDate: z.string().describe("Date the cargo was shipped on board."),
   signatureUrl: z.string().url().optional().describe("URL of the responsible user's signature image. Only used if isOriginal is true."),
+  companyLogoUrl: z.string().optional().describe('The data URL of the company logo.'),
+  companyName: z.string().describe('The name of the company issuing the HBL.'),
 });
 export type GenerateHblHtmlInput = z.infer<typeof GenerateHblHtmlInputSchema>;
 
@@ -81,7 +83,11 @@ Your task is to generate the HTML for a House Bill of Lading (HBL) based on the 
         <table style="width: 100%; border-collapse: collapse;">
             <tr>
                 <td style="width: 60%; vertical-align: top;">
-                    <strong style="font-size: 18px;">LTI GLOBAL</strong><br/>
+                     {{#if companyLogoUrl}}
+                        <img src="{{companyLogoUrl}}" alt="{{companyName}} Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
+                    {{else}}
+                        <strong style="font-size: 18px;">{{companyName}}</strong><br/>
+                    {{/if}}
                     <span style="font-size: 11px;">We Listen and Act</span>
                 </td>
                 <td style="width: 40%; text-align: right;">
@@ -157,7 +163,7 @@ Your task is to generate the HTML for a House Bill of Lading (HBL) based on the 
                 <p><strong>Place and Date of issue:</strong> {{portOfLoading}}, {{issueDate}}</p>
                 <br/><br/>
                 <p><strong>AS CARRIER:</strong></p>
-                <p>LTI GLOBAL</p>
+                <p>{{companyName}}</p>
                 {{#if isOriginal}}
                 <img src="{{signatureUrl}}" alt="Signature" style="height: 50px;"/>
                 {{/if}}

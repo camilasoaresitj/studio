@@ -36,6 +36,7 @@ const GenerateQuotePdfHtmlInputSchema = z.object({
   totalBrl: z.string().describe('The final total amount in BRL (e.g., "132.00").'),
   exchangeRate: z.number().describe('The exchange rate used for conversion.'),
   approvalLink: z.string().url().optional().describe('Optional URL for the customer to approve the quote.'),
+  companyLogoUrl: z.string().optional().describe('The data URL of the company logo.'),
 });
 export type GenerateQuotePdfHtmlInput = z.infer<typeof GenerateQuotePdfHtmlInputSchema>;
 
@@ -79,6 +80,10 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
           </a>
         </div>
       ` : '';
+      
+      const logoHtml = data.companyLogoUrl
+        ? `<img src="${data.companyLogoUrl}" alt="Company Logo" style="height: 50px; max-width: 180px; object-fit: contain;" />`
+        : `<img src="https://placehold.co/150x50.png?text=LTI+GLOBAL" alt="LTI Global Logo" style="height: 50px;" data-ai-hint="logo lti global">`;
 
       return `
       <!DOCTYPE html>
@@ -101,7 +106,7 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
                   <h1 style="font-size: 48px; margin: 0; font-weight: 900; letter-spacing: -2px;">PROPOSTA<br>COMERCIAL</h1>
                 </td>
                 <td style="width: 40%; text-align: right; vertical-align: bottom;">
-                  <img src="https://placehold.co/150x50.png?text=LTI+GLOBAL" alt="LTI Global Logo" style="height: 50px;" data-ai-hint="logo lti global">
+                  ${logoHtml}
                 </td>
               </tr>
             </table>

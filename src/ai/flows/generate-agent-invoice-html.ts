@@ -29,6 +29,8 @@ const GenerateAgentInvoiceHtmlInputSchema = z.object({
   totalSale: z.string().describe('The final total sale amount (e.g., "2800.00").'),
   totalProfit: z.string().describe('The final total profit amount (e.g., "300.00").'),
   currency: z.string().describe('The primary currency of the invoice totals (e.g., "USD").'),
+  companyLogoUrl: z.string().optional().describe('The data URL of the company logo.'),
+  companyName: z.string().describe('The name of the company issuing the invoice.'),
 });
 export type GenerateAgentInvoiceHtmlInput = z.infer<typeof GenerateAgentInvoiceHtmlInputSchema>;
 
@@ -88,7 +90,11 @@ Your task is to generate the HTML for an invoice based on the provided JSON data
         <table style="width: 100%; border-collapse: collapse;">
             <tr>
                 <td style="vertical-align: top; width: 50%;">
-                    <h2 style="color: #1F2937; font-size: 24px; margin: 0; font-weight: bold;">LTI GLOBAL</h2>
+                    {{#if companyLogoUrl}}
+                        <img src="{{companyLogoUrl}}" alt="{{companyName}} Logo" style="max-height: 60px; max-width: 200px; object-fit: contain;">
+                    {{else}}
+                        <h2 style="color: #1F2937; font-size: 24px; margin: 0; font-weight: bold;">{{companyName}}</h2>
+                    {{/if}}
                     <p style="color: #6B7280; margin: 5px 0;">We Listen and Act</p>
                 </td>
                 <td style="vertical-align: top; text-align: right; width: 50%;">

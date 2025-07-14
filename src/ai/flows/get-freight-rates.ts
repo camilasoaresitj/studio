@@ -82,9 +82,6 @@ const getFreightRatesFlow = ai.defineFlow(
   },
   async (input) => {
     
-    const cargoFiveApiKey = "a256c19a3c3d85da2e35846de3205954";
-    process.env.CARGOFIVE_API_KEY = cargoFiveApiKey;
-
     // Split potentially comma-separated origins/destinations
     const searchOrigins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
     const searchDestinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
@@ -102,7 +99,8 @@ const getFreightRatesFlow = ai.defineFlow(
         const singleSearchInput = { ...input, origin: pair.origin, destination: pair.destination };
         
         // --- CargoFive API Call ---
-        if (cargoFiveApiKey) {
+        // Accessing the API key directly in the check and fetch call
+        if (process.env.CARGOFIVE_API_KEY || "a256c19a3c3d85da2e35846de3205954") {
           try {
             const cargoFivePayload = buildCargoFivePayload(singleSearchInput);
             console.log("Sending payload to CargoFive:", JSON.stringify(cargoFivePayload, null, 2));
@@ -111,7 +109,7 @@ const getFreightRatesFlow = ai.defineFlow(
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'X-Api-Key': cargoFiveApiKey,
+                    'X-Api-Key': process.env.CARGOFIVE_API_KEY || "a256c19a3c3d85da2e35846de3205954",
                     'User-Agent': 'CargaInteligenteApp/1.0'
                 },
                 body: JSON.stringify(cargoFivePayload),

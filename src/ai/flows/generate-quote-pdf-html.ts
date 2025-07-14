@@ -44,139 +44,6 @@ export async function generateQuotePdfHtml(input: GenerateQuotePdfHtmlInput): Pr
   return generateQuotePdfHtmlFlow(input);
 }
 
-const generateQuotePdfHtmlPrompt = ai.definePrompt({
-  name: 'generateQuotePdfHtmlPrompt',
-  input: { schema: GenerateQuotePdfHtmlInputSchema },
-  output: { schema: GenerateQuotePdfHtmlOutputSchema },
-  prompt: `You are an expert in creating professional, clean, and well-structured HTML for generating PDF invoices.
-Your task is to generate the HTML for an invoice based on the provided JSON data, closely matching the provided visual template.
-
-**Crucial Styling and Formatting Rules:**
-- **Inline CSS ONLY:** You MUST use inline CSS for all styling (e.g., \`<div style="font-family: Arial, sans-serif; color: #333;">\`). Do not use \`<style>\` blocks or external stylesheets.
-- **Layout:** The entire invoice must be wrapped in a single container with a white background. Use tables for layout where appropriate.
-- **Header:**
-    - The header has a large, curved background element. You can achieve this with a \`div\` that has a large border-radius on the bottom-left and a CSS radial-gradient. The gradient should go from a light peach/orange (\`#FFD1C2\`) to a very light pink (\`#FFE5E0\`). This div will be a container for the title.
-    - Inside this header area, on the right, place "FATURA" in large, bold, dark blue (\`#092C48\`) text. Below it, list the invoice number and date.
-    - To the left, outside the curved area, place the company logo text ("LTI GLOBAL" and "We Listen and Act") and the "PAYABLE TO" section.
-- **Table:**
-    - The table header must have a dark blue background (\`#092C48\`), white text, and rounded corners (\`border-radius: 10px;\`). The columns are "DESCRICAO", "QTY", "VALOR", "TOTAL", "CAMBIO", "TOTAL R$".
-    - Table rows should have a light grey background (\`#F5F7F8\`) for even-numbered rows and white for odd.
-    - Ensure all text in the table is vertically aligned in the middle.
-- **Footer:**
-    - The "DADOS BANCARIOS" and "TOTAL" sections should be at the bottom.
-    - The "TOTAL" block must be a dark blue (\`#092C48\`), rounded box with white text.
-    - The final footer is a dark blue bar (\`#092C48\`) at the very bottom, containing contact icons (use text placeholders like '[Web]', '[Tel]', '[Email]') and details.
-- **Approval Link**: If an \`approvalLink\` is provided, you must include a sentence at the bottom of the invoice, before the final footer bar, that says: "Para aprovar esta cotação, acesse: {{approvalLink}}"
-
-**Data Mapping:**
-- **Table Columns:**
-    - 'VALOR' and 'TOTAL' should display the original currency value (e.g., "$40.00").
-    - 'CAMBIO' should display the exchange rate provided.
-    - 'TOTAL R$' should be the 'TOTAL' value multiplied by the 'CAMBIO' rate. Format it as "R$ XXX.XX".
-- **Final Total:** Use the 'total' field from the input for the final total box.
-
-**Final HTML Structure Template:**
-
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Fatura {{invoiceNumber}}</title>
-</head>
-<body style="font-family: Arial, sans-serif; color: #333; background-color: #F5F7F8; margin: 0; padding: 20px;">
-  <div style="max-width: 800px; margin: auto; padding: 40px; background-color: white; border-radius: 8px;">
-    
-    <!-- Header -->
-    <table style="width: 100%; border-collapse: collapse; vertical-align: top;">
-      <tr>
-        <td style="width: 50%;">
-          <h1 style="color: #092C48; font-size: 28px; margin: 0; font-weight: bold;">LTI GLOBAL</h1>
-          <p style="color: #666; margin: 0;">We Listen and Act</p>
-          <p style="font-weight: bold; margin-top: 30px; margin-bottom: 5px;">PAYABLE TO</p>
-          <p style="margin: 0;">{{customerName}}</p>
-          <p style="margin: 0;">{{customerAddress}}</p>
-        </td>
-        <td style="width: 50%; text-align: right; position: relative;">
-          <div style="position: absolute; top: -80px; right: -80px; width: 400px; height: 200px; border-bottom-left-radius: 200px; background-image: radial-gradient(circle at top right, #FFD1C2, #FFE5E0); z-index: 1;"></div>
-          <div style="position: relative; z-index: 2; padding-right: 20px;">
-            <h2 style="color: #092C48; font-size: 48px; margin: 0; font-weight: bold;">FATURA</h2>
-            <p style="margin: 5px 0;">Number: {{invoiceNumber}}</p>
-            <p style="margin: 0;">Date: {{date}}</p>
-          </div>
-        </td>
-      </tr>
-    </table>
-
-    <!-- Charges Table -->
-    <div style="margin-top: 40px;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="background-color: #092C48; color: white;">
-                    <th style="padding: 15px; text-align: left; border-top-left-radius: 10px;">DESCRICAO</th>
-                    <th style="padding: 15px;">QTY</th>
-                    <th style="padding: 15px;">VALOR</th>
-                    <th style="padding: 15px;">TOTAL</th>
-                    <th style="padding: 15px;">CAMBIO</th>
-                    <th style="padding: 15px; border-top-right-radius: 10px;">TOTAL R$</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{#each charges}}
-                <tr style="{{#if @odd}}background-color: #F5F7F8;{{/if}}">
-                    <td style="padding: 10px 15px;">{{description}}</td>
-                    <td style="padding: 10px 15px; text-align: center;">{{quantity}}</td>
-                    <td style="padding: 10px 15px; text-align: center;">{{currency}} {{value}}</td>
-                    <td style="padding: 10px 15px; text-align: center;">{{currency}} {{total}}</td>
-                    <td style="padding: 10px 15px; text-align: center;">{{../exchangeRate}}</td>
-                    <td style="padding: 10px 15px; text-align: center;">R$ {{multiply total ../exchangeRate}}</td>
-                </tr>
-                {{/each}}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Footer -->
-    <table style="width: 100%; border-collapse: collapse; margin-top: 40px; vertical-align: bottom;">
-        <tr>
-            <td style="width: 50%;">
-                <h3 style="color: #092C48; margin-bottom: 10px;">DADOS BANCARIOS</h3>
-                <p style="margin: 0; font-weight: bold;">{{bankDetails.bankName}}</p>
-                <p style="margin: 0;">{{bankDetails.accountNumber}}</p>
-            </td>
-            <td style="width: 50%; text-align: right;">
-                <div style="display: inline-block; background-color: #092C48; color: white; padding: 20px 30px; border-radius: 10px; min-width: 250px;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            <td style="text-align: left; font-size: 18px;">TOTAL</td>
-                            <td style="text-align: right; font-size: 18px; font-weight: bold;">R$ {{total}}</td>
-                        </tr>
-                    </table>
-                </div>
-            </td>
-        </tr>
-    </table>
-    
-    {{#if approvalLink}}
-    <div style="margin-top: 20px; text-align: center; font-size: 12px; color: #555;">
-        <p>Para aprovar esta cotação, acesse: <a href="{{approvalLink}}" style="color: #092C48; font-weight: bold;">{{approvalLink}}</a></p>
-    </div>
-    {{/if}}
-
-  </div>
-  <div style="max-width: 800px; margin: 0 auto; padding: 15px 40px; background-color: #092C48; color: white; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-                <td style="text-align: left;">[Web] reallygreatsite.com</td>
-                <td style="text-align: center;">[Tel] 123-456-7890</td>
-                <td style="text-align: right;">[Email] hello@reallygreatsite.com</td>
-            </tr>
-        </table>
-    </div>
-</body>
-</html>
-`,
-});
-
 const generateQuotePdfHtmlFlow = ai.defineFlow(
   {
     name: 'generateQuotePdfHtmlFlow',
@@ -184,70 +51,110 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
     outputSchema: GenerateQuotePdfHtmlOutputSchema,
   },
   async (input) => {
-    // This is a temporary, simplified Handlebars-like replacer.
-    // A more robust solution would use a proper templating library.
-    function applyTemplate(template: string, data: any): string {
-        let result = template;
+    // This function replaces Handlebars to avoid webpack issues.
+    function applyTemplate(data: GenerateQuotePdfHtmlInput): string {
+        const chargesHtml = data.charges.map((charge, index) => {
+            const totalInBRL = (parseFloat(charge.total.replace(',', '.')) * data.exchangeRate).toFixed(2);
+            const rowStyle = index % 2 !== 0 ? 'style="background-color: #F5F7F8;"' : '';
+            return `
+                <tr ${rowStyle}>
+                    <td style="padding: 10px 15px;">${charge.description}</td>
+                    <td style="padding: 10px 15px; text-align: center;">${charge.quantity}</td>
+                    <td style="padding: 10px 15px; text-align: center;">${charge.currency} ${charge.value}</td>
+                    <td style="padding: 10px 15px; text-align: center;">${charge.currency} ${charge.total}</td>
+                    <td style="padding: 10px 15px; text-align: center;">${data.exchangeRate}</td>
+                    <td style="padding: 10px 15px; text-align: center;">R$ ${totalInBRL}</td>
+                </tr>
+            `;
+        }).join('');
 
-        // Replace simple placeholders like {{customerName}}
-        result = result.replace(/{{(.*?)}}/g, (match, key) => {
-            const keys = key.trim().split('.');
-            let value = data;
-            for (const k of keys) {
-                if (value && typeof value === 'object' && k in value) {
-                    value = value[k];
-                } else {
-                    return match; // Return original placeholder if key not found
-                }
-            }
-            return value;
-        });
+        const approvalLinkHtml = data.approvalLink ? `
+            <div style="margin-top: 20px; text-align: center; font-size: 12px; color: #555;">
+                <p>Para aprovar esta cotação, acesse: <a href="${data.approvalLink}" style="color: #092C48; font-weight: bold;">${data.approvalLink}</a></p>
+            </div>
+        ` : '';
 
-        // Handle #each block
-        const eachRegex = /{{#each charges}}(.*?){{\/each}}/s;
-        const eachMatch = result.match(eachRegex);
-        if (eachMatch && data.charges) {
-            const itemTemplate = eachMatch[1];
-            let itemsHtml = '';
-            data.charges.forEach((charge: any, index: number) => {
-                let itemHtml = itemTemplate;
-                itemHtml = itemHtml.replace(/{{description}}/g, charge.description);
-                itemHtml = itemHtml.replace(/{{quantity}}/g, charge.quantity);
-                itemHtml = itemHtml.replace(/{{value}}/g, charge.value);
-                itemHtml = itemHtml.replace(/{{total}}/g, charge.total);
-                itemHtml = itemHtml.replace(/{{currency}}/g, charge.currency);
-                itemHtml = itemHtml.replace(/{{..\/exchangeRate}}/g, data.exchangeRate);
-
-                const totalInBRL = (parseFloat(charge.total.replace(',', '.')) * data.exchangeRate).toFixed(2);
-                itemHtml = itemHtml.replace(/{{multiply total ..\/exchangeRate}}/g, totalInBRL);
-
-                if (index % 2 !== 0) { // odd
-                    itemHtml = itemHtml.replace('{{#if @odd}}background-color: #F5F7F8;{{/if}}', 'style="background-color: #F5F7F8;"');
-                } else {
-                    itemHtml = itemHtml.replace('{{#if @odd}}background-color: #F5F7F8;{{/if}}', '');
-                }
-                itemsHtml += itemHtml;
-            });
-            result = result.replace(eachRegex, itemsHtml);
-        }
-        
-        // Handle #if block
-        const ifRegex = /{{#if approvalLink}}(.*?){{\/if}}/s;
-        const ifMatch = result.match(ifRegex);
-        if (ifMatch && data.approvalLink) {
-            result = result.replace(ifRegex, ifMatch[1]);
-        } else if (ifMatch) {
-            result = result.replace(ifRegex, '');
-        }
-
-
-        return result;
+        return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Fatura ${data.invoiceNumber}</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; color: #333; background-color: #F5F7F8; margin: 0; padding: 20px;">
+          <div style="max-width: 800px; margin: auto; padding: 40px; background-color: white; border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse; vertical-align: top;">
+              <tr>
+                <td style="width: 50%;">
+                  <h1 style="color: #092C48; font-size: 28px; margin: 0; font-weight: bold;">LTI GLOBAL</h1>
+                  <p style="color: #666; margin: 0;">We Listen and Act</p>
+                  <p style="font-weight: bold; margin-top: 30px; margin-bottom: 5px;">PAYABLE TO</p>
+                  <p style="margin: 0;">${data.customerName}</p>
+                  <p style="margin: 0;">${data.customerAddress}</p>
+                </td>
+                <td style="width: 50%; text-align: right; position: relative;">
+                  <div style="position: absolute; top: -80px; right: -80px; width: 400px; height: 200px; border-bottom-left-radius: 200px; background-image: radial-gradient(circle at top right, #FFD1C2, #FFE5E0); z-index: 1;"></div>
+                  <div style="position: relative; z-index: 2; padding-right: 20px;">
+                    <h2 style="color: #092C48; font-size: 48px; margin: 0; font-weight: bold;">FATURA</h2>
+                    <p style="margin: 5px 0;">Number: ${data.invoiceNumber}</p>
+                    <p style="margin: 0;">Date: ${data.date}</p>
+                  </div>
+                </td>
+              </tr>
+            </table>
+            <div style="margin-top: 40px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #092C48; color: white;">
+                            <th style="padding: 15px; text-align: left; border-top-left-radius: 10px;">DESCRICAO</th>
+                            <th style="padding: 15px;">QTY</th>
+                            <th style="padding: 15px;">VALOR</th>
+                            <th style="padding: 15px;">TOTAL</th>
+                            <th style="padding: 15px;">CAMBIO</th>
+                            <th style="padding: 15px; border-top-right-radius: 10px;">TOTAL R$</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${chargesHtml}
+                    </tbody>
+                </table>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 40px; vertical-align: bottom;">
+                <tr>
+                    <td style="width: 50%;">
+                        <h3 style="color: #092C48; margin-bottom: 10px;">DADOS BANCARIOS</h3>
+                        <p style="margin: 0; font-weight: bold;">${data.bankDetails.bankName}</p>
+                        <p style="margin: 0;">${data.bankDetails.accountNumber}</p>
+                    </td>
+                    <td style="width: 50%; text-align: right;">
+                        <div style="display: inline-block; background-color: #092C48; color: white; padding: 20px 30px; border-radius: 10px; min-width: 250px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="text-align: left; font-size: 18px;">TOTAL</td>
+                                    <td style="text-align: right; font-size: 18px; font-weight: bold;">R$ ${data.total}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            ${approvalLinkHtml}
+          </div>
+          <div style="max-width: 800px; margin: 0 auto; padding: 15px 40px; background-color: #092C48; color: white; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="text-align: left;">[Web] reallygreatsite.com</td>
+                        <td style="text-align: center;">[Tel] 123-456-7890</td>
+                        <td style="text-align: right;">[Email] hello@reallygreatsite.com</td>
+                    </tr>
+                </table>
+            </div>
+        </body>
+        </html>
+        `;
     }
 
-    const { output } = await generateQuotePdfHtmlPrompt(input);
-    
-    // We are now doing the templating here instead of relying on a library that may not be available server-side.
-    const finalHtml = applyTemplate(output!.html, input);
+    const finalHtml = applyTemplate(input);
 
     return { html: finalHtml };
   }

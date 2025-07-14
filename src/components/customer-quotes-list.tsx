@@ -70,10 +70,11 @@ interface CustomerQuotesListProps {
   onPartnerSaved: (partner: Partner) => void;
   onClose: () => void;
   onEditQuote: (quote: Quote) => void;
+  quoteToDetail: Quote | null;
+  setQuoteToDetail: (quote: Quote | null) => void;
 }
 
-export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerSaved, onClose, onEditQuote }: CustomerQuotesListProps) {
-    const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerSaved, onClose, onEditQuote, quoteToDetail, setQuoteToDetail }: CustomerQuotesListProps) {
     const [isSending, setIsSending] = useState(false);
     const [sendDialogOpen, setSendDialogOpen] = useState(false);
     const [quoteToSend, setQuoteToSend] = useState<Quote | null>(null);
@@ -255,10 +256,10 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
     }
     
     const handleUpdateQuote = (updatedQuoteData: { charges: QuoteCharge[] }) => {
-        if (!selectedQuote) return;
-        const updatedQuote = { ...selectedQuote, ...updatedQuoteData, status: 'Enviada' as const };
+        if (!quoteToDetail) return;
+        const updatedQuote = { ...quoteToDetail, ...updatedQuoteData, status: 'Enviada' as const };
         onQuoteUpdate(updatedQuote);
-        setSelectedQuote(updatedQuote); 
+        setQuoteToDetail(updatedQuote); 
     };
 
     const handleApprovalConfirmed = async (
@@ -351,7 +352,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                     </TableHeader>
                     <TableBody>
                     {quotes.map((quote) => (
-                        <TableRow key={quote.id} onClick={() => onEditQuote(quote)} className="cursor-pointer">
+                        <TableRow key={quote.id}>
                             <TableCell className="font-medium text-primary">{quote.id.replace('-DRAFT', '')}</TableCell>
                             <TableCell>{quote.customer}</TableCell>
                             <TableCell>{quote.origin}</TableCell>
@@ -360,7 +361,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                                 <Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge>
                             </TableCell>
                             <TableCell>{quote.date}</TableCell>
-                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                            <TableCell className="text-center">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon">
@@ -399,18 +400,18 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             </div>
         </CardContent>
     </Card>
-    <Dialog open={!!selectedQuote} onOpenChange={(isOpen) => !isOpen && setSelectedQuote(null)}>
+    <Dialog open={!!quoteToDetail} onOpenChange={(isOpen) => !isOpen && setQuoteToDetail(null)}>
         <DialogContent className="sm:max-w-7xl max-h-[90vh] p-0">
-            {selectedQuote && (
+            {quoteToDetail && (
                 <>
                     <DialogHeader className="p-6 pb-2">
-                        <DialogTitle>Detalhes da Cotação: {selectedQuote.id.replace('-DRAFT', '')}</DialogTitle>
+                        <DialogTitle>Detalhes da Cotação: {quoteToDetail.id.replace('-DRAFT', '')}</DialogTitle>
                         <DialogDescription>
-                            Gerencie custos, vendas e lucro. Status: <Badge variant={getStatusVariant(selectedQuote.status)} className="text-xs">{selectedQuote.status}</Badge>
+                            Gerencie custos, vendas e lucro. Status: <Badge variant={getStatusVariant(quoteToDetail.status)} className="text-xs">{quoteToDetail.status}</Badge>
                         </DialogDescription>
                     </DialogHeader>
                     <div className="p-6 pt-0 flex-grow overflow-y-auto">
-                        <QuoteCostSheet key={selectedQuote.id} quote={selectedQuote} partners={partners} onUpdate={handleUpdateQuote} />
+                        <QuoteCostSheet key={quoteToDetail.id} quote={quoteToDetail} partners={partners} onUpdate={handleUpdateQuote} />
                     </div>
                 </>
             )}

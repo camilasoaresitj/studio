@@ -28,6 +28,7 @@ export default function ComercialPage() {
   const [fees, setFees] = useState<Fee[]>(getFees);
   const [quoteFormData, setQuoteFormData] = useState<Partial<FreightQuoteFormData> | null>(null);
   const [activeTab, setActiveTab] = useState('cotacao');
+  const [quoteToDetail, setQuoteToDetail] = useState<Quote | null>(null); // State for the detail/costing sheet
   const { toast } = useToast();
 
   const handleRatesChange = (newRates: Rate[]) => {
@@ -100,16 +101,7 @@ export default function ComercialPage() {
   };
   
   const handleSelectQuoteToEdit = (quote: Quote) => {
-      const formData: Partial<FreightQuoteFormData> = {
-          customerId: partners.find(p => p.name === quote.customer)?.id?.toString(),
-          modal: quote.details.cargo.toLowerCase().includes('kg') ? 'air' : 'ocean',
-          incoterm: quote.details.incoterm as any,
-          origin: quote.origin,
-          destination: quote.destination,
-          commodity: quote.details.cargo,
-      };
-      setQuoteFormData(formData);
-      setActiveTab('cotacao');
+      setQuoteToDetail(quote);
   }
 
   return (
@@ -151,6 +143,8 @@ export default function ComercialPage() {
                 onPartnerSaved={handlePartnerSaved}
                 onClose={() => setActiveTab('cotacao')}
                 onEditQuote={handleSelectQuoteToEdit}
+                quoteToDetail={quoteToDetail}
+                setQuoteToDetail={setQuoteToDetail}
             />
         </TabsContent>
         <TabsContent value="gestao_tarifas" className="mt-6 space-y-6">

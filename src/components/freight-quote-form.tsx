@@ -348,6 +348,12 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
 
     const relevantFees = fees.filter(fee => {
         if (existingChargeNames.has(fee.name.toUpperCase())) return false;
+        
+        // Custom logic for EXW/COLETA fees
+        const isExwFee = fee.name.toUpperCase().includes('EXW') || fee.name.toUpperCase().includes('COLETA');
+        if (isExwFee && (values.incoterm !== 'EXW' || direction !== 'Importação')) {
+            return false;
+        }
 
         const modalMatch = fee.modal === 'Ambos' || fee.modal === (values.modal === 'ocean' ? 'Marítimo' : 'Aéreo');
         const directionMatch = fee.direction === 'Ambos' || fee.direction === direction;
@@ -386,8 +392,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             const cargoValue = values.optionalServices.cargoValue;
             if (cargoValue > 0) {
                 // Cost: 0.12%, Sale: 0.30%
-                costValue = cargoValue * 0.0012;
-                saleValue = cargoValue * 0.0030;
+                costValue = parseFloat((cargoValue * 0.0012).toFixed(2));
+                saleValue = parseFloat((cargoValue * 0.0030).toFixed(2));
                 
                 // Check for minimums defined in fees
                 const minInsuranceCost = insuranceFee?.minValue || 0;
@@ -436,7 +442,14 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     let freightChargeType: string;
     let freightCurrency: 'BRL' | 'USD' = rate.cost.includes('R$') ? 'BRL' : 'USD';
     
-    if (values.modal === 'air') {
+    if (values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
+        const ratePerTon = rate.costValue;
+        const { cbm, weight } = values.lclDetails;
+        const chargeableWeight = Math.max(cbm, weight / 1000);
+        
+        calculatedFreightCost = chargeableWeight * ratePerTon;
+        freightChargeType = `Por ${chargeableWeight.toFixed(2)} W/M`;
+    } else if (values.modal === 'air') {
         const ratePerKg = rate.costValue;
         const volumetricFactor = 6000;
         let totalGrossWeight = 0;

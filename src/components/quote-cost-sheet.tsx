@@ -98,6 +98,17 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
     );
 }
 
+const chargeTypeOptions = [
+    'Por Contêiner',
+    'Por BL',
+    'Por Processo',
+    'W/M',
+    'Por KG',
+    'Por AWB',
+    'Fixo',
+    'Percentual',
+];
+
 export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProps) {
   const { toast } = useToast();
   const form = useForm<QuoteCostSheetFormData>({
@@ -314,7 +325,12 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         control={form.control}
                                         name={`charges.${index}.type`}
                                         render={({ field }) => (
-                                            <Input {...field} className="h-8" />
+                                             <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
                                         )}
                                     />
                                 </TableCell>

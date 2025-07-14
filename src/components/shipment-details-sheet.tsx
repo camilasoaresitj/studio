@@ -934,7 +934,7 @@ const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
 
                     <div className="flex-grow overflow-y-auto pr-6 -mr-6 space-y-6">
                         <TabsContent value="dados_embarque" className="mt-0 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <Card>
                                     <CardHeader className="pb-2"><CardTitle className="text-base">Shipper (Exportador)</CardTitle></CardHeader>
                                     <CardContent className="text-sm space-y-1">
@@ -1024,9 +1024,22 @@ const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
                                             <FormItem><FormLabel>Porto/Aeroporto Destino</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
                                          {isMaritimeImport && (
-                                            <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (
-                                                <FormItem><FormLabel>Terminal de Descarga</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                            )} />
+                                            <FormField
+                                                control={form.control}
+                                                name="dischargeTerminal"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Terminal de Descarga</FormLabel>
+                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                                            <SelectContent>
+                                                                {terminalPartners.map(t => (<SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
                                          )}
                                         {isMaritimeExport && (
                                             <>

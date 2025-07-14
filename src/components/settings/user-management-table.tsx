@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Upload, User, Image as ImageIcon, CalendarIcon } from 'lucide-react';
+import { PlusCircle, Edit, Upload, User, Image as ImageIcon, CalendarIcon, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -33,6 +33,18 @@ import { Calendar } from '../ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
+import { Separator } from '../ui/separator';
+import { Checkbox } from '../ui/checkbox';
+
+const permissionsSchema = z.object({
+    gerencial: z.boolean().default(false),
+    comercial: z.boolean().default(false),
+    operacional: z.boolean().default(false),
+    financeiro: z.boolean().default(false),
+    demurrage: z.boolean().default(false),
+    schedules: z.boolean().default(false),
+    configuracoes: z.boolean().default(false),
+});
 
 const userSchema = z.object({
   id: z.number(),
@@ -46,17 +58,29 @@ const userSchema = z.object({
   address: z.string().optional(),
   rg: z.string().optional(),
   cpf: z.string().optional(),
+  permissions: permissionsSchema,
 });
 
 type UserFormData = z.infer<typeof userSchema>;
 
 const initialUsers: UserFormData[] = [
-    { id: 1, name: 'Admin Geral', email: 'admin@cargainteligente.com', role: 'Administrador', status: 'Ativo', signatureUrl: 'https://placehold.co/200x60.png?text=Assinatura' },
-    { id: 2, name: 'Usuário Comercial', email: 'comercial@cargainteligente.com', role: 'Comercial', status: 'Ativo' },
-    { id: 3, name: 'Usuário Operacional', email: 'operacional@cargainteligente.com', role: 'Operacional', status: 'Ativo' },
-    { id: 4, name: 'Usuário Financeiro', email: 'financeiro@cargainteligente.com', role: 'Financeiro', status: 'Ativo' },
-    { id: 5, name: 'Usuário Inativo', email: 'inativo@cargainteligente.com', role: 'Comercial', status: 'Inativo' },
+    { id: 1, name: 'Admin Geral', email: 'admin@cargainteligente.com', role: 'Administrador', status: 'Ativo', signatureUrl: 'https://placehold.co/200x60.png?text=Assinatura', permissions: { gerencial: true, comercial: true, operacional: true, financeiro: true, demurrage: true, schedules: true, configuracoes: true } },
+    { id: 2, name: 'Usuário Comercial', email: 'comercial@cargainteligente.com', role: 'Comercial', status: 'Ativo', permissions: { gerencial: false, comercial: true, operacional: false, financeiro: false, demurrage: false, schedules: true, configuracoes: false } },
+    { id: 3, name: 'Usuário Operacional', email: 'operacional@cargainteligente.com', role: 'Operacional', status: 'Ativo', permissions: { gerencial: false, comercial: false, operacional: true, financeiro: false, demurrage: true, schedules: true, configuracoes: false } },
+    { id: 4, name: 'Usuário Financeiro', email: 'financeiro@cargainteligente.com', role: 'Financeiro', status: 'Ativo', permissions: { gerencial: false, comercial: false, operacional: false, financeiro: true, demurrage: true, schedules: false, configuracoes: false } },
+    { id: 5, name: 'Usuário Inativo', email: 'inativo@cargainteligente.com', role: 'Comercial', status: 'Inativo', permissions: { gerencial: false, comercial: false, operacional: false, financeiro: false, demurrage: false, schedules: false, configuracoes: false } },
 ];
+
+const permissionLabels: { key: keyof z.infer<typeof permissionsSchema>; label: string }[] = [
+    { key: 'gerencial', label: 'Gerencial' },
+    { key: 'comercial', label: 'Comercial' },
+    { key: 'operacional', label: 'Operacional' },
+    { key: 'financeiro', label: 'Financeiro' },
+    { key: 'demurrage', label: 'Demurrage' },
+    { key: 'schedules', label: 'Schedules' },
+    { key: 'configuracoes', label: 'Configurações' },
+];
+
 
 export function UserManagementTable() {
     const [users, setUsers] = useState<UserFormData[]>(initialUsers);
@@ -231,6 +255,33 @@ export function UserManagementTable() {
                             </label>
                         </Button>
                     </div>
+
+                     <Separator />
+                     
+                     <div>
+                        <FormLabel className="text-base font-semibold flex items-center gap-2"><KeyRound/> Permissões de Acesso</FormLabel>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 mt-2 border rounded-lg">
+                            {permissionLabels.map(({ key, label }) => (
+                                <FormField
+                                    key={key}
+                                    control={form.control}
+                                    name={`permissions.${key}`}
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                        <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">{label}</FormLabel>
+                                    </FormItem>
+                                    )}
+                                />
+                            ))}
+                        </div>
+                     </div>
+
                 </div>
             </ScrollArea>
             <DialogFooter className="pt-4 border-t">

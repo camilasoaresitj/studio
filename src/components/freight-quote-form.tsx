@@ -209,6 +209,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         trading: false,
         redestinacao: false,
         cargoValue: 0,
+        cargoValueCurrency: 'BRL',
         storageCost: 0,
         terminalId: ''
       }
@@ -1220,16 +1221,33 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                             <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Redestinação</FormLabel></div></FormItem>
                         )} />
                         <FormField control={form.control} name="optionalServices.insurance" render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 col-span-1 lg:col-span-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                 <div className="space-y-1 leading-none w-full"><FormLabel>Seguro Intl.</FormLabel>
                                 {optionalServices.insurance && (
-                                    <FormField control={form.control} name="optionalServices.cargoValue" render={({ field }) => (
-                                        <FormItem className="mt-2">
-                                            <FormLabel className="text-xs">Valor CIF da Mercadoria</FormLabel>
-                                            <FormControl><Input type="number" placeholder="Valor Carga (BRL)" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )} />
+                                    <div className="grid grid-cols-2 gap-2 pt-2">
+                                        <FormField control={form.control} name="optionalServices.cargoValue" render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl><Input type="number" placeholder="Valor Carga" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={form.control} name="optionalServices.cargoValueCurrency" render={({ field }) => (
+                                            <FormItem>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="BRL">BRL</SelectItem>
+                                                        <SelectItem value="USD">USD</SelectItem>
+                                                        <SelectItem value="EUR">EUR</SelectItem>
+                                                        <SelectItem value="GBP">GBP</SelectItem>
+                                                        <SelectItem value="JPY">JPY</SelectItem>
+                                                        <SelectItem value="CHF">CHF</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                    </div>
                                 )}
                                 </div>
                             </FormItem>

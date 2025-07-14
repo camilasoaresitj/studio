@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -59,6 +60,8 @@ const userSchema = z.object({
   rg: z.string().optional(),
   cpf: z.string().optional(),
   permissions: permissionsSchema,
+  gmailEmail: z.string().email({ message: "E-mail do Gmail inválido." }).optional().or(z.literal('')),
+  gmailAppPassword: z.string().optional(),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -91,24 +94,34 @@ export function UserManagementTable() {
         resolver: zodResolver(userSchema),
     });
     
-    const handleAction = (action: string, userName: string) => {
-        toast({
-            title: `Ação: ${action}`,
-            description: `Funcionalidade para ${action.toLowerCase()} o usuário ${userName} será implementada em breve.`,
-        });
-    };
-
-    const handleOpenEditDialog = (user: UserFormData) => {
+    const handleOpenDialog = (user: UserFormData | null) => {
         setEditingUser(user);
-        form.reset(user);
+        if (user) {
+            form.reset(user);
+        } else {
+            form.reset({
+                id: Math.max(...users.map(u => u.id)) + 1,
+                name: '', email: '', role: 'Comum', status: 'Ativo',
+                permissions: { gerencial: false, comercial: true, operacional: false, financeiro: false, demurrage: false, schedules: false, configuracoes: false },
+                gmailEmail: '', gmailAppPassword: ''
+            });
+        }
     };
 
     const onSubmit = (data: UserFormData) => {
-        const updatedUsers = users.map(u => u.id === data.id ? data : u);
+        let updatedUsers;
+        const isNewUser = !users.some(u => u.id === data.id);
+        
+        if (isNewUser) {
+            updatedUsers = [...users, data];
+        } else {
+            updatedUsers = users.map(u => u.id === data.id ? data : u);
+        }
+        
         setUsers(updatedUsers);
         setEditingUser(null);
         toast({
-            title: 'Usuário Atualizado!',
+            title: `Usuário ${isNewUser ? 'adicionado' : 'atualizado'}!`,
             description: `Os dados de ${data.name} foram salvos com sucesso.`,
             className: 'bg-success text-success-foreground'
         });
@@ -116,7 +129,6 @@ export function UserManagementTable() {
     
     const handleSignatureUpload = (file: File | null) => {
         if (!file || !editingUser) return;
-        // In a real app, this would be an API call.
         const signatureUrl = URL.createObjectURL(file);
         form.setValue('signatureUrl', signatureUrl);
         toast({ title: 'Assinatura carregada!', description: 'Clique em "Salvar Alterações" para confirmar.', className: 'bg-primary text-primary-foreground' });
@@ -126,7 +138,7 @@ export function UserManagementTable() {
     <>
     <div className="space-y-4">
         <div className="flex justify-end">
-            <Button onClick={() => handleAction('Adicionar Usuário', '')}>
+            <Button onClick={() => handleOpenDialog(null)}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Convidar Novo Usuário
             </Button>
@@ -156,7 +168,7 @@ export function UserManagementTable() {
                     </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(user)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(user)}>
                         <Edit className="h-4 w-4" />
                     </Button>
                 </TableCell>
@@ -169,7 +181,7 @@ export function UserManagementTable() {
     <Dialog open={!!editingUser} onOpenChange={(isOpen) => !isOpen && setEditingUser(null)}>
         <DialogContent className="sm:max-w-3xl max-h-[90vh]">
             <DialogHeader>
-                <DialogTitle>Editar Funcionário: {editingUser?.name}</DialogTitle>
+                <DialogTitle>{editingUser?.id ? 'Editar Funcionário' : 'Novo Funcionário'}: {editingUser?.name || ''}</DialogTitle>
                 <DialogDescription>
                     Gerencie os dados e a assinatura do usuário.
                 </DialogDescription>
@@ -183,7 +195,7 @@ export function UserManagementTable() {
                             <FormItem><FormLabel>Nome Completo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={form.control} name="email" render={({ field }) => (
-                            <FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>E-mail de Acesso</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -281,6 +293,29 @@ export function UserManagementTable() {
                             ))}
                         </div>
                      </div>
+                     
+                     <Separator />
+
+                     <div>
+                        <FormLabel className="text-base font-semibold flex items-center gap-2"><KeyRound/> Credenciais do Gmail</FormLabel>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                             <FormField control={form.control} name="gmailEmail" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>E-mail do Gmail</FormLabel>
+                                    <FormControl><Input placeholder="seu-email@gmail.com" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                            <FormField control={form.control} name="gmailAppPassword" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Senha de Aplicativo do Gmail</FormLabel>
+                                    <FormControl><Input type="password" placeholder="•••• •••• •••• ••••" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                        </div>
+                     </div>
+
 
                 </div>
             </ScrollArea>

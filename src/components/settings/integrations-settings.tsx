@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -80,60 +81,11 @@ export function IntegrationsSettings() {
         <Card>
         <CardHeader>
             <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5"/>
-                Configuração do Gmail
-            </CardTitle>
-            <CardDescription>
-                Insira as credenciais para que o sistema possa enviar e-mails (cotações, faturas, etc.) em seu nome.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Alert variant="default" className="mb-6">
-                <AlertTitle>Importante: Use uma Senha de Aplicativo!</AlertTitle>
-                <AlertDescription>
-                    Para sua segurança, não use a senha da sua conta do Google. Crie e use uma "Senha de Aplicativo". 
-                    <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer" className="font-bold text-primary hover:underline ml-1">
-                        Saiba como aqui.
-                    </a>
-                </AlertDescription>
-            </Alert>
-            <Form {...gmailForm}>
-            <form onSubmit={gmailForm.handleSubmit(onGmailSubmit)} className="space-y-6">
-                <FormField control={gmailForm.control} name="gmailEmail" render={({ field }) => (
-                <FormItem>
-                    <FormLabel>E-mail do Gmail</FormLabel>
-                    <FormControl><Input placeholder="seu-email@gmail.com" {...field} /></FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}/>
-                <FormField control={gmailForm.control} name="gmailAppPassword" render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Senha de Aplicativo do Gmail</FormLabel>
-                    <FormControl><Input type="password" placeholder="•••• •••• •••• ••••" {...field} /></FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}/>
-                <div className="flex justify-end">
-                    <Button type="submit" disabled={isGmailSaving}>
-                        {isGmailSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                        Salvar Configuração do Gmail
-                    </Button>
-                </div>
-            </form>
-            </Form>
-        </CardContent>
-        </Card>
-
-        <Separator />
-
-        <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2">
                 <Server className="h-5 w-5"/>
                 Configuração Avançada de E-mail (SMTP/IMAP)
             </CardTitle>
             <CardDescription>
-                Configure seu próprio servidor de e-mail para envio e leitura.
+                Configure seu próprio servidor de e-mail para envio e leitura. As credenciais individuais (e-mail/senha) devem ser configuradas no cadastro de cada usuário.
             </CardDescription>
         </CardHeader>
         <CardContent>

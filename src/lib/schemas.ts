@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 
 export const airPieceSchema = z.object({
@@ -40,6 +41,7 @@ export const baseFreightQuoteFormSchema = z.object({
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
   departureDate: z.date().optional(),
+  validityDate: z.date().optional(),
   collectionAddress: z.string().optional(),
   deliveryAddress: z.string().optional(),
   commodity: z.string().optional(),
@@ -62,6 +64,7 @@ export const baseFreightQuoteFormSchema = z.object({
     trading: z.boolean(),
     redestinacao: z.boolean(),
     cargoValue: z.number(),
+    cargoValueCurrency: z.enum(['BRL', 'USD', 'EUR', 'GBP', 'CHF', 'JPY']).default('BRL'),
     storageCost: z.number().optional(),
     terminalId: z.string().optional(),
   }),

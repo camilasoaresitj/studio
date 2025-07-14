@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { partnerSchema as newPartnerSchema } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';

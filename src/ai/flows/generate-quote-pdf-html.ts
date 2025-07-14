@@ -59,7 +59,7 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
     function applyTemplate(data: GenerateQuotePdfHtmlInput): string {
       const chargesHtml = data.charges.map((charge) => {
         const totalInBRL = (parseFloat(charge.total.replace(',', '.')) * (charge.currency === 'BRL' ? 1 : data.exchangeRate)).toFixed(2);
-        const exchangeRateDisplay = charge.currency === 'BRL' ? '---' : data.exchangeRate.toFixed(4);
+        const exchangeRateDisplay = charge.currency === 'BRL' ? '---' : (data.exchangeRate ? data.exchangeRate.toFixed(4) : 'N/A');
         return `
           <tr>
             <td style="padding: 10px 15px; border-bottom: 1px solid #eee;">${charge.description}</td>

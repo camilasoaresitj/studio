@@ -331,7 +331,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     return `${pieceCount} piece(s) / ${totalWeight.toFixed(2)} KG`;
 }
 
- const calculateCharges = (baseFreightCharges: QuoteCharge[]): QuoteCharge[] => {
+ const calculateCharges = (baseFreightCharges: QuoteCharge[], carrierName: string): QuoteCharge[] => {
     const values = form.getValues();
     const customer = partners.find(p => p.id?.toString() === values.customerId);
     
@@ -363,17 +363,25 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     relevantFees.forEach(fee => {
         let feeValue = parseFloat(fee.value) || 0;
         let feeType = fee.unit;
+        let supplier = 'CargaInteligente';
 
-        if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
+        const totalContainers = values.modal === 'ocean' && values.oceanShipmentType === 'FCL' 
+            ? values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0)
+            : 0;
+
+        if (fee.unit.toLowerCase().includes('contêiner')) {
+             if (totalContainers > 0) {
+                feeValue *= totalContainers;
+                feeType = `${totalContainers} x ${fee.unit}`;
+                supplier = carrierName;
+             }
+        } else if (fee.type === 'Por CBM/Ton' && values.modal === 'ocean' && values.oceanShipmentType === 'LCL') {
             const { cbm, weight } = values.lclDetails;
             const chargeableWeight = Math.max(cbm, weight / 1000);
             feeValue = (parseFloat(fee.value) || 0) * chargeableWeight;
             if (fee.minValue && feeValue < fee.minValue) feeValue = fee.minValue;
             feeType = `${chargeableWeight.toFixed(2)} W/M`;
-        } else if (values.modal === 'ocean' && values.oceanShipmentType === 'FCL' && fee.unit.toLowerCase().includes('contêiner')) {
-            const totalContainers = values.oceanShipment.containers.reduce((acc, c) => acc + c.quantity, 0);
-            feeValue = (parseFloat(fee.value) || 0) * totalContainers;
-            feeType = `${totalContainers} x ${fee.unit}`;
+            supplier = carrierName;
         } else if (values.optionalServices.insurance && fee.name.toUpperCase().includes('SEGURO')) {
             feeValue = values.optionalServices.cargoValue * (parseFloat(fee.value) / 100);
             feeType = `${fee.value}% sobre ${values.optionalServices.cargoValue.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
@@ -387,7 +395,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             costCurrency: fee.currency,
             sale: feeValue,
             saleCurrency: fee.currency,
-            supplier: 'CargaInteligente',
+            supplier: supplier,
             sacado: customer?.name,
             approvalStatus: 'aprovada',
         });
@@ -454,7 +462,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         approvalStatus: 'aprovada',
     };
 
-    const initialCharges = calculateCharges([freightCharge]);
+    const initialCharges = calculateCharges([freightCharge], rate.carrier);
 
     const newQuote: Quote = {
         id: `COT-${String(Math.floor(Math.random() * 90000) + 10000)}`,

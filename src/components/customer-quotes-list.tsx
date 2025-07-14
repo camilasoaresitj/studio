@@ -23,8 +23,6 @@ import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
 import { createShipment, type UploadedDocument } from '@/lib/shipment';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export type QuoteCharge = {
   id: string;
@@ -170,7 +168,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
 
     const handleGeneratePdf = async (quote: Quote) => {
         setIsSending(true);
-        toast({ title: 'Gerando PDF...', description: 'Aguarde um momento.' });
+        toast({ title: 'Gerando proposta...', description: 'Aguarde um momento.' });
 
         try {
             const formatValue = (value: number) => {
@@ -219,30 +217,18 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 throw new Error(response.error || "A geração do HTML da fatura falhou.");
             }
             
-            const element = document.createElement("div");
-            element.style.position = 'absolute';
-            element.style.left = '-9999px';
-            element.style.top = '0';
-            element.style.width = '800px'; 
-            element.innerHTML = response.data.html;
-            document.body.appendChild(element);
-            
-            await new Promise(resolve => setTimeout(resolve, 500)); 
-
-            const canvas = await html2canvas(element, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`proposta-${quote.id.replace('-DRAFT', '')}.pdf`);
-            toast({ title: 'PDF gerado com sucesso!', className: 'bg-success text-success-foreground' });
-
-            document.body.removeChild(element);
+            // Open the HTML in a new tab instead of generating a PDF
+            const newWindow = window.open();
+            if (newWindow) {
+                newWindow.document.write(response.data.html);
+                newWindow.document.close();
+            } else {
+                toast({ variant: "destructive", title: "Bloqueador de Pop-up", description: "Não foi possível abrir a proposta em uma nova aba. Por favor, desative seu bloqueador de pop-ups." });
+            }
 
         } catch (e: any) {
-            console.error("PDF generation error", e);
-            toast({ variant: "destructive", title: "Erro ao gerar PDF", description: e.message || "Ocorreu um erro ao converter o conteúdo." });
+            console.error("Proposal generation error", e);
+            toast({ variant: "destructive", title: "Erro ao gerar proposta", description: e.message || "Ocorreu um erro ao gerar o conteúdo." });
         } finally {
             setIsSending(false);
         }
@@ -382,7 +368,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleGeneratePdf(quote)} disabled={isSending || quote.status === 'Rascunho'}>
                                             {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                                            <span>Gerar PDF</span>
+                                            <span>Gerar Proposta</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => handleStatusChange(quote, 'Aprovada')} disabled={quote.status === 'Aprovada' || quote.status === 'Rascunho'}>

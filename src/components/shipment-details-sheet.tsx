@@ -277,7 +277,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         collectionAddress: shipment.collectionAddress || '',
         deliveryAddress: shipment.deliveryAddress || '',
         dischargeTerminal: shipment.dischargeTerminal || '',
-        containers: shipment.containers?.map(c => ({...c, freeTime: c.freeTime || '', volumes: c.volumes || ''})) || [],
+        containers: shipment.containers?.map(c => ({...c, freeTime: shipment.details?.freeTime || c.freeTime, volumes: c.volumes || ''})) || [],
         charges: shipment.charges.map(c => ({ ...c, approvalStatus: c.approvalStatus || 'aprovada' })) || [],
         documents: shipment.documents || [],
         commodityDescription: shipment.commodityDescription || '',
@@ -1472,7 +1472,7 @@ const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => (<Input placeholder="1000" {...field}/>)}/></TableCell>
-                                                        <TableCell><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => (<Input placeholder="14 dias" {...field}/>)}/></TableCell>
+                                                        <TableCell><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => (<Input placeholder="14 dias" {...field} disabled />)}/></TableCell>
                                                         <TableCell>
                                                             <Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                                         </TableCell>

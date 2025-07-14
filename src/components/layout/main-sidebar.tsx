@@ -22,6 +22,7 @@ import {
   CalendarClock,
   FileText,
   Settings,
+  User,
 } from 'lucide-react';
 
 const menuItems = [
@@ -31,6 +32,7 @@ const menuItems = [
   { href: '/financeiro', label: 'Financeiro', icon: Landmark },
   { href: '/demurrage', label: 'Demurrage', icon: Clock },
   { href: '/schedules', label: 'Schedules', icon: CalendarClock },
+  { href: '/portal', label: 'Portal Cliente', icon: User },
   { href: '/configuracoes', label: 'Configurações', icon: Settings },
 ];
 

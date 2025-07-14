@@ -57,7 +57,7 @@ Your task is to generate the HTML for a House Bill of Lading (HBL) based on the 
 - **Boxes:** Each section (Shipper, Consignee, etc.) must be in a cell with a border. Use \`<td style="border: 1px solid #ccc; padding: 8px; vertical-align: top;">\`.
 - **Text Formatting:** Use \`<strong style="font-size: 10px; color: #555;">\` for labels inside the boxes (e.g., "Shipper", "Consignee"). Use \`<pre>\` tags for pre-formatted addresses to preserve line breaks.
 - **Watermark (for Drafts):** If \`isOriginal\` is \`false\`, you MUST add a large, semi-transparent, rotated "DRAFT" watermark across the center of the page.
-  - Watermark div style: \`position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 150px; color: rgba(0, 0, 0, 0.1); font-weight: bold; z-index: 1; pointer-events: none;\`
+  - Watermark div style: \`position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 150px; color: rgba(0, 0, 0, 0.08); font-weight: bold; z-index: 1; pointer-events: none; text-align: center;\`
 - **Signature (for Originals):** If \`isOriginal\` is \`true\`, you MUST include the signature image and an "ORIGINAL" stamp at the bottom right.
   - The signature area should have "AS CARRIER" and the company name.
   - The signature image itself: \`<img src="{{signatureUrl}}" alt="Signature" style="height: 50px;"/>\`

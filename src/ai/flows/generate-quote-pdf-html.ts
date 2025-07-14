@@ -62,7 +62,7 @@ const generateQuotePdfHtmlFlow = ai.defineFlow(
                     <td style="padding: 10px 15px; text-align: center;">${charge.quantity}</td>
                     <td style="padding: 10px 15px; text-align: center;">${charge.currency} ${charge.value}</td>
                     <td style="padding: 10px 15px; text-align: center;">${charge.currency} ${charge.total}</td>
-                    <td style="padding: 10px 15px; text-align: center;">${data.exchangeRate}</td>
+                    <td style="padding: 10px 15px; text-align: center;">${data.exchangeRate.toFixed(4)}</td>
                     <td style="padding: 10px 15px; text-align: center;">R$ ${totalInBRL}</td>
                 </tr>
             `;

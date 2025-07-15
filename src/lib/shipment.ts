@@ -286,32 +286,46 @@ export function getShipments(): Shipment[] {
     };
     
     const parsed = JSON.parse(storedShipments) as any[];
-    return parsed.map(shipment => ({
-        ...shipment,
-        etd: shipment.etd ? new Date(shipment.etd) : undefined,
-        eta: shipment.eta ? new Date(shipment.eta) : undefined,
-        mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
-        containers: shipment.containers?.map((c: any) => ({
-            ...c,
-            effectiveReturnDate: c.effectiveReturnDate ? new Date(c.effectiveReturnDate) : undefined,
-            effectiveGateInDate: c.effectiveGateInDate ? new Date(c.effectiveGateInDate) : undefined,
-        })) || [],
-        documents: shipment.documents?.map((d: any) => ({
-            ...d,
-            uploadedAt: d.uploadedAt ? new Date(d.uploadedAt) : undefined,
-        })) || [],
-        transshipments: shipment.transshipments?.map((t: any) => ({
-            ...t,
-            etd: t.etd ? new Date(t.etd) : undefined,
-            eta: t.eta ? new Date(t.eta) : undefined,
-        })) || [],
-        milestones: shipment.milestones?.map((m: any) => ({
-            ...m,
-            // Migrate old data structures
-            predictedDate: m.predictedDate ? new Date(m.predictedDate) : (m.dueDate ? new Date(m.dueDate) : new Date()),
-            effectiveDate: m.effectiveDate ? new Date(m.effectiveDate) : (m.completedDate ? new Date(m.completedDate) : null),
-        })) || [],
-    }));
+    // Safe date parsing
+    return parsed.map(shipment => {
+        const safeDate = (dateString: string | undefined | null): Date | undefined => {
+            if (!dateString) return undefined;
+            const date = new Date(dateString);
+            return isValid(date) ? date : undefined;
+        };
+
+        const safeMilestoneDate = (dateString: string | undefined | null): Date => {
+             if (!dateString) return new Date(); // Fallback to now if date is invalid/missing
+             const date = new Date(dateString);
+             return isValid(date) ? date : new Date();
+        }
+
+        return {
+            ...shipment,
+            etd: safeDate(shipment.etd),
+            eta: safeDate(shipment.eta),
+            mblPrintingAuthDate: safeDate(shipment.mblPrintingAuthDate),
+            containers: shipment.containers?.map((c: any) => ({
+                ...c,
+                effectiveReturnDate: safeDate(c.effectiveReturnDate),
+                effectiveGateInDate: safeDate(c.effectiveGateInDate),
+            })) || [],
+            documents: shipment.documents?.map((d: any) => ({
+                ...d,
+                uploadedAt: safeDate(d.uploadedAt),
+            })) || [],
+            transshipments: shipment.transshipments?.map((t: any) => ({
+                ...t,
+                etd: safeDate(t.etd),
+                eta: safeDate(t.eta),
+            })) || [],
+            milestones: shipment.milestones?.map((m: any) => ({
+                ...m,
+                predictedDate: safeMilestoneDate(m.predictedDate || m.dueDate),
+                effectiveDate: safeDate(m.effectiveDate || m.completedDate),
+            })) || [],
+        };
+    });
   } catch (error) {
     console.error("Failed to parse shipments from localStorage", error);
     return [];

@@ -265,7 +265,7 @@ const getTrackingInfoFlow = ai.defineFlow(
               };
             }
             console.log("Cargo-flows API call successful, but no tracking events were returned in the response. Falling back to AI.");
-        } catch (error) {
+        } catch (error: any) {
             console.warn("Cargo-flows API call failed, falling back to AI simulation. Error:", error);
         }
     }

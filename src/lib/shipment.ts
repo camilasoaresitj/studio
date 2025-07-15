@@ -288,13 +288,13 @@ export function getShipments(): Shipment[] {
     const parsed = JSON.parse(storedShipments) as any[];
     // Safe date parsing
     return parsed.map(shipment => {
-        const safeDate = (dateString: string | undefined | null): Date | undefined => {
+        const safeDate = (dateString: string | Date | undefined | null): Date | undefined => {
             if (!dateString) return undefined;
             const date = new Date(dateString);
             return isValid(date) ? date : undefined;
         };
 
-        const safeMilestoneDate = (dateString: string | undefined | null): Date => {
+        const safeMilestoneDate = (dateString: string | Date | undefined | null): Date => {
              if (!dateString) return new Date(); // Fallback to now if date is invalid/missing
              const date = new Date(dateString);
              return isValid(date) ? date : new Date();

@@ -31,6 +31,7 @@ import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import type { Partner } from "@/lib/partners-data";
 import type { Quote } from "@/components/customer-quotes-list";
+import { getTrackingInfo } from '@/ai/flows/get-tracking-info';
 
 
 export async function runGetFreightRates(input: any) {

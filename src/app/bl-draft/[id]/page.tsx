@@ -64,7 +64,6 @@ function BLDraftPageContent({ id }: { id: string }) {
 
 
 export default function BLDraftPage({ params }: { params: { id: string } }) {
-    const { id } = params;
     return (
         <Suspense fallback={
             <div className="flex min-h-screen items-center justify-center bg-gray-100">
@@ -74,7 +73,7 @@ export default function BLDraftPage({ params }: { params: { id: string } }) {
                 </div>
             </div>
         }>
-            <BLDraftPageContent id={id} />
+            <BLDraftPageContent id={params.id} />
         </Suspense>
     );
 }

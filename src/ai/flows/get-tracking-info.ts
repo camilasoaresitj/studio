@@ -187,7 +187,7 @@ const getTrackingInfoFlow = ai.defineFlow(
             console.log(registrationResult.message);
             
             // Add a small delay to allow the system to process the creation
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
             // Step 3: Fetch the tracking data
             console.log(`Attempting to fetch tracking from Cargo-flows API for: ${input.trackingNumber}`);
@@ -254,7 +254,7 @@ const getTrackingInfoFlow = ai.defineFlow(
                     shipmentDetails: shipmentDetails,
                 };
             }
-            console.log("Cargo-flows API call successful, but no tracking events found. Falling back to AI.");
+            console.log("Cargo-flows API call successful, but no tracking events were returned in the response. Falling back to AI.");
         } catch (error) {
             console.warn("Cargo-flows API call failed, falling back to AI simulation. Error:", error);
         }
@@ -295,5 +295,3 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
-
-    

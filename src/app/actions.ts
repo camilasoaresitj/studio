@@ -19,7 +19,6 @@ import { getVesselSchedules } from "@/ai/flows/get-ship-schedules";
 import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
-import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import { getShipments, updateShipment, getShipmentById } from "@/lib/shipment";
 import type { BLDraftData } from '@/lib/shipment';
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
@@ -287,17 +286,18 @@ export async function runSendToLegal(input: any) {
     }
 }
 
-export async function fetchShipmentForDraft(id: string) {
-    try {
-        const data = getShipmentById(id);
-        if (!data) {
-            return { success: false, error: "Shipment not found" };
-        }
-        return { success: true, data };
-    } catch (error: any) {
-        console.error(`Error fetching shipment for draft with ID ${id}:`, error);
-        return { success: false, error: "An unexpected error occurred while fetching the shipment." };
+export async function fetchShipmentForDraft(id: string): Promise<{ success: boolean; data?: Shipment; error?: string }> {
+  try {
+    const data = getShipmentById(id);
+    if (data) {
+      return { success: true, data };
+    } else {
+      return { success: false, error: 'Embarque não encontrado. Verifique o link ou contate o suporte.' };
     }
+  } catch (error: any) {
+    console.error(`Error fetching shipment for draft with ID ${id}:`, error);
+    return { success: false, error: 'Ocorreu um erro inesperado ao buscar os dados do embarque.' };
+  }
 }
 
 export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: boolean) {

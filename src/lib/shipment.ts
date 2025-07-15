@@ -294,10 +294,10 @@ export function getShipments(): Shipment[] {
             return isValid(date) ? date : undefined;
         };
 
-        const safeMilestoneDate = (dateString: string | Date | undefined | null): Date => {
-             if (!dateString) return new Date(); // Fallback to now if date is invalid/missing
+        const safeMilestoneDate = (dateString: string | Date | undefined | null): Date | null => {
+             if (!dateString) return null;
              const date = new Date(dateString);
-             return isValid(date) ? date : new Date();
+             return isValid(date) ? date : null;
         }
 
         return {
@@ -319,11 +319,11 @@ export function getShipments(): Shipment[] {
                 etd: safeDate(t.etd),
                 eta: safeDate(t.eta),
             })) || [],
-            milestones: shipment.milestones?.map((m: any) => ({
+            milestones: (shipment.milestones || []).map((m: any) => ({
                 ...m,
                 predictedDate: safeMilestoneDate(m.predictedDate || m.dueDate),
-                effectiveDate: safeDate(m.effectiveDate || m.completedDate),
-            })) || [],
+                effectiveDate: safeMilestoneDate(m.effectiveDate || m.completedDate),
+            })).filter((m: Milestone) => m.predictedDate !== null), // Filter out milestones with invalid dates
         };
     });
   } catch (error) {

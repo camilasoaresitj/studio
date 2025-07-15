@@ -7,6 +7,7 @@ import { CompanySettingsForm } from "@/components/settings/company-settings-form
 import { UserManagementTable } from "@/components/settings/user-management-table";
 import { CertificateSettings } from "@/components/settings/certificate-settings";
 import { IntegrationsSettings } from "@/components/settings/integrations-settings";
+import { ShipRegistry } from "@/components/settings/ship-registry";
 
 export default function SettingsPage() {
   return (
@@ -18,11 +19,12 @@ export default function SettingsPage() {
         </p>
       </header>
       <Tabs defaultValue="company" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-5 max-w-3xl">
           <TabsTrigger value="company">Dados da Empresa</TabsTrigger>
           <TabsTrigger value="users">Usuários e Permissões</TabsTrigger>
           <TabsTrigger value="certificate">Certificado Digital</TabsTrigger>
           <TabsTrigger value="integrations">Integrações</TabsTrigger>
+          <TabsTrigger value="registries">Cadastros Básicos</TabsTrigger>
         </TabsList>
         <TabsContent value="company" className="mt-6">
           <Card>
@@ -75,6 +77,9 @@ export default function SettingsPage() {
               <IntegrationsSettings />
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="registries" className="mt-6">
+          <ShipRegistry />
         </TabsContent>
       </Tabs>
     </div>

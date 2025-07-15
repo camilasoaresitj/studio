@@ -11,11 +11,12 @@ export default function BLDraftPage({ params }: { params: { id: string } }) {
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { id } = params;
 
   useEffect(() => {
     const loadShipment = async () => {
       setIsLoading(true);
-      const response = await fetchShipmentForDraft(params.id);
+      const response = await fetchShipmentForDraft(id);
       if (response.success && response.data) {
         setShipment(response.data);
       } else {
@@ -25,7 +26,7 @@ export default function BLDraftPage({ params }: { params: { id: string } }) {
     };
 
     loadShipment();
-  }, [params.id]);
+  }, [id]);
 
   if (isLoading) {
     return (

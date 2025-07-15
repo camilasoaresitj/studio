@@ -208,51 +208,55 @@ const getTrackingInfoFlow = ai.defineFlow(
             
             const data = await response.json();
             
-            if (data.data && data.data.length > 0 && data.data[0].events) {
-                console.log("Cargo-flows API call successful. Processing real data.");
+            if (data.data && data.data.length > 0) {
                 const trackingData = data.data[0];
-                const events: TrackingEvent[] = trackingData.events.map((event: any) => ({
-                    status: event.description || 'N/A',
-                    date: event.timestamp,
-                    location: event.location?.name || 'N/A',
-                    completed: new Date(event.timestamp) <= new Date(),
-                    carrier: input.carrier,
-                }));
+                const hasEvents = trackingData.events && trackingData.events.length > 0;
+                
+                if (hasEvents) {
+                  console.log("Cargo-flows API call successful. Processing real data.");
+                  const events: TrackingEvent[] = trackingData.events.map((event: any) => ({
+                      status: event.description || 'N/A',
+                      date: event.timestamp,
+                      location: event.location?.name || 'N/A',
+                      completed: new Date(event.timestamp) <= new Date(),
+                      carrier: input.carrier,
+                  }));
 
-                const lastCompletedEvent = events.slice().reverse().find(e => e.completed) || events[events.length - 1];
+                  const lastCompletedEvent = events.slice().reverse().find(e => e.completed) || events[events.length - 1];
 
-                const shipmentDetails: Partial<Shipment> = {
-                    carrier: input.carrier,
-                    origin: trackingData.origin_port?.name || 'N/A',
-                    destination: trackingData.destination_port?.name || 'N/A',
-                    vesselName: trackingData.vessel_name,
-                    voyageNumber: trackingData.voyage_number,
-                    etd: trackingData.departure_date_estimated ? new Date(trackingData.departure_date_estimated) : undefined,
-                    eta: trackingData.arrival_date_estimated ? new Date(trackingData.arrival_date_estimated) : undefined,
-                    masterBillNumber: input.trackingNumber,
-                    containers: trackingData.containers?.map((c: any) => ({
-                        id: c.container_number,
-                        number: c.container_number,
-                        seal: c.seal_number || 'N/A',
-                        tare: `${c.tare_weight || 0} KG`,
-                        grossWeight: `${c.gross_weight || 0} KG`,
-                    })) || [],
-                    milestones: events.map((event: TrackingEvent) => ({
-                        name: event.status,
-                        status: event.completed ? 'completed' : 'pending',
-                        predictedDate: new Date(event.date),
-                        effectiveDate: event.completed ? new Date(event.date) : null,
-                        details: event.location,
-                        isTransshipment: event.status.toLowerCase().includes('transhipment')
-                    })),
-                };
+                  const shipmentDetails: Partial<Shipment> = {
+                      carrier: input.carrier,
+                      origin: trackingData.origin_port?.name || 'N/A',
+                      destination: trackingData.destination_port?.name || 'N/A',
+                      vesselName: trackingData.vessel_name,
+                      voyageNumber: trackingData.voyage_number,
+                      etd: trackingData.departure_date_estimated ? new Date(trackingData.departure_date_estimated) : undefined,
+                      eta: trackingData.arrival_date_estimated ? new Date(trackingData.arrival_date_estimated) : undefined,
+                      masterBillNumber: input.trackingNumber,
+                      containers: trackingData.containers?.map((c: any) => ({
+                          id: c.container_number,
+                          number: c.container_number,
+                          seal: c.seal_number || 'N/A',
+                          tare: `${c.tare_weight || 0} KG`,
+                          grossWeight: `${c.gross_weight || 0} KG`,
+                      })) || [],
+                      milestones: events.map((event: TrackingEvent) => ({
+                          name: event.status,
+                          status: event.completed ? 'completed' : 'pending',
+                          predictedDate: new Date(event.date),
+                          effectiveDate: event.completed ? new Date(event.date) : null,
+                          details: event.location,
+                          isTransshipment: event.status.toLowerCase().includes('transhipment')
+                      })),
+                  };
 
-                return {
-                    status: lastCompletedEvent?.status || 'Pending',
-                    events,
-                    containers: shipmentDetails.containers,
-                    shipmentDetails: shipmentDetails,
-                };
+                  return {
+                      status: lastCompletedEvent?.status || 'Pending',
+                      events,
+                      containers: shipmentDetails.containers,
+                      shipmentDetails: shipmentDetails,
+                  };
+                }
             }
             console.log("Cargo-flows API call successful, but no tracking events were returned in the response. Falling back to AI.");
         } catch (error) {

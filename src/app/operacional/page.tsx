@@ -267,9 +267,6 @@ export default function OperacionalPage() {
         if (firstPendingName.includes('chegada') || firstPendingName.includes('arrival') || firstPendingName.includes('discharged')) {
             return { text: 'Chegada no Destino', variant: 'default' };
         }
-        if (firstPendingName.includes('desembaraço') || firstPendingName.includes('liberada') || firstPendingName.includes('entrega')) {
-             return { text: 'Chegada no Destino', variant: 'default' };
-        }
         return { text: 'Pendente de Transit', variant: 'default' };
     }
   
@@ -452,5 +449,3 @@ export default function OperacionalPage() {
     </>
   );
 }
-
-    

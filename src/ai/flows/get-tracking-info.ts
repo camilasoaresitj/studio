@@ -203,7 +203,15 @@ const getTrackingInfoFlow = ai.defineFlow(
 
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`Cargo-flows API Error (${response.status}): ${errorText}`);
+                // Check if the response is JSON or a plain text/HTML error
+                let errorMessage = `Cargo-flows API Error (${response.status})`;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    errorMessage = errorJson.error?.message || errorJson.message || JSON.stringify(errorJson);
+                } catch (jsonError) {
+                    errorMessage = `${errorMessage}: ${errorText.substring(0, 200)}`;
+                }
+                throw new Error(errorMessage);
             }
             
             const data = await response.json();

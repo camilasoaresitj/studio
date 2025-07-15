@@ -133,7 +133,7 @@ export async function runGenerateHblPdf(input: any) {
   }
 }
 
-export async function runGetTrackingInfo(input: any) {
+export async function runGetTrackingInfo(input: { trackingNumber: string, carrier: string }) {
   try {
     const output = await getTrackingInfo(input);
     return { success: true, data: output };

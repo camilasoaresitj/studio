@@ -288,12 +288,16 @@ export async function runSendToLegal(input: any) {
 }
 
 export async function fetchShipmentForDraft(id: string) {
-  try {
-    const data = getShipmentById(id);
-    return { success: true, data };
-  } catch (error: any) {
-    return { success: false, error: "Shipment not found" };
-  }
+    try {
+        const data = getShipmentById(id);
+        if (!data) {
+            return { success: false, error: "Shipment not found" };
+        }
+        return { success: true, data };
+    } catch (error: any) {
+        console.error(`Error fetching shipment for draft with ID ${id}:`, error);
+        return { success: false, error: "An unexpected error occurred while fetching the shipment." };
+    }
 }
 
 export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: boolean) {

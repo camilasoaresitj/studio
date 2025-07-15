@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateHblPdf } from '@/app/actions';
+import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateHblPdf, submitBLDraft } from '@/app/actions';
 import { addFinancialEntry, getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { Checkbox } from './ui/checkbox';
 import { getFees } from '@/lib/fees-data';
@@ -59,6 +59,21 @@ import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
 import { getShipments } from '@/lib/shipment';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { Textarea } from './ui/textarea';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Alert } from './ui/alert';
+
+const blDraftSchema = z.object({
+  shipper: z.string().min(1, 'Shipper é obrigatório'),
+  consignee: z.string().min(1, 'Consignee é obrigatório'),
+  notify: z.string().min(1, 'Notify Party é obrigatório'),
+  marksAndNumbers: z.string().min(1, 'Marcas e números são obrigatórios'),
+  descriptionOfGoods: z.string().min(1, 'Descrição da mercadoria é obrigatória'),
+  grossWeight: z.string().min(1, 'Peso bruto é obrigatório'),
+  measurement: z.string().min(1, 'Cubagem é obrigatória'),
+  ncm: z.string().min(1, 'NCM é obrigatório'),
+  blType: z.enum(['original', 'express'], { required_error: 'Selecione o tipo de BL.' }),
+});
 
 
 const containerDetailSchema = z.object({
@@ -141,6 +156,7 @@ const shipmentDetailsSchema = z.object({
     incoterm: z.string().optional(),
     cargo: z.string().optional(),
   }),
+  blDraftData: blDraftSchema.partial().optional(), // Add this line
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -301,7 +317,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         details: {
           incoterm: shipment.details?.incoterm,
           cargo: shipment.details?.cargo,
-        }
+        },
+        blDraftData: shipment.blDraftData,
       });
     }
   }, [shipment, form]);
@@ -924,8 +941,9 @@ const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
                   <input type="file" ref={fileInputRef} className="hidden" />
 
                   <Tabs defaultValue="milestones" className="flex-grow flex flex-col overflow-hidden mt-4">
-                    <TabsList className="grid w-full grid-cols-5 mb-4">
+                    <TabsList className="grid w-full grid-cols-6 mb-4">
                         <TabsTrigger value="dados_embarque">Dados do Embarque</TabsTrigger>
+                        <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
                         <TabsTrigger value="documentos">Documentos</TabsTrigger>
                         <TabsTrigger value="milestones">Milestones & Tracking</TabsTrigger>
                         <TabsTrigger value="mercadoria">Mercadoria & Containers</TabsTrigger>
@@ -1242,6 +1260,57 @@ const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
                                         </div>
                                     ))}
                                     {transshipmentFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum transbordo adicionado.</p>}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                        <TabsContent value="bl_draft" className="mt-0 space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Instruções de Embarque (Draft BL)</CardTitle>
+                                    <CardDescription>
+                                    Visualize e edite as informações do Draft do Bill of Lading.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {shipment.blDraftData ? (
+                                        <div className="space-y-4">
+                                            <FormField control={form.control} name="blDraftData.shipper" render={({ field }) => (
+                                                <FormItem><FormLabel>Shipper (Exportador)</FormLabel><FormControl><Textarea {...field} className="min-h-[100px]" /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name="blDraftData.consignee" render={({ field }) => (
+                                                <FormItem><FormLabel>Consignee (Importador)</FormLabel><FormControl><Textarea {...field} className="min-h-[100px]" /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name="blDraftData.notify" render={({ field }) => (
+                                                <FormItem><FormLabel>Notify Party</FormLabel><FormControl><Textarea {...field} className="min-h-[100px]" /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name="blDraftData.marksAndNumbers" render={({ field }) => (
+                                                <FormItem><FormLabel>Marcas e Números</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name="blDraftData.descriptionOfGoods" render={({ field }) => (
+                                                <FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} className="min-h-[100px]" /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <FormField control={form.control} name="blDraftData.grossWeight" render={({ field }) => (<FormItem><FormLabel>Peso Bruto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={form.control} name="blDraftData.measurement" render={({ field }) => (<FormItem><FormLabel>Cubagem (CBM)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={form.control} name="blDraftData.ncm" render={({ field }) => (<FormItem><FormLabel>NCM</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                            </div>
+                                            <FormField control={form.control} name="blDraftData.blType" render={({ field }) => (
+                                                <FormItem><FormLabel>Tipo de Emissão do BL</FormLabel>
+                                                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
+                                                        <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="original" /></FormControl><FormLabel className="font-normal">Original</FormLabel></FormItem>
+                                                        <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="express" /></FormControl><FormLabel className="font-normal">Express Release</FormLabel></FormItem>
+                                                    </RadioGroup><FormMessage /></FormItem>
+                                            )} />
+                                        </div>
+                                    ) : (
+                                        <Alert>
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <Alert.Title>Aguardando Instruções</Alert.Title>
+                                            <Alert.Description>
+                                            O cliente ainda não enviou o draft do BL através do portal. Assim que enviado, as informações aparecerão aqui.
+                                            </Alert.Description>
+                                        </Alert>
+                                    )}
                                 </CardContent>
                             </Card>
                         </TabsContent>

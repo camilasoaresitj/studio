@@ -1,19 +1,19 @@
 
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { BLDraftForm } from '@/components/bl-draft-form';
 import { fetchShipmentForDraft } from '@/app/actions';
 import type { Shipment } from '@/lib/shipment';
 import { Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-export default function BLDraftPage({ params }: { params: { id: string } }) {
+function BLDraftPageContent({ id }: { id: string }) {
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadShipment = async (id: string) => {
+    const loadShipment = async () => {
       setIsLoading(true);
       const response = await fetchShipmentForDraft(id);
       if (response.success && response.data) {
@@ -24,10 +24,10 @@ export default function BLDraftPage({ params }: { params: { id: string } }) {
       setIsLoading(false);
     };
 
-    if (params.id) {
-        loadShipment(params.id);
+    if (id) {
+        loadShipment();
     }
-  }, [params.id]);
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -60,4 +60,21 @@ export default function BLDraftPage({ params }: { params: { id: string } }) {
       </div>
     </div>
   );
+}
+
+
+export default function BLDraftPage({ params }: { params: { id: string } }) {
+    const { id } = params;
+    return (
+        <Suspense fallback={
+            <div className="flex min-h-screen items-center justify-center bg-gray-100">
+                <div className="text-center">
+                    <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+                    <p className="mt-4 text-lg text-muted-foreground">Carregando...</p>
+                </div>
+            </div>
+        }>
+            <BLDraftPageContent id={id} />
+        </Suspense>
+    );
 }

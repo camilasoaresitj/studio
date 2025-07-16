@@ -18,7 +18,7 @@ import { getVesselSchedules } from "@/ai/flows/get-ship-schedules";
 import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
-import { getShipments, updateShipment, getShipmentById, ChatMessage, createShipment } from "@/lib/shipment-data";
+import { updateShipment, ChatMessage, createShipment } from "@/lib/shipment-data";
 import type { BLDraftData, Shipment } from '@/lib/shipment-data';
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
@@ -313,7 +313,8 @@ export async function runSendToLegal(input: any) {
 
 export async function fetchShipmentForDraft(id: string): Promise<{ success: boolean; data?: Shipment; error?: string }> {
   try {
-    const data = getShipmentById(id);
+    const allShipments = getShipments();
+    const data = allShipments.find(s => s.id === id);
     if (data) {
       return { success: true, data };
     } else {
@@ -402,8 +403,6 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
         shipment.documents[draftDocIndex].uploadedAt = new Date();
     }
 
-    updateShipment(shipment);
-    
     // Add a system message to the chat
     const chatMessage = {
         sender: 'Sistema' as const,
@@ -411,13 +410,17 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
         timestamp: new Date().toISOString(),
         department: 'Operacional' as const,
     };
-    await sendChatMessage(shipment, chatMessage);
+
+    shipment.chatMessages = [...(shipment.chatMessages || []), chatMessage];
+    
+    updateShipment(shipment);
     
     return { success: true, data: shipment };
 }
 
 export async function updateShipmentFromAgent(id: string, data: any) {
-    let shipment = getShipmentById(id);
+    const allShipments = getShipments();
+    let shipment = allShipments.find(s => s.id === id);
     if (!shipment) {
         return { success: false, error: 'Embarque não encontrado.' };
     }

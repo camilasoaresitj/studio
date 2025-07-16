@@ -39,7 +39,7 @@ export function ShipmentChat({ shipment, onUpdate }: ShipmentChatProps) {
         if (!newMessage.trim()) return;
         setIsLoading(true);
 
-        const response = await sendChatMessage(shipment.id, {
+        const response = await sendChatMessage(shipment, {
             sender: 'Cliente',
             message: newMessage,
             department: department,

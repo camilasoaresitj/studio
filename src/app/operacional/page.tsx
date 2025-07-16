@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Shipment, Milestone } from '@/lib/shipment';
-import { getShipments, updateShipment } from '@/lib/shipment';
+import { getShipments, updateShipment } from '@/lib/shipment-data';
 import { format, isPast, isToday, isWithinInterval, addDays, isValid, differenceInHours } from 'date-fns';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
 import { useToast } from '@/hooks/use-toast';
@@ -18,7 +18,6 @@ import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
-import { ShipmentChat } from '@/components/shipment-chat';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type Task = {
@@ -280,9 +279,10 @@ export default function OperacionalPage() {
   };
 
   const lastUnreadMessage = useMemo(() => {
+    if (!isClient) return null;
     let lastMsg: (Omit<Task, 'milestone'> & { message: string, timestamp: string }) | null = null;
     shipments.forEach(shipment => {
-        const clientMessages = (shipment.chatMessages || []).filter(m => m.sender === 'Cliente');
+        const clientMessages = (shipment.chatMessages || []).filter(m => m.sender === 'Cliente' && !m.readBy?.includes('user-1'));
         if (clientMessages.length > 0) {
             const lastClientMsg = clientMessages[clientMessages.length - 1];
             if (!lastMsg || new Date(lastClientMsg.timestamp) > new Date(lastMsg.timestamp)) {
@@ -295,7 +295,7 @@ export default function OperacionalPage() {
         }
     });
     return lastMsg;
-  }, [shipments]);
+  }, [shipments, isClient]);
 
   if (!isClient) {
     return (
@@ -465,7 +465,7 @@ export default function OperacionalPage() {
         </Card>
       </div>
        <div className="lg:col-span-1 space-y-8">
-            <Alert variant="destructive" className="animate-in fade-in-50 duration-500">
+            <Alert variant="default" className="border-primary/50">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Avisos Recentes</AlertTitle>
                 <AlertDescription>

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { sendChatMessage } from '@/app/actions';
-import { getShipments, updateShipment } from '@/lib/shipment';
+import { getShipments, updateShipment } from '@/lib/shipment-data';
 import type { Shipment, ChatMessage } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -58,7 +58,7 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
         if (selectedShipment && scrollAreaRef.current) {
             scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
         }
-    }, [selectedShipment]);
+    }, [selectedShipment?.chatMessages]);
 
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !selectedShipment) return;
@@ -87,11 +87,12 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
     };
     
     const handleSelectConversation = (shipment: Shipment) => {
-        setSelectedShipment(shipment);
-        const lastMessage = shipment.chatMessages![shipment.chatMessages!.length - 1];
+        const latestShipmentState = getShipments().find(s => s.id === shipment.id) || shipment;
+        setSelectedShipment(latestShipmentState);
+        const lastMessage = latestShipmentState.chatMessages![latestShipmentState.chatMessages!.length - 1];
         if (lastMessage.sender === 'Cliente' && !lastMessage.readBy?.includes('user-1')) {
             lastMessage.readBy = [...(lastMessage.readBy || []), 'user-1'];
-            updateShipment(shipment);
+            updateShipment(latestShipmentState);
             setShipments(getShipments()); // Refresh list to remove unread indicator
         }
     }

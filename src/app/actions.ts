@@ -35,6 +35,7 @@ import { sendDraftApprovalRequest } from "@/ai/flows/send-draft-approval-request
 import { format } from 'date-fns';
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
+import { getShipments } from "@/lib/shipment-data";
 
 
 export async function runGetFreightRates(input: any) {
@@ -467,8 +468,8 @@ export async function updateShipmentFromAgent(id: string, data: any) {
 }
 
 export async function sendChatMessage(shipment: Shipment, message: Omit<ChatMessage, 'timestamp'>) {
-  if (!shipment) {
-    return { success: false, error: 'Embarque não encontrado.' };
+  if (!shipment || !shipment.id) {
+    return { success: false, error: 'Objeto de embarque inválido fornecido.' };
   }
 
   const newMessage: ChatMessage = {

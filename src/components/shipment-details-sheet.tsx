@@ -1,6 +1,7 @@
 
 'use client';
 
+import * as React from 'react';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,7 +49,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateHblPdf } from '@/app/actions';
+import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking, runGetRouteMap } from '@/app/actions';
 import { addFinancialEntry, getFinancialEntries } from '@/lib/financials-data';
 import { Checkbox } from './ui/checkbox';
 import { getFees } from '@/lib/fees-data';
@@ -74,7 +75,9 @@ const containerDetailSchema = z.object({
   tare: z.string().min(1, "Obrigatório"),
   grossWeight: z.string().min(1, "Obrigatório"),
   volumes: z.string().optional(),
+  measurement: z.string().optional(),
   freeTime: z.string().optional(),
+  type: z.string().optional(),
 });
 
 const transshipmentDetailSchema = z.object({
@@ -108,8 +111,17 @@ const blDraftSchemaForSheet = z.object({
   descriptionOfGoods: z.string().optional(),
   grossWeight: z.string().optional(),
   measurement: z.string().optional(),
-  ncm: z.string().optional(),
+  ncms: z.array(z.string()).optional(),
+  due: z.string().optional(),
   blType: z.enum(['original', 'express']).optional(),
+  containers: z.array(z.object({ 
+        number: z.string(), 
+        seal: z.string(),
+        tare: z.string(),
+        grossWeight: z.string(),
+        volumes: z.string(),
+        measurement: z.string(),
+    })).optional()
 }).optional();
 
 const shipmentDetailsSchema = z.object({
@@ -195,7 +207,7 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 };
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
-    const [open, setOpen] = React.useState(false);
+    const [open, setOpen] = useState(false);
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -347,7 +359,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         deliveryAddress: shipment.deliveryAddress || '',
         dischargeTerminal: shipment.dischargeTerminal || '',
         sharingLink: shipment.sharingLink || '',
-        containers: shipment.containers?.map(c => ({...c, freeTime: shipment.details?.freeTime || c.freeTime, volumes: c.volumes || ''})) || [],
+        containers: shipment.containers?.map(c => ({...c, freeTime: shipment.details?.freeTime || c.freeTime, volumes: c.volumes || '', measurement: c.measurement || ''})) || [],
         charges: shipment.charges.map(c => ({ ...c, approvalStatus: c.approvalStatus || 'aprovada' })) || [],
         documents: shipment.documents || [],
         commodityDescription: shipment.commodityDescription || '',
@@ -1166,9 +1178,6 @@ const handlePartnerUpdate = (partner: Partner) => {
                                         <FormField control={form.control} name="details.incoterm" render={({ field }) => (
                                             <FormItem><FormLabel>Incoterm</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
                                         )} />
-                                         <FormField control={form.control} name="sharingLink" render={({ field }) => (
-                                            <FormItem><FormLabel>Link de Compartilhamento</FormLabel><FormControl><Input {...field} placeholder="Cole o link público aqui..." /></FormControl><FormMessage /></FormItem>
-                                        )} />
                                     </div>
                                     <Separator />
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
@@ -1179,7 +1188,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                             <FormItem><FormLabel>Booking Reference</FormLabel>
                                                 <div className="flex items-center gap-2">
                                                 <FormControl><Input placeholder="BKG123456" {...field} value={field.value ?? ''} /></FormControl>
-                                                <Button type="button" variant="outline" size="icon" onClick={handleSyncBookingInfo} disabled={isSyncing} title="Sincronizar dados do booking">
+                                                <Button type="button" variant="outline" size="icon" onClick={() => runUpdateShipmentInTracking({ shipmentNumber: form.getValues('bookingNumber') })} disabled={isSyncing} title="Forçar atualização dos dados do booking">
                                                     {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                                                 </Button>
                                                 </div>
@@ -1563,7 +1572,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                 <CardHeader>
                                 <div className="flex justify-between items-center">
                                     <CardTitle className="text-lg">Contêineres</CardTitle>
-                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `new-${containerFields.length}`, number: '', seal: '', tare: '', grossWeight: '', volumes: '' })}>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `new-${containerFields.length}`, number: '', seal: '', tare: '', grossWeight: '', volumes: '', measurement: '' })}>
                                         <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
                                     </Button>
                                 </div>
@@ -1578,7 +1587,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                     <TableHead>Tara</TableHead>
                                                     <TableHead>Peso Bruto</TableHead>
                                                     <TableHead>Volumes</TableHead>
-                                                    <TableHead>Free Time</TableHead>
+                                                    <TableHead>Cubagem</TableHead>
                                                     <TableHead></TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -1590,7 +1599,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => (<Input {...field}/>)}/></TableCell>
                                                         <TableCell><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => (<Input placeholder="1000" {...field}/>)}/></TableCell>
-                                                        <TableCell><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => (<Input placeholder="14 dias" {...field} disabled />)}/></TableCell>
+                                                        <TableCell><FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => (<Input placeholder="28.5" {...field}/>)}/></TableCell>
                                                         <TableCell>
                                                             <Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                                         </TableCell>

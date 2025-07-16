@@ -57,7 +57,7 @@ export function BLDraftForm({ shipment }: BLDraftFormProps) {
     },
   });
 
-  const docsCutoffMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documentos'));
+  const docsCutoffMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
   const docsCutoffDate = docsCutoffMilestone?.predictedDate ? new Date(docsCutoffMilestone.predictedDate) : null;
   const isLateSubmission = docsCutoffDate ? isPast(docsCutoffDate) : false;
 
@@ -100,7 +100,7 @@ export function BLDraftForm({ shipment }: BLDraftFormProps) {
       <CardHeader>
         <div className="flex items-center gap-4">
             <div className="bg-primary/10 p-3 rounded-full">
-                <Ship className="h-8 w-8 text-primary"/>
+                <FileText className="h-8 w-8 text-primary"/>
             </div>
             <div>
                 <CardTitle>Instruções de Embarque - Draft do BL</CardTitle>

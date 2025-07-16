@@ -687,44 +687,55 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
         if (chargesToInvoice.length === 0) {
             toast({ title: "Nenhuma nova despesa", description: "Todas as despesas deste processo já foram faturadas." });
+            setIsInvoicing(false);
             return;
         }
 
         const updatedChargesMap = new Map<string, string>();
         let entriesCreated = 0;
         
-        const grouped: { [key: string]: QuoteCharge[] } = chargesToInvoice.reduce((acc, charge) => {
-            const creditKey = `credit-${charge.sacado}-${charge.saleCurrency}`;
-            if (!acc[creditKey]) acc[creditKey] = [];
-            acc[creditKey].push(charge);
+        const groupBy = <T, K extends keyof any>(list: T[], getKey: (item: T) => K) =>
+            list.reduce((previous, currentItem) => {
+                const group = getKey(currentItem);
+                if (!previous[group]) previous[group] = [];
+                previous[group].push(currentItem);
+                return previous;
+            }, {} as Record<K, T[]>);
 
-            const debitKey = `debit-${charge.supplier}-${charge.costCurrency}`;
-            if (!acc[debitKey]) acc[debitKey] = [];
-            acc[debitKey].push(charge);
+        const creditCharges = chargesToInvoice.filter(c => c.sacado === shipment.customer);
+        const debitCharges = chargesToInvoice.filter(c => c.sacado !== shipment.customer);
 
-            return acc;
-        }, {} as { [key: string]: QuoteCharge[] });
-
-        for (const key in grouped) {
-            const [type, partner, currency] = key.split('-');
-            const charges = grouped[key];
-            const isCredit = type === 'credit';
-            
-            const totalAmount = charges.reduce((sum, charge) => sum + (isCredit ? charge.sale : charge.cost), 0);
+        const groupedCredits = groupBy(creditCharges, charge => `${charge.sacado}-${charge.saleCurrency}`);
+        const groupedDebits = groupBy(debitCharges, charge => `${charge.supplier}-${charge.costCurrency}`);
+        
+        for (const key in groupedCredits) {
+            const [partner, currency] = key.split('-');
+            const charges = groupedCredits[key];
+            const totalAmount = charges.reduce((sum, charge) => sum + charge.sale, 0);
 
             if (totalAmount > 0) {
                 const entryId = addFinancialEntry({
-                    type: isCredit ? 'credit' : 'debit',
-                    partner: partner,
-                    invoiceId: `${isCredit ? 'INV' : 'BILL'}-${shipment.id}`,
-                    dueDate: addDays(new Date(), 30).toISOString(), // Default 30 days due date
-                    amount: totalAmount,
-                    currency: currency as any,
-                    processId: shipment.id,
-                    payments: [],
-                    status: 'Aberto'
+                    type: 'credit', partner, currency: currency as any,
+                    invoiceId: `INV-${shipment.id}`,
+                    dueDate: addDays(new Date(), 30).toISOString(),
+                    amount: totalAmount, processId: shipment.id, status: 'Aberto',
                 });
-                
+                charges.forEach(c => updatedChargesMap.set(c.id, entryId!));
+                entriesCreated++;
+            }
+        }
+        
+        for (const key in groupedDebits) {
+            const [partner, currency] = key.split('-');
+            const charges = groupedDebits[key];
+            const totalAmount = charges.reduce((sum, charge) => sum + charge.cost, 0);
+             if (totalAmount > 0) {
+                const entryId = addFinancialEntry({
+                    type: 'debit', partner, currency: currency as any,
+                    invoiceId: `BILL-${shipment.id}-${partner.substring(0,3).toUpperCase()}`,
+                    dueDate: addDays(new Date(), 30).toISOString(),
+                    amount: totalAmount, processId: shipment.id, status: 'Aberto',
+                });
                 charges.forEach(c => updatedChargesMap.set(c.id, entryId!));
                 entriesCreated++;
             }
@@ -1933,7 +1944,7 @@ const handlePartnerUpdate = (partner: Partner) => {
             chargeName={justificationRequest ? watchedCharges[justificationRequest.index]?.name : ''}
             field={justificationRequest?.field === 'cost' ? 'Custo' : 'Venda'}
             oldValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${(justificationRequest?.oldValue ?? 0).toFixed(2)}`}
-            newValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${(justificationRequest?.newValue ?? 0).toFixed(2)}`}
+            newValue={`${watchedCharges[justificationRequest?.index || 0]?.saleCurrency} ${(justificationRequest?.newValue ?? 0).toFixed(2)}`}
         />
       </>
   );

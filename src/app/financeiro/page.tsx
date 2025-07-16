@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -46,6 +47,7 @@ import { RenegotiationDialog } from '@/components/financials/renegotiation-dialo
 import { NfseConsulta } from '@/components/financials/nfse-consulta';
 import { PartnersRegistry } from '@/components/partners-registry';
 import { getPartners, savePartners, Partner } from '@/lib/partners-data';
+import { exchangeRateService } from '@/services/exchange-rate-service';
 
 
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
@@ -74,14 +76,17 @@ export default function FinanceiroPage() {
     const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit'>('all');
     const [textFilters, setTextFilters] = useState({ partner: '', processId: '', value: '' });
     const [isGenerating, setIsGenerating] = useState(false);
+    const [ptaxRates, setPtaxRates] = useState<Record<string, number>>({});
     const { toast } = useToast();
     
     useEffect(() => {
-        const loadData = () => {
+        const loadData = async () => {
             setEntries(getFinancialEntries());
             setAccounts(getBankAccounts());
             setAllShipments(getShipments());
             setPartners(getPartners());
+            const rates = await exchangeRateService.getRates();
+            setPtaxRates(rates);
             setIsLoaded(true);
         };
         
@@ -481,6 +486,9 @@ export default function FinanceiroPage() {
             setIsGenerating(false);
             return;
         }
+        
+        const companySettings = JSON.parse(localStorage.getItem('company_settings') || '{}');
+        const logoDataUrl = companySettings.logoDataUrl;
 
         const formatValue = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const mainCurrency = 'USD'; // Agent invoices are usually in USD
@@ -509,6 +517,8 @@ export default function FinanceiroPage() {
             totalSale: formatValue(totalSale),
             totalProfit: formatValue(totalSale - totalCost),
             currency: mainCurrency,
+            companyLogoUrl: logoDataUrl,
+            companyName: companySettings.razaoSocial || 'CargaInteligente',
         });
         
         if (response.success) {
@@ -643,6 +653,17 @@ export default function FinanceiroPage() {
         savePartners(updatedPartners);
     };
 
+    const getBalanceInBRL = (entry: FinancialEntry): number => {
+        const balance = getEntryBalance(entry);
+        if (entry.currency === 'BRL') return balance;
+        
+        const partner = partners.find(p => p.name === entry.partner);
+        const agio = partner?.exchangeRateAgio ?? 0;
+        const rate = (ptaxRates[entry.currency] || 0) * (1 + (agio / 100));
+        
+        return balance * rate;
+    }
+
     const renderEntriesTable = (tableEntries: FinancialEntry[], isLegalTable = false) => (
         <div className="border rounded-lg">
             <Table>
@@ -665,23 +686,20 @@ export default function FinanceiroPage() {
                 <TableHead>Parceiro</TableHead>
                 <TableHead>Fatura</TableHead>
                 <TableHead>{isLegalTable ? 'Nº Processo Judicial' : 'Processo LTI'}</TableHead>
-                <TableHead className="w-10 text-center">Status</TableHead>
+                <TableHead className="w-40">Status</TableHead>
                 {isLegalTable && <TableHead>Comentários</TableHead>}
                 <TableHead>Vencimento</TableHead>
-                <TableHead className="text-right">Valor Total</TableHead>
-                <TableHead className="text-right">Saldo</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-right">Saldo (BRL)</TableHead>
                 <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {tableEntries.length > 0 ? tableEntries.map((entry) => {
-                    const { status } = getEntryStatus(entry);
-                    const balance = getEntryBalance(entry);
-                    const rowColor = status === 'Pago' ? 'bg-green-100/50 dark:bg-green-900/20' : 
-                                     status === 'Vencido' ? 'bg-red-100/50 dark:bg-red-900/20' : 
-                                     status === 'Parcialmente Pago' ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : '';
+                    const { status, variant } = getEntryStatus(entry);
+                    const balanceBRL = getBalanceInBRL(entry);
                     return (
-                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"} className={cn(rowColor)}>
+                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
                             {!isLegalTable && <TableCell>
                                 <Checkbox
                                     checked={selectedRows.has(entry.id)}
@@ -712,7 +730,7 @@ export default function FinanceiroPage() {
                                     </a>
                                 )}
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell>
                                 {isLegalTable ? (
                                     <Select
                                         value={entry.legalStatus}
@@ -727,12 +745,7 @@ export default function FinanceiroPage() {
                                         </SelectContent>
                                     </Select>
                                 ) : (
-                                    <div className={cn('w-4 h-4 rounded-full mx-auto', 
-                                    status === 'Pago' ? 'bg-green-500' : 
-                                    status === 'Vencido' ? 'bg-red-500' : 
-                                    status === 'Parcialmente Pago' ? 'bg-yellow-500' :
-                                    status === 'Pendente de Aprovação' ? 'bg-blue-500' :
-                                    'bg-gray-400')} title={status} />
+                                    <Badge variant={variant} className="capitalize w-[130px] justify-center">{status}</Badge>
                                 )}
                             </TableCell>
                             {isLegalTable && (
@@ -745,14 +758,14 @@ export default function FinanceiroPage() {
                                     />
                                 </TableCell>
                             )}
-                            <TableCell className={cn(status === 'Vencido' && !isLegalTable && 'text-destructive font-bold')}>
+                            <TableCell className={cn(variant === 'destructive' && !isLegalTable && 'text-destructive font-bold')}>
                                 {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
                             </TableCell>
                             <TableCell className="text-right font-mono">
                                 {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </TableCell>
                              <TableCell className={cn("text-right font-mono font-bold", entry.type === 'credit' ? 'text-success' : 'text-destructive')}>
-                                {entry.currency} {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                R$ {balanceBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="text-center">
                                 <DropdownMenu>
@@ -761,8 +774,8 @@ export default function FinanceiroPage() {
                                         <DropdownMenuItem onClick={() => handleProcessClick(entry)}>
                                             <FileText className="mr-2 h-4 w-4" /> Detalhes do Processo
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={entry.type === 'debit'}>
-                                            <Printer className="mr-2 h-4 w-4" /> Imprimir Fatura
+                                        <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={entry.type === 'credit'}>
+                                            <Printer className="mr-2 h-4 w-4" /> Imprimir Invoice Agente
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
                                             <Send className="mr-2 h-4 w-4" /> Reenviar Fatura

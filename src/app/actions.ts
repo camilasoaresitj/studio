@@ -32,6 +32,7 @@ import { sendDraftApprovalRequest } from "@/ai/flows/send-draft-approval-request
 import { format } from 'date-fns';
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
+import { getShipmentById, updateShipment, type Shipment, type BLDraftData, type Milestone, type QuoteCharge } from '@/lib/shipment';
 
 
 export async function runGetFreightRates(input: any) {
@@ -316,4 +317,109 @@ export async function createEmailCampaign(instruction: string, partners: Partner
         console.error("Create Email Campaign Action Failed", error);
         return { success: false, error: error.message || "Failed to create email campaign" };
     }
+}
+
+export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, isLateSubmission: boolean) {
+  try {
+    const updatedShipment = { ...shipment };
+
+    // Update main shipment fields with draft data
+    updatedShipment.blDraftData = draftData;
+    updatedShipment.commodityDescription = draftData.descriptionOfGoods;
+    updatedShipment.ncms = draftData.ncms;
+    updatedShipment.blType = draftData.blType;
+
+    // Update container details from the draft form
+    updatedShipment.containers = draftData.containers.map((draftContainer, index) => {
+      const existingContainer = shipment.containers?.[index] || { id: `cont-${Date.now()}-${index}`, type: 'DRY' };
+      return {
+        ...existingContainer,
+        number: draftContainer.number,
+        seal: draftContainer.seal,
+        tare: draftContainer.tare,
+        grossWeight: draftContainer.grossWeight,
+        volumes: draftContainer.volumes,
+        measurement: draftContainer.measurement,
+      };
+    });
+    
+    // Update history and charge for late correction
+    const now = new Date();
+    const history = updatedShipment.blDraftHistory || { sentAt: null, revisions: [] };
+
+    if (!history.sentAt) {
+        history.sentAt = now;
+        // Create milestone for the operational team
+        const newTask: Milestone = {
+            name: "Enviar Draft MBL ao armador",
+            status: 'pending',
+            predictedDate: now,
+            effectiveDate: null,
+            details: `Draft inicial recebido do cliente ${shipment.customer}.`
+        };
+        updatedShipment.milestones.push(newTask);
+    } else {
+        history.revisions.push({ date: now, lateFee: undefined });
+        
+        const newTask: Milestone = {
+            name: "[REVISÃO] Enviar Draft MBL ao armador",
+            status: 'pending',
+            predictedDate: now,
+            effectiveDate: null,
+            details: `Revisão do draft recebida do cliente ${shipment.customer}.`
+        };
+        updatedShipment.milestones.push(newTask);
+        
+        if (isLateSubmission) {
+            const lateFeeCharge: QuoteCharge = {
+                id: `late-fee-${Date.now()}`,
+                name: "TAXA DE CORREÇÃO DE BL",
+                type: 'Fixo',
+                cost: 150,
+                costCurrency: 'USD',
+                sale: 150,
+                saleCurrency: 'USD',
+                supplier: 'CargaInteligente',
+                sacado: shipment.customer,
+                approvalStatus: 'aprovada',
+            };
+            updatedShipment.charges = [...(updatedShipment.charges || []), lateFeeCharge];
+            history.revisions[history.revisions.length - 1].lateFee = { cost: 150, currency: 'USD' };
+        }
+    }
+
+    updatedShipment.blDraftHistory = history;
+
+    updateShipment(updatedShipment);
+    return { success: true, data: updatedShipment };
+  } catch (error: any) {
+    console.error("Submit BL Draft Action Failed", error);
+    return { success: false, error: error.message || "Failed to submit BL Draft" };
+  }
+}
+
+export async function fetchShipmentForDraft(shipmentId: string) {
+    try {
+        const shipment = getShipmentById(shipmentId);
+        if (!shipment) {
+            throw new Error('Embarque não encontrado ou ID inválido.');
+        }
+        return { success: true, data: shipment };
+    } catch(e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function sendChatMessage(shipment: Shipment, message: ChatMessage) {
+  try {
+    const updatedShipment = {
+        ...shipment,
+        chatMessages: [...(shipment.chatMessages || []), message],
+    };
+    updateShipment(updatedShipment);
+    return { success: true, data: updatedShipment };
+  } catch (error: any) {
+    console.error("Send Chat Message Action Failed", error);
+    return { success: false, error: error.message || "Failed to send chat message" };
+  }
 }

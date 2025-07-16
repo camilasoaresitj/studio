@@ -7,12 +7,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { getShipments, updateShipment } from '@/lib/shipment-data';
 import type { Shipment, ChatMessage } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { sendChatMessage } from '@/app/actions';
 import { Send, Loader2, MessageSquare, ArrowLeft, Building, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -59,41 +59,30 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
         }
     }, [selectedShipment, selectedShipment?.chatMessages]);
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (!newMessage.trim() || !selectedShipment) return;
         setIsLoading(true);
 
-        try {
-            const currentShipments = getShipments();
-            const shipmentToUpdate = currentShipments.find(s => s.id === selectedShipment.id);
+        const messageToSend: ChatMessage = {
+            sender: 'CargaInteligente',
+            message: newMessage,
+            department: department,
+            timestamp: new Date().toISOString(),
+            readBy: ['user-1']
+        };
 
-            if (!shipmentToUpdate) {
-                throw new Error("Embarque não encontrado.");
-            }
-
-            const messageToSend: ChatMessage = {
-                sender: 'CargaInteligente',
-                message: newMessage,
-                department: department,
-                timestamp: new Date().toISOString(),
-                readBy: ['user-1']
-            };
-
-            const updatedShipment = {
-                ...shipmentToUpdate,
-                chatMessages: [...(shipmentToUpdate.chatMessages || []), messageToSend],
-            };
-            
-            updateShipment(updatedShipment);
-            setShipments(getShipments());
-            setSelectedShipment(updatedShipment);
+        const response = await sendChatMessage(selectedShipment, messageToSend);
+        
+        if (response.success && response.data) {
+            setSelectedShipment(response.data);
             setNewMessage('');
-
-        } catch (error: any) {
+            // Trigger a global event to update shipments everywhere
+            window.dispatchEvent(new Event('shipmentsUpdated'));
+        } else {
              toast({
                 variant: 'destructive',
                 title: 'Erro ao Enviar Mensagem',
-                description: error.message || 'Não foi possível enviar sua mensagem. Tente novamente.',
+                description: response.error || 'Não foi possível enviar sua mensagem. Tente novamente.',
             });
         }
         
@@ -107,6 +96,7 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
         if (lastMessage && lastMessage.sender === 'Cliente' && !lastMessage.readBy?.includes('user-1')) {
             lastMessage.readBy = [...(lastMessage.readBy || []), 'user-1'];
             updateShipment(latestShipmentState);
+            // Manually trigger a re-render of the list
             setShipments(getShipments());
         }
         

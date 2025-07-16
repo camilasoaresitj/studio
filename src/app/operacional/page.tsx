@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Shipment, Milestone } from '@/lib/shipment';
-import { getShipments, updateShipment } from '@/lib/shipment-data';
+import { getShipments, updateShipment } from '@/lib/shipment';
 import { format, isPast, isToday, isWithinInterval, addDays, isValid, differenceInHours } from 'date-fns';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
 import { useToast } from '@/hooks/use-toast';

@@ -109,7 +109,8 @@ export type BLDraftData = {
     descriptionOfGoods: string;
     grossWeight: string;
     measurement: string;
-    ncm: string;
+    ncms: string[];
+    due: string;
     blType: 'original' | 'express';
     containers: { 
         number: string; 

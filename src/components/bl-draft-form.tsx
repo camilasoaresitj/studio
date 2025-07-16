@@ -37,7 +37,8 @@ const blDraftSchema = z.object({
   descriptionOfGoods: z.string().min(1, 'Descrição da mercadoria é obrigatória'),
   grossWeight: z.string(), // This will be calculated
   measurement: z.string(), // This will be calculated
-  ncm: z.string().min(1, 'NCM é obrigatório'),
+  ncms: z.array(z.object({ value: z.string().min(1, "Obrigatório") })).min(1, "Adicione pelo menos um NCM."),
+  due: z.string().min(1, "DUE é obrigatório."),
   blType: z.enum(['original', 'express'], { required_error: 'Selecione o tipo de BL.' }),
   containers: z.array(blDraftContainerSchema).min(1, "Adicione pelo menos um contêiner.")
 });
@@ -69,23 +70,27 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
 
   const form = useForm<BLDraftFormData>({
     resolver: zodResolver(blDraftSchema),
-    defaultValues: shipment.blDraftData || {
-      shipper: formatPartnerAddress(shipment.shipper),
-      consignee: formatPartnerAddress(shipment.consignee),
-      notify: shipment.notifyName || formatPartnerAddress(shipment.consignee),
+    defaultValues: shipment.blDraftData ? {
+        ...shipment.blDraftData,
+        ncms: shipment.blDraftData.ncms?.map(ncm => ({ value: ncm })) || [{value: ''}]
+    } : {
+      shipper: shipment.shipper ? formatPartnerAddress(shipment.shipper) : '',
+      consignee: shipment.consignee ? formatPartnerAddress(shipment.consignee) : '',
+      notify: shipment.notifyName || (shipment.consignee ? formatPartnerAddress(shipment.consignee) : ''),
       marksAndNumbers: `LOTE ${shipment.id}`,
       descriptionOfGoods: shipment.commodityDescription || '',
       grossWeight: shipment.netWeight || '',
       measurement: '',
-      ncm: shipment.ncms?.[0] || '',
+      ncms: (shipment.ncms?.length || 0) > 0 ? shipment.ncms!.map(ncm => ({ value: ncm })) : [{value: ''}],
+      due: '',
       blType: 'original',
       containers: shipment.containers?.map(c => ({ 
-          number: c.number, 
-          seal: c.seal,
-          tare: c.tare,
-          grossWeight: c.grossWeight,
+          number: c.number || '', 
+          seal: c.seal || '',
+          tare: c.tare || '',
+          grossWeight: c.grossWeight || '',
           volumes: c.volumes || '',
-          measurement: (c as any).measurement || '',
+          measurement: c.measurement || '',
        })) || [{ number: '', seal: '', tare: '', grossWeight: '', volumes: '', measurement: '' }],
     },
   });
@@ -94,6 +99,12 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
     control: form.control,
     name: "containers",
   });
+  
+  const { fields: ncmFields, append: appendNcm, remove: removeNcm } = useFieldArray({
+    control: form.control,
+    name: "ncms",
+  });
+
 
   const watchedContainers = useWatch({
     control: form.control,
@@ -113,15 +124,20 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
 
   async function onSubmit(values: BLDraftFormData) {
     setIsLoading(true);
+
+    const draftDataToSave = {
+        ...values,
+        ncms: values.ncms.map(n => n.value)
+    };
     
     if (isSheet && onUpdate) {
         // Just update the data in the sheet context
-        const updatedShipment = { ...shipment, blDraftData: values, blType: values.blType };
+        const updatedShipment = { ...shipment, blDraftData: draftDataToSave, blType: values.blType };
         onUpdate(updatedShipment);
         toast({ title: 'Draft Salvo!', description: 'As informações do draft foram salvas no processo.' });
     } else {
         // Submit from the customer portal
-        const response = await submitBLDraft(shipment.id, values, isLateSubmission);
+        const response = await submitBLDraft(shipment.id, draftDataToSave, isLateSubmission);
         if (response.success) {
           toast({
             title: 'Draft de BL Enviado!',
@@ -303,17 +319,39 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
           </div>
 
           <Separator />
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField name="grossWeight" control={form.control} render={({ field }) => (
                   <FormItem><FormLabel>Peso Bruto Total</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
               )}/>
               <FormField name="measurement" control={form.control} render={({ field }) => (
                   <FormItem><FormLabel>Cubagem Total (CBM)</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
               )}/>
-              <FormField name="ncm" control={form.control} render={({ field }) => (
-                  <FormItem><FormLabel>NCM</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )}/>
           </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <Label>NCM</Label>
+                    {ncmFields.map((field, index) => (
+                        <div key={field.id} className="flex items-center gap-2 mt-1">
+                            <FormField name={`ncms.${index}.value`} control={form.control} render={({ field }) => (
+                                <Input {...field} placeholder="0000.00.00" />
+                            )} />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeNcm(index)} disabled={ncmFields.length <= 1}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </div>
+                    ))}
+                     <Button type="button" variant="outline" size="sm" onClick={() => appendNcm({ value: '' })} className="mt-2">
+                        <PlusCircle className="mr-2 h-4 w-4" /> Adicionar NCM
+                    </Button>
+                    <FormField name="ncms" control={form.control} render={({ fieldState }) => (
+                        fieldState.error?.message ? <FormMessage className="mt-2">{fieldState.error.message}</FormMessage> : null
+                    )} />
+                </div>
+                 <FormField name="due" control={form.control} render={({ field }) => (
+                    <FormItem><FormLabel>DUE (Declaração Única de Exportação)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+            </div>
 
           <FormField
             control={form.control}

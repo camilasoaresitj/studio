@@ -1,5 +1,4 @@
 
-
 'use server'
 
 import { detectCarrierFromBooking } from "@/ai/flows/detect-carrier-from-booking";
@@ -379,16 +378,6 @@ export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: 
     return { success: true, data: shipment };
 }
 
-export async function runCreateEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {
-    try {
-        const data = await createEmailCampaign({ instruction, partners, quotes });
-        return { success: true, data };
-    } catch (error: any) {
-        console.error("Create Email Campaign Action Failed", error);
-        return { success: false, error: error.message || "Failed to create email campaign" };
-    }
-}
-
 export async function updateShipmentFromAgent(id: string, data: any) {
     let shipment = getShipmentById(id);
     if (!shipment) {
@@ -455,4 +444,14 @@ export async function sendChatMessage(shipmentId: string, message: Omit<ChatMess
   updateShipment(updatedShipment);
   
   return { success: true, data: updatedShipment };
+}
+
+export async function createEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {
+    try {
+        const data = await createEmailCampaign({ instruction, partners, quotes });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Create Email Campaign Action Failed", error);
+        return { success: false, error: error.message || "Failed to create email campaign" };
+    }
 }

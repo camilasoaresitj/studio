@@ -132,6 +132,7 @@ const shipmentDetailsSchema = z.object({
   collectionAddress: z.string().optional(),
   deliveryAddress: z.string().optional(),
   dischargeTerminal: z.string().optional(),
+  sharingLink: z.string().optional(),
   containers: z.array(containerDetailSchema).optional(),
   documents: z.array(z.object({
       name: z.string(),
@@ -345,6 +346,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         collectionAddress: shipment.collectionAddress || '',
         deliveryAddress: shipment.deliveryAddress || '',
         dischargeTerminal: shipment.dischargeTerminal || '',
+        sharingLink: shipment.sharingLink || '',
         containers: shipment.containers?.map(c => ({...c, freeTime: shipment.details?.freeTime || c.freeTime, volumes: c.volumes || ''})) || [],
         charges: shipment.charges.map(c => ({ ...c, approvalStatus: c.approvalStatus || 'aprovada' })) || [],
         documents: shipment.documents || [],
@@ -1163,6 +1165,9 @@ const handlePartnerUpdate = (partner: Partner) => {
                                         )}
                                         <FormField control={form.control} name="details.incoterm" render={({ field }) => (
                                             <FormItem><FormLabel>Incoterm</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                         <FormField control={form.control} name="sharingLink" render={({ field }) => (
+                                            <FormItem><FormLabel>Link de Compartilhamento</FormLabel><FormControl><Input {...field} placeholder="Cole o link público aqui..." /></FormControl><FormMessage /></FormItem>
                                         )} />
                                     </div>
                                     <Separator />

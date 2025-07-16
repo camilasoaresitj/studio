@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, isPast, isValid, differenceInDays, addDays } from 'date-fns';
@@ -33,7 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown, Edit } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown, Edit, ChevronsUpDown, Check } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -63,6 +64,7 @@ import { Textarea } from './ui/textarea';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { BLDraftForm } from './bl-draft-form';
 import { PartnerSelectionDialog } from './partner-selection-dialog';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 
 
 const containerDetailSchema = z.object({
@@ -190,6 +192,48 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
     }
     return <Circle className="h-6 w-6 text-muted-foreground" />;
 };
+
+const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
+    const [open, setOpen] = React.useState(false);
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between h-8 font-normal">
+                    {value ? value : "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+                <Command>
+                    <CommandInput placeholder="Buscar taxa..." />
+                    <CommandList>
+                        <CommandEmpty>Nenhuma taxa encontrada.</CommandEmpty>
+                        <CommandGroup>
+                            {fees.map((fee) => (
+                                <CommandItem
+                                    key={fee.id}
+                                    value={fee.name}
+                                    onSelect={(currentValue) => {
+                                        onValueChange(currentValue === value ? "" : fee.name);
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <Check className={cn("mr-2 h-4 w-4", value === fee.name ? "opacity-100" : "opacity-0")} />
+                                    {fee.name}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+const chargeTypeOptions = [
+    'Por Contêiner', 'Por BL', 'Por Processo', 'W/M', 'Por KG', 'Por AWB', 'Fixo', 'Percentual',
+];
 
 
 export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
@@ -1592,26 +1636,22 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                 {chargeFields.map((field, index) => {
                                                     const charge = watchedCharges[index];
                                                     const paymentStatus = getPaymentStatus(charge);
+                                                    const availableFees = fees.filter(
+                                                        fee => !watchedCharges.some(c => c.name === fee.name) || fee.name === charge.name
+                                                    );
                                                     return (
                                                     <TableRow key={field.id} className={cn(charge.approvalStatus === 'pendente' && 'bg-amber-50')}>
-                                                        <TableCell className="p-1">
+                                                        <TableCell className="p-1 min-w-[200px]">
                                                             <div className="flex items-center gap-2">
-                                                                <FormField
-                                                                    control={form.control}
-                                                                    name={`charges.${index}.name`}
-                                                                    render={({ field }) => (
-                                                                        <Select onValueChange={(value) => { field.onChange(value); handleFeeSelection(value, index); }} value={field.value}>
-                                                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
-                                                                            <SelectContent>
-                                                                                {fees.map(fee => <SelectItem key={fee.id} value={fee.name}>{fee.name}</SelectItem>)}
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                    )}
+                                                                <FeeCombobox
+                                                                    fees={availableFees}
+                                                                    value={charge.name}
+                                                                    onValueChange={(value) => handleFeeSelection(value, index)}
                                                                 />
                                                                 {charge.approvalStatus === 'pendente' && <Badge variant="destructive">Pendente</Badge>}
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell className="p-1">
+                                                        <TableCell className="p-1 min-w-[180px]">
                                                             <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
                                                                 <Select onValueChange={field.onChange} value={field.value}>
                                                                     <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
@@ -1621,7 +1661,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                 </Select>
                                                             )} />
                                                         </TableCell>
-                                                        <TableCell className="p-1">
+                                                        <TableCell className="p-1 min-w-[180px]">
                                                             <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
                                                                 <Select onValueChange={field.onChange} value={field.value || shipment.customer}>
                                                                     <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -1633,7 +1673,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                 </Select>
                                                             )} />
                                                         </TableCell>
-                                                        <TableCell className="text-right p-1">
+                                                        <TableCell className="text-right p-1 min-w-[200px]">
                                                             <div className="flex items-center gap-1">
                                                                 <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                                                                     <Select onValueChange={(value) => updateCharge(index, {...watchedCharges[index], costCurrency: value as any})} value={field.value}>
@@ -1648,7 +1688,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                 )} />
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell className="text-right p-1">
+                                                        <TableCell className="text-right p-1 min-w-[200px]">
                                                             <div className="flex items-center gap-1">
                                                                 <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                                                                     <Select onValueChange={(value) => updateCharge(index, {...watchedCharges[index], saleCurrency: value as any})} value={field.value}>

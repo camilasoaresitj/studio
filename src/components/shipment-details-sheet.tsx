@@ -1,8 +1,7 @@
 
 'use client';
 
-import * as React from 'react';
-import { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -207,7 +206,7 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 };
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = React.useState(false);
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -851,20 +850,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   };
 
   const getPaymentStatus = (charge: QuoteCharge): { saleStatus: 'Pago' | 'Aberto', costStatus: 'Pago' | 'Aberto' | 'N/A' } => {
-    if (!charge.financialEntryId) {
-        return { saleStatus: 'Aberto', costStatus: 'Aberto' };
-    }
     const financialEntries = getFinancialEntries();
     
-    const saleEntry = financialEntries.find(e => e.id === charge.financialEntryId && e.type === 'credit');
-    const costEntry = financialEntries.find(e => e.id === charge.financialEntryId && e.type === 'debit');
+    const saleEntry = financialEntries.find(e => e.id === charge.financialEntryId && e.type === 'credit' && e.partner === charge.sacado);
+    const costEntry = financialEntries.find(e => e.id === charge.financialEntryId && e.type === 'debit' && e.partner === charge.supplier);
 
     const isSalePaid = saleEntry ? (saleEntry.payments?.reduce((sum, p) => sum + p.amount, 0) ?? 0) >= saleEntry.amount : false;
     const isCostPaid = costEntry ? (costEntry.payments?.reduce((sum, p) => sum + p.amount, 0) ?? 0) >= costEntry.amount : false;
     
     return {
-        saleStatus: isSalePaid ? 'Pago' : 'Aberto',
-        costStatus: !costEntry ? 'N/A' : isCostPaid ? 'Pago' : 'Aberto'
+        saleStatus: !saleEntry ? 'Aberto' : isSalePaid ? 'Pago' : 'Aberto',
+        costStatus: !costEntry ? 'Aberto' : isCostPaid ? 'Pago' : 'Aberto'
     };
   };
 
@@ -1641,12 +1637,11 @@ const handlePartnerUpdate = (partner: Partner) => {
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
-                                                    <TableHead>Taxa</TableHead>
-                                                    <TableHead>Fornecedor</TableHead>
-                                                    <TableHead>Sacado</TableHead>
-                                                    <TableHead className="text-right">Custo</TableHead>
-                                                    <TableHead className="text-right">Venda</TableHead>
-                                                    <TableHead className="text-center w-[150px]">Status Pagamento</TableHead>
+                                                    <TableHead className="w-[180px]">Taxa</TableHead>
+                                                    <TableHead className="min-w-[150px]">Fornecedor</TableHead>
+                                                    <TableHead className="min-w-[150px]">Sacado</TableHead>
+                                                    <TableHead className="text-right min-w-[200px]">Compra</TableHead>
+                                                    <TableHead className="text-right min-w-[200px]">Venda</TableHead>
                                                     <TableHead className="w-[50px]">Ação</TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -1659,7 +1654,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                     );
                                                     return (
                                                     <TableRow key={field.id} className={cn(charge.approvalStatus === 'pendente' && 'bg-amber-50')}>
-                                                        <TableCell className="p-1 min-w-[200px]">
+                                                        <TableCell className="p-1 min-w-[180px]">
                                                             <div className="flex items-center gap-2">
                                                                 <FeeCombobox
                                                                     fees={availableFees}
@@ -1669,7 +1664,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                 {charge.approvalStatus === 'pendente' && <Badge variant="destructive">Pendente</Badge>}
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell className="p-1 min-w-[180px]">
+                                                        <TableCell className="p-1 min-w-[150px]">
                                                             <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
                                                                 <Select onValueChange={field.onChange} value={field.value}>
                                                                     <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
@@ -1679,7 +1674,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                 </Select>
                                                             )} />
                                                         </TableCell>
-                                                        <TableCell className="p-1 min-w-[180px]">
+                                                        <TableCell className="p-1 min-w-[150px]">
                                                             <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
                                                                 <Select onValueChange={field.onChange} value={field.value || shipment.customer}>
                                                                     <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -1693,6 +1688,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                         </TableCell>
                                                         <TableCell className="text-right p-1 min-w-[200px]">
                                                             <div className="flex items-center gap-1">
+                                                                <div className={cn("w-2.5 h-2.5 rounded-full", paymentStatus.costStatus === 'Pago' ? 'bg-green-500' : 'bg-gray-400')} title={`Custo: ${paymentStatus.costStatus}`} />
                                                                 <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                                                                     <Select onValueChange={(value) => updateCharge(index, {...watchedCharges[index], costCurrency: value as any})} value={field.value}>
                                                                         <SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
@@ -1708,6 +1704,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                         </TableCell>
                                                         <TableCell className="text-right p-1 min-w-[200px]">
                                                             <div className="flex items-center gap-1">
+                                                                <div className={cn("w-2.5 h-2.5 rounded-full", paymentStatus.saleStatus === 'Pago' ? 'bg-green-500' : 'bg-gray-400')} title={`Venda: ${paymentStatus.saleStatus}`} />
                                                                 <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                                                                     <Select onValueChange={(value) => updateCharge(index, {...watchedCharges[index], saleCurrency: value as any})} value={field.value}>
                                                                         <SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
@@ -1719,30 +1716,6 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                 <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
                                                                     <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'sale', e.target.value); }} className="w-full h-9" />
                                                                 )} />
-                                                            </div>
-                                                        </TableCell>
-                                                         <TableCell className="text-center">
-                                                            <div className="flex items-center gap-1 justify-center">
-                                                                <Badge variant={paymentStatus.saleStatus === 'Pago' ? 'success' : 'secondary'} className="w-16 justify-center">
-                                                                    C: {paymentStatus.saleStatus}
-                                                                </Badge>
-                                                                <Badge variant={paymentStatus.costStatus === 'Pago' ? 'success' : paymentStatus.costStatus === 'N/A' ? 'outline' : 'secondary'} className="w-16 justify-center">
-                                                                    V: {paymentStatus.costStatus}
-                                                                </Badge>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleGenerateInvoicePdf(charge)}
-                                                                    disabled={!charge.financialEntryId || isGeneratingPdf === charge.id}
-                                                                    title="Visualizar Fatura em PDF"
-                                                                    className="ml-1 h-7 w-7"
-                                                                >
-                                                                    {isGeneratingPdf === charge.id 
-                                                                        ? <Loader2 className="h-4 w-4 animate-spin"/> 
-                                                                        : <FileText className={cn("h-4 w-4", charge.financialEntryId && "text-success")} />
-                                                                    }
-                                                                </Button>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>

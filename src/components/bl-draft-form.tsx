@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -12,12 +12,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import type { Shipment } from '@/lib/shipment';
 import { submitBLDraft } from '@/app/actions';
-import { Loader2, Send, FileText, AlertTriangle, CheckCircle, Ship } from 'lucide-react';
+import { Loader2, Send, FileText, AlertTriangle, CheckCircle, Ship, Trash2, PlusCircle } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { isPast, isValid } from 'date-fns';
+import { Separator } from './ui/separator';
 
+
+const blDraftContainerSchema = z.object({
+  number: z.string().min(1, "Obrigatório"),
+  seal: z.string().min(1, "Obrigatório"),
+});
 
 const blDraftSchema = z.object({
   shipper: z.string().min(1, 'Shipper é obrigatório'),
@@ -29,6 +35,7 @@ const blDraftSchema = z.object({
   measurement: z.string().min(1, 'Cubagem é obrigatória'),
   ncm: z.string().min(1, 'NCM é obrigatório'),
   blType: z.enum(['original', 'express'], { required_error: 'Selecione o tipo de BL.' }),
+  containers: z.array(blDraftContainerSchema).min(1, "Adicione pelo menos um contêiner.")
 });
 
 type BLDraftFormData = z.infer<typeof blDraftSchema>;
@@ -56,7 +63,13 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
       measurement: '',
       ncm: shipment.ncms?.[0] || '',
       blType: 'original',
+      containers: shipment.containers?.map(c => ({ number: c.number, seal: c.seal })) || [{ number: '', seal: '' }],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "containers",
   });
   
   const docsCutoffMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
@@ -202,6 +215,39 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
               <FormField name="ncm" control={form.control} render={({ field }) => (
                   <FormItem><FormLabel>NCM</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
+          </div>
+
+          <Separator />
+          
+           <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Dados dos Contêineres</h3>
+                <Button type="button" variant="outline" size="sm" onClick={() => append({ number: '', seal: '' })}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contêiner
+                </Button>
+              </div>
+              <div className="space-y-4">
+                  {fields.map((field, index) => (
+                      <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 border rounded-md items-end">
+                          <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => (
+                              <FormItem className="col-span-1 md:col-span-2"><FormLabel>Nº do Contêiner</FormLabel><FormControl><Input placeholder="MSCU1234567" {...field} /></FormControl><FormMessage /></FormItem>
+                          )}/>
+                           <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => (
+                              <FormItem className="col-span-1 md:col-span-2"><FormLabel>Nº do Lacre</FormLabel><FormControl><Input placeholder="SEAL12345" {...field} /></FormControl><FormMessage /></FormItem>
+                          )}/>
+                          <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                              <Trash2 className="h-4 w-4" />
+                          </Button>
+                      </div>
+                  ))}
+              </div>
+              <FormField
+                  control={form.control}
+                  name="containers"
+                  render={({ fieldState }) => (
+                      fieldState.error?.message ? <FormMessage className="mt-2">{fieldState.error.message}</FormMessage> : null
+                  )}
+              />
           </div>
 
           <FormField

@@ -109,6 +109,7 @@ export type BLDraftData = {
     measurement: string;
     ncm: string;
     blType: 'original' | 'express';
+    containers: { number: string; seal: string }[];
 };
 
 export type Shipment = {

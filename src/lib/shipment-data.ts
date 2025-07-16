@@ -5,7 +5,7 @@ import { addDays, isValid, subDays } from 'date-fns';
 import { runSendShippingInstructions } from '@/app/actions';
 import type { PartialPayment } from './financials-data';
 
-const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v8';
+const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v9';
 
 // --- Type Definitions ---
 
@@ -138,6 +138,7 @@ export type ChatMessage = {
     message: string;
     timestamp: string; // ISO String
     department: 'Operacional' | 'Financeiro' | 'Sistema';
+    readBy?: string[]; // Array of user IDs who have read the message
 };
 
 
@@ -390,6 +391,8 @@ export function saveShipments(shipments: Shipment[]): void {
   }
   try {
     localStorage.setItem(SHIPMENTS_STORAGE_KEY, JSON.stringify(shipments));
+    // Dispatch event to notify other components of the update
+    window.dispatchEvent(new Event('shipmentsUpdated'));
   } catch (error) {
     console.error("Failed to save shipments to localStorage", error);
   }

@@ -11,6 +11,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
@@ -20,10 +21,14 @@ import {
   Clock,
   Ship,
   CalendarClock,
-  FileText,
   Settings,
   User,
+  MessageSquare,
 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import type { Shipment } from '@/lib/shipment';
+import { getShipments } from '@/lib/shipment';
+import { GlobalChat } from '../global-chat';
 
 const menuItems = [
   { href: '/', label: 'Gerencial', icon: LayoutDashboard },
@@ -38,8 +43,44 @@ const menuItems = [
 
 export function MainSidebar() {
   const pathname = usePathname();
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const { isMobile, setOpenMobile } = useSidebar();
+
+
+  useEffect(() => {
+    const calculateUnread = () => {
+        if(typeof window === 'undefined') return;
+        const shipments = getShipments();
+        const count = shipments.reduce((acc, s) => {
+            const hasUnread = s.chatMessages?.some(m => m.sender === 'Cliente' && !m.readBy?.includes('user-1')); // Assuming user-1 is the current user
+            return acc + (hasUnread ? 1 : 0);
+        }, 0);
+        setUnreadMessagesCount(count);
+    };
+
+    calculateUnread();
+    
+    // Listen for custom events that might indicate a change in chat messages
+    window.addEventListener('shipmentsUpdated', calculateUnread);
+    window.addEventListener('storage', calculateUnread);
+
+    return () => {
+        window.removeEventListener('shipmentsUpdated', calculateUnread);
+        window.removeEventListener('storage', calculateUnread);
+    };
+  }, []);
+
+  const handleChatToggle = () => {
+    setIsChatOpen(prev => !prev);
+    if(isMobile) {
+        setOpenMobile(false);
+    }
+  }
+
 
   return (
+    <>
     <Sidebar>
       <SidebarHeader>
         <Link href="/" className="flex items-center gap-2">
@@ -63,6 +104,20 @@ export function MainSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
+           <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={handleChatToggle}
+                tooltip="Chat"
+              >
+                <MessageSquare className="h-5 w-5" />
+                <span>Chat</span>
+                {unreadMessagesCount > 0 && (
+                     <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs">
+                        {unreadMessagesCount}
+                    </span>
+                )}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
@@ -71,5 +126,7 @@ export function MainSidebar() {
         </div>
       </SidebarFooter>
     </Sidebar>
+    <GlobalChat isOpen={isChatOpen} onOpenChange={setIsChatOpen} />
+    </>
   );
 }

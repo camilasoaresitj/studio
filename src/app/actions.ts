@@ -411,7 +411,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
         timestamp: new Date().toISOString(),
         department: 'Operacional' as const,
     };
-    sendChatMessage(shipment.id, chatMessage);
+    await sendChatMessage(shipment, chatMessage);
     
     return { success: true, data: shipment };
 }
@@ -463,8 +463,7 @@ export async function updateShipmentFromAgent(id: string, data: any) {
     return { success: true, data: shipment };
 }
 
-export async function sendChatMessage(shipmentId: string, message: Omit<ChatMessage, 'timestamp'>) {
-  const shipment = getShipmentById(shipmentId);
+export async function sendChatMessage(shipment: Shipment, message: Omit<ChatMessage, 'timestamp'>) {
   if (!shipment) {
     return { success: false, error: 'Embarque não encontrado.' };
   }

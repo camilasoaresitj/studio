@@ -292,13 +292,13 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
 
   return (
     <Dialog open={!!quote} onOpenChange={isOpen => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Confirmar Detalhes do Embarque</DialogTitle>
           <DialogDescription>Informe os dados do embarque {quote.id.replace('-DRAFT', '')}.</DialogDescription>
         </DialogHeader>
         
-        <div className="grid md:grid-cols-2 gap-4 flex-grow overflow-y-auto pr-2">
+        <div className="flex-grow overflow-y-auto pr-2 space-y-4">
             <PartnerFormBlock 
                 title="Shipper (Exportador)"
                 partners={partners}
@@ -345,9 +345,7 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
                     </Popover>
                 </div>
              </PartnerFormBlock>
-        </div>
 
-        <div className="space-y-4 pt-4 border-t">
             <Card>
                 <CardHeader><CardTitle className="text-lg">Informações Adicionais</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">

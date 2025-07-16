@@ -857,23 +857,22 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     setSelectedFees(new Set());
   };
   
-    const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
-        const parsedValue = parseFloat(value) || 0;
-        const charge = watchedCharges[index];
-        const oldValue = charge[field];
-        
-        if (charge.approvalStatus === 'aprovada' && parsedValue !== oldValue) {
-            setJustificationRequest({
-                index,
-                field,
-                oldValue,
-                newValue: parsedValue,
-            });
-        } else {
-            // If not approved, just update the value directly
-            updateCharge(index, { ...charge, [field]: parsedValue });
-        }
-    };
+  const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
+      const parsedValue = parseFloat(value) || 0;
+      const charge = watchedCharges[index];
+      const oldValue = Number(charge[field]) || 0; // Ensure oldValue is a number
+      
+      if (charge.approvalStatus === 'aprovada' && parsedValue !== oldValue) {
+          setJustificationRequest({
+              index,
+              field,
+              oldValue: oldValue,
+              newValue: parsedValue,
+          });
+      } else {
+          updateCharge(index, { ...charge, [field]: parsedValue });
+      }
+  };
     
     const handleJustificationSubmit = (justification: string) => {
         if (!justificationRequest) return;
@@ -1933,8 +1932,8 @@ const handlePartnerUpdate = (partner: Partner) => {
             onConfirm={handleJustificationSubmit}
             chargeName={justificationRequest ? watchedCharges[justificationRequest.index]?.name : ''}
             field={justificationRequest?.field === 'cost' ? 'Custo' : 'Venda'}
-            oldValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${justificationRequest?.oldValue.toFixed(2)}`}
-            newValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${justificationRequest?.newValue.toFixed(2)}`}
+            oldValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${(justificationRequest?.oldValue ?? 0).toFixed(2)}`}
+            newValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${(justificationRequest?.newValue ?? 0).toFixed(2)}`}
         />
       </>
   );

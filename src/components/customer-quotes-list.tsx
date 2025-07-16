@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -13,7 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
-import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, CheckCircle, XCircle, ArrowLeft, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { QuoteCostSheet } from './quote-cost-sheet';
@@ -70,9 +71,10 @@ interface CustomerQuotesListProps {
   onEditQuote: (quote: Quote) => void;
   quoteToDetail: Quote | null;
   setQuoteToDetail: (quote: Quote | null) => void;
+  onCloneQuote: (quote: Quote) => void;
 }
 
-export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerSaved, onClose, onEditQuote, quoteToDetail, setQuoteToDetail }: CustomerQuotesListProps) {
+export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerSaved, onClose, onEditQuote, quoteToDetail, setQuoteToDetail, onCloneQuote }: CustomerQuotesListProps) {
     const [isSending, setIsSending] = useState(false);
     const [sendDialogOpen, setSendDialogOpen] = useState(false);
     const [quoteToSend, setQuoteToSend] = useState<Quote | null>(null);
@@ -310,6 +312,14 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         }
     };
 
+    const handleClone = (quote: Quote) => {
+        onCloneQuote(quote);
+        toast({
+            title: 'Cotação Clonada!',
+            description: 'Os dados foram carregados no formulário de cotação. Ajuste e salve como uma nova cotação.',
+        });
+    };
+
   return (
     <>
     <Card>
@@ -361,6 +371,10 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                                         <DropdownMenuItem onClick={() => onEditQuote(quote)}>
                                             <FileText className="mr-2 h-4 w-4" />
                                             <span>Ver/Editar Detalhes</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleClone(quote)}>
+                                            <Copy className="mr-2 h-4 w-4" />
+                                            <span>Clonar Cotação</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleOpenSendDialog(quote)} disabled={isSending || quote.status === 'Rascunho'}>
                                             <Send className="mr-2 h-4 w-4" />

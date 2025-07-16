@@ -877,7 +877,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
           setJustificationRequest({
               index,
               field,
-              oldValue: oldValue,
+              oldValue,
               newValue: parsedValue,
           });
       } else {
@@ -1039,7 +1039,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
               freightPayableAt: 'Origin',
               numberOfOriginals: blDraftData.blType === 'original' ? '3 (TRÊS)' : '0 (ZERO)',
               issueDate: format(new Date(), 'dd-MMM-yyyy'),
-              shippedOnBoardDate: etd ? format(etd, 'dd-MMM-yyyy') : format(new Date(), 'dd-MMM-yyyy'),
+              shippedOnBoardDate: etd && isValid(new Date(etd)) ? format(new Date(etd), 'dd-MMM-yyyy') : format(new Date(), 'dd-MMM-yyyy'),
               signatureUrl: signatureUrl,
               companyLogoUrl: logoDataUrl,
               companyName: companySettings.razaoSocial || 'CargaInteligente',
@@ -1777,7 +1777,9 @@ const handlePartnerUpdate = (partner: Partner) => {
                                             <TableBody>
                                                 {chargeFields.map((field, index) => {
                                                     const charge = watchedCharges[index];
-                                                    const paymentStatus = getPaymentStatus(charge);
+                                                     if (!charge) {
+                                                        return null; // or a loading skeleton
+                                                    }
                                                     const availableFees = fees.filter(
                                                         fee => !watchedCharges.some(c => c.name === fee.name) || fee.name === charge.name
                                                     );
@@ -1817,7 +1819,6 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                         </TableCell>
                                                         <TableCell className="text-right p-1 min-w-[200px]">
                                                             <div className="flex items-center gap-1">
-                                                                <div className={cn("w-2.5 h-2.5 rounded-full", paymentStatus.costStatus === 'Pago' ? 'bg-green-500' : 'bg-gray-400')} title={`Custo: ${paymentStatus.costStatus}`} />
                                                                 <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                                                                     <Select onValueChange={(value) => updateCharge(index, {...watchedCharges[index], costCurrency: value as any})} value={field.value}>
                                                                         <SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
@@ -1833,7 +1834,6 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                         </TableCell>
                                                         <TableCell className="text-right p-1 min-w-[200px]">
                                                             <div className="flex items-center gap-1">
-                                                                <div className={cn("w-2.5 h-2.5 rounded-full", paymentStatus.saleStatus === 'Pago' ? 'bg-green-500' : 'bg-gray-400')} title={`Venda: ${paymentStatus.saleStatus}`} />
                                                                 <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                                                                     <Select onValueChange={(value) => updateCharge(index, {...watchedCharges[index], saleCurrency: value as any})} value={field.value}>
                                                                         <SelectTrigger className="w-[80px] h-9"><SelectValue /></SelectTrigger>
@@ -1938,8 +1938,8 @@ const handlePartnerUpdate = (partner: Partner) => {
             onConfirm={handleJustificationSubmit}
             chargeName={justificationRequest ? watchedCharges[justificationRequest.index]?.name : ''}
             field={justificationRequest?.field === 'cost' ? 'Custo' : 'Venda'}
-            oldValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${(justificationRequest?.oldValue ?? 0).toFixed(2)}`}
-            newValue={`${watchedCharges[justificationRequest?.index || 0]?.saleCurrency} ${(justificationRequest?.newValue ?? 0).toFixed(2)}`}
+            oldValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${justificationRequest?.oldValue.toFixed(2)}`}
+            newValue={`${watchedCharges[justificationRequest?.index || 0]?.saleCurrency} ${justificationRequest?.newValue.toFixed(2)}`}
         />
       </>
   );

@@ -105,6 +105,17 @@ export default function ComercialPage() {
       setQuoteToDetail(quote);
   }
 
+  const handleCloneQuote = (quote: Quote) => {
+    const { customer, ...quoteDetails } = quote;
+    const customerPartner = partners.find(p => p.name === customer);
+    setQuoteFormData({
+      ...quoteDetails,
+      ...quote.details,
+      customerId: customerPartner?.id?.toString()
+    });
+    setActiveTab('cotacao');
+  };
+
   return (
     <div className="p-4 md:p-8">
       <header className="mb-8">
@@ -146,6 +157,7 @@ export default function ComercialPage() {
                 onEditQuote={handleSelectQuoteToEdit}
                 quoteToDetail={quoteToDetail}
                 setQuoteToDetail={setQuoteToDetail}
+                onCloneQuote={handleCloneQuote}
             />
         </TabsContent>
         <TabsContent value="gestao_tarifas" className="mt-6 space-y-6">

@@ -10,7 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Shipment, TrackingEvent } from '@/lib/shipment';
+import type { Shipment, TrackingEvent, Milestone, ContainerDetail, TransshipmentDetail } from '@/lib/shipment';
 import { findCarrierByName } from '@/lib/carrier-data';
 
 const GetTrackingInfoInputSchema = z.object({
@@ -85,49 +85,95 @@ Given a tracking number and a specific carrier, you will create a plausible hist
 `,
 });
 
-// Helper function to process successful tracking data
-const processTrackingData = (trackingData: any, carrier: string): GetTrackingInfoOutput => {
-  const events: TrackingEvent[] = (trackingData.shipmentEvents || []).map((event: any) => ({
-    status: event.name || 'N/A',
-    date: event.actualTime || event.estimateTime,
-    location: event.location || 'N/A',
-    completed: !!event.actualTime,
-    carrier: carrier,
-  }));
+// Helper function to process successful tracking data from Cargo-flows
+const processTrackingData = (shipments: any[], carrierName: string): GetTrackingInfoOutput => {
+  if (!shipments || shipments.length === 0) {
+    return { status: 'No Data', events: [], containers: [] };
+  }
 
-  const lastCompletedEvent = events.slice().reverse().find(e => e.completed) || events[events.length - 1];
+  // Use the first shipment as the base for overall details
+  const primaryShipment = shipments[0];
+  const allEvents: TrackingEvent[] = [];
+  const allContainers: ContainerDetail[] = [];
+  const allTransshipments = new Map<string, TransshipmentDetail>();
 
+  shipments.forEach(shipment => {
+    // Collect all containers
+    if (shipment.containerNumber) {
+      allContainers.push({
+        id: shipment.containerNumber,
+        number: shipment.containerNumber,
+        seal: shipment.containerSealNumber || 'N/A',
+        tare: `${shipment.tare_weight || 0} KG`,
+        grossWeight: `${shipment.totalWeight || 0} KG`,
+        type: shipment.containerType || 'DRY',
+      });
+    }
+
+    // Collect all events, avoiding duplicates
+    (shipment.shipmentEvents || []).forEach((event: any) => {
+      const eventKey = `${event.name}-${event.location}-${event.actualTime || event.estimateTime}`;
+      if (!allEvents.some(e => `${e.status}-${e.location}-${e.date}` === eventKey)) {
+        allEvents.push({
+          status: event.name || 'N/A',
+          date: event.actualTime || event.estimateTime,
+          location: event.location || 'N/A',
+          completed: !!event.actualTime,
+          carrier: carrierName,
+        });
+      }
+    });
+
+    // Collect all transshipment ports
+    if (shipment.shipmentLegs?.portToPort?.segments) {
+      shipment.shipmentLegs.portToPort.segments
+        .filter((seg: any) => seg.originPortCode !== primaryShipment.shipmentLegs?.portToPort?.loadingPortCode && seg.destinationPortCode !== primaryShipment.shipmentLegs?.portToPort?.dischargePortCode)
+        .forEach((segment: any) => {
+          const port = segment.origin || segment.originPortCode;
+          if (port && !allTransshipments.has(port)) {
+            allTransshipments.set(port, {
+              id: port,
+              port: port,
+              vessel: segment.transportName || 'N/A',
+              etd: segment.atd ? new Date(segment.atd) : undefined,
+              eta: segment.ata ? new Date(segment.ata) : undefined,
+            });
+          }
+      });
+    }
+  });
+
+  // Sort events chronologically
+  allEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const lastCompletedEvent = allEvents.slice().reverse().find(e => e.completed) || allEvents[allEvents.length - 1];
+  
   const shipmentDetails: Partial<Shipment> = {
-    carrier: carrier,
-    origin: trackingData.shipmentLegs?.portToPort?.originPortCode || 'N/A',
-    destination: trackingData.shipmentLegs?.portToPort?.dischargePortCode || 'N/A',
-    vesselName: trackingData.shipmentLegs?.portToPort?.currentTransportName,
-    voyageNumber: trackingData.shipmentLegs?.portToPort?.currentTripNumber,
-    etd: trackingData.shipmentLegs?.portToPort?.firstPortEtd ? new Date(trackingData.shipmentLegs.portToPort.firstPortEtd) : undefined,
-    eta: trackingData.shipmentLegs?.portToPort?.lastPortEta ? new Date(trackingData.shipmentLegs.portToPort.lastPortEta) : undefined,
-    masterBillNumber: trackingData.mblNumber || trackingData.bookingNumber,
-    containers: trackingData.containers?.map((c: any) => ({
-      id: c.container_number,
-      number: c.container_number,
-      seal: c.seal_number || 'N/A',
-      tare: `${c.tare_weight || 0} KG`,
-      grossWeight: `${c.gross_weight || 0} KG`,
-      type: c.container_type || 'DRY'
-    })) || [],
-    milestones: events.map((event: TrackingEvent) => ({
-      name: event.status,
-      status: event.completed ? 'completed' : 'pending',
-      predictedDate: new Date(event.date),
-      effectiveDate: event.completed ? new Date(event.date) : null,
-      details: event.location,
-      isTransshipment: event.status.toLowerCase().includes('transhipment')
-    })),
+      carrier: carrierName,
+      origin: primaryShipment.shipmentLegs?.portToPort?.loadingPort || 'N/A',
+      destination: primaryShipment.shipmentLegs?.portToPort?.dischargePort || 'N/A',
+      vesselName: primaryShipment.shipmentLegs?.portToPort?.currentTransportName,
+      voyageNumber: primaryShipment.shipmentLegs?.portToPort?.currentTripNumber,
+      etd: primaryShipment.shipmentLegs?.portToPort?.loadingPortAtd ? new Date(primaryShipment.shipmentLegs.portToPort.loadingPortAtd) : undefined,
+      eta: primaryShipment.shipmentLegs?.portToPort?.dischargePortEta ? new Date(primaryShipment.shipmentLegs.portToPort.dischargePortEta) : undefined,
+      masterBillNumber: primaryShipment.mblNumber,
+      bookingNumber: primaryShipment.bookingNumber,
+      containers: allContainers,
+      transshipments: Array.from(allTransshipments.values()),
+      milestones: allEvents.map((event: TrackingEvent): Milestone => ({
+          name: event.status,
+          status: event.completed ? 'completed' : 'pending',
+          predictedDate: new Date(event.date),
+          effectiveDate: event.completed ? new Date(event.date) : null,
+          details: event.location,
+          isTransshipment: event.status.toLowerCase().includes('transhipment')
+      })),
   };
 
   return {
     status: lastCompletedEvent?.status || 'Pending',
-    events,
-    containers: shipmentDetails.containers,
+    events: allEvents,
+    containers: allContainers,
     shipmentDetails: shipmentDetails,
   };
 };
@@ -146,8 +192,9 @@ const getTrackingInfoFlow = ai.defineFlow(
     if (cargoFlowsApiKey && cargoFlowsOrgToken) {
       try {
         // Step 1: Try to fetch the shipment first to see if it exists
-        const getShipmentUrl = `${baseUrl}/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${input.trackingNumber}&_limit=1`;
+        const getShipmentUrl = `${baseUrl}/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${input.trackingNumber}&_limit=50`;
         
+        console.log(`Cargo-flows: Fetching shipment with URL: ${getShipmentUrl}`);
         const trackingResponse = await fetch(getShipmentUrl, {
           method: 'GET',
           headers: {
@@ -167,12 +214,12 @@ const getTrackingInfoFlow = ai.defineFlow(
         }
 
         const responseJson = await trackingResponse.json();
-        const trackingData = responseJson?.data?.[0];
+        const trackingDataArray = responseJson?.data;
 
         // If data exists, process and return it
-        if (trackingData && trackingData.shipmentEvents && trackingData.shipmentEvents.length > 0) {
-          console.log("Cargo-flows: Shipment found. Processing data.");
-          return processTrackingData(trackingData, input.carrier);
+        if (trackingDataArray && trackingDataArray.length > 0) {
+          console.log(`Cargo-flows: Shipment found with ${trackingDataArray.length} container(s). Processing data.`);
+          return processTrackingData(trackingDataArray, input.carrier);
         }
 
         // Step 2: If no data, create the shipment
@@ -187,7 +234,7 @@ const getTrackingInfoFlow = ai.defineFlow(
           formData: [{
             bookingNumber: input.trackingNumber,
             carrierCode: carrierInfo.scac,
-            oceanLine: carrierInfo.name, // Use the proper name for oceanLine
+            oceanLine: carrierInfo.name,
           }]
         };
 
@@ -226,11 +273,11 @@ const getTrackingInfoFlow = ai.defineFlow(
         if (!finalTrackingResponse.ok) throw new Error(`Failed to fetch after creation (${finalTrackingResponse.status})`);
         
         const finalDataJson = await finalTrackingResponse.json();
-        const finalTrackingData = finalDataJson?.data?.[0];
+        const finalTrackingDataArray = finalDataJson?.data;
 
-        if (finalTrackingData && finalTrackingData.shipmentEvents && finalTrackingData.shipmentEvents.length > 0) {
+        if (finalTrackingDataArray && finalTrackingDataArray.length > 0) {
             console.log("Cargo-flows: Re-fetch successful. Processing data.");
-            return processTrackingData(finalTrackingData, input.carrier);
+            return processTrackingData(finalTrackingDataArray, input.carrier);
         }
 
         console.log("Cargo-flows API call successful, but no tracking events were returned in the response. Falling back to AI.");

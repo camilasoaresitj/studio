@@ -125,7 +125,9 @@ export type ChatMessage = {
     sender: 'Cliente' | 'CargaInteligente';
     message: string;
     timestamp: string; // ISO String
+    department: 'Operacional' | 'Financeiro' | 'Sistema';
 };
+
 
 export type Shipment = {
   id: string; // The process number, derived from quote ID
@@ -453,7 +455,12 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     mblPrintingAtDestination: false,
     notifyName: quoteData.notifyName,
     customer: quoteData.customer, 
-    chatMessages: [],
+    chatMessages: [{
+        sender: 'CargaInteligente',
+        message: `Olá! O processo ${shipmentId} foi criado. Use este chat para falar com nossa equipe.`,
+        timestamp: new Date().toISOString(),
+        department: 'Sistema',
+    }],
   };
 
   if (isImport && quoteData.agent) {

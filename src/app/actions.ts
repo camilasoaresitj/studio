@@ -33,6 +33,8 @@ import type { Quote } from "@/components/customer-quotes-list";
 import { getTrackingInfo } from '@/ai/flows/get-tracking-info';
 import { sendDraftApprovalRequest } from '@/ai/flows/send-draft-approval-request';
 import { format } from 'date-fns';
+import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
+import { getRouteMap } from "@/ai/flows/get-route-map";
 
 
 export async function runGetFreightRates(input: any) {
@@ -143,6 +145,27 @@ export async function runGetTrackingInfo(input: { trackingNumber: string, carrie
     return { success: false, error: error.message || "Failed to run flow" };
   }
 }
+
+export async function runUpdateShipmentInTracking(input: any) {
+    try {
+        const output = await updateShipmentInTracking(input);
+        return { success: true, data: output };
+    } catch (error: any) {
+        console.error("Server Action Failed for updateShipmentInTracking", error);
+        return { success: false, error: error.message || "Failed to run flow" };
+    }
+}
+
+export async function runGetRouteMap(shipmentNumber: string) {
+    try {
+        const data = await getRouteMap({ shipmentNumber });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Get Route Map Action Failed", error);
+        return { success: false, error: error.message || "Failed to get route map" };
+    }
+}
+
 
 export async function runDetectCarrier(trackingNumber: string) {
     try {

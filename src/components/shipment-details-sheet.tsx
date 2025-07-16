@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useMemo, useState, useRef } from 'react';
@@ -34,7 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown, Edit, ChevronsUpDown, Check } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown, Edit, ChevronsUpDown, Check, Map } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -65,6 +64,7 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { BLDraftForm } from './bl-draft-form';
 import { PartnerSelectionDialog } from './partner-selection-dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import { ShipmentMap } from './shipment-map';
 
 
 const containerDetailSchema = z.object({
@@ -1006,11 +1006,12 @@ const handlePartnerUpdate = (partner: Partner) => {
                   <input type="file" ref={fileInputRef} className="hidden" />
 
                   <Tabs defaultValue="milestones" className="flex-grow flex flex-col overflow-hidden mt-4">
-                    <TabsList className="grid w-full grid-cols-6 mb-4">
+                    <TabsList className="grid w-full grid-cols-7 mb-4">
                         <TabsTrigger value="dados_embarque">Dados do Embarque</TabsTrigger>
                         <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
                         <TabsTrigger value="documentos">Documentos</TabsTrigger>
                         <TabsTrigger value="milestones">Milestones & Tracking</TabsTrigger>
+                        <TabsTrigger value="mapa">Mapa</TabsTrigger>
                         <TabsTrigger value="mercadoria">Mercadoria & Containers</TabsTrigger>
                         <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
                     </TabsList>
@@ -1514,6 +1515,9 @@ const handlePartnerUpdate = (partner: Partner) => {
                                     )})}
                                 </CardContent>
                             </Card>
+                         </TabsContent>
+                         <TabsContent value="mapa" className="mt-0 space-y-6">
+                             {shipment.bookingNumber && <ShipmentMap shipmentNumber={shipment.bookingNumber} />}
                          </TabsContent>
                          <TabsContent value="mercadoria" className="mt-0 space-y-6">
                             <Card>

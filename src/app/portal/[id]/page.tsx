@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -41,7 +40,7 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 export default function ShipmentDetailPage({ params }: { params: { id: string } }) {
     const [shipment, setShipment] = useState<Shipment | null>(null);
     const router = useRouter();
-    const { id } = params;
+    const id = params.id;
     
     useEffect(() => {
       const data = getShipmentById(id);

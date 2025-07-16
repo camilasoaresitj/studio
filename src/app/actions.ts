@@ -18,19 +18,16 @@ import { getVesselSchedules } from "@/ai/flows/get-ship-schedules";
 import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
-import { updateShipment, ChatMessage, createShipment, getShipmentById, getShipments } from "@/lib/shipment-data";
-import type { BLDraftData, Shipment } from '@/lib/shipment-data';
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
 import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { getFinancialEntries, addFinancialEntry, findEntryById, updateFinancialEntry } from "@/lib/financials-data";
-import type { PartialPayment } from '@/components/financials/financial-page-client';
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import type { Partner } from "@/lib/partners-data";
 import type { Quote } from "@/components/customer-quotes-list";
-import { getTrackingInfo } from '@/ai/flows/get-tracking-info';
+import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import { sendDraftApprovalRequest } from "@/ai/flows/send-draft-approval-request";
 import { format } from 'date-fns';
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
@@ -309,178 +306,6 @@ export async function runSendToLegal(input: any) {
         console.error("Send to Legal Action Failed", error);
         return { success: false, error: error.message || "Failed to send to legal" };
     }
-}
-
-export async function fetchShipmentForDraft(id: string): Promise<{ success: boolean; data?: Shipment; error?: string }> {
-  try {
-    const data = getShipmentById(id);
-    if (data) {
-      return { success: true, data };
-    } else {
-      return { success: false, error: 'Embarque não encontrado. Verifique o link ou contate o suporte.' };
-    }
-  } catch (error: any) {
-    console.error(`Error fetching shipment for draft with ID ${id}:`, error);
-    return { success: false, error: 'Ocorreu um erro inesperado ao buscar os dados do embarque.' };
-  }
-}
-
-export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, isLate: boolean) {
-    if (!shipment) {
-        return { success: false, error: 'Objeto de embarque não fornecido.' };
-    }
-
-    // Update main shipment fields with draft data
-    shipment.blDraftData = draftData;
-    shipment.commodityDescription = draftData.descriptionOfGoods;
-    shipment.ncms = draftData.ncms;
-    
-    // Update container data from draft
-    shipment.containers = draftData.containers.map((draftContainer, index) => {
-        const existingContainer = shipment.containers?.[index] || {};
-        return {
-            ...existingContainer,
-            ...draftContainer,
-            id: existingContainer?.id || `container-${index}`,
-            type: existingContainer?.type || 'DRY',
-        };
-    });
-    
-    // Manage draft history
-    const draftHistory = shipment.blDraftHistory || { sentAt: null, revisions: [] };
-    const isFirstSubmission = !draftHistory.sentAt;
-
-    if (isFirstSubmission) {
-        draftHistory.sentAt = new Date();
-    } else {
-        const lateRevision = isLate 
-            ? { cost: 150, currency: 'USD' as const }
-            : undefined;
-        draftHistory.revisions.push({
-            date: new Date(),
-            lateFee: lateRevision
-        });
-    }
-    shipment.blDraftHistory = draftHistory;
-    
-    // Create new milestone/task for operational team
-    const taskName = isFirstSubmission ? 'Enviar Draft MBL ao armador' : `[REVISÃO] Enviar Draft MBL ao armador`;
-
-     const sendToCarrierMilestone = {
-        name: taskName,
-        status: 'pending' as const,
-        predictedDate: new Date(),
-        effectiveDate: null,
-        details: `Verificar draft do cliente e enviar ao armador. ${isLate ? 'Revisão tardia com custo.' : ''}`,
-    };
-
-    shipment.milestones.push(sendToCarrierMilestone);
-    
-    // Add late fee as a charge if applicable
-    if (isLate) {
-        const lateFeeCharge = {
-            id: `late-fee-${Date.now()}`,
-            name: 'Taxa de Alteração de Draft Fora do Prazo',
-            type: 'Fixo',
-            cost: 150,
-            costCurrency: 'USD' as const,
-            sale: 150,
-            saleCurrency: 'USD' as const,
-            supplier: shipment.carrier || 'Armador a Confirmar',
-            sacado: shipment.customer,
-            approvalStatus: 'aprovada' as const,
-        };
-        shipment.charges.push(lateFeeCharge);
-    }
-    
-     // Update the "Draft HBL" document status
-    const draftDocIndex = shipment.documents.findIndex(doc => doc.name === 'Draft HBL');
-    if (draftDocIndex > -1) {
-        shipment.documents[draftDocIndex].status = 'uploaded';
-        shipment.documents[draftDocIndex].fileName = `HBL-DRAFT-${shipment.id}.pdf`;
-        shipment.documents[draftDocIndex].uploadedAt = new Date();
-    }
-
-    // Add a system message to the chat
-    const chatMessage = {
-        sender: 'Sistema' as const,
-        message: `O cliente enviou o Draft do HBL. Operacional, favor verificar e enviar ao armador. ${isLate ? 'Este envio foi feito após o deadline e gerou custo de correção.' : ''}`,
-        timestamp: new Date().toISOString(),
-        department: 'Operacional' as const,
-    };
-
-    shipment.chatMessages = [...(shipment.chatMessages || []), chatMessage];
-    
-    updateShipment(shipment);
-    
-    return { success: true, data: shipment };
-}
-
-export async function updateShipmentFromAgent(id: string, data: any) {
-    const shipment = getShipmentById(id);
-    if (!shipment) {
-        return { success: false, error: 'Embarque não encontrado.' };
-    }
-
-    shipment.bookingNumber = data.bookingNumber;
-    shipment.vesselName = data.vesselVoyage.split('/')[0]?.trim();
-    shipment.voyageNumber = data.vesselVoyage.split('/')[1]?.trim();
-    shipment.etd = data.etd;
-    shipment.eta = data.eta;
-    
-    // Update milestones
-    const updateMilestone = (name: string, newDate: Date | undefined) => {
-        const index = shipment!.milestones.findIndex(m => m.name.toLowerCase().includes(name.toLowerCase()));
-        if (index > -1 && newDate) {
-            shipment!.milestones[index].predictedDate = newDate;
-            shipment!.milestones[index].status = 'pending';
-        }
-    };
-
-    updateMilestone('embarque', data.etd);
-    updateMilestone('chegada', data.eta);
-    updateMilestone('cut off documental', data.docsCutoff);
-    
-    // Add agreed rate as a charge
-    const rateValue = parseFloat(data.rateAgreed.replace(/[^0-9.]/g, '')) || 0;
-    const currency = data.rateAgreed.toUpperCase().includes('USD') ? 'USD' : 'BRL';
-    
-    const freightCharge = {
-        id: `agent-freight-${Date.now()}`,
-        name: 'FRETE INTERNACIONAL (Custo Agente)',
-        type: 'Fixo',
-        cost: rateValue,
-        costCurrency: currency as 'USD' | 'BRL',
-        sale: rateValue, // Initially sale = cost
-        saleCurrency: currency as 'USD' | 'BRL',
-        supplier: shipment.agent?.name || 'Agente a Confirmar',
-        sacado: shipment.customer,
-        approvalStatus: 'aprovada' as const,
-    };
-    shipment.charges.push(freightCharge);
-    
-    updateShipment(shipment);
-    return { success: true, data: shipment };
-}
-
-export async function sendChatMessage(shipment: Shipment, message: Omit<ChatMessage, 'timestamp'>) {
-    if (!shipment) {
-      return { success: false, error: 'Objeto de embarque não fornecido.' };
-    }
-  
-    const newMessage: ChatMessage = {
-      ...message,
-      timestamp: new Date().toISOString(),
-    };
-    
-    const updatedShipment = {
-        ...shipment,
-        chatMessages: [...(shipment.chatMessages || []), newMessage],
-    };
-    
-    updateShipment(updatedShipment);
-    
-    return { success: true, data: updatedShipment };
 }
 
 export async function createEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {

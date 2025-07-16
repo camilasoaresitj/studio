@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import type { Shipment, ChatMessage } from '@/lib/shipment';
-import { sendChatMessage } from '@/app/actions';
+import { getShipments, updateShipment } from '@/lib/shipment-data';
 import { Loader2, Send, Building, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -34,24 +34,41 @@ export function ShipmentChat({ shipment, onUpdate }: ShipmentChatProps) {
         }
     }, [shipment.chatMessages]);
 
-    const handleSendMessage = async () => {
+    const handleSendMessage = () => {
         if (!newMessage.trim()) return;
         setIsLoading(true);
 
-        const response = await sendChatMessage(shipment, {
-            sender: 'Cliente',
-            message: newMessage,
-            department: department,
-        });
-        
-        if (response.success && response.data) {
-            onUpdate(response.data as Shipment);
+        try {
+            // Re-fetch the latest list of shipments to avoid stale data
+            const currentShipments = getShipments();
+            const shipmentToUpdate = currentShipments.find(s => s.id === shipment.id);
+
+            if (!shipmentToUpdate) {
+                throw new Error("Embarque não encontrado. A página pode estar desatualizada.");
+            }
+            
+            const messageToSend: ChatMessage = {
+                sender: 'Cliente',
+                message: newMessage,
+                department: department,
+                timestamp: new Date().toISOString(),
+                readBy: []
+            };
+
+            const updatedShipment = {
+                ...shipmentToUpdate,
+                chatMessages: [...(shipmentToUpdate.chatMessages || []), messageToSend],
+            };
+            
+            updateShipment(updatedShipment);
+            onUpdate(updatedShipment);
             setNewMessage('');
-        } else {
-            toast({
+
+        } catch (error: any) {
+             toast({
                 variant: 'destructive',
                 title: 'Erro ao Enviar Mensagem',
-                description: response.error || 'Não foi possível enviar sua mensagem. Tente novamente.',
+                description: error.message || 'Não foi possível enviar sua mensagem. Tente novamente.',
             });
         }
         

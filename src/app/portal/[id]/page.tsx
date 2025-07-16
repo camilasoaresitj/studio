@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { BLDraftForm } from '@/components/bl-draft-form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date | null }) => {
     if (!predictedDate || !isValid(predictedDate)) {
@@ -80,6 +81,8 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
 
     const docCutoff = sortedMilestones.find(m => m.name.toLowerCase().includes('documental'));
     const cargoCutoff = sortedMilestones.find(m => m.name.toLowerCase().includes('gate in') || m.name.toLowerCase().includes('entrega'));
+    
+    const needsDraft = !shipment.blDraftData;
 
     return (
         <div className="p-4 md:p-8 space-y-6">
@@ -98,13 +101,26 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
                 </div>
             </header>
             
+             {needsDraft && (
+                <Alert variant="destructive" className="animate-in fade-in-50 duration-500">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Ação Necessária</AlertTitle>
+                    <AlertDescription>
+                        Por favor, preencha as instruções de embarque na aba "Instruções de Embarque (Draft)" para darmos continuidade ao processo.
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                  {/* Main Content Area */}
                 <div className="lg:col-span-2 space-y-6">
-                     <Tabs defaultValue="timeline" className="w-full">
+                     <Tabs defaultValue={needsDraft ? "draft" : "timeline"} className="w-full">
                         <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                            <TabsTrigger value="draft">Instruções de Embarque (Draft)</TabsTrigger>
+                            <TabsTrigger value="draft" className="relative">
+                                Instruções de Embarque (Draft)
+                                {needsDraft && <span className="absolute top-1 right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-destructive"></span></span>}
+                            </TabsTrigger>
                         </TabsList>
                         <TabsContent value="timeline">
                             <Card>

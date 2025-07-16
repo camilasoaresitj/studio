@@ -132,6 +132,7 @@ const quoteChargeSchemaForSheet = z.object({
     supplier: z.string().min(1, 'Obrigatório'),
     sacado: z.string().optional(),
     approvalStatus: z.enum(['aprovada', 'pendente', 'rejeitada']),
+    justification: z.string().optional(),
     financialEntryId: z.string().nullable().optional(),
 });
 
@@ -218,6 +219,61 @@ interface ShipmentDetailsSheetProps {
   onUpdate: (updatedShipment: Shipment) => void;
 }
 
+interface JustificationDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (justification: string) => void;
+    chargeName: string;
+    field: 'Custo' | 'Venda';
+    oldValue: string;
+    newValue: string;
+}
+
+const JustificationDialog = ({ isOpen, onClose, onConfirm, chargeName, field, oldValue, newValue }: JustificationDialogProps) => {
+    const [justification, setJustification] = useState('');
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Justificar Alteração de Valor</DialogTitle>
+                    <DialogDescription>
+                        A alteração de valor para a taxa "{chargeName}" requer uma justificativa para aprovação gerencial.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                            <p className="text-sm text-muted-foreground">{field} Anterior</p>
+                            <p className="font-bold text-lg line-through">{oldValue}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">{field} Novo</p>
+                            <p className="font-bold text-lg text-primary">{newValue}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <Label htmlFor="justification">Motivo da Alteração</Label>
+                        <Textarea
+                            id="justification"
+                            value={justification}
+                            onChange={(e) => setJustification(e.target.value)}
+                            placeholder="Ex: Negociação com o fornecedor, ajuste de margem, etc."
+                            className="mt-2"
+                        />
+                    </div>
+                </div>
+                <DialogFooterComponent>
+                    <Button variant="outline" onClick={onClose}>Cancelar</Button>
+                    <Button onClick={() => onConfirm(justification)} disabled={justification.trim().length < 10}>
+                        Confirmar e Enviar para Aprovação
+                    </Button>
+                </DialogFooterComponent>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+
 const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date | null }) => {
     if (!predictedDate || !isValid(predictedDate)) {
         return <Circle className="h-6 w-6 text-muted-foreground" />;
@@ -295,6 +351,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [editingPartnerType, setEditingPartnerType] = useState<'shipper' | 'consignee' | 'agent' | null>(null);
+  const [justificationRequest, setJustificationRequest] = useState<{
+        index: number;
+        field: 'cost' | 'sale';
+        oldValue: number;
+        newValue: number;
+    } | null>(null);
 
   
   const form = useForm<ShipmentDetailsFormData>({
@@ -795,12 +857,46 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     setSelectedFees(new Set());
   };
   
-  const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
-    const charge = watchedCharges[index];
-    if (charge.approvalStatus === 'aprovada') {
-        updateCharge(index, { ...charge, [field]: parseFloat(value) || 0, approvalStatus: 'pendente' });
-    }
-  };
+    const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
+        const parsedValue = parseFloat(value) || 0;
+        const charge = watchedCharges[index];
+        const oldValue = charge[field];
+        
+        if (charge.approvalStatus === 'aprovada' && parsedValue !== oldValue) {
+            setJustificationRequest({
+                index,
+                field,
+                oldValue,
+                newValue: parsedValue,
+            });
+        } else {
+            // If not approved, just update the value directly
+            updateCharge(index, { ...charge, [field]: parsedValue });
+        }
+    };
+    
+    const handleJustificationSubmit = (justification: string) => {
+        if (!justificationRequest) return;
+
+        const { index, field, newValue } = justificationRequest;
+        const charge = watchedCharges[index];
+
+        updateCharge(index, {
+            ...charge,
+            [field]: newValue,
+            approvalStatus: 'pendente',
+            justification: justification,
+        });
+        
+        toast({
+            title: "Alteração Enviada para Aprovação",
+            description: `A alteração na despesa "${charge.name}" foi registrada e aguarda aprovação da gerência.`,
+            className: "bg-amber-100 dark:bg-amber-900/30 border-amber-400"
+        });
+        
+        setJustificationRequest(null);
+    };
+
   
   const handleFeeSelection = (feeName: string, index: number) => {
     const fee = fees.find(f => f.name === feeName);
@@ -1726,7 +1822,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                     </Select>
                                                                 )} />
                                                                 <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
-                                                                    <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'cost', e.target.value); }} className="w-full h-9" />
+                                                                    <Input type="number" {...field} onBlur={(e) => handleChargeValueChange(index, 'cost', e.target.value)} className="w-full h-9" />
                                                                 )} />
                                                             </div>
                                                         </TableCell>
@@ -1742,7 +1838,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                     </Select>
                                                                 )} />
                                                                 <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
-                                                                    <Input type="number" {...field} onChange={(e) => { field.onChange(e); handleChargeValueChange(index, 'sale', e.target.value); }} className="w-full h-9" />
+                                                                    <Input type="number" {...field} onBlur={(e) => handleChargeValueChange(index, 'sale', e.target.value)} className="w-full h-9" />
                                                                 )} />
                                                             </div>
                                                         </TableCell>
@@ -1831,6 +1927,15 @@ const handlePartnerUpdate = (partner: Partner) => {
         onPartnerSelect={handlePartnerUpdate}
         title={`Selecionar ${editingPartnerType}`}
       />
+       <JustificationDialog
+            isOpen={!!justificationRequest}
+            onClose={() => setJustificationRequest(null)}
+            onConfirm={handleJustificationSubmit}
+            chargeName={justificationRequest ? watchedCharges[justificationRequest.index]?.name : ''}
+            field={justificationRequest?.field === 'cost' ? 'Custo' : 'Venda'}
+            oldValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${justificationRequest?.oldValue.toFixed(2)}`}
+            newValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${justificationRequest?.newValue.toFixed(2)}`}
+        />
       </>
   );
 }

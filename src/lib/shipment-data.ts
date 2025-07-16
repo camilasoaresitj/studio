@@ -1,9 +1,13 @@
 
 
+'use client';
+
 import type { Partner } from '@/lib/partners-data';
 import { addDays, isValid, subDays } from 'date-fns';
 import { runSendShippingInstructions } from '@/app/actions';
 import type { PartialPayment } from './financials-data';
+import { addFinancialEntry } from './financials-data';
+
 
 const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v9';
 
@@ -22,6 +26,7 @@ export type QuoteCharge = {
   sacado?: string;
   // Expanded approval status
   approvalStatus: 'aprovada' | 'pendente' | 'rejeitada';
+  justification?: string; // Reason for a pending change
   financialEntryId?: string | null; // ID of the invoice/bill it belongs to
 };
 

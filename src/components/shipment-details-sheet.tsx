@@ -587,62 +587,51 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const handleInvoiceShipment = async () => {
     if (!shipment) return;
     setIsInvoicing(true);
+    
     try {
-        const unbilledCharges = (form.getValues('charges') || []).filter(c => !c.financialEntryId);
+        const chargesToInvoice = (form.getValues('charges') || []).filter(c => !c.financialEntryId);
 
-        if (unbilledCharges.length === 0) {
+        if (chargesToInvoice.length === 0) {
             toast({ title: "Nenhuma nova despesa", description: "Todas as despesas deste processo já foram faturadas." });
             return;
         }
 
         const updatedChargesMap = new Map<string, string>();
         let entriesCreated = 0;
+        
+        // Group charges by (partner, type, currency)
+        const grouped: { [key: string]: QuoteCharge[] } = {};
+        chargesToInvoice.forEach(charge => {
+            const creditKey = `credit-${charge.sacado}-${charge.saleCurrency}`;
+            if (!grouped[creditKey]) grouped[creditKey] = [];
+            grouped[creditKey].push(charge);
 
-        const chargesByPartnerAndCurrency: { [key: string]: { type: 'credit' | 'debit', charges: QuoteCharge[] } } = {};
-
-        unbilledCharges.forEach(charge => {
-            const sacado = charge.sacado || shipment.customer;
-            const saleKey = `credit-${sacado}-${charge.saleCurrency}`;
-            if (!chargesByPartnerAndCurrency[saleKey]) chargesByPartnerAndCurrency[saleKey] = { type: 'credit', charges: [] };
-            chargesByPartnerAndCurrency[saleKey].charges.push(charge);
-
-            const supplier = charge.supplier;
-            const costKey = `debit-${supplier}-${charge.costCurrency}`;
-            if (!chargesByPartnerAndCurrency[costKey]) chargesByPartnerAndCurrency[costKey] = { type: 'debit', charges: [] };
-            chargesByPartnerAndCurrency[costKey].charges.push(charge);
+            const debitKey = `debit-${charge.supplier}-${charge.costCurrency}`;
+            if (!grouped[debitKey]) grouped[debitKey] = [];
+            grouped[debitKey].push(charge);
         });
 
-        const exchangeRates = await exchangeRateService.getRates();
-
-        for (const groupKey in chargesByPartnerAndCurrency) {
-            const group = chargesByPartnerAndCurrency[groupKey];
-            const partnerName = group.type === 'credit' ? (group.charges[0].sacado || shipment.customer) : group.charges[0].supplier;
-            const partnerDetails = partners.find(p => p.name === partnerName);
-            const agio = partnerDetails?.exchangeRateAgio ?? 0;
+        for (const key in grouped) {
+            const [type, partner, currency] = key.split('-');
+            const charges = grouped[key];
+            const isCredit = type === 'credit';
             
-            const totalAmount = group.charges.reduce((sum, charge) => {
-                const value = group.type === 'credit' ? charge.sale : charge.cost;
-                const currency = group.type === 'credit' ? charge.saleCurrency : charge.costCurrency;
-                const ptaxRate = exchangeRates[currency] || 1;
-                const finalRate = currency === 'BRL' ? 1 : ptaxRate * (1 + agio / 100);
-                return sum + (value * finalRate);
-            }, 0);
-            
-            const mainCurrency = 'BRL';
+            const totalAmount = charges.reduce((sum, charge) => sum + (isCredit ? charge.sale : charge.cost), 0);
 
             if (totalAmount > 0) {
                 const entryId = addFinancialEntry({
-                    type: group.type,
-                    partner: partnerName,
-                    invoiceId: `${group.type === 'credit' ? 'INV' : 'BILL'}-${shipment.id}`,
-                    dueDate: new Date().toISOString(),
+                    type: isCredit ? 'credit' : 'debit',
+                    partner: partner,
+                    invoiceId: `${isCredit ? 'INV' : 'BILL'}-${shipment.id}`,
+                    dueDate: addDays(new Date(), 30).toISOString(), // Default 30 days due date
                     amount: totalAmount,
-                    currency: mainCurrency,
+                    currency: currency as any,
                     processId: shipment.id,
                     payments: [],
                     status: 'Aberto'
                 });
-                group.charges.forEach(c => updatedChargesMap.set(c.id, entryId));
+                
+                charges.forEach(c => updatedChargesMap.set(c.id, entryId));
                 entriesCreated++;
             }
         }
@@ -892,7 +881,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
           const { blDraftData, carrier, etd } = shipment;
           const companySettings = JSON.parse(localStorage.getItem('company_settings') || '{}');
           const logoDataUrl = companySettings.logoDataUrl;
-          const signatureUrl = initialUsers.find(u => u.name === shipment.responsibleUser)?.signatureUrl || 'https://placehold.co/200x60.png?text=Assinatura';
+          const signatureUrl = 'https://placehold.co/200x60.png?text=Assinatura'; // Simplified
 
           const payload = {
               isOriginal,

@@ -330,7 +330,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
         return { success: false, error: 'Objeto de embarque não fornecido.' };
     }
 
-    // Update shipment with draft data
+    // Update main shipment fields with draft data
     shipment.blDraftData = draftData;
     shipment.blType = draftData.blType;
     shipment.commodityDescription = draftData.descriptionOfGoods;
@@ -340,7 +340,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
     shipment.containers = draftData.containers.map((draftContainer, index) => {
         const existingContainer = shipment.containers?.[index] || {};
         return {
-            ...existingContainer, // Preserve original ID and other fields
+            ...existingContainer,
             ...draftContainer,
             id: existingContainer?.id || `container-${index}`,
             type: existingContainer?.type || 'DRY',

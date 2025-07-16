@@ -1,4 +1,5 @@
 
+
 import type { Partner } from '@/lib/partners-data';
 import { addDays, isValid, subDays } from 'date-fns';
 import { runSendShippingInstructions } from '@/app/actions';
@@ -355,6 +356,14 @@ export function getShipments(): Shipment[] {
                 predictedDate: safeMilestoneDate(m.predictedDate || m.dueDate),
                 effectiveDate: safeMilestoneDate(m.effectiveDate || m.completedDate),
             })).filter((m: Milestone) => m.predictedDate !== null), // Filter out milestones with invalid dates
+            blDraftHistory: shipment.blDraftHistory ? {
+                ...shipment.blDraftHistory,
+                sentAt: safeDate(shipment.blDraftHistory.sentAt),
+                revisions: (shipment.blDraftHistory.revisions || []).map((r: any) => ({
+                    ...r,
+                    date: safeDate(r.date),
+                })),
+            } : undefined,
         };
     });
   } catch (error) {

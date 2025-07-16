@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { cargoFlowsService } from '@/services/schedule-service';
 
 const GetVesselSchedulesInputSchema = z.object({
   origin: z.string().describe('The origin port code (e.g., CNSHA).'),
@@ -41,9 +40,8 @@ const getVesselSchedulesFlow = ai.defineFlow(
     outputSchema: GetVesselSchedulesOutputSchema,
   },
   async ({ origin, destination }) => {
-    // The Cargo-flows API integration was unstable.
-    // We are now falling back to simulated data to ensure app stability.
-    console.log("Falling back to simulated vessel schedules.");
-    return cargoFlowsService.getSimulatedVesselSchedules();
+    // This integration is currently unavailable.
+    console.log("Vessel schedules are not available at this time.");
+    return [];
   }
 );

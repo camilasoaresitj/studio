@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { cargoFlowsService } from '@/services/schedule-service';
 
 const GetFlightSchedulesInputSchema = z.object({
   origin: z.string().describe('The origin airport code (e.g., GRU).'),
@@ -41,9 +40,8 @@ const getFlightSchedulesFlow = ai.defineFlow(
     outputSchema: GetFlightSchedulesOutputSchema,
   },
   async ({ origin, destination }) => {
-    // The Cargo-flows API integration was unstable.
-    // We are now falling back to simulated data to ensure app stability.
-    console.log("Falling back to simulated flight schedules.");
-    return cargoFlowsService.getSimulatedFlightSchedules();
+    // This integration is currently unavailable.
+    console.log("Flight schedules are not available at this time.");
+    return [];
   }
 );

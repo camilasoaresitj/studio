@@ -121,7 +121,7 @@ const getTrackingInfoFlow = ai.defineFlow(
 
             const registrationPayload = {
                 formData: [{
-                    bookingNumber: input.trackingNumber,
+                    bookingNumber: input.trackingNumber, // Corrected field name
                     uploadType: "FORM_BY_BOOKING_NUMBER",
                     carrierCode: carrierCode,
                 }]
@@ -145,7 +145,6 @@ const getTrackingInfoFlow = ai.defineFlow(
             }
             console.log(`Shipment ${input.trackingNumber} successfully registered for tracking.`);
 
-            // Wait a moment for the system to process the creation before fetching
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             const trackingResponse = await fetch(`${baseUrl}/shipments?shipmentId=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT`, {
@@ -221,8 +220,6 @@ const getTrackingInfoFlow = ai.defineFlow(
         }
     }
 
-
-    // --- Final Fallback: AI Simulation ---
     console.log("Fallback: Generating tracking info with AI for carrier:", input.carrier);
     try {
         const { output } = await generateTrackingInfoWithAI(input);

@@ -84,71 +84,12 @@ Given a tracking number and a specific carrier, you will create a plausible hist
 `,
 });
 
-// Tool to create a shipment for tracking on Cargo-flows
-const createShipmentInCargoFlows = ai.defineTool(
-    {
-        name: 'createShipmentInCargoFlows',
-        description: 'Registers a shipment with the Cargo-flows API to begin tracking.',
-        inputSchema: z.object({
-            bookingNumber: z.string(),
-            carrierCode: z.string().describe("The carrier's master code, e.g., 'maeu' for Maersk.")
-        }),
-        outputSchema: z.object({ success: z.boolean(), message: z.string() }),
-    },
-    async (input) => {
-        const apiKey = process.env.CARGOFLOWS_API_KEY;
-        const orgToken = process.env.CARGOFLOWS_ORG_TOKEN;
-        const baseUrl = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
-
-        if (!apiKey || !orgToken) {
-            throw new Error('Cargo-flows API credentials are not set.');
-        }
-
-        const payload = {
-            formData: [{
-                bookingNumber: input.bookingNumber,
-                uploadType: "FORM_BY_BOOKING_NUMBER",
-                carrierCode: input.carrierCode,
-            }]
-        };
-
-        const response = await fetch(`${baseUrl}/createShipment`, {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-DPW-ApiKey': apiKey,
-                'X-DPW-Org-Token': orgToken,
-            },
-            body: JSON.stringify(payload)
-        });
-        
-        const responseData = await response.json();
-
-        if (!response.ok) {
-            console.error('Cargo-flows createShipment Error:', responseData);
-            throw new Error(responseData.error?.message || `Failed to create shipment: ${response.statusText}`);
-        }
-        
-        return { success: true, message: `Shipment ${input.bookingNumber} successfully registered for tracking.` };
-    }
-);
-
-
 const getCarrierCode = (carrierName: string): string | null => {
     const name = carrierName.toLowerCase();
     const mapping: { [key: string]: string } = {
-        'maersk': 'maeu',
-        'msc': 'msc',
-        'cma cgm': 'cma',
-        'hapag-lloyd': 'hls',
-        'evergreen': 'egl',
-        'one': 'one',
-        'cosco': 'cos',
-        'zim': 'zim',
-        'oocl': 'ool',
-        'hmm': 'hmm',
-        'yang ming': 'yml',
+        'maersk': 'maeu', 'msc': 'msc', 'cma cgm': 'cma', 'hapag-lloyd': 'hls',
+        'evergreen': 'egl', 'one': 'one', 'cosco': 'cos', 'zim': 'zim', 'oocl': 'ool',
+        'hmm': 'hmm', 'yang ming': 'yml',
     };
 
     for (const key in mapping) {
@@ -165,7 +106,6 @@ const getTrackingInfoFlow = ai.defineFlow(
     name: 'getTrackingInfoFlow',
     inputSchema: GetTrackingInfoInputSchema,
     outputSchema: GetTrackingInfoOutputSchema,
-    tools: [createShipmentInCargoFlows]
   },
   async (input) => {
     const cargoFlowsApiKey = process.env.CARGOFLOWS_API_KEY;
@@ -179,15 +119,36 @@ const getTrackingInfoFlow = ai.defineFlow(
                  throw new Error(`Carrier code not found for '${input.carrier}'. Unable to register shipment.`);
             }
 
-            const registrationResult = await createShipmentInCargoFlows({
-                bookingNumber: input.trackingNumber,
-                carrierCode: carrierCode,
+            const registrationPayload = {
+                formData: [{
+                    bookingNumber: input.trackingNumber,
+                    uploadType: "FORM_BY_BOOKING_NUMBER",
+                    carrierCode: carrierCode,
+                }]
+            };
+
+            const regResponse = await fetch(`${baseUrl}/createShipment`, {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-DPW-ApiKey': cargoFlowsApiKey,
+                    'X-DPW-Org-Token': cargoFlowsOrgToken,
+                },
+                body: JSON.stringify(registrationPayload)
             });
-            console.log(registrationResult.message);
-            
+
+            if (!regResponse.ok) {
+                 const errorBody = await regResponse.json();
+                 console.error("Cargo-flows createShipment Error Body:", errorBody);
+                 throw new Error(`Cargo-flows API error on createShipment (${regResponse.status}): ${errorBody.error?.message || JSON.stringify(errorBody)}`);
+            }
+            console.log(`Shipment ${input.trackingNumber} successfully registered for tracking.`);
+
+            // Wait a moment for the system to process the creation before fetching
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            const response = await fetch(`${baseUrl}/shipments?shipmentId=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT`, {
+            const trackingResponse = await fetch(`${baseUrl}/shipments?shipmentId=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT`, {
                 method: 'GET',
                 headers: {
                     'accept': 'application/json',
@@ -196,16 +157,12 @@ const getTrackingInfoFlow = ai.defineFlow(
                 },
             });
 
-            const responseText = await response.text();
-            
-            if (!response.ok) {
-                let errorMessage = `Cargo-flows API Error (${response.status})`;
+            const responseText = await trackingResponse.text();
+            if (!trackingResponse.ok) {
+                let errorMessage = `Cargo-flows API Error (${trackingResponse.status})`;
                 try {
-                    const errorJson = JSON.parse(responseText);
-                    errorMessage = errorJson.error?.message || errorJson.message || JSON.stringify(errorJson);
-                } catch (jsonError) {
-                    errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
-                }
+                    errorMessage = JSON.parse(responseText).error?.message || responseText;
+                } catch (e) { /* ignore json parse error */ }
                 throw new Error(errorMessage);
             }
             

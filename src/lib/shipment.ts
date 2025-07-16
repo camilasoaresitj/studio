@@ -78,6 +78,7 @@ export type ContainerDetail = {
   tare: string;
   grossWeight: string;
   volumes?: string;
+  measurement?: string; // CBM
   freeTime?: string;
   type: string; // Add type for demurrage calculation
   effectiveReturnDate?: Date;
@@ -109,7 +110,14 @@ export type BLDraftData = {
     measurement: string;
     ncm: string;
     blType: 'original' | 'express';
-    containers: { number: string; seal: string }[];
+    containers: { 
+        number: string; 
+        seal: string;
+        tare: string;
+        grossWeight: string;
+        volumes: string;
+        measurement: string;
+    }[];
 };
 
 export type Shipment = {

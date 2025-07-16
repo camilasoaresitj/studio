@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useState, useEffect } from 'react';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,10 @@ import { Separator } from './ui/separator';
 const blDraftContainerSchema = z.object({
   number: z.string().min(1, "Obrigatório"),
   seal: z.string().min(1, "Obrigatório"),
+  tare: z.string().min(1, "Obrigatório"),
+  grossWeight: z.string().min(1, "Obrigatório"),
+  volumes: z.string().min(1, "Obrigatório"),
+  measurement: z.string().min(1, "Obrigatório"),
 });
 
 const blDraftSchema = z.object({
@@ -31,8 +35,8 @@ const blDraftSchema = z.object({
   notify: z.string().min(1, 'Notify Party é obrigatório'),
   marksAndNumbers: z.string().min(1, 'Marcas e números são obrigatórios'),
   descriptionOfGoods: z.string().min(1, 'Descrição da mercadoria é obrigatória'),
-  grossWeight: z.string().min(1, 'Peso bruto é obrigatório'),
-  measurement: z.string().min(1, 'Cubagem é obrigatória'),
+  grossWeight: z.string(), // This will be calculated
+  measurement: z.string(), // This will be calculated
   ncm: z.string().min(1, 'NCM é obrigatório'),
   blType: z.enum(['original', 'express'], { required_error: 'Selecione o tipo de BL.' }),
   containers: z.array(blDraftContainerSchema).min(1, "Adicione pelo menos um contêiner.")
@@ -75,7 +79,14 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
       measurement: '',
       ncm: shipment.ncms?.[0] || '',
       blType: 'original',
-      containers: shipment.containers?.map(c => ({ number: c.number, seal: c.seal })) || [{ number: '', seal: '' }],
+      containers: shipment.containers?.map(c => ({ 
+          number: c.number, 
+          seal: c.seal,
+          tare: c.tare,
+          grossWeight: c.grossWeight,
+          volumes: c.volumes || '',
+          measurement: (c as any).measurement || '',
+       })) || [{ number: '', seal: '', tare: '', grossWeight: '', volumes: '', measurement: '' }],
     },
   });
 
@@ -83,6 +94,18 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
     control: form.control,
     name: "containers",
   });
+
+  const watchedContainers = useWatch({
+    control: form.control,
+    name: "containers"
+  });
+
+  useEffect(() => {
+      const totalGrossWeight = watchedContainers.reduce((sum, c) => sum + (parseFloat(c.grossWeight) || 0), 0);
+      const totalMeasurement = watchedContainers.reduce((sum, c) => sum + (parseFloat(c.measurement) || 0), 0);
+      form.setValue('grossWeight', `${totalGrossWeight.toFixed(2)} KGS`);
+      form.setValue('measurement', `${totalMeasurement.toFixed(3)} CBM`);
+  }, [watchedContainers, form]);
   
   const docsCutoffMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
   const docsCutoffDate = docsCutoffMilestone?.predictedDate ? new Date(docsCutoffMilestone.predictedDate) : null;
@@ -229,39 +252,44 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
                   )}
               />
           </div>
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField name="grossWeight" control={form.control} render={({ field }) => (
-                  <FormItem><FormLabel>Peso Bruto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )}/>
-              <FormField name="measurement" control={form.control} render={({ field }) => (
-                  <FormItem><FormLabel>Cubagem (CBM)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )}/>
-              <FormField name="ncm" control={form.control} render={({ field }) => (
-                  <FormItem><FormLabel>NCM</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )}/>
-          </div>
-
+           
           <Separator />
           
            <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium">Dados dos Contêineres</h3>
-                <Button type="button" variant="outline" size="sm" onClick={() => append({ number: '', seal: '' })}>
+                <Button type="button" variant="outline" size="sm" onClick={() => append({ number: '', seal: '', tare: '', grossWeight: '', volumes: '', measurement: '' })}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Contêiner
                 </Button>
               </div>
               <div className="space-y-4">
                   {fields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 border rounded-md items-end">
-                          <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => (
-                              <FormItem className="col-span-1 md:col-span-2"><FormLabel>Nº do Contêiner</FormLabel><FormControl><Input placeholder="MSCU1234567" {...field} /></FormControl><FormMessage /></FormItem>
-                          )}/>
-                           <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => (
-                              <FormItem className="col-span-1 md:col-span-2"><FormLabel>Nº do Lacre</FormLabel><FormControl><Input placeholder="SEAL12345" {...field} /></FormControl><FormMessage /></FormItem>
-                          )}/>
-                          <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                      <div key={field.id} className="p-3 border rounded-md relative space-y-4">
+                           <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 text-destructive hover:bg-destructive/10" onClick={() => remove(index)} disabled={fields.length <= 1}>
                               <Trash2 className="h-4 w-4" />
                           </Button>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+                              <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => (
+                                  <FormItem><FormLabel>Nº do Contêiner</FormLabel><FormControl><Input placeholder="MSCU1234567" {...field} /></FormControl><FormMessage /></FormItem>
+                              )}/>
+                              <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => (
+                                  <FormItem><FormLabel>Nº do Lacre</FormLabel><FormControl><Input placeholder="SEAL12345" {...field} /></FormControl><FormMessage /></FormItem>
+                              )}/>
+                              <FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => (
+                                  <FormItem><FormLabel>Tara (kg)</FormLabel><FormControl><Input placeholder="2250" {...field} /></FormControl><FormMessage /></FormItem>
+                              )}/>
+                               <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => (
+                                  <FormItem><FormLabel>Peso Bruto (kg)</FormLabel><FormControl><Input placeholder="24000" {...field} /></FormControl><FormMessage /></FormItem>
+                              )}/>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+                               <FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => (
+                                  <FormItem><FormLabel>Qtd. Volumes</FormLabel><FormControl><Input placeholder="1000" {...field} /></FormControl><FormMessage /></FormItem>
+                              )}/>
+                              <FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => (
+                                  <FormItem><FormLabel>Cubagem (m³)</FormLabel><FormControl><Input placeholder="28.5" {...field} /></FormControl><FormMessage /></FormItem>
+                              )}/>
+                          </div>
                       </div>
                   ))}
               </div>
@@ -272,6 +300,19 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
                       fieldState.error?.message ? <FormMessage className="mt-2">{fieldState.error.message}</FormMessage> : null
                   )}
               />
+          </div>
+
+          <Separator />
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField name="grossWeight" control={form.control} render={({ field }) => (
+                  <FormItem><FormLabel>Peso Bruto Total</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
+              )}/>
+              <FormField name="measurement" control={form.control} render={({ field }) => (
+                  <FormItem><FormLabel>Cubagem Total (CBM)</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
+              )}/>
+              <FormField name="ncm" control={form.control} render={({ field }) => (
+                  <FormItem><FormLabel>NCM</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              )}/>
           </div>
 
           <FormField

@@ -13,13 +13,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
+import { runGetTrackingInfo, runDetectCarrier, runUpdateShipmentInTracking } from '@/app/actions';
 import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2, MessageSquare, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { ShipmentChat } from '@/components/shipment-chat';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type Task = {
     milestone: Milestone;
@@ -144,18 +144,23 @@ export default function OperacionalPage() {
         const carrier = carrierResponse.data.carrier;
         toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
 
+        const existingShipmentIndex = shipments.findIndex(s => 
+            (s.bookingNumber && s.bookingNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) || 
+            (s.masterBillNumber && s.masterBillNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) ||
+            (s.id.toUpperCase() === `PROC-${bookingNumberToFetch.toUpperCase()}`)
+        );
+
+        if (existingShipmentIndex > -1) {
+            await runUpdateShipmentInTracking({ shipmentNumber: bookingNumberToFetch });
+            toast({ title: "Sincronização Solicitada!", description: `Enviando pedido de atualização para ${bookingNumberToFetch}.`});
+        }
+        
         // Step 2: Get Tracking Info with the detected carrier
         const trackingResponse = await runGetTrackingInfo({ trackingNumber: bookingNumberToFetch, carrier });
 
         if (trackingResponse.success) {
             const fetchedData = trackingResponse.data;
             const shipmentDetails = fetchedData.shipmentDetails || {};
-            
-            const existingShipmentIndex = shipments.findIndex(s => 
-                (s.bookingNumber && s.bookingNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) || 
-                (s.masterBillNumber && s.masterBillNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) ||
-                (s.id.toUpperCase() === `PROC-${bookingNumberToFetch.toUpperCase()}`)
-            );
             
             let updatedShipment: Shipment;
 

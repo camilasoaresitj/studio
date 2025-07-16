@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,7 +6,7 @@ import { getShipmentById, Shipment, Milestone, DocumentStatus } from '@/lib/ship
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare, Wallet } from 'lucide-react';
 import { format, isValid, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
@@ -14,6 +15,7 @@ import { BLDraftForm } from '@/components/bl-draft-form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShipmentChat } from '@/components/shipment-chat';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date | null }) => {
     if (!predictedDate || !isValid(predictedDate)) {
@@ -114,12 +116,13 @@ export function ClientPortalPage({ id }: { id: string }) {
                  {/* Main Content Area */}
                 <div className="lg:col-span-2 space-y-6">
                      <Tabs defaultValue={needsDraft ? "draft" : "timeline"} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="timeline">Timeline</TabsTrigger>
                             <TabsTrigger value="draft" className="relative">
                                 Instruções de Embarque (Draft)
                                 {needsDraft && <span className="absolute top-1 right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-destructive"></span></span>}
                             </TabsTrigger>
+                             <TabsTrigger value="financials">Financeiro</TabsTrigger>
                             <TabsTrigger value="chat">
                                 <MessageSquare className="mr-2 h-4 w-4" />
                                 Chat
@@ -153,6 +156,34 @@ export function ClientPortalPage({ id }: { id: string }) {
                         </TabsContent>
                         <TabsContent value="draft">
                             <BLDraftForm shipment={shipment} onUpdate={handleUpdate} />
+                        </TabsContent>
+                         <TabsContent value="financials">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/> Financeiro</CardTitle>
+                                    <CardDescription>Resumo dos valores de venda acordados para este processo.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="border rounded-lg">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Descrição da Taxa</TableHead>
+                                                    <TableHead className="text-right">Valor de Venda</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {shipment.charges.map(charge => (
+                                                    <TableRow key={charge.id}>
+                                                        <TableCell>{charge.name}</TableCell>
+                                                        <TableCell className="text-right font-mono">{charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
                         <TabsContent value="chat">
                            <ShipmentChat shipment={shipment} onUpdate={handleUpdate} />
@@ -221,3 +252,5 @@ export function ClientPortalPage({ id }: { id: string }) {
         </div>
     );
 }
+
+    

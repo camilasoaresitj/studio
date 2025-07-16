@@ -25,7 +25,7 @@ import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
 import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { getFinancialEntries, addFinancialEntry } from "@/lib/financials-data";
-import type { PartialPayment } from './financials/financial-page-client';
+import type { PartialPayment } from '@/components/financials/financial-page-client';
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import type { Partner } from "@/lib/partners-data";
@@ -335,15 +335,16 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
     shipment.blType = draftData.blType;
     shipment.commodityDescription = draftData.descriptionOfGoods;
     shipment.ncms = draftData.ncms;
+    
     // Update container data from draft
     shipment.containers = draftData.containers.map((draftContainer, index) => {
-        const existingContainer = shipment.containers?.[index];
+        const existingContainer = shipment.containers?.[index] || {};
         return {
             ...existingContainer, // Preserve original ID and other fields
             ...draftContainer,
             id: existingContainer?.id || `container-${index}`,
-            type: existingContainer?.type || 'DRY'
-        }
+            type: existingContainer?.type || 'DRY',
+        };
     });
     
     // Manage draft history
@@ -492,3 +493,5 @@ export async function createEmailCampaign(instruction: string, partners: Partner
         return { success: false, error: error.message || "Failed to create email campaign" };
     }
 }
+
+    

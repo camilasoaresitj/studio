@@ -120,11 +120,11 @@ const getTrackingInfoFlow = ai.defineFlow(
             }
 
             const registrationPayload = {
-                uploadType: "FORM_BY_BOOKING_NUMBER",
-                formData: [{
-                    bookingNumber: input.trackingNumber,
-                    carrierCode: carrierCode,
-                }]
+              uploadType: "FORM_BY_BOOKING_NUMBER",
+              formData: [{
+                  bookingNumber: input.trackingNumber,
+                  carrierCode: carrierCode,
+              }]
             };
 
             const regResponse = await fetch(`${baseUrl}/createShipments`, {
@@ -147,7 +147,8 @@ const getTrackingInfoFlow = ai.defineFlow(
 
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            const trackingResponse = await fetch(`${baseUrl}/shipments?shipmentId=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT`, {
+            // Use bookingNumber as the query parameter, as per the documentation
+            const trackingResponse = await fetch(`${baseUrl}/shipments?bookingNumber=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT&_limit=1`, {
                 method: 'GET',
                 headers: {
                     'accept': 'application/json',
@@ -166,15 +167,15 @@ const getTrackingInfoFlow = ai.defineFlow(
             }
             
             const data = JSON.parse(responseText);
-            const trackingData = data?.data?.[0]; 
+            const trackingData = data?.data?.[0]; // Access the data array
             
-            if (trackingData && trackingData.events && trackingData.events.length > 0) {
+            if (trackingData && trackingData.shipmentEvents && trackingData.shipmentEvents.length > 0) {
               console.log("Cargo-flows API call successful. Processing real data.");
-              const events: TrackingEvent[] = trackingData.events.map((event: any) => ({
-                  status: event.description || 'N/A',
-                  date: event.timestamp,
-                  location: event.location?.name || 'N/A',
-                  completed: new Date(event.timestamp) <= new Date(),
+              const events: TrackingEvent[] = trackingData.shipmentEvents.map((event: any) => ({
+                  status: event.name || 'N/A',
+                  date: event.actualTime || event.estimateTime,
+                  location: event.location || 'N/A',
+                  completed: !!event.actualTime,
                   carrier: input.carrier,
               }));
 
@@ -182,13 +183,13 @@ const getTrackingInfoFlow = ai.defineFlow(
 
               const shipmentDetails: Partial<Shipment> = {
                   carrier: input.carrier,
-                  origin: trackingData.origin_port?.name || 'N/A',
-                  destination: trackingData.destination_port?.name || 'N/A',
-                  vesselName: trackingData.vessel_name,
-                  voyageNumber: trackingData.voyage_number,
-                  etd: trackingData.departure_date_estimated ? new Date(trackingData.departure_date_estimated) : undefined,
-                  eta: trackingData.arrival_date_estimated ? new Date(trackingData.arrival_date_estimated) : undefined,
-                  masterBillNumber: input.trackingNumber,
+                  origin: trackingData.shipmentLegs?.portToPort?.originPortCode || 'N/A',
+                  destination: trackingData.shipmentLegs?.portToPort?.dischargePortCode || 'N/A',
+                  vesselName: trackingData.shipmentLegs?.portToPort?.currentTransportName,
+                  voyageNumber: trackingData.shipmentLegs?.portToPort?.currentTripNumber,
+                  etd: trackingData.shipmentLegs?.portToPort?.firstPortEtd ? new Date(trackingData.shipmentLegs.portToPort.firstPortEtd) : undefined,
+                  eta: trackingData.shipmentLegs?.portToPort?.lastPortEta ? new Date(trackingData.shipmentLegs.portToPort.lastPortEta) : undefined,
+                  masterBillNumber: trackingData.mblNumber || input.trackingNumber,
                   containers: trackingData.containers?.map((c: any) => ({
                       id: c.container_number,
                       number: c.container_number,

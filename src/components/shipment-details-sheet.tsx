@@ -34,7 +34,13 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown, Edit, ChevronsUpDown, Check, Map, Calculator } from 'lucide-react';
+import { 
+    CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, 
+    AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, 
+    Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, 
+    Upload, FileCheck, CircleDot, FileText, FileDown, Edit, 
+    ChevronsUpDown, Check, Map, Calculator 
+} from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -599,17 +605,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         const updatedChargesMap = new Map<string, string>();
         let entriesCreated = 0;
         
-        // Group charges by (partner, type, currency)
-        const grouped: { [key: string]: QuoteCharge[] } = {};
-        chargesToInvoice.forEach(charge => {
+        const grouped: { [key: string]: QuoteCharge[] } = chargesToInvoice.reduce((acc, charge) => {
             const creditKey = `credit-${charge.sacado}-${charge.saleCurrency}`;
-            if (!grouped[creditKey]) grouped[creditKey] = [];
-            grouped[creditKey].push(charge);
+            if (!acc[creditKey]) acc[creditKey] = [];
+            acc[creditKey].push(charge);
 
             const debitKey = `debit-${charge.supplier}-${charge.costCurrency}`;
-            if (!grouped[debitKey]) grouped[debitKey] = [];
-            grouped[debitKey].push(charge);
-        });
+            if (!acc[debitKey]) acc[debitKey] = [];
+            acc[debitKey].push(charge);
+
+            return acc;
+        }, {} as { [key: string]: QuoteCharge[] });
 
         for (const key in grouped) {
             const [type, partner, currency] = key.split('-');
@@ -631,7 +637,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                     status: 'Aberto'
                 });
                 
-                charges.forEach(c => updatedChargesMap.set(c.id, entryId));
+                charges.forEach(c => updatedChargesMap.set(c.id, entryId!));
                 entriesCreated++;
             }
         }

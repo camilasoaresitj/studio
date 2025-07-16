@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import type { Shipment } from '@/lib/shipment';
+import type { Shipment, Partner } from '@/lib/shipment';
 import { submitBLDraft } from '@/app/actions';
 import { Loader2, Send, FileText, AlertTriangle, CheckCircle, Ship, Trash2, PlusCircle } from 'lucide-react';
 import { Textarea } from './ui/textarea';
@@ -46,6 +46,18 @@ interface BLDraftFormProps {
   onUpdate?: (updatedShipment: Shipment) => void;
 }
 
+const formatPartnerAddress = (partner: Partner | undefined) => {
+    if (!partner) return '';
+    const addressParts = [
+        partner.name,
+        `${partner.address.street || ''}, ${partner.address.number || ''}`,
+        `${partner.address.district || ''}, ${partner.address.city || ''} - ${partner.address.state || ''}`,
+        partner.address.country,
+        partner.cnpj ? `CNPJ: ${partner.cnpj}` : partner.vat ? `VAT: ${partner.vat}` : ''
+    ];
+    return addressParts.filter(part => part && part.trim() !== ',').join('\n');
+};
+
 export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -54,9 +66,9 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
   const form = useForm<BLDraftFormData>({
     resolver: zodResolver(blDraftSchema),
     defaultValues: shipment.blDraftData || {
-      shipper: shipment.shipper?.name || '',
-      consignee: shipment.consignee?.name || '',
-      notify: shipment.notifyName || shipment.consignee?.name || '',
+      shipper: formatPartnerAddress(shipment.shipper),
+      consignee: formatPartnerAddress(shipment.consignee),
+      notify: shipment.notifyName || formatPartnerAddress(shipment.consignee),
       marksAndNumbers: `LOTE ${shipment.id}`,
       descriptionOfGoods: shipment.commodityDescription || '',
       grossWeight: shipment.netWeight || '',
@@ -134,7 +146,7 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
 
   const cardContent = (
     <>
-      {docsCutoffDate && (
+      {docsCutoffDate && !isSheet && (
            <Alert variant={isLateSubmission ? 'destructive' : 'default'} className="mb-6">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Atenção ao Prazo!</AlertTitle>
@@ -144,6 +156,18 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
               </AlertDescription>
           </Alert>
       )}
+      <Card className="mb-6 bg-secondary/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Dados do Embarque</CardTitle>
+          <CardDescription>Informações para sua conferência.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div><p className="font-semibold">Booking:</p><p className="text-muted-foreground">{shipment.bookingNumber}</p></div>
+            <div><p className="font-semibold">Navio:</p><p className="text-muted-foreground">{shipment.vesselName}</p></div>
+            <div><p className="font-semibold">Origem:</p><p className="text-muted-foreground">{shipment.origin}</p></div>
+            <div><p className="font-semibold">Destino:</p><p className="text-muted-foreground">{shipment.destination}</p></div>
+        </CardContent>
+      </Card>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -324,3 +348,4 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
     </Card>
   );
 }
+

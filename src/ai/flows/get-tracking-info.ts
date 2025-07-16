@@ -100,6 +100,10 @@ const createShipmentInCargoFlows = ai.defineTool(
         const orgToken = process.env.CARGOFLOWS_ORG_TOKEN;
         const baseUrl = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 
+        if (!apiKey || !orgToken) {
+            throw new Error('Cargo-flows API credentials are not set.');
+        }
+
         const payload = {
             formData: [{
                 bookingNumber: input.bookingNumber,
@@ -113,8 +117,8 @@ const createShipmentInCargoFlows = ai.defineTool(
             headers: {
                 'accept': 'application/json',
                 'Content-Type': 'application/json',
-                'X-DPW-ApiKey': apiKey!,
-                'X-DPW-Org-Token': orgToken!,
+                'X-DPW-ApiKey': apiKey,
+                'X-DPW-Org-Token': orgToken,
             },
             body: JSON.stringify(payload)
         });
@@ -170,28 +174,19 @@ const getTrackingInfoFlow = ai.defineFlow(
 
     if (cargoFlowsApiKey && cargoFlowsOrgToken) {
         try {
-            // Step 1: Get Carrier Code
             const carrierCode = getCarrierCode(input.carrier);
             if (!carrierCode) {
                  throw new Error(`Carrier code not found for '${input.carrier}'. Unable to register shipment.`);
             }
 
-            // Step 2: Register the shipment for tracking
             const registrationResult = await createShipmentInCargoFlows({
                 bookingNumber: input.trackingNumber,
                 carrierCode: carrierCode,
             });
-            if (!registrationResult.success) {
-                throw new Error(registrationResult.message);
-            }
             console.log(registrationResult.message);
             
-            // Add a small delay to allow the system to process the creation
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            // Step 3: Fetch the tracking data
-            console.log(`Attempting to fetch tracking from Cargo-flows API for: ${input.trackingNumber}`);
-            
             const response = await fetch(`${baseUrl}/shipments?shipmentId=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT`, {
                 method: 'GET',
                 headers: {
@@ -201,25 +196,23 @@ const getTrackingInfoFlow = ai.defineFlow(
                 },
             });
 
+            const responseText = await response.text();
+            
             if (!response.ok) {
-                const errorText = await response.text();
-                // Check if the response is JSON or a plain text/HTML error
                 let errorMessage = `Cargo-flows API Error (${response.status})`;
                 try {
-                    const errorJson = JSON.parse(errorText);
+                    const errorJson = JSON.parse(responseText);
                     errorMessage = errorJson.error?.message || errorJson.message || JSON.stringify(errorJson);
                 } catch (jsonError) {
-                    errorMessage = `${errorMessage}: ${errorText.substring(0, 200)}`;
+                    errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
                 }
                 throw new Error(errorMessage);
             }
             
-            const data = await response.json();
+            const data = JSON.parse(responseText);
+            const trackingData = data?.data?.[0]; 
             
-            const trackingData = data?.data?.[0]; // Correctly access nested data
-            const hasEvents = trackingData && trackingData.events && trackingData.events.length > 0;
-            
-            if (hasEvents) {
+            if (trackingData && trackingData.events && trackingData.events.length > 0) {
               console.log("Cargo-flows API call successful. Processing real data.");
               const events: TrackingEvent[] = trackingData.events.map((event: any) => ({
                   status: event.description || 'N/A',
@@ -246,6 +239,7 @@ const getTrackingInfoFlow = ai.defineFlow(
                       seal: c.seal_number || 'N/A',
                       tare: `${c.tare_weight || 0} KG`,
                       grossWeight: `${c.gross_weight || 0} KG`,
+                      type: c.container_type || 'DRY'
                   })) || [],
                   milestones: events.map((event: TrackingEvent) => ({
                       name: event.status,
@@ -305,5 +299,3 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
-
-    

@@ -43,11 +43,10 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
     const router = useRouter();
     
     useEffect(() => {
-        const data = getShipmentById(params.id);
-        if (!data) {
-            console.log('Shipment not found');
-        }
+      const data = getShipmentById(params.id);
+      if (data) {
         setShipment(data);
+      }
     }, [params.id]);
     
     const handleUpdate = (updatedShipment: Shipment) => {
@@ -78,7 +77,7 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
     });
 
     const documentsToShow = shipment.documents?.filter(doc => 
-        ['Original HBL', 'Invoice', 'Packing List', 'Extrato DUE'].includes(doc.name) && doc.status === 'approved'
+        ['Original HBL', 'Invoice', 'Packing List', 'Extrato DUE'].includes(doc.name) && (doc.status === 'uploaded' || doc.status === 'approved')
     ) || [];
 
     const docCutoff = sortedMilestones.find(m => m.name.toLowerCase().includes('documental'));

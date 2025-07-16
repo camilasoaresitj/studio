@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -33,7 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown, Edit, ChevronsUpDown, Check, Map } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown, Edit, ChevronsUpDown, Check, Map, Calculator } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -764,7 +765,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             saleCurrency: fee.currency,
             supplier: 'CargaInteligente',
             sacado: shipment.customer,
-            approvalStatus: 'pendente',
+            approvalStatus: 'aprovada',
             financialEntryId: null,
         }));
         
@@ -891,7 +892,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
           const { blDraftData, carrier, etd } = shipment;
           const companySettings = JSON.parse(localStorage.getItem('company_settings') || '{}');
           const logoDataUrl = companySettings.logoDataUrl;
-          const signatureUrl = users.find(u => u.name === shipment.responsibleUser)?.signatureUrl || 'https://placehold.co/200x60.png?text=Assinatura';
+          const signatureUrl = initialUsers.find(u => u.name === shipment.responsibleUser)?.signatureUrl || 'https://placehold.co/200x60.png?text=Assinatura';
 
           const payload = {
               isOriginal,
@@ -1028,7 +1029,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                         <TabsTrigger value="documentos">Documentos</TabsTrigger>
                         <TabsTrigger value="milestones">Milestones & Tracking</TabsTrigger>
                         <TabsTrigger value="mapa">Mapa</TabsTrigger>
-                        <TabsTrigger value="mercadoria">Mercadoria & Containers</TabsTrigger>
+                        <TabsTrigger value="mercadoria">Mercadoria & Container</TabsTrigger>
                         <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
                     </TabsList>
 
@@ -1736,7 +1737,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                     </div>
                                     <div className="flex justify-end gap-2 mt-4">
                                         <Button type="button" onClick={handleInvoiceShipment} disabled={isInvoicing || hasPendingCharges || allChargesInvoiced} title={hasPendingCharges ? "Existem despesas pendentes de aprovação" : allChargesInvoiced ? "Todas as despesas já foram faturadas" : ""}>
-                                            {isInvoicing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
+                                            {isInvoicing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
                                             Faturar Processo
                                         </Button>
                                     </div>

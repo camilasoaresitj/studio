@@ -333,26 +333,38 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
     // Update shipment with draft data
     shipment.blDraftData = draftData;
     shipment.blType = draftData.blType;
-    shipment.containers = draftData.containers; // Also update container data from draft
     shipment.commodityDescription = draftData.descriptionOfGoods;
+    shipment.ncms = draftData.ncms;
+    // Update container data from draft
+    shipment.containers = draftData.containers.map((draftContainer, index) => {
+        const existingContainer = shipment.containers?.[index];
+        return {
+            ...existingContainer, // Preserve original ID and other fields
+            ...draftContainer,
+            id: existingContainer?.id || `container-${index}`,
+            type: existingContainer?.type || 'DRY'
+        }
+    });
     
-    const lateRevisionHistory = isLate 
-        ? { date: new Date(), cost: 150, currency: 'USD' }
-        : undefined;
-
+    // Manage draft history
     const draftHistory = shipment.blDraftHistory || { sentAt: null, revisions: [] };
-    if (!draftHistory.sentAt) {
+    const isFirstSubmission = !draftHistory.sentAt;
+
+    if (isFirstSubmission) {
         draftHistory.sentAt = new Date();
     } else {
+        const lateRevision = isLate 
+            ? { cost: 150, currency: 'USD' as const }
+            : undefined;
         draftHistory.revisions.push({
             date: new Date(),
-            lateFee: lateRevisionHistory
+            lateFee: lateRevision
         });
     }
     shipment.blDraftHistory = draftHistory;
     
     // Create new milestone/task for operational team
-    const taskName = !draftHistory.sentAt ? 'Enviar Draft MBL ao armador' : `[REVISÃO] Enviar Draft MBL ao armador`;
+    const taskName = isFirstSubmission ? 'Enviar Draft MBL ao armador' : `[REVISÃO] Enviar Draft MBL ao armador`;
 
      const sendToCarrierMilestone = {
         name: taskName,
@@ -364,7 +376,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
 
     shipment.milestones.push(sendToCarrierMilestone);
     
-    // Add late fee if applicable
+    // Add late fee as a charge if applicable
     if (isLate) {
         const lateFeeCharge = {
             id: `late-fee-${Date.now()}`,

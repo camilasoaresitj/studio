@@ -109,10 +109,6 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
       const supplier = quoteToSend.charges.find(c => c.name.toLowerCase().includes('frete'))?.supplier || 'N/A';
       
       const isClientAgent = customer.roles.agente === true;
-      const contentVariables = {
-        '1': quoteToSend.id.replace('-DRAFT', ''),
-        '2': finalPrice
-      };
 
       const commsResponse = await runSendQuote({
         customerName: quoteToSend.customer,
@@ -148,7 +144,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             const primaryContact = customer.contacts.find(c => c.departments?.includes('Comercial')) || customer.contacts[0];
             const phone = primaryContact?.phone?.replace(/\D/g, '');
              if (phone) {
-                const whatsappResponse = await runSendWhatsapp(phone, JSON.stringify(contentVariables));
+                const whatsappResponse = await runSendWhatsapp(phone, commsResponse.data.whatsappMessage);
                 if (whatsappResponse.success) {
                     toast({ title: 'Mensagem de WhatsApp enviada!', description: `SID: ${whatsappResponse.data.sid}.`, className: 'bg-success text-success-foreground' });
                 } else {

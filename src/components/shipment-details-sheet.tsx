@@ -889,6 +889,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
       setIsGeneratingHbl(true);
       try {
           const { blDraftData, carrier, etd } = shipment;
+          const companySettings = JSON.parse(localStorage.getItem('company_settings') || '{}');
+          const logoDataUrl = companySettings.logoDataUrl;
+          const signatureUrl = users.find(u => u.name === shipment.responsibleUser)?.signatureUrl || 'https://placehold.co/200x60.png?text=Assinatura';
+
           const payload = {
               isOriginal,
               blNumber: shipment.houseBillNumber || `HBL-${shipment.id}`,
@@ -908,7 +912,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
               numberOfOriginals: blDraftData.blType === 'original' ? '3 (TRÊS)' : '0 (ZERO)',
               issueDate: format(new Date(), 'dd-MMM-yyyy'),
               shippedOnBoardDate: etd ? format(etd, 'dd-MMM-yyyy') : format(new Date(), 'dd-MMM-yyyy'),
-              signatureUrl: 'https://placehold.co/200x60.png?text=Assinatura'
+              signatureUrl: signatureUrl,
+              companyLogoUrl: logoDataUrl,
+              companyName: companySettings.razaoSocial || 'CargaInteligente',
           };
 
           const response = await runGenerateHblPdf(payload);

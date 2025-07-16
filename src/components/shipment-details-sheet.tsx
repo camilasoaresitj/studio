@@ -81,7 +81,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking, runGetRouteMap } from '@/app/actions';
+import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking, runGetRouteMap } from '@/app/actions';
 import { addFinancialEntry, getFinancialEntries } from '@/lib/financials-data';
 import { Checkbox } from './ui/checkbox';
 import { getFees } from '@/lib/fees-data';
@@ -514,7 +514,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
       if (isNaN(freeDays) || !arrivalDate || !isValid(new Date(arrivalDate))) return null;
       
-      const freeTimeDueDate = addDays(new Date(arrivalDate), freeDays - 1);
+      const freeTimeDueDate = addDays(new Date(arrivalDate), freeDays - 1); // Day 0 is arrival day
       const daysRemaining = differenceInDays(freeTimeDueDate, new Date());
       let variant: 'success' | 'warning' | 'destructive' = 'success';
       if (daysRemaining <= 3 && daysRemaining >= 0) variant = 'warning';
@@ -1476,7 +1476,21 @@ const handlePartnerUpdate = (partner: Partner) => {
                         <TabsContent value="bl_draft" className="mt-0 space-y-6">
                            <Card>
                                 <CardHeader>
-                                    <CardTitle>Instruções de Embarque (Draft BL)</CardTitle>
+                                    <div className="flex justify-between items-center">
+                                        <CardTitle>Instruções de Embarque (Draft BL)</CardTitle>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" disabled={isGeneratingHbl}>
+                                                    {isGeneratingHbl ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4" />}
+                                                    Emitir HBL
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DropdownMenuItem onClick={() => handleGenerateHbl(false)}>Gerar Draft</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleGenerateHbl(true)}>Gerar Original</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
                                     <CardDescription>
                                     Visualize e edite as informações do Draft do Bill of Lading.
                                     </CardDescription>
@@ -1533,26 +1547,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                               </Card>
                               <Card>
                                   <CardHeader>
-                                      <div className="flex justify-between items-center">
-                                          <CardTitle className="text-lg">Gerenciamento de Documentos</CardTitle>
-                                          <DropdownMenu>
-                                              <DropdownMenuTrigger asChild>
-                                                  <Button variant="outline" disabled={isGeneratingHbl}>
-                                                      {isGeneratingHbl ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4" />}
-                                                      Emitir HBL
-                                                  </Button>
-                                              </DropdownMenuTrigger>
-                                              <DropdownMenuContent>
-                                                  <DropdownMenuItem onClick={() => handleGenerateHbl(false)}>Gerar Draft</DropdownMenuItem>
-                                                  <DropdownMenuItem onClick={() => handleGenerateHbl(true)}>Gerar Original</DropdownMenuItem>
-                                              </DropdownMenuContent>
-                                          </DropdownMenu>
-                                      </div>
-                                       {shipment.blType && (
-                                            <CardDescription>
-                                                Tipo de BL solicitado pelo cliente: <Badge>{shipment.blType === 'express' ? 'Express Release' : 'Impressão na Origem'}</Badge>
-                                            </CardDescription>
-                                        )}
+                                    <CardTitle className="text-lg">Gerenciamento de Documentos</CardTitle>
                                   </CardHeader>
                                   <CardContent className="space-y-4">
                                       {documentFields.map((doc, index) => {

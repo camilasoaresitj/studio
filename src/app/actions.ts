@@ -32,7 +32,7 @@ import { sendDraftApprovalRequest } from "@/ai/flows/send-draft-approval-request
 import { format } from 'date-fns';
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getShipmentById, updateShipment, type Shipment, type BLDraftData, type Milestone, type QuoteCharge } from '@/lib/shipment';
+import { getShipmentById, updateShipment, getShipments, type Shipment, type BLDraftData, type Milestone, type QuoteCharge } from '@/lib/shipment';
 
 
 export async function runGetFreightRates(input: any) {
@@ -319,9 +319,15 @@ export async function createEmailCampaign(instruction: string, partners: Partner
     }
 }
 
-export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, isLateSubmission: boolean) {
+export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean) {
   try {
-    const updatedShipment = { ...shipment };
+    const shipments = getShipments();
+    const shipmentIndex = shipments.findIndex(s => s.id === shipmentId);
+    if (shipmentIndex === -1) {
+        throw new Error('Embarque não encontrado.');
+    }
+
+    const updatedShipment = { ...shipments[shipmentIndex] };
 
     // Update main shipment fields with draft data
     updatedShipment.blDraftData = draftData;
@@ -331,7 +337,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
 
     // Update container details from the draft form
     updatedShipment.containers = draftData.containers.map((draftContainer, index) => {
-      const existingContainer = shipment.containers?.[index] || { id: `cont-${Date.now()}-${index}`, type: 'DRY' };
+      const existingContainer = updatedShipment.containers?.[index] || { id: `cont-${Date.now()}-${index}`, type: 'DRY' };
       return {
         ...existingContainer,
         number: draftContainer.number,
@@ -355,7 +361,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
             status: 'pending',
             predictedDate: now,
             effectiveDate: null,
-            details: `Draft inicial recebido do cliente ${shipment.customer}.`
+            details: `Draft inicial recebido do cliente ${updatedShipment.customer}.`
         };
         updatedShipment.milestones.push(newTask);
     } else {
@@ -366,7 +372,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
             status: 'pending',
             predictedDate: now,
             effectiveDate: null,
-            details: `Revisão do draft recebida do cliente ${shipment.customer}.`
+            details: `Revisão do draft recebida do cliente ${updatedShipment.customer}.`
         };
         updatedShipment.milestones.push(newTask);
         
@@ -380,7 +386,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
                 sale: 150,
                 saleCurrency: 'USD',
                 supplier: 'CargaInteligente',
-                sacado: shipment.customer,
+                sacado: updatedShipment.customer,
                 approvalStatus: 'aprovada',
             };
             updatedShipment.charges = [...(updatedShipment.charges || []), lateFeeCharge];
@@ -389,8 +395,13 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
     }
 
     updatedShipment.blDraftHistory = history;
+    
+    // Sort milestones to ensure correct order
+    updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
 
-    updateShipment(updatedShipment);
+    shipments[shipmentIndex] = updatedShipment;
+    updateShipment(shipments[shipmentIndex]); // This should now correctly update the single shipment
+
     return { success: true, data: updatedShipment };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);
@@ -410,16 +421,54 @@ export async function fetchShipmentForDraft(shipmentId: string) {
     }
 }
 
-export async function sendChatMessage(shipment: Shipment, message: ChatMessage) {
+export async function sendChatMessage(shipmentId: string, message: ChatMessage) {
   try {
+    const allShipments = getShipments();
+    const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
+
+    if (shipmentIndex === -1) {
+        throw new Error('Embarque não encontrado.');
+    }
+    
     const updatedShipment = {
-        ...shipment,
-        chatMessages: [...(shipment.chatMessages || []), message],
+        ...allShipments[shipmentIndex],
+        chatMessages: [...(allShipments[shipmentIndex].chatMessages || []), message],
     };
-    updateShipment(updatedShipment);
+
+    allShipments[shipmentIndex] = updatedShipment;
+    updateShipment(updatedShipment); // updateShipment now saves the whole array, so we can just call it on the specific one
+
     return { success: true, data: updatedShipment };
   } catch (error: any) {
     console.error("Send Chat Message Action Failed", error);
     return { success: false, error: error.message || "Failed to send chat message" };
   }
+}
+
+export async function markMessagesAsRead(shipmentId: string, userId: string) {
+    try {
+        const allShipments = getShipments();
+        const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
+
+        if (shipmentIndex === -1) {
+            throw new Error('Embarque não encontrado.');
+        }
+        
+        const updatedShipment = { ...allShipments[shipmentIndex] };
+        updatedShipment.chatMessages = (updatedShipment.chatMessages || []).map(msg => {
+            if (msg.sender === 'Cliente' && !(msg.readBy || []).includes(userId)) {
+                return { ...msg, readBy: [...(msg.readBy || []), userId] };
+            }
+            return msg;
+        });
+
+        allShipments[shipmentIndex] = updatedShipment;
+        updateShipment(updatedShipment);
+
+        return { success: true, data: updatedShipment };
+
+    } catch(error: any) {
+        console.error("Mark Messages As Read Action Failed", error);
+        return { success: false, error: error.message || "Failed to mark messages as read" };
+    }
 }

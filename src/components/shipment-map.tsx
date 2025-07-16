@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
 import { runGetRouteMap } from '@/app/actions';
 import type { GetRouteMapOutput } from '@/ai/flows/get-route-map';

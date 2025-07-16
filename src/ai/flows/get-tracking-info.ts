@@ -120,14 +120,14 @@ const getTrackingInfoFlow = ai.defineFlow(
             }
 
             const registrationPayload = {
+                uploadType: "FORM_BY_BOOKING_NUMBER",
                 formData: [{
-                    bookingNumber: input.trackingNumber, // Corrected field name
-                    uploadType: "FORM_BY_BOOKING_NUMBER",
+                    bookingNumber: input.trackingNumber,
                     carrierCode: carrierCode,
                 }]
             };
 
-            const regResponse = await fetch(`${baseUrl}/createShipment`, {
+            const regResponse = await fetch(`${baseUrl}/createShipments`, {
                 method: 'POST',
                 headers: {
                     'accept': 'application/json',

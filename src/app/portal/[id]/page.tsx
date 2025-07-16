@@ -38,14 +38,14 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 export default function ShipmentDetailPage({ params }: { params: { id: string } }) {
     const [shipment, setShipment] = useState<Shipment | null>(null);
     const router = useRouter();
-    const data = getShipmentById(params.id);
-
+    
     useEffect(() => {
+        const data = getShipmentById(params.id);
         if (!data) {
             console.log('Shipment not found');
         }
         setShipment(data);
-    }, [params.id, data]);
+    }, [params.id]);
     
     const handleUpdate = (updatedShipment: Shipment) => {
         setShipment(updatedShipment);
@@ -199,4 +199,3 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
         </div>
     );
 }
-

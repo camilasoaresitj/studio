@@ -24,7 +24,7 @@ import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
 import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
-import { getFinancialEntries, addFinancialEntry } from "@/lib/financials-data";
+import { getFinancialEntries, addFinancialEntry, findEntryById, updateFinancialEntry } from "@/lib/financials-data";
 import type { PartialPayment } from '@/components/financials/financial-page-client';
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
@@ -463,10 +463,9 @@ export async function updateShipmentFromAgent(id: string, data: any) {
     return { success: true, data: shipment };
 }
 
-export async function sendChatMessage(shipmentId: string, message: Omit<ChatMessage, 'timestamp'>) {
-    const shipment = getShipmentById(shipmentId);
+export async function sendChatMessage(shipment: Shipment, message: Omit<ChatMessage, 'timestamp'>) {
     if (!shipment) {
-      return { success: false, error: 'Embarque não encontrado.' };
+      return { success: false, error: 'Objeto de embarque não fornecido.' };
     }
   
     const newMessage: ChatMessage = {
@@ -493,5 +492,3 @@ export async function createEmailCampaign(instruction: string, partners: Partner
         return { success: false, error: error.message || "Failed to create email campaign" };
     }
 }
-
-    

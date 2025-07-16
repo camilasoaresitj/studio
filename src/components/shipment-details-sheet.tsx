@@ -33,7 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown, Edit } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -62,6 +62,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Textarea } from './ui/textarea';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { BLDraftForm } from './bl-draft-form';
+import { PartnerSelectionDialog } from './partner-selection-dialog';
 
 
 const containerDetailSchema = z.object({
@@ -156,6 +157,9 @@ const shipmentDetailsSchema = z.object({
     cargo: z.string().optional(),
   }),
   blDraftData: blDraftSchemaForSheet, // Use the new partial schema
+  shipper: z.any().optional(),
+  consignee: z.any().optional(),
+  agent: z.any().optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -201,6 +205,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const [selectedFees, setSelectedFees] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const [editingPartnerType, setEditingPartnerType] = useState<'shipper' | 'consignee' | 'agent' | null>(null);
+
   
   const form = useForm<ShipmentDetailsFormData>({
     resolver: zodResolver(shipmentDetailsSchema),
@@ -274,6 +280,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     if (shipment) {
       form.reset({
         id: shipment.id,
+        shipper: shipment.shipper,
+        consignee: shipment.consignee,
+        agent: shipment.agent,
         carrier: shipment.carrier || '',
         vesselName: shipment.vesselName || '',
         voyageNumber: shipment.voyageNumber || '',
@@ -924,6 +933,19 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
 const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
 
+const handlePartnerUpdate = (partner: Partner) => {
+    if (!editingPartnerType) return;
+    
+    form.setValue(editingPartnerType, partner);
+    
+    toast({
+        title: 'Parceiro Atualizado!',
+        description: `O ${editingPartnerType} foi alterado para ${partner.name}. Salve para confirmar.`,
+        className: 'bg-primary text-primary-foreground'
+    });
+    setEditingPartnerType(null);
+};
+
 
   return (
       <>
@@ -951,41 +973,41 @@ const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
 
                     <div className="flex-grow overflow-y-auto pr-6 -mr-6 space-y-6">
                         <TabsContent value="dados_embarque" className="mt-0 space-y-6">
-                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <Card>
-                                    <CardHeader className="pb-2"><CardTitle className="text-base">Shipper (Exportador)</CardTitle></CardHeader>
+                                    <CardHeader className="pb-2 flex-row items-center justify-between">
+                                        <CardTitle className="text-base">Shipper (Exportador)</CardTitle>
+                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingPartnerType('shipper')}><Edit className="h-4 w-4"/></Button>
+                                    </CardHeader>
                                     <CardContent className="text-sm space-y-1">
-                                        <p className="font-semibold">{shipper?.name}</p>
-                                        <p className="text-muted-foreground">{shipper?.address?.street}, {shipper?.address?.number}</p>
-                                        <p className="text-muted-foreground">{shipper?.address?.city}, {shipper?.address?.state} - {shipper?.address?.country}</p>
+                                        <p className="font-semibold">{form.watch('shipper')?.name}</p>
+                                        <p className="text-muted-foreground">{form.watch('shipper')?.address?.city}, {form.watch('shipper')?.address?.country}</p>
                                     </CardContent>
                                 </Card>
                                 <Card>
-                                    <CardHeader className="pb-2"><CardTitle className="text-base">Consignee (Importador)</CardTitle></CardHeader>
+                                    <CardHeader className="pb-2 flex-row items-center justify-between">
+                                        <CardTitle className="text-base">Consignee (Importador)</CardTitle>
+                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingPartnerType('consignee')}><Edit className="h-4 w-4"/></Button>
+                                    </CardHeader>
                                     <CardContent className="text-sm space-y-1">
-                                        <p className="font-semibold">{consignee?.name}</p>
-                                        <p className="text-muted-foreground">{consignee?.address?.street}, {consignee?.address?.number}</p>
-                                        <p className="text-muted-foreground">{consignee?.address?.city}, {consignee?.address?.state} - {consignee?.address?.country}</p>
+                                        <p className="font-semibold">{form.watch('consignee')?.name}</p>
+                                        <p className="text-muted-foreground">{form.watch('consignee')?.address?.city}, {form.watch('consignee')?.address?.country}</p>
                                     </CardContent>
                                 </Card>
                                 <Card>
-                                    <CardHeader className="pb-2"><CardTitle className="text-base">Agente</CardTitle></CardHeader>
+                                    <CardHeader className="pb-2 flex-row items-center justify-between">
+                                        <CardTitle className="text-base">Agente</CardTitle>
+                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingPartnerType('agent')}><Edit className="h-4 w-4"/></Button>
+                                    </CardHeader>
                                     <CardContent className="text-sm space-y-1">
-                                        {agent ? (
+                                        {form.watch('agent') ? (
                                             <>
-                                                <p className="font-semibold">{agent.name}</p>
-                                                <p className="text-muted-foreground">{agent.address.city}, {agent.address.country}</p>
+                                                <p className="font-semibold">{form.watch('agent')?.name}</p>
+                                                <p className="text-muted-foreground">{form.watch('agent')?.address?.city}, {form.watch('agent')?.address?.country}</p>
                                             </>
                                         ) : (
                                             <p className="text-muted-foreground">Embarque Direto</p>
                                         )}
-                                    </CardContent>
-                                </Card>
-                                 <Card>
-                                    <CardHeader className="pb-2"><CardTitle className="text-base">Responsável</CardTitle></CardHeader>
-                                    <CardContent className="text-sm space-y-1">
-                                        <p className="font-semibold">{shipment.responsibleUser || 'Não atribuído'}</p>
-                                        <p className="text-muted-foreground">Ponto de contato interno</p>
                                     </CardContent>
                                 </Card>
                             </div>
@@ -1743,6 +1765,13 @@ const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
             </DialogFooterComponent>
         </DialogContent>
       </Dialog>
+      <PartnerSelectionDialog
+        isOpen={!!editingPartnerType}
+        onClose={() => setEditingPartnerType(null)}
+        partners={partners}
+        onPartnerSelect={handlePartnerUpdate}
+        title={`Selecionar ${editingPartnerType}`}
+      />
       </>
   );
 }

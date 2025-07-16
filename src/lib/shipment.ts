@@ -8,7 +8,7 @@ import { runSendShippingInstructions } from '@/app/actions';
 import type { PartialPayment } from './financials-data';
 
 
-const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v7';
+const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v8';
 
 // --- Type Definitions ---
 
@@ -101,6 +101,20 @@ export type DocumentStatus = {
     uploadedAt?: Date;
 };
 
+export type BLDraftRevision = {
+    date: Date;
+    lateFee?: {
+        cost: number;
+        currency: 'USD';
+    }
+};
+
+export type BLDraftHistory = {
+    sentAt: Date | null;
+    revisions: BLDraftRevision[];
+};
+
+
 export type BLDraftData = {
     shipper: string;
     consignee: string;
@@ -123,7 +137,7 @@ export type BLDraftData = {
 };
 
 export type ChatMessage = {
-    sender: 'Cliente' | 'CargaInteligente';
+    sender: 'Cliente' | 'CargaInteligente' | 'Sistema';
     message: string;
     timestamp: string; // ISO String
     department: 'Operacional' | 'Financeiro' | 'Sistema';
@@ -184,6 +198,7 @@ export type Shipment = {
   deliveryAddress?: string;
   dischargeTerminal?: string;
   chatMessages?: ChatMessage[];
+  blDraftHistory?: BLDraftHistory;
 };
 
 // --- Milestone Templates & Due Date Calculation ---
@@ -462,6 +477,10 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
         timestamp: new Date().toISOString(),
         department: 'Sistema',
     }],
+    blDraftHistory: {
+        sentAt: null,
+        revisions: [],
+    },
   };
 
   if (isImport && quoteData.agent) {

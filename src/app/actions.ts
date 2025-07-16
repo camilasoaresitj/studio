@@ -334,24 +334,36 @@ export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: 
     // Update shipment with draft data
     shipment.blDraftData = draftData;
     shipment.blType = draftData.blType;
+    shipment.containers = draftData.containers; // Also update container data from draft
+    shipment.commodityDescription = draftData.descriptionOfGoods;
+    
+    const lateRevisionHistory = isLate 
+        ? { date: new Date(), cost: 150, currency: 'USD' }
+        : undefined;
+
+    const draftHistory = shipment.blDraftHistory || { sentAt: null, revisions: [] };
+    if (!draftHistory.sentAt) {
+        draftHistory.sentAt = new Date();
+    } else {
+        draftHistory.revisions.push({
+            date: new Date(),
+            lateFee: lateRevisionHistory
+        });
+    }
+    shipment.blDraftHistory = draftHistory;
     
     // Create new milestone/task for operational team
-    const draftReceivedMilestone = {
-        name: `Draft de BL Recebido`,
-        status: 'completed' as const,
-        predictedDate: new Date(),
-        effectiveDate: new Date(),
-        details: `Draft recebido do cliente.`,
-    };
+    const taskName = !draftHistory.sentAt ? 'Enviar Draft MBL ao armador' : `[REVISÃO] Enviar Draft MBL ao armador`;
+
      const sendToCarrierMilestone = {
-        name: `Enviar Draft MBL ao armador`,
+        name: taskName,
         status: 'pending' as const,
         predictedDate: new Date(),
         effectiveDate: null,
-        details: `Verificar draft do cliente e enviar ao armador.`,
+        details: `Verificar draft do cliente e enviar ao armador. ${isLate ? 'Revisão tardia com custo.' : ''}`,
     };
 
-    shipment.milestones.push(draftReceivedMilestone, sendToCarrierMilestone);
+    shipment.milestones.push(sendToCarrierMilestone);
     
     // Add late fee if applicable
     if (isLate) {
@@ -359,11 +371,11 @@ export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: 
             id: `late-fee-${Date.now()}`,
             name: 'Taxa de Alteração de Draft Fora do Prazo',
             type: 'Fixo',
-            cost: 50,
+            cost: 150,
             costCurrency: 'USD' as const,
-            sale: 50,
+            sale: 150,
             saleCurrency: 'USD' as const,
-            supplier: 'CargaInteligente',
+            supplier: shipment.carrier || 'Armador a Confirmar',
             sacado: shipment.customer,
             approvalStatus: 'aprovada' as const,
         };
@@ -380,23 +392,14 @@ export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: 
 
     updateShipment(shipment);
     
-     // Send notification email to client
-    const docCutoffMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
-    const deadline = docCutoffMilestone?.predictedDate ? format(docCutoffMilestone.predictedDate, "dd/MM/yyyy 'às' HH:mm") : 'o mais rápido possível';
-    
-    const hblPreviewLink = `https://cargainteligente.com/preview-hbl/${shipment.id}`; // Simulated link
-
-    try {
-        await sendDraftApprovalRequest({
-            customerName: shipment.customer,
-            shipmentId: shipment.id,
-            deadline: deadline,
-            hblPreviewLink: hblPreviewLink,
-        });
-    } catch (emailError) {
-        console.error("Failed to generate draft approval email:", emailError);
-        // We don't want to fail the whole operation if the email fails, so we just log it.
-    }
+    // Add a system message to the chat
+    const chatMessage = {
+        sender: 'Sistema' as const,
+        message: `O cliente enviou o Draft do HBL. Operacional, favor verificar e enviar ao armador. ${isLate ? 'Este envio foi feito após o deadline e gerou custo de correção.' : ''}`,
+        timestamp: new Date().toISOString(),
+        department: 'Operacional' as const,
+    };
+    sendChatMessage(id, chatMessage);
     
     return { success: true, data: shipment };
 }

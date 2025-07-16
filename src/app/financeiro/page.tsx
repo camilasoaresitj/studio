@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -666,7 +665,7 @@ export default function FinanceiroPage() {
                 <TableHead>Parceiro</TableHead>
                 <TableHead>Fatura</TableHead>
                 <TableHead>{isLegalTable ? 'Nº Processo Judicial' : 'Processo LTI'}</TableHead>
-                <TableHead className="w-40">Status</TableHead>
+                <TableHead className="w-10 text-center">Status</TableHead>
                 {isLegalTable && <TableHead>Comentários</TableHead>}
                 <TableHead>Vencimento</TableHead>
                 <TableHead className="text-right">Valor Total</TableHead>
@@ -676,10 +675,13 @@ export default function FinanceiroPage() {
             </TableHeader>
             <TableBody>
                 {tableEntries.length > 0 ? tableEntries.map((entry) => {
-                    const { status, variant } = getEntryStatus(entry);
+                    const { status } = getEntryStatus(entry);
                     const balance = getEntryBalance(entry);
+                    const rowColor = status === 'Pago' ? 'bg-green-100/50 dark:bg-green-900/20' : 
+                                     status === 'Vencido' ? 'bg-red-100/50 dark:bg-red-900/20' : 
+                                     status === 'Parcialmente Pago' ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : '';
                     return (
-                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
+                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"} className={cn(rowColor)}>
                             {!isLegalTable && <TableCell>
                                 <Checkbox
                                     checked={selectedRows.has(entry.id)}
@@ -710,7 +712,7 @@ export default function FinanceiroPage() {
                                     </a>
                                 )}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="text-center">
                                 {isLegalTable ? (
                                     <Select
                                         value={entry.legalStatus}
@@ -725,7 +727,12 @@ export default function FinanceiroPage() {
                                         </SelectContent>
                                     </Select>
                                 ) : (
-                                    <Badge variant={variant} className="capitalize w-[130px] justify-center">{status}</Badge>
+                                    <div className={cn('w-4 h-4 rounded-full mx-auto', 
+                                    status === 'Pago' ? 'bg-green-500' : 
+                                    status === 'Vencido' ? 'bg-red-500' : 
+                                    status === 'Parcialmente Pago' ? 'bg-yellow-500' :
+                                    status === 'Pendente de Aprovação' ? 'bg-blue-500' :
+                                    'bg-gray-400')} title={status} />
                                 )}
                             </TableCell>
                             {isLegalTable && (
@@ -738,7 +745,7 @@ export default function FinanceiroPage() {
                                     />
                                 </TableCell>
                             )}
-                            <TableCell className={cn(variant === 'destructive' && !isLegalTable && 'text-destructive font-bold')}>
+                            <TableCell className={cn(status === 'Vencido' && !isLegalTable && 'text-destructive font-bold')}>
                                 {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
                             </TableCell>
                             <TableCell className="text-right font-mono">

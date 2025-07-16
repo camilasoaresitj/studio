@@ -11,6 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Shipment, TrackingEvent } from '@/lib/shipment';
+import { findCarrierByName } from '@/lib/carrier-data';
 
 const GetTrackingInfoInputSchema = z.object({
   trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
@@ -84,22 +85,6 @@ Given a tracking number and a specific carrier, you will create a plausible hist
 `,
 });
 
-const getCarrierCode = (carrierName: string): string | null => {
-    const name = carrierName.toLowerCase();
-    const mapping: { [key: string]: string } = {
-        'maersk': 'maeu', 'msc': 'msc', 'cma cgm': 'cma', 'hapag-lloyd': 'hls',
-        'evergreen': 'egl', 'one': 'one', 'cosco': 'cos', 'zim': 'zim', 'oocl': 'ool',
-        'hmm': 'hmm', 'yang ming': 'yml',
-    };
-
-    for (const key in mapping) {
-        if (name.includes(key)) {
-            return mapping[key];
-        }
-    }
-    return null;
-};
-
 // Helper function to process successful tracking data
 const processTrackingData = (trackingData: any, carrier: string): GetTrackingInfoOutput => {
   const events: TrackingEvent[] = (trackingData.shipmentEvents || []).map((event: any) => ({
@@ -160,8 +145,10 @@ const getTrackingInfoFlow = ai.defineFlow(
 
     if (cargoFlowsApiKey && cargoFlowsOrgToken) {
       try {
-        // Step 1: Try to fetch the shipment first
-        const trackingResponse = await fetch(`${baseUrl}/shipments?bookingNumber=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT&_limit=1`, {
+        // Step 1: Try to fetch the shipment first to see if it exists
+        const getShipmentUrl = `${baseUrl}/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${input.trackingNumber}&_limit=1`;
+        
+        const trackingResponse = await fetch(getShipmentUrl, {
           method: 'GET',
           headers: {
             'accept': 'application/json',
@@ -179,8 +166,8 @@ const getTrackingInfoFlow = ai.defineFlow(
             throw new Error(errorMessage);
         }
 
-        const data = await trackingResponse.json();
-        const trackingData = data?.data?.[0];
+        const responseJson = await trackingResponse.json();
+        const trackingData = responseJson?.data?.[0];
 
         // If data exists, process and return it
         if (trackingData && trackingData.shipmentEvents && trackingData.shipmentEvents.length > 0) {
@@ -190,8 +177,8 @@ const getTrackingInfoFlow = ai.defineFlow(
 
         // Step 2: If no data, create the shipment
         console.log("Cargo-flows: Shipment not found. Attempting to create.");
-        const carrierCode = getCarrierCode(input.carrier);
-        if (!carrierCode) {
+        const carrierInfo = findCarrierByName(input.carrier);
+        if (!carrierInfo || !carrierInfo.scac) {
           throw new Error(`Carrier code not found for '${input.carrier}'. Unable to register shipment.`);
         }
         
@@ -199,7 +186,8 @@ const getTrackingInfoFlow = ai.defineFlow(
           uploadType: "FORM_BY_BOOKING_NUMBER",
           formData: [{
             bookingNumber: input.trackingNumber,
-            carrierCode: carrierCode,
+            carrierCode: carrierInfo.scac,
+            oceanLine: carrierInfo.name, // Use the proper name for oceanLine
           }]
         };
 
@@ -219,6 +207,7 @@ const getTrackingInfoFlow = ai.defineFlow(
           try {
               const errorBody = await regResponse.json();
               errorMessage = errorBody.error?.message || JSON.stringify(errorBody);
+              console.error("Cargo-flows createShipment Error Body:", errorBody);
           } catch(e) { /* ignore error */ }
           throw new Error(errorMessage);
         }
@@ -229,15 +218,15 @@ const getTrackingInfoFlow = ai.defineFlow(
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Step 3: Re-fetch the data after creation
-        const finalTrackingResponse = await fetch(`${baseUrl}/shipments?bookingNumber=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT&_limit=1`, {
+        const finalTrackingResponse = await fetch(getShipmentUrl, {
             method: 'GET',
             headers: { 'accept': 'application/json', 'X-DPW-ApiKey': cargoFlowsApiKey, 'X-DPW-Org-Token': cargoFlowsOrgToken },
         });
 
         if (!finalTrackingResponse.ok) throw new Error(`Failed to fetch after creation (${finalTrackingResponse.status})`);
         
-        const finalData = await finalTrackingResponse.json();
-        const finalTrackingData = finalData?.data?.[0];
+        const finalDataJson = await finalTrackingResponse.json();
+        const finalTrackingData = finalDataJson?.data?.[0];
 
         if (finalTrackingData && finalTrackingData.shipmentEvents && finalTrackingData.shipmentEvents.length > 0) {
             console.log("Cargo-flows: Re-fetch successful. Processing data.");

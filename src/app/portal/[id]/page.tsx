@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,7 +7,7 @@ import { getShipmentById, Shipment, Milestone, DocumentStatus } from '@/lib/ship
 import { notFound, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning } from 'lucide-react';
+import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare } from 'lucide-react';
 import { format, isValid, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
@@ -14,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { BLDraftForm } from '@/components/bl-draft-form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ShipmentChat } from '@/components/shipment-chat';
 
 const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date | null }) => {
     if (!predictedDate || !isValid(predictedDate)) {
@@ -115,11 +117,15 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
                  {/* Main Content Area */}
                 <div className="lg:col-span-2 space-y-6">
                      <Tabs defaultValue={needsDraft ? "draft" : "timeline"} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
+                        <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="timeline">Timeline</TabsTrigger>
                             <TabsTrigger value="draft" className="relative">
                                 Instruções de Embarque (Draft)
                                 {needsDraft && <span className="absolute top-1 right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-destructive"></span></span>}
+                            </TabsTrigger>
+                            <TabsTrigger value="chat">
+                                <MessageSquare className="mr-2 h-4 w-4" />
+                                Chat
                             </TabsTrigger>
                         </TabsList>
                         <TabsContent value="timeline">
@@ -150,6 +156,9 @@ export default function ShipmentDetailPage({ params }: { params: { id: string } 
                         </TabsContent>
                         <TabsContent value="draft">
                             <BLDraftForm shipment={shipment} onUpdate={handleUpdate} />
+                        </TabsContent>
+                        <TabsContent value="chat">
+                           <ShipmentChat shipment={shipment} onUpdate={handleUpdate} />
                         </TabsContent>
                     </Tabs>
                 </div>

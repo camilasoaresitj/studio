@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Partner } from '@/lib/partners-data';
@@ -120,6 +121,12 @@ export type BLDraftData = {
     }[];
 };
 
+export type ChatMessage = {
+    sender: 'Cliente' | 'CargaInteligente';
+    message: string;
+    timestamp: string; // ISO String
+};
+
 export type Shipment = {
   id: string; // The process number, derived from quote ID
   quoteId: string; // The original quote ID
@@ -173,6 +180,7 @@ export type Shipment = {
   collectionAddress?: string;
   deliveryAddress?: string;
   dischargeTerminal?: string;
+  chatMessages?: ChatMessage[];
 };
 
 // --- Milestone Templates & Due Date Calculation ---
@@ -445,6 +453,7 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     mblPrintingAtDestination: false,
     notifyName: quoteData.notifyName,
     customer: quoteData.customer, 
+    chatMessages: [],
   };
 
   if (isImport && quoteData.agent) {

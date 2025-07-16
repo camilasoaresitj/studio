@@ -19,7 +19,7 @@ import { getVesselSchedules } from "@/ai/flows/get-ship-schedules";
 import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
-import { getShipments, updateShipment, getShipmentById } from "@/lib/shipment";
+import { getShipments, updateShipment, getShipmentById, ChatMessage } from "@/lib/shipment";
 import type { BLDraftData } from '@/lib/shipment';
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
@@ -434,4 +434,25 @@ export async function updateShipmentFromAgent(id: string, data: any) {
     
     updateShipment(shipment);
     return { success: true, data: shipment };
+}
+
+export async function sendChatMessage(shipmentId: string, message: Omit<ChatMessage, 'timestamp'>) {
+  const shipment = getShipmentById(shipmentId);
+  if (!shipment) {
+    return { success: false, error: 'Embarque não encontrado.' };
+  }
+
+  const newMessage: ChatMessage = {
+    ...message,
+    timestamp: new Date().toISOString(),
+  };
+  
+  const updatedShipment = {
+      ...shipment,
+      chatMessages: [...(shipment.chatMessages || []), newMessage],
+  };
+  
+  updateShipment(updatedShipment);
+  
+  return { success: true, data: updatedShipment };
 }

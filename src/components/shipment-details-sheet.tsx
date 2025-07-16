@@ -35,11 +35,37 @@ import { Calendar } from './ui/calendar';
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { 
-    CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, 
-    AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, 
-    Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, 
-    Upload, FileCheck, CircleDot, FileText, FileDown, Edit, 
-    ChevronsUpDown, Check, Map, Calculator 
+    Calendar as CalendarIcon, 
+    PlusCircle, 
+    Save, 
+    Trash2, 
+    Circle, 
+    CheckCircle, 
+    Hourglass, 
+    AlertTriangle, 
+    Wallet, 
+    Receipt, 
+    Anchor, 
+    CaseSensitive, 
+    Weight, 
+    Package, 
+    Clock, 
+    Ship, 
+    GanttChart, 
+    Link as LinkIcon, 
+    RefreshCw, 
+    Loader2, 
+    Printer, 
+    Upload, 
+    FileCheck, 
+    CircleDot, 
+    FileText, 
+    FileDown, 
+    Edit, 
+    ChevronsUpDown, 
+    Check, 
+    Map as MapIcon, 
+    Calculator
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
@@ -1732,7 +1758,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                     </div>
                                     <div className="flex justify-end gap-2 mt-4">
                                         <Button type="button" onClick={handleInvoiceShipment} disabled={isInvoicing || hasPendingCharges || allChargesInvoiced} title={hasPendingCharges ? "Existem despesas pendentes de aprovação" : allChargesInvoiced ? "Todas as despesas já foram faturadas" : ""}>
-                                            {isInvoicing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
+                                            <Calculator className="mr-2 h-4 w-4" />
                                             Faturar Processo
                                         </Button>
                                     </div>

@@ -41,13 +41,14 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 export default function ShipmentDetailPage({ params }: { params: { id: string } }) {
     const [shipment, setShipment] = useState<Shipment | null>(null);
     const router = useRouter();
+    const { id } = params;
     
     useEffect(() => {
-      const data = getShipmentById(params.id);
+      const data = getShipmentById(id);
       if (data) {
         setShipment(data);
       }
-    }, [params.id]);
+    }, [id]);
     
     const handleUpdate = (updatedShipment: Shipment) => {
         setShipment(updatedShipment);

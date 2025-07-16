@@ -325,10 +325,9 @@ export async function fetchShipmentForDraft(id: string): Promise<{ success: bool
   }
 }
 
-export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: boolean) {
-    let shipment = getShipmentById(id);
+export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, isLate: boolean) {
     if (!shipment) {
-        return { success: false, error: 'Embarque não encontrado.' };
+        return { success: false, error: 'Objeto de embarque não fornecido.' };
     }
 
     // Update shipment with draft data
@@ -399,7 +398,7 @@ export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: 
         timestamp: new Date().toISOString(),
         department: 'Operacional' as const,
     };
-    sendChatMessage(id, chatMessage);
+    sendChatMessage(shipment.id, chatMessage);
     
     return { success: true, data: shipment };
 }

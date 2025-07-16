@@ -46,7 +46,7 @@ export function ShipmentChat({ shipment, onUpdate }: ShipmentChatProps) {
         });
         
         if (response.success && response.data) {
-            onUpdate(response.data);
+            onUpdate(response.data as Shipment);
             setNewMessage('');
         } else {
             toast({

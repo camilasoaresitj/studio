@@ -493,5 +493,3 @@ export async function createEmailCampaign(instruction: string, partners: Partner
         return { success: false, error: error.message || "Failed to create email campaign" };
     }
 }
-
-    

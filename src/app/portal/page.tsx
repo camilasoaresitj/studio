@@ -14,6 +14,8 @@ import { useRouter } from 'next/navigation';
 import { format, isValid, differenceInDays, isPast, isWithinInterval, addDays } from 'date-fns';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface DraftAlert {
     shipment: Shipment;
@@ -21,12 +23,19 @@ interface DraftAlert {
     isOverdue: boolean;
 }
 
+interface ReportData {
+    title: string;
+    shipments: Shipment[];
+}
+
+
 export default function CustomerPortalPage() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [invoices, setInvoices] = useState<FinancialEntry[]>([]);
     const [quotes, setQuotes] = useState<Quote[]>([]);
     const [draftAlerts, setDraftAlerts] = useState<DraftAlert[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [reportData, setReportData] = useState<ReportData | null>(null);
     const router = useRouter();
 
     // In a real app, customerId would come from an authentication context
@@ -93,8 +102,8 @@ export default function CustomerPortalPage() {
         const arrivingSoon = shipments.filter(s => s.eta && isValid(new Date(s.eta)) && isWithinInterval(new Date(s.eta), interval));
 
         return {
-            departingCount: departingSoon.length,
-            arrivingCount: arrivingSoon.length,
+            departingSoon,
+            arrivingSoon,
         };
     }, [shipments]);
 
@@ -132,6 +141,7 @@ export default function CustomerPortalPage() {
     };
 
     return (
+        <>
         <div className="p-4 md:p-8 space-y-8">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center">
                 <div>
@@ -153,23 +163,23 @@ export default function CustomerPortalPage() {
             </header>
 
             <div className="grid gap-6 sm:grid-cols-2">
-                <Card>
+                <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Embarques Partindo nos Próximos 7 Dias', shipments: kpiData.departingSoon })}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Embarques Partindo</CardTitle>
                         <Ship className="h-5 w-5 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{kpiData.departingCount}</div>
+                        <div className="text-2xl font-bold">{kpiData.departingSoon.length}</div>
                         <p className="text-xs text-muted-foreground">nos próximos 7 dias</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Embarques Chegando nos Próximos 7 Dias', shipments: kpiData.arrivingSoon })}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Embarques Chegando</CardTitle>
                         <Anchor className="h-5 w-5 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{kpiData.arrivingCount}</div>
+                        <div className="text-2xl font-bold">{kpiData.arrivingSoon.length}</div>
                         <p className="text-xs text-muted-foreground">nos próximos 7 dias</p>
                     </CardContent>
                 </Card>
@@ -340,5 +350,45 @@ export default function CustomerPortalPage() {
                 </CardContent>
             </Card>
         </div>
+        <Dialog open={!!reportData} onOpenChange={(isOpen) => !isOpen && setReportData(null)}>
+            <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>{reportData?.title}</DialogTitle>
+                </DialogHeader>
+                <div className="flex-grow overflow-hidden">
+                    <ScrollArea className="h-full">
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>PO Number</TableHead>
+                            <TableHead>Invoice</TableHead>
+                            <TableHead>Shipper</TableHead>
+                            <TableHead>Consignee</TableHead>
+                            <TableHead>ETD</TableHead>
+                            <TableHead>ETA</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {reportData?.shipments.length === 0 ? (
+                            <TableRow><TableCell colSpan={6} className="text-center h-24">Nenhum embarque para exibir.</TableCell></TableRow>
+                        ) : (
+                            reportData?.shipments.map(item => (
+                            <TableRow key={item.id}>
+                                <TableCell>{item.purchaseOrderNumber || 'N/A'}</TableCell>
+                                <TableCell>{item.invoiceNumber || 'N/A'}</TableCell>
+                                <TableCell>{item.shipper?.name || 'N/A'}</TableCell>
+                                <TableCell>{item.consignee?.name || 'N/A'}</TableCell>
+                                <TableCell>{item.etd && isValid(new Date(item.etd)) ? format(new Date(item.etd), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                <TableCell>{item.eta && isValid(new Date(item.eta)) ? format(new Date(item.eta), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                            </TableRow>
+                            ))
+                        )}
+                        </TableBody>
+                    </Table>
+                    </ScrollArea>
+                </div>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

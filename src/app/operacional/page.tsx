@@ -269,15 +269,11 @@ export default function OperacionalPage() {
       && m.status === 'completed'
     );
   
-    if (firstPendingName.includes('booking')) {
-      return { text: 'Confirmação de Booking', variant: 'default' };
-    }
-  
     if (departureCompleted) {
         if (firstPendingName.includes('chegada') || firstPendingName.includes('arrival') || firstPendingName.includes('discharged')) {
             return { text: 'Chegada no Destino', variant: 'default' };
         }
-        return { text: 'Pendente de Transit', variant: 'default' };
+        return { text: 'Em Trânsito', variant: 'default' };
     }
   
     return { text: `Aguardando Embarque`, variant: 'secondary' };
@@ -471,10 +467,11 @@ export default function OperacionalPage() {
        <div className="lg:col-span-1 space-y-8">
             <Alert variant="destructive" className="animate-in fade-in-50 duration-500">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Nova Mensagem de Cliente!</AlertTitle>
+                <AlertTitle>Avisos Recentes</AlertTitle>
                 <AlertDescription>
                    {lastUnreadMessage ? (
                         <div className="space-y-2 mt-2">
+                            <p><strong>Nova Mensagem de Cliente!</strong></p>
                             <p><strong>Processo:</strong> {lastUnreadMessage.shipment.id}</p>
                             <p><strong>Cliente:</strong> {lastUnreadMessage.shipment.customer}</p>
                             <p className="p-2 bg-background/50 rounded-md">"{lastUnreadMessage.message}"</p>

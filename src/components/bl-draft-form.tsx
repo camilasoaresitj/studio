@@ -47,9 +47,9 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
   const form = useForm<BLDraftFormData>({
     resolver: zodResolver(blDraftSchema),
     defaultValues: shipment.blDraftData || {
-      shipper: shipment.shipper.name,
-      consignee: shipment.consignee.name,
-      notify: shipment.notifyName || shipment.consignee.name,
+      shipper: shipment.shipper?.name || '',
+      consignee: shipment.consignee?.name || '',
+      notify: shipment.notifyName || shipment.consignee?.name || '',
       marksAndNumbers: `LOTE ${shipment.id}`,
       descriptionOfGoods: shipment.commodityDescription || '',
       grossWeight: shipment.netWeight || '',
@@ -278,4 +278,3 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
     </Card>
   );
 }
-

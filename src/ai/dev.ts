@@ -36,3 +36,5 @@ import '@/ai/flows/send-whatsapp-message.ts';
 import '@/ai/flows/generate-hbl-html.ts';
 import '@/ai/flows/create-email-campaign.ts';
 import '@/ai/flows/get-courier-rates.ts';
+import '@/ai/flows/send-draft-approval-request.ts';
+

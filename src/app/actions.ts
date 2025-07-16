@@ -32,6 +32,8 @@ import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import type { Partner } from "@/lib/partners-data";
 import type { Quote } from "@/components/customer-quotes-list";
 import { getTrackingInfo } from '@/ai/flows/get-tracking-info';
+import { sendDraftApprovalRequest } from '@/ai/flows/send-draft-approval-request';
+import { format } from 'date-fns';
 
 
 export async function runGetFreightRates(input: any) {
@@ -346,7 +348,33 @@ export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: 
         shipment.charges.push(lateFeeCharge);
     }
     
+     // Update the "Draft HBL" document status
+    const draftDocIndex = shipment.documents.findIndex(doc => doc.name === 'Draft HBL');
+    if (draftDocIndex > -1) {
+        shipment.documents[draftDocIndex].status = 'uploaded';
+        shipment.documents[draftDocIndex].fileName = `HBL-DRAFT-${shipment.id}.pdf`;
+        shipment.documents[draftDocIndex].uploadedAt = new Date();
+    }
+
     updateShipment(shipment);
+    
+     // Send notification email to client
+    const docCutoffMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
+    const deadline = docCutoffMilestone?.predictedDate ? format(docCutoffMilestone.predictedDate, "dd/MM/yyyy 'às' HH:mm") : 'o mais rápido possível';
+    
+    const hblPreviewLink = `https://cargainteligente.com/preview-hbl/${shipment.id}`; // Simulated link
+
+    try {
+        await sendDraftApprovalRequest({
+            customerName: shipment.customer,
+            shipmentId: shipment.id,
+            deadline: deadline,
+            hblPreviewLink: hblPreviewLink,
+        });
+    } catch (emailError) {
+        console.error("Failed to generate draft approval email:", emailError);
+        // We don't want to fail the whole operation if the email fails, so we just log it.
+    }
     
     return { success: true, data: shipment };
 }

@@ -316,10 +316,10 @@ export async function submitBLDraft(id: string, draftData: BLDraftData, isLate: 
     // Create new milestone/task for operational team
     const draftReceivedMilestone = {
         name: `Draft de BL Recebido`,
-        status: 'pending' as const,
+        status: 'completed' as const,
         predictedDate: new Date(),
         effectiveDate: new Date(),
-        details: `Draft recebido do cliente. Necessário enviar ao armador.`,
+        details: `Draft recebido do cliente.`,
     };
      const sendToCarrierMilestone = {
         name: `Enviar Draft MBL ao armador`,

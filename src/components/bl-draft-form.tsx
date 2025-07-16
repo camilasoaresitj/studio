@@ -47,12 +47,12 @@ interface BLDraftFormProps {
 }
 
 const formatPartnerAddress = (partner: Partner | undefined) => {
-    if (!partner) return '';
+    if (!partner || !partner.name) return '';
     const addressParts = [
         partner.name,
-        `${partner.address.street || ''}, ${partner.address.number || ''}`,
-        `${partner.address.district || ''}, ${partner.address.city || ''} - ${partner.address.state || ''}`,
-        partner.address.country,
+        partner.address?.street ? `${partner.address.street}, ${partner.address.number || ''}` : '',
+        partner.address?.district ? `${partner.address.district}, ${partner.address.city || ''} - ${partner.address.state || ''}` : '',
+        partner.address?.country,
         partner.cnpj ? `CNPJ: ${partner.cnpj}` : partner.vat ? `VAT: ${partner.vat}` : ''
     ];
     return addressParts.filter(part => part && part.trim() !== ',').join('\n');
@@ -348,4 +348,3 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
     </Card>
   );
 }
-

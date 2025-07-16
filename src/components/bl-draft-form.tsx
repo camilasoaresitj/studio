@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -76,7 +77,7 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
     } : {
       shipper: shipment.shipper ? formatPartnerAddress(shipment.shipper) : '',
       consignee: shipment.consignee ? formatPartnerAddress(shipment.consignee) : '',
-      notify: shipment.notifyName || (shipment.consignee ? formatPartnerAddress(shipment.consignee) : ''),
+      notify: shipment.notifyName ? shipment.notifyName : (shipment.consignee ? formatPartnerAddress(shipment.consignee) : ''),
       marksAndNumbers: `LOTE ${shipment.id}`,
       descriptionOfGoods: shipment.commodityDescription || '',
       grossWeight: shipment.netWeight || '',

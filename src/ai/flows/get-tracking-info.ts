@@ -34,7 +34,6 @@ const ContainerDetailSchema = z.object({
   tare: z.string().describe("The container's tare weight in kg (e.g., '2200 KG')."),
   grossWeight: z.string().describe("The container's gross weight in kg (e.g., '24000 KG')."),
   freeTime: z.string().optional().describe("The free time in days (e.g., '14 dias')."),
-  effectiveReturnDate: z.date().optional().describe("The date the empty container was actually returned."),
 });
 
 const GetTrackingInfoOutputSchema = z.object({
@@ -123,11 +122,14 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
         });
       }
     });
+    
+    // Detect the primary shipment leg dynamically (portToPort, road, etc.)
+    const mainLeg = primaryShipment.shipmentLegs?.portToPort || primaryShipment.shipmentLegs?.road || null;
 
-    // Collect all transshipment ports
-    if (shipment.shipmentLegs?.portToPort?.segments) {
-      shipment.shipmentLegs.portToPort.segments
-        .filter((seg: any) => seg.originPortCode !== primaryShipment.shipmentLegs?.portToPort?.loadingPortCode && seg.destinationPortCode !== primaryShipment.shipmentLegs?.portToPort?.dischargePortCode)
+    // Collect all transshipment ports, if applicable
+    if (mainLeg?.segments) {
+      mainLeg.segments
+        .filter((seg: any) => seg.originPortCode !== mainLeg?.loadingPortCode && seg.destinationPortCode !== mainLeg?.dischargePortCode)
         .forEach((segment: any) => {
           const port = segment.origin || segment.originPortCode;
           if (port && !allTransshipments.has(port)) {
@@ -148,14 +150,17 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
 
   const lastCompletedEvent = allEvents.slice().reverse().find(e => e.completed) || allEvents[allEvents.length - 1];
   
+  // Dynamically determine origin, destination, etc. based on the available leg
+  const mainLeg = primaryShipment.shipmentLegs?.portToPort || primaryShipment.shipmentLegs?.road || {};
+
   const shipmentDetails: Partial<Shipment> = {
       carrier: carrierName,
-      origin: primaryShipment.shipmentLegs?.portToPort?.loadingPort || 'N/A',
-      destination: primaryShipment.shipmentLegs?.portToPort?.dischargePort || 'N/A',
-      vesselName: primaryShipment.shipmentLegs?.portToPort?.currentTransportName,
-      voyageNumber: primaryShipment.shipmentLegs?.portToPort?.currentTripNumber,
-      etd: primaryShipment.shipmentLegs?.portToPort?.loadingPortAtd ? new Date(primaryShipment.shipmentLegs.portToPort.loadingPortAtd) : undefined,
-      eta: primaryShipment.shipmentLegs?.portToPort?.dischargePortEta ? new Date(primaryShipment.shipmentLegs.portToPort.dischargePortEta) : undefined,
+      origin: mainLeg.loadingPort || mainLeg.origin || primaryShipment.originOceanPort || 'N/A',
+      destination: mainLeg.dischargePort || mainLeg.destination || primaryShipment.destinationOceanPort || 'N/A',
+      vesselName: mainLeg.currentTransportName || mainLeg.carrier || 'N/A',
+      voyageNumber: mainLeg.currentTripNumber,
+      etd: mainLeg.loadingPortAtd || mainLeg.atd ? new Date(mainLeg.loadingPortAtd || mainLeg.atd) : undefined,
+      eta: mainLeg.dischargePortEta || mainLeg.ata ? new Date(mainLeg.dischargePortEta || mainLeg.ata) : undefined,
       masterBillNumber: primaryShipment.mblNumber,
       bookingNumber: primaryShipment.bookingNumber,
       containers: allContainers,
@@ -214,7 +219,8 @@ const getTrackingInfoFlow = ai.defineFlow(
         }
 
         const responseJson = await trackingResponse.json();
-        const trackingDataArray = responseJson?.data;
+        const trackingDataArray = Array.isArray(responseJson) ? responseJson : responseJson?.data;
+
 
         // If data exists, process and return it
         if (trackingDataArray && trackingDataArray.length > 0) {
@@ -273,7 +279,7 @@ const getTrackingInfoFlow = ai.defineFlow(
         if (!finalTrackingResponse.ok) throw new Error(`Failed to fetch after creation (${finalTrackingResponse.status})`);
         
         const finalDataJson = await finalTrackingResponse.json();
-        const finalTrackingDataArray = finalDataJson?.data;
+        const finalTrackingDataArray = Array.isArray(finalDataJson) ? finalDataJson : finalDataJson?.data;
 
         if (finalTrackingDataArray && finalTrackingDataArray.length > 0) {
             console.log("Cargo-flows: Re-fetch successful. Processing data.");

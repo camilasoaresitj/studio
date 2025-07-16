@@ -1,17 +1,17 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle, List, FileText } from 'lucide-react';
+import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle, List, FileText, Ship, Anchor } from 'lucide-react';
 import { getShipments, Shipment } from '@/lib/shipment';
 import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { getInitialQuotes, Quote } from '@/lib/initial-data';
 import { useRouter } from 'next/navigation';
-import { format, isValid, differenceInDays, isPast } from 'date-fns';
+import { format, isValid, differenceInDays, isPast, isWithinInterval, addDays } from 'date-fns';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -84,6 +84,21 @@ export default function CustomerPortalPage() {
         fetchData();
     }, [customerId]);
 
+    const kpiData = useMemo(() => {
+        const now = new Date();
+        const sevenDaysFromNow = addDays(now, 7);
+        const interval = { start: now, end: sevenDaysFromNow };
+
+        const departingSoon = shipments.filter(s => s.etd && isValid(new Date(s.etd)) && isWithinInterval(new Date(s.etd), interval));
+        const arrivingSoon = shipments.filter(s => s.eta && isValid(new Date(s.eta)) && isWithinInterval(new Date(s.eta), interval));
+
+        return {
+            departingCount: departingSoon.length,
+            arrivingCount: arrivingSoon.length,
+        };
+    }, [shipments]);
+
+
     const handleRefresh = () => {
         fetchData();
     };
@@ -136,6 +151,29 @@ export default function CustomerPortalPage() {
                     </Button>
                  </div>
             </header>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Embarques Partindo</CardTitle>
+                        <Ship className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{kpiData.departingCount}</div>
+                        <p className="text-xs text-muted-foreground">nos próximos 7 dias</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Embarques Chegando</CardTitle>
+                        <Anchor className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{kpiData.arrivingCount}</div>
+                        <p className="text-xs text-muted-foreground">nos próximos 7 dias</p>
+                    </CardContent>
+                </Card>
+            </div>
             
             {draftAlerts.length > 0 && (
                 <Card className="border-destructive bg-destructive/5 animate-in fade-in-50 duration-500">

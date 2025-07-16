@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { runGetTrackingInfo, runDetectCarrier, runUpdateShipmentInTracking } from '@/app/actions';
+import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
 import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2, MessageSquare, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -143,17 +143,6 @@ export default function OperacionalPage() {
         }
         const carrier = carrierResponse.data.carrier;
         toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
-
-        const existingShipmentIndex = shipments.findIndex(s => 
-            (s.bookingNumber && s.bookingNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) || 
-            (s.masterBillNumber && s.masterBillNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) ||
-            (s.id.toUpperCase() === `PROC-${bookingNumberToFetch.toUpperCase()}`)
-        );
-
-        if (existingShipmentIndex > -1) {
-            await runUpdateShipmentInTracking({ shipmentNumber: bookingNumberToFetch });
-            toast({ title: "Sincronização Solicitada!", description: `Enviando pedido de atualização para ${bookingNumberToFetch}.`});
-        }
         
         // Step 2: Get Tracking Info with the detected carrier
         const trackingResponse = await runGetTrackingInfo({ trackingNumber: bookingNumberToFetch, carrier });
@@ -161,6 +150,12 @@ export default function OperacionalPage() {
         if (trackingResponse.success) {
             const fetchedData = trackingResponse.data;
             const shipmentDetails = fetchedData.shipmentDetails || {};
+            
+            const existingShipmentIndex = shipments.findIndex(s => 
+                (s.bookingNumber && s.bookingNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) || 
+                (s.masterBillNumber && s.masterBillNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) ||
+                (s.id.toUpperCase() === `PROC-${bookingNumberToFetch.toUpperCase()}`)
+            );
             
             let updatedShipment: Shipment;
 
@@ -183,12 +178,6 @@ export default function OperacionalPage() {
                     })
                 };
                 
-                setShipments(prev => {
-                    const newShipments = [...prev];
-                    newShipments[existingShipmentIndex] = updatedShipment;
-                    return newShipments;
-                });
-                setSelectedShipment(updatedShipment);
                 toast({
                     title: "Processo Atualizado!",
                     description: `Os dados do processo ${updatedShipment.id} foram sincronizados.`,
@@ -204,8 +193,7 @@ export default function OperacionalPage() {
                     overseasPartner: { id: 0, name: 'Parceiro a definir', roles: { fornecedor: true } } as any,
                     ...shipmentDetails,
                 } as Shipment;
-                setShipments(prev => [updatedShipment, ...prev]);
-                setSelectedShipment(updatedShipment);
+
                 toast({
                     title: "Processo Importado!",
                     description: `O processo ${updatedShipment.id} foi adicionado com sucesso.`,
@@ -214,6 +202,8 @@ export default function OperacionalPage() {
             }
             
             updateShipment(updatedShipment);
+            setShipments(getShipments()); // Refresh the list from the source of truth
+            setSelectedShipment(updatedShipment);
             setNewBookingNumber('');
         } else {
             throw new Error(trackingResponse.error);

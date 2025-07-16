@@ -100,6 +100,52 @@ const getCarrierCode = (carrierName: string): string | null => {
     return null;
 };
 
+// Helper function to process successful tracking data
+const processTrackingData = (trackingData: any, carrier: string): GetTrackingInfoOutput => {
+  const events: TrackingEvent[] = (trackingData.shipmentEvents || []).map((event: any) => ({
+    status: event.name || 'N/A',
+    date: event.actualTime || event.estimateTime,
+    location: event.location || 'N/A',
+    completed: !!event.actualTime,
+    carrier: carrier,
+  }));
+
+  const lastCompletedEvent = events.slice().reverse().find(e => e.completed) || events[events.length - 1];
+
+  const shipmentDetails: Partial<Shipment> = {
+    carrier: carrier,
+    origin: trackingData.shipmentLegs?.portToPort?.originPortCode || 'N/A',
+    destination: trackingData.shipmentLegs?.portToPort?.dischargePortCode || 'N/A',
+    vesselName: trackingData.shipmentLegs?.portToPort?.currentTransportName,
+    voyageNumber: trackingData.shipmentLegs?.portToPort?.currentTripNumber,
+    etd: trackingData.shipmentLegs?.portToPort?.firstPortEtd ? new Date(trackingData.shipmentLegs.portToPort.firstPortEtd) : undefined,
+    eta: trackingData.shipmentLegs?.portToPort?.lastPortEta ? new Date(trackingData.shipmentLegs.portToPort.lastPortEta) : undefined,
+    masterBillNumber: trackingData.mblNumber || trackingData.bookingNumber,
+    containers: trackingData.containers?.map((c: any) => ({
+      id: c.container_number,
+      number: c.container_number,
+      seal: c.seal_number || 'N/A',
+      tare: `${c.tare_weight || 0} KG`,
+      grossWeight: `${c.gross_weight || 0} KG`,
+      type: c.container_type || 'DRY'
+    })) || [],
+    milestones: events.map((event: TrackingEvent) => ({
+      name: event.status,
+      status: event.completed ? 'completed' : 'pending',
+      predictedDate: new Date(event.date),
+      effectiveDate: event.completed ? new Date(event.date) : null,
+      details: event.location,
+      isTransshipment: event.status.toLowerCase().includes('transhipment')
+    })),
+  };
+
+  return {
+    status: lastCompletedEvent?.status || 'Pending',
+    events,
+    containers: shipmentDetails.containers,
+    shipmentDetails: shipmentDetails,
+  };
+};
 
 const getTrackingInfoFlow = ai.defineFlow(
   {
@@ -113,114 +159,98 @@ const getTrackingInfoFlow = ai.defineFlow(
     const baseUrl = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 
     if (cargoFlowsApiKey && cargoFlowsOrgToken) {
-        try {
-            const carrierCode = getCarrierCode(input.carrier);
-            if (!carrierCode) {
-                 throw new Error(`Carrier code not found for '${input.carrier}'. Unable to register shipment.`);
-            }
+      try {
+        // Step 1: Try to fetch the shipment first
+        const trackingResponse = await fetch(`${baseUrl}/shipments?bookingNumber=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT&_limit=1`, {
+          method: 'GET',
+          headers: {
+            'accept': 'application/json',
+            'X-DPW-ApiKey': cargoFlowsApiKey,
+            'X-DPW-Org-Token': cargoFlowsOrgToken,
+          },
+        });
 
-            const registrationPayload = {
-              uploadType: "FORM_BY_BOOKING_NUMBER",
-              formData: [{
-                  bookingNumber: input.trackingNumber,
-                  carrierCode: carrierCode,
-              }]
-            };
-
-            const regResponse = await fetch(`${baseUrl}/createShipments`, {
-                method: 'POST',
-                headers: {
-                    'accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-DPW-ApiKey': cargoFlowsApiKey,
-                    'X-DPW-Org-Token': cargoFlowsOrgToken,
-                },
-                body: JSON.stringify(registrationPayload)
-            });
-
-            if (!regResponse.ok) {
-                 const errorBody = await regResponse.json();
-                 console.error("Cargo-flows createShipment Error Body:", errorBody);
-                 throw new Error(`Cargo-flows API error on createShipment (${regResponse.status}): ${errorBody.error?.message || JSON.stringify(errorBody)}`);
-            }
-            console.log(`Shipment ${input.trackingNumber} successfully registered for tracking.`);
-
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Use bookingNumber as the query parameter, as per the documentation
-            const trackingResponse = await fetch(`${baseUrl}/shipments?bookingNumber=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT&_limit=1`, {
-                method: 'GET',
-                headers: {
-                    'accept': 'application/json',
-                    'X-DPW-ApiKey': cargoFlowsApiKey,
-                    'X-DPW-Org-Token': cargoFlowsOrgToken,
-                },
-            });
-
-            const responseText = await trackingResponse.text();
-            if (!trackingResponse.ok) {
-                let errorMessage = `Cargo-flows API Error (${trackingResponse.status})`;
-                try {
-                    errorMessage = JSON.parse(responseText).error?.message || responseText;
-                } catch (e) { /* ignore json parse error */ }
-                throw new Error(errorMessage);
-            }
-            
-            const data = JSON.parse(responseText);
-            const trackingData = data?.data?.[0]; // Access the data array
-            
-            if (trackingData && trackingData.shipmentEvents && trackingData.shipmentEvents.length > 0) {
-              console.log("Cargo-flows API call successful. Processing real data.");
-              const events: TrackingEvent[] = trackingData.shipmentEvents.map((event: any) => ({
-                  status: event.name || 'N/A',
-                  date: event.actualTime || event.estimateTime,
-                  location: event.location || 'N/A',
-                  completed: !!event.actualTime,
-                  carrier: input.carrier,
-              }));
-
-              const lastCompletedEvent = events.slice().reverse().find(e => e.completed) || events[events.length - 1];
-
-              const shipmentDetails: Partial<Shipment> = {
-                  carrier: input.carrier,
-                  origin: trackingData.shipmentLegs?.portToPort?.originPortCode || 'N/A',
-                  destination: trackingData.shipmentLegs?.portToPort?.dischargePortCode || 'N/A',
-                  vesselName: trackingData.shipmentLegs?.portToPort?.currentTransportName,
-                  voyageNumber: trackingData.shipmentLegs?.portToPort?.currentTripNumber,
-                  etd: trackingData.shipmentLegs?.portToPort?.firstPortEtd ? new Date(trackingData.shipmentLegs.portToPort.firstPortEtd) : undefined,
-                  eta: trackingData.shipmentLegs?.portToPort?.lastPortEta ? new Date(trackingData.shipmentLegs.portToPort.lastPortEta) : undefined,
-                  masterBillNumber: trackingData.mblNumber || input.trackingNumber,
-                  containers: trackingData.containers?.map((c: any) => ({
-                      id: c.container_number,
-                      number: c.container_number,
-                      seal: c.seal_number || 'N/A',
-                      tare: `${c.tare_weight || 0} KG`,
-                      grossWeight: `${c.gross_weight || 0} KG`,
-                      type: c.container_type || 'DRY'
-                  })) || [],
-                  milestones: events.map((event: TrackingEvent) => ({
-                      name: event.status,
-                      status: event.completed ? 'completed' : 'pending',
-                      predictedDate: new Date(event.date),
-                      effectiveDate: event.completed ? new Date(event.date) : null,
-                      details: event.location,
-                      isTransshipment: event.status.toLowerCase().includes('transhipment')
-                  })),
-              };
-
-              return {
-                  status: lastCompletedEvent?.status || 'Pending',
-                  events,
-                  containers: shipmentDetails.containers,
-                  shipmentDetails: shipmentDetails,
-              };
-            }
-            console.log("Cargo-flows API call successful, but no tracking events were returned in the response. Falling back to AI.");
-        } catch (error: any) {
-            console.warn("Cargo-flows API call failed, falling back to AI simulation. Error:", error.message);
+        if (!trackingResponse.ok) {
+            let errorMessage = `Cargo-flows GET error (${trackingResponse.status})`;
+            try {
+                const errorBody = await trackingResponse.json();
+                errorMessage = errorBody.error?.message || JSON.stringify(errorBody);
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
         }
+
+        const data = await trackingResponse.json();
+        const trackingData = data?.data?.[0];
+
+        // If data exists, process and return it
+        if (trackingData && trackingData.shipmentEvents && trackingData.shipmentEvents.length > 0) {
+          console.log("Cargo-flows: Shipment found. Processing data.");
+          return processTrackingData(trackingData, input.carrier);
+        }
+
+        // Step 2: If no data, create the shipment
+        console.log("Cargo-flows: Shipment not found. Attempting to create.");
+        const carrierCode = getCarrierCode(input.carrier);
+        if (!carrierCode) {
+          throw new Error(`Carrier code not found for '${input.carrier}'. Unable to register shipment.`);
+        }
+        
+        const registrationPayload = {
+          uploadType: "FORM_BY_BOOKING_NUMBER",
+          formData: [{
+            bookingNumber: input.trackingNumber,
+            carrierCode: carrierCode,
+          }]
+        };
+
+        const regResponse = await fetch(`${baseUrl}/createShipments`, {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-DPW-ApiKey': cargoFlowsApiKey,
+            'X-DPW-Org-Token': cargoFlowsOrgToken,
+          },
+          body: JSON.stringify(registrationPayload)
+        });
+
+        if (!regResponse.ok) {
+          let errorMessage = `Cargo-flows createShipment Error (${regResponse.status})`;
+          try {
+              const errorBody = await regResponse.json();
+              errorMessage = errorBody.error?.message || JSON.stringify(errorBody);
+          } catch(e) { /* ignore error */ }
+          throw new Error(errorMessage);
+        }
+
+        console.log(`Cargo-flows: Shipment ${input.trackingNumber} successfully registered. Re-fetching data.`);
+        
+        // Give the API a moment to process the new shipment
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Step 3: Re-fetch the data after creation
+        const finalTrackingResponse = await fetch(`${baseUrl}/shipments?bookingNumber=${input.trackingNumber}&shipmentType=INTERMODAL_SHIPMENT&_limit=1`, {
+            method: 'GET',
+            headers: { 'accept': 'application/json', 'X-DPW-ApiKey': cargoFlowsApiKey, 'X-DPW-Org-Token': cargoFlowsOrgToken },
+        });
+
+        if (!finalTrackingResponse.ok) throw new Error(`Failed to fetch after creation (${finalTrackingResponse.status})`);
+        
+        const finalData = await finalTrackingResponse.json();
+        const finalTrackingData = finalData?.data?.[0];
+
+        if (finalTrackingData && finalTrackingData.shipmentEvents && finalTrackingData.shipmentEvents.length > 0) {
+            console.log("Cargo-flows: Re-fetch successful. Processing data.");
+            return processTrackingData(finalTrackingData, input.carrier);
+        }
+
+        console.log("Cargo-flows API call successful, but no tracking events were returned in the response. Falling back to AI.");
+      } catch (error: any) {
+        console.warn("Cargo-flows API workflow failed, falling back to AI simulation. Error:", error.message);
+      }
     }
 
+    // Fallback to AI if API fails or isn't configured
     console.log("Fallback: Generating tracking info with AI for carrier:", input.carrier);
     try {
         const { output } = await generateTrackingInfoWithAI(input);

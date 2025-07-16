@@ -173,12 +173,18 @@ export function ClientPortalPage({ id }: { id: string }) {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {shipment.charges.map(charge => (
-                                                    <TableRow key={charge.id}>
-                                                        <TableCell>{charge.name}</TableCell>
-                                                        <TableCell className="text-right font-mono">{charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</TableCell>
+                                                {shipment.charges && shipment.charges.length > 0 ? (
+                                                    shipment.charges.map(charge => (
+                                                        <TableRow key={charge.id}>
+                                                            <TableCell>{charge.name}</TableCell>
+                                                            <TableCell className="text-right font-mono">{charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={2} className="text-center h-24">Nenhuma cobrança registrada.</TableCell>
                                                     </TableRow>
-                                                ))}
+                                                )}
                                             </TableBody>
                                         </Table>
                                     </div>

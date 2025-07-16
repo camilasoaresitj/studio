@@ -64,7 +64,7 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
         if (!newMessage.trim() || !selectedShipment) return;
         setIsLoading(true);
 
-        const response = await sendChatMessage(selectedShipment, {
+        const response = await sendChatMessage(selectedShipment.id, {
             sender: 'CargaInteligente', // Or current user's name
             message: newMessage,
             department: department,
@@ -89,11 +89,13 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
     const handleSelectConversation = (shipment: Shipment) => {
         const latestShipmentState = getShipments().find(s => s.id === shipment.id) || shipment;
         setSelectedShipment(latestShipmentState);
-        const lastMessage = latestShipmentState.chatMessages![latestShipmentState.chatMessages!.length - 1];
-        if (lastMessage.sender === 'Cliente' && !lastMessage.readBy?.includes('user-1')) {
-            lastMessage.readBy = [...(lastMessage.readBy || []), 'user-1'];
-            updateShipment(latestShipmentState);
-            setShipments(getShipments()); // Refresh list to remove unread indicator
+        if (latestShipmentState.chatMessages && latestShipmentState.chatMessages.length > 0) {
+            const lastMessage = latestShipmentState.chatMessages[latestShipmentState.chatMessages.length - 1];
+            if (lastMessage.sender === 'Cliente' && !lastMessage.readBy?.includes('user-1')) {
+                lastMessage.readBy = [...(lastMessage.readBy || []), 'user-1'];
+                updateShipment(latestShipmentState);
+                setShipments(getShipments()); // Refresh list to remove unread indicator
+            }
         }
     }
     
@@ -209,3 +211,5 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
         </Sheet>
     );
 }
+
+    

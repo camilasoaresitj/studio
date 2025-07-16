@@ -18,7 +18,7 @@ import { getVesselSchedules } from "@/ai/flows/get-ship-schedules";
 import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
-import { updateShipment, ChatMessage, createShipment } from "@/lib/shipment-data";
+import { updateShipment, ChatMessage, createShipment, getShipmentById, getShipments } from "@/lib/shipment-data";
 import type { BLDraftData, Shipment } from '@/lib/shipment-data';
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
@@ -35,7 +35,6 @@ import { sendDraftApprovalRequest } from "@/ai/flows/send-draft-approval-request
 import { format } from 'date-fns';
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getShipments } from "@/lib/shipment-data";
 
 
 export async function runGetFreightRates(input: any) {
@@ -314,8 +313,7 @@ export async function runSendToLegal(input: any) {
 
 export async function fetchShipmentForDraft(id: string): Promise<{ success: boolean; data?: Shipment; error?: string }> {
   try {
-    const allShipments = getShipments();
-    const data = allShipments.find(s => s.id === id);
+    const data = getShipmentById(id);
     if (data) {
       return { success: true, data };
     } else {
@@ -334,7 +332,6 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
 
     // Update main shipment fields with draft data
     shipment.blDraftData = draftData;
-    shipment.blType = draftData.blType;
     shipment.commodityDescription = draftData.descriptionOfGoods;
     shipment.ncms = draftData.ncms;
     
@@ -420,8 +417,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
 }
 
 export async function updateShipmentFromAgent(id: string, data: any) {
-    const allShipments = getShipments();
-    let shipment = allShipments.find(s => s.id === id);
+    const shipment = getShipmentById(id);
     if (!shipment) {
         return { success: false, error: 'Embarque não encontrado.' };
     }
@@ -467,24 +463,25 @@ export async function updateShipmentFromAgent(id: string, data: any) {
     return { success: true, data: shipment };
 }
 
-export async function sendChatMessage(shipment: Shipment, message: Omit<ChatMessage, 'timestamp'>) {
-  if (!shipment || !shipment.id) {
-    return { success: false, error: 'Objeto de embarque inválido fornecido.' };
-  }
-
-  const newMessage: ChatMessage = {
-    ...message,
-    timestamp: new Date().toISOString(),
-  };
+export async function sendChatMessage(shipmentId: string, message: Omit<ChatMessage, 'timestamp'>) {
+    const shipment = getShipmentById(shipmentId);
+    if (!shipment) {
+      return { success: false, error: 'Embarque não encontrado.' };
+    }
   
-  const updatedShipment = {
-      ...shipment,
-      chatMessages: [...(shipment.chatMessages || []), newMessage],
-  };
-  
-  updateShipment(updatedShipment);
-  
-  return { success: true, data: updatedShipment };
+    const newMessage: ChatMessage = {
+      ...message,
+      timestamp: new Date().toISOString(),
+    };
+    
+    const updatedShipment = {
+        ...shipment,
+        chatMessages: [...(shipment.chatMessages || []), newMessage],
+    };
+    
+    updateShipment(updatedShipment);
+    
+    return { success: true, data: updatedShipment };
 }
 
 export async function createEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {
@@ -496,3 +493,5 @@ export async function createEmailCampaign(instruction: string, partners: Partner
         return { success: false, error: error.message || "Failed to create email campaign" };
     }
 }
+
+    

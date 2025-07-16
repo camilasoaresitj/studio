@@ -31,7 +31,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, BLDraftData } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, PlusCircle, Save, Trash2, Circle, CheckCircle, Hourglass, AlertTriangle, Wallet, Receipt, Anchor, CaseSensitive, Weight, Package, Clock, Ship, GanttChart, LinkIcon, RefreshCw, Loader2, Printer, Upload, FileCheck, CircleDot, FileText, FileDown } from 'lucide-react';
 import { Badge } from './ui/badge';
@@ -48,8 +48,8 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateHblPdf, submitBLDraft } from '@/app/actions';
-import { addFinancialEntry, getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
+import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateHblPdf } from '@/app/actions';
+import { addFinancialEntry, getFinancialEntries } from '@/lib/financials-data';
 import { Checkbox } from './ui/checkbox';
 import { getFees } from '@/lib/fees-data';
 import type { Fee } from '@/lib/fees-data';
@@ -61,19 +61,7 @@ import { getShipments } from '@/lib/shipment';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Textarea } from './ui/textarea';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import { Alert } from './ui/alert';
-
-const blDraftSchema = z.object({
-  shipper: z.string().min(1, 'Shipper é obrigatório'),
-  consignee: z.string().min(1, 'Consignee é obrigatório'),
-  notify: z.string().min(1, 'Notify Party é obrigatório'),
-  marksAndNumbers: z.string().min(1, 'Marcas e números são obrigatórios'),
-  descriptionOfGoods: z.string().min(1, 'Descrição da mercadoria é obrigatória'),
-  grossWeight: z.string().min(1, 'Peso bruto é obrigatório'),
-  measurement: z.string().min(1, 'Cubagem é obrigatória'),
-  ncm: z.string().min(1, 'NCM é obrigatório'),
-  blType: z.enum(['original', 'express'], { required_error: 'Selecione o tipo de BL.' }),
-});
+import { BLDraftForm } from './bl-draft-form';
 
 
 const containerDetailSchema = z.object({
@@ -109,6 +97,17 @@ const quoteChargeSchemaForSheet = z.object({
     financialEntryId: z.string().nullable().optional(),
 });
 
+const blDraftSchemaForSheet = z.object({
+  shipper: z.string().optional(),
+  consignee: z.string().optional(),
+  notify: z.string().optional(),
+  marksAndNumbers: z.string().optional(),
+  descriptionOfGoods: z.string().optional(),
+  grossWeight: z.string().optional(),
+  measurement: z.string().optional(),
+  ncm: z.string().optional(),
+  blType: z.enum(['original', 'express']).optional(),
+}).optional();
 
 const shipmentDetailsSchema = z.object({
   id: z.string(),
@@ -156,7 +155,7 @@ const shipmentDetailsSchema = z.object({
     incoterm: z.string().optional(),
     cargo: z.string().optional(),
   }),
-  blDraftData: blDraftSchema.partial().optional(), // Add this line
+  blDraftData: blDraftSchemaForSheet, // Use the new partial schema
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -1264,7 +1263,7 @@ const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
                             </Card>
                         </TabsContent>
                         <TabsContent value="bl_draft" className="mt-0 space-y-6">
-                            <Card>
+                           <Card>
                                 <CardHeader>
                                     <CardTitle>Instruções de Embarque (Draft BL)</CardTitle>
                                     <CardDescription>
@@ -1272,45 +1271,7 @@ const terminalPartners = partners.filter(p => p.tipoFornecedor?.terminal);
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    {shipment.blDraftData ? (
-                                        <div className="space-y-4">
-                                            <FormField control={form.control} name="blDraftData.shipper" render={({ field }) => (
-                                                <FormItem><FormLabel>Shipper (Exportador)</FormLabel><FormControl><Textarea {...field} className="min-h-[100px]" /></FormControl><FormMessage /></FormItem>
-                                            )}/>
-                                            <FormField control={form.control} name="blDraftData.consignee" render={({ field }) => (
-                                                <FormItem><FormLabel>Consignee (Importador)</FormLabel><FormControl><Textarea {...field} className="min-h-[100px]" /></FormControl><FormMessage /></FormItem>
-                                            )}/>
-                                            <FormField control={form.control} name="blDraftData.notify" render={({ field }) => (
-                                                <FormItem><FormLabel>Notify Party</FormLabel><FormControl><Textarea {...field} className="min-h-[100px]" /></FormControl><FormMessage /></FormItem>
-                                            )}/>
-                                            <FormField control={form.control} name="blDraftData.marksAndNumbers" render={({ field }) => (
-                                                <FormItem><FormLabel>Marcas e Números</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
-                                            )}/>
-                                            <FormField control={form.control} name="blDraftData.descriptionOfGoods" render={({ field }) => (
-                                                <FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} className="min-h-[100px]" /></FormControl><FormMessage /></FormItem>
-                                            )}/>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                <FormField control={form.control} name="blDraftData.grossWeight" render={({ field }) => (<FormItem><FormLabel>Peso Bruto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={form.control} name="blDraftData.measurement" render={({ field }) => (<FormItem><FormLabel>Cubagem (CBM)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={form.control} name="blDraftData.ncm" render={({ field }) => (<FormItem><FormLabel>NCM</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                            </div>
-                                            <FormField control={form.control} name="blDraftData.blType" render={({ field }) => (
-                                                <FormItem><FormLabel>Tipo de Emissão do BL</FormLabel>
-                                                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
-                                                        <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="original" /></FormControl><FormLabel className="font-normal">Original</FormLabel></FormItem>
-                                                        <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="express" /></FormControl><FormLabel className="font-normal">Express Release</FormLabel></FormItem>
-                                                    </RadioGroup><FormMessage /></FormItem>
-                                            )} />
-                                        </div>
-                                    ) : (
-                                        <Alert>
-                                            <AlertTriangle className="h-4 w-4" />
-                                            <Alert.Title>Aguardando Instruções</Alert.Title>
-                                            <Alert.Description>
-                                            O cliente ainda não enviou o draft do BL através do portal. Assim que enviado, as informações aparecerão aqui.
-                                            </Alert.Description>
-                                        </Alert>
-                                    )}
+                                    <BLDraftForm shipment={shipment} isSheet={true} onUpdate={onUpdate} />
                                 </CardContent>
                             </Card>
                         </TabsContent>

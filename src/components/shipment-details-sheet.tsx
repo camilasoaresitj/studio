@@ -871,7 +871,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
   const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
       const parsedValue = parseFloat(value) || 0;
       const charge = watchedCharges[index];
-      const oldValue = Number(charge[field]) || 0; // Ensure oldValue is a number
+      const oldValue = Number(charge[field]) || 0;
       
       if (charge.approvalStatus === 'aprovada' && parsedValue !== oldValue) {
           setJustificationRequest({

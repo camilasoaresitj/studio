@@ -32,7 +32,7 @@ import { sendDraftApprovalRequest } from "@/ai/flows/send-draft-approval-request
 import { format } from 'date-fns';
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getShipmentById, updateShipment, getShipments, type Shipment, type BLDraftData, type Milestone, type QuoteCharge } from '@/lib/shipment';
+import { updateShipment, getShipmentById, getShipments, type Shipment, type BLDraftData, type Milestone, type QuoteCharge, type ChatMessage } from '@/lib/shipment';
 
 
 export async function runGetFreightRates(input: any) {
@@ -319,15 +319,9 @@ export async function createEmailCampaign(instruction: string, partners: Partner
     }
 }
 
-export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean) {
+export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, isLateSubmission: boolean) {
   try {
-    const shipments = getShipments();
-    const shipmentIndex = shipments.findIndex(s => s.id === shipmentId);
-    if (shipmentIndex === -1) {
-        throw new Error('Embarque não encontrado.');
-    }
-
-    const updatedShipment = { ...shipments[shipmentIndex] };
+    const updatedShipment = { ...shipment };
 
     // Update main shipment fields with draft data
     updatedShipment.blDraftData = draftData;
@@ -399,8 +393,7 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
     // Sort milestones to ensure correct order
     updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
 
-    shipments[shipmentIndex] = updatedShipment;
-    updateShipment(shipments[shipmentIndex]); // This should now correctly update the single shipment
+    updateShipment(updatedShipment); 
 
     return { success: true, data: updatedShipment };
   } catch (error: any) {
@@ -421,22 +414,16 @@ export async function fetchShipmentForDraft(shipmentId: string) {
     }
 }
 
-export async function sendChatMessage(shipmentId: string, message: ChatMessage) {
+// This function needs to be a server action but it cannot call client functions.
+// It must receive all necessary data from the client.
+export async function sendChatMessage(shipment: Shipment, message: ChatMessage) {
   try {
-    const allShipments = getShipments();
-    const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
-
-    if (shipmentIndex === -1) {
-        throw new Error('Embarque não encontrado.');
-    }
-    
     const updatedShipment = {
-        ...allShipments[shipmentIndex],
-        chatMessages: [...(allShipments[shipmentIndex].chatMessages || []), message],
+        ...shipment,
+        chatMessages: [...(shipment.chatMessages || []), message],
     };
 
-    allShipments[shipmentIndex] = updatedShipment;
-    updateShipment(updatedShipment); // updateShipment now saves the whole array, so we can just call it on the specific one
+    updateShipment(updatedShipment);
 
     return { success: true, data: updatedShipment };
   } catch (error: any) {
@@ -447,14 +434,12 @@ export async function sendChatMessage(shipmentId: string, message: ChatMessage) 
 
 export async function markMessagesAsRead(shipmentId: string, userId: string) {
     try {
-        const allShipments = getShipments();
-        const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
-
-        if (shipmentIndex === -1) {
+        const shipment = getShipmentById(shipmentId);
+        if (!shipment) {
             throw new Error('Embarque não encontrado.');
         }
         
-        const updatedShipment = { ...allShipments[shipmentIndex] };
+        const updatedShipment = { ...shipment };
         updatedShipment.chatMessages = (updatedShipment.chatMessages || []).map(msg => {
             if (msg.sender === 'Cliente' && !(msg.readBy || []).includes(userId)) {
                 return { ...msg, readBy: [...(msg.readBy || []), userId] };
@@ -462,7 +447,6 @@ export async function markMessagesAsRead(shipmentId: string, userId: string) {
             return msg;
         });
 
-        allShipments[shipmentIndex] = updatedShipment;
         updateShipment(updatedShipment);
 
         return { success: true, data: updatedShipment };

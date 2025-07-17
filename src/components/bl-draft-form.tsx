@@ -176,7 +176,7 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
         toast({ title: 'Draft Salvo!', description: 'As informações do draft foram salvas no processo.' });
     } else {
         // Submit from the customer portal
-        const response = await submitBLDraft(shipment.id, draftDataToSave, isLateSubmission);
+        const response = await submitBLDraft(shipment, draftDataToSave, isLateSubmission);
         if (response.success) {
           toast({
             title: 'Draft de BL Enviado!',

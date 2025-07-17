@@ -623,8 +623,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <div>
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
                                         <SheetDescription className="text-xs md:text-sm">
-                                            Cliente: <span className="font-semibold">{shipment.customer}</span>
-                                            <span className="mx-2">|</span>
                                             Ref. Cliente: <span className="font-semibold">{form.watch('purchaseOrderNumber') || 'N/A'}</span>
                                             <span className="mx-2">|</span>
                                             Invoice: <span className="font-semibold">{form.watch('invoiceNumber') || 'N/A'}</span>

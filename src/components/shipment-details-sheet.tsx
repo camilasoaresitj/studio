@@ -551,17 +551,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         
         setEditedCharge(null);
     };
-    
-    if (!shipment) {
-        return (
-            <Sheet open={open} onOpenChange={onOpenChange}>
-                 <SheetContent className="sm:max-w-7xl w-full p-0 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                 </SheetContent>
-            </Sheet>
-        );
-    }
-    
+
     const getMilestoneDetails = (milestone: Milestone): string => {
         const { name, details } = milestone;
         const lowerName = name.toLowerCase();
@@ -582,6 +572,16 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         return details || '';
     };
 
+    if (!shipment) {
+        return (
+            <Sheet open={open} onOpenChange={onOpenChange}>
+                 <SheetContent className="sm:max-w-7xl w-full p-0 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                 </SheetContent>
+            </Sheet>
+        );
+    }
+    
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="sm:max-w-7xl w-full p-0">

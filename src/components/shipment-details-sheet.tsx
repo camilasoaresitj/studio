@@ -868,24 +868,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     setSelectedFees(new Set());
   };
   
-  const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
-    const parsedValue = parseFloat(value) || 0;
-    const charge = watchedCharges[index];
-    const oldValue = Number(charge[field]) || 0;
-    
-    // Only trigger justification flow if the value has actually changed and was previously approved
-    if (charge.approvalStatus === 'aprovada' && parsedValue !== oldValue) {
-        setJustificationRequest({
-            index,
-            field,
-            oldValue: oldValue,
-            newValue: parsedValue,
-        });
-    } else {
-        // Otherwise, just update the form state without triggering approval
-        updateCharge(index, { ...charge, [field]: parsedValue });
-    }
-};
+    const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
+        const parsedValue = parseFloat(value) || 0;
+        const charge = watchedCharges[index];
+        const oldValue = Number(charge[field]) || 0;
+        
+        // Only trigger justification flow if the value has actually changed and was previously approved
+        if (charge.approvalStatus === 'aprovada' && parsedValue !== oldValue) {
+            setJustificationRequest({
+                index,
+                field,
+                oldValue: oldValue,
+                newValue: parsedValue,
+            });
+        } else {
+            // Otherwise, just update the form state without triggering approval
+            updateCharge(index, { ...charge, [field]: parsedValue });
+        }
+    };
     
     const handleJustificationSubmit = (justification: string) => {
         if (!justificationRequest) return;

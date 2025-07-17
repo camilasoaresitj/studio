@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import type { Shipment, ChatMessage } from '@/lib/shipment';
-import { sendChatMessage } from '@/app/actions';
+import { getShipmentById, updateShipment } from '@/lib/shipment';
 import { Loader2, Send, Building, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -47,19 +47,21 @@ export function ShipmentChat({ shipment, onUpdate }: ShipmentChatProps) {
             readBy: []
         };
 
-        const response = await sendChatMessage(shipment.id, messageToSend);
-
-        if (response.success && response.data) {
-            onUpdate(response.data);
-            setNewMessage('');
-        } else {
-             toast({
-                variant: 'destructive',
-                title: 'Erro ao Enviar Mensagem',
-                description: response.error || 'Não foi possível enviar sua mensagem. Tente novamente.',
-            });
+        const currentShipment = getShipmentById(shipment.id);
+        if (!currentShipment) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Embarque não encontrado.' });
+            setIsLoading(false);
+            return;
         }
+
+        const updatedShipment = {
+            ...currentShipment,
+            chatMessages: [...(currentShipment.chatMessages || []), messageToSend],
+        };
         
+        onUpdate(updateShipment(updatedShipment)[0]); // This assumes updateShipment returns the updated array and we take the first.
+        
+        setNewMessage('');
         setIsLoading(false);
     };
     

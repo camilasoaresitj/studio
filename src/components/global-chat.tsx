@@ -13,7 +13,6 @@ import type { Shipment, ChatMessage } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { sendChatMessage, markMessagesAsRead } from '@/app/actions';
 import { Send, Loader2, MessageSquare, ArrowLeft, Building, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -72,32 +71,37 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
             readBy: ['user-1']
         };
 
-        const response = await sendChatMessage(selectedShipment.id, messageToSend);
-        
-        if (response.success && response.data) {
-            setSelectedShipment(response.data);
-            setNewMessage('');
-            setShipments(getShipments()); // Refresh list
-        } else {
-             toast({
-                variant: 'destructive',
-                title: 'Erro ao Enviar Mensagem',
-                description: response.error || 'Não foi possível enviar sua mensagem. Tente novamente.',
-            });
+        const currentShipment = getShipments().find(s => s.id === selectedShipment.id);
+        if (!currentShipment) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Embarque não encontrado.' });
+            setIsLoading(false);
+            return;
         }
+
+        const updatedShipment = {
+            ...currentShipment,
+            chatMessages: [...(currentShipment.chatMessages || []), messageToSend],
+        };
+        
+        // Mark client messages as read upon replying
+        updatedShipment.chatMessages = updatedShipment.chatMessages.map(msg => {
+            if (msg.sender === 'Cliente' && !msg.readBy?.includes('user-1')) {
+                return { ...msg, readBy: [...(msg.readBy || []), 'user-1'] };
+            }
+            return msg;
+        });
+        
+        updateShipment(updatedShipment);
+        setSelectedShipment(updatedShipment);
+        setShipments(getShipments());
+        
+        setNewMessage('');
         
         setIsLoading(false);
     };
     
-    const handleSelectConversation = async (shipment: Shipment) => {
-        const latestShipmentState = getShipmentById(shipment.id) || shipment;
-        setSelectedShipment(latestShipmentState);
-
-        const hasUnread = (latestShipmentState.chatMessages || []).some(m => m.sender === 'Cliente' && !m.readBy?.includes('user-1'));
-        if (hasUnread) {
-            await markMessagesAsRead(shipment.id, 'user-1');
-            setShipments(getShipments());
-        }
+    const handleSelectConversation = (shipment: Shipment) => {
+        setSelectedShipment(shipment);
     }
     
     const DepartmentIcon = ({ dept }: { dept: ChatMessage['department'] }) => {

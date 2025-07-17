@@ -43,12 +43,15 @@ export function ApprovalsPanel() {
         fetchPendingItems();
         
         const handleStorageChange = () => fetchPendingItems();
+        // Using focus event is a robust way to ensure data is fresh when the user returns to the tab.
         window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('focus', handleStorageChange);
         window.addEventListener('financialsUpdated', handleStorageChange);
         window.addEventListener('shipmentsUpdated', handleStorageChange);
         
         return () => {
             window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('focus', handleStorageChange);
             window.removeEventListener('financialsUpdated', handleStorageChange);
             window.removeEventListener('shipmentsUpdated', handleStorageChange);
         };

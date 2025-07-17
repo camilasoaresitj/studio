@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -42,31 +41,6 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
   const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
   const [editedRates, setEditedRates] = React.useState<Record<string, { costRate?: number; saleRate?: number }>>({});
 
-  React.useEffect(() => {
-    if (isOpen) {
-        const fetchAndSetData = async () => {
-            const rates = await exchangeRateService.getRates();
-            setExchangeRates(rates);
-            setPartners(getPartners());
-            setEditedRates({}); // Reset on open to use fresh initial rates
-        };
-        fetchAndSetData();
-    }
-  }, [isOpen]);
-  
-  const handleRateChange = (chargeId: string, type: 'cost' | 'sale', value: string) => {
-      const rate = parseFloat(value);
-      if (isNaN(rate)) return;
-
-      setEditedRates(prev => ({
-          ...prev,
-          [chargeId]: {
-              ...prev[chargeId],
-              [type === 'cost' ? 'costRate' : 'saleRate']: rate
-          }
-      }));
-  };
-  
   const getChargeRates = React.useCallback((charge: QuoteCharge) => {
     const costPartner = partners.find(p => p.name === charge.supplier);
     const salePartner = partners.find(p => p.name === charge.sacado);
@@ -85,6 +59,43 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
         saleRate: editedRates[charge.id]?.saleRate ?? initialSaleRate,
     };
   }, [partners, exchangeRates, editedRates]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+        const fetchAndSetData = async () => {
+            const partnersData = getPartners();
+            const ratesData = await exchangeRateService.getRates();
+            setPartners(partnersData);
+            setExchangeRates(ratesData);
+            
+            // Now that we have partners and rates, pre-fill editedRates
+            if(shipment) {
+                const initialEditedRates: Record<string, { costRate?: number; saleRate?: number }> = {};
+                shipment.charges.forEach(charge => {
+                    const { costRate, saleRate } = getChargeRates(charge);
+                    initialEditedRates[charge.id] = { costRate, saleRate };
+                });
+                setEditedRates(initialEditedRates);
+            } else {
+                 setEditedRates({}); // Reset on open if no shipment
+            }
+        };
+        fetchAndSetData();
+    }
+  }, [isOpen, shipment, getChargeRates]);
+  
+  const handleRateChange = (chargeId: string, type: 'cost' | 'sale', value: string) => {
+      const rate = parseFloat(value);
+      if (isNaN(rate)) return;
+
+      setEditedRates(prev => ({
+          ...prev,
+          [chargeId]: {
+              ...prev[chargeId],
+              [type === 'cost' ? 'costRate' : 'saleRate']: rate
+          }
+      }));
+  };
 
   const totals = React.useMemo(() => {
     if (!shipment || partners.length === 0 || Object.keys(exchangeRates).length === 0) {
@@ -203,7 +214,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                                     <Input 
                                       type="number" 
                                       step="0.0001"
-                                      defaultValue={costRate > 0 ? costRate.toFixed(4) : ''}
+                                      value={editedRates[charge.id]?.costRate?.toFixed(4) || ''}
                                       onChange={e => handleRateChange(charge.id, 'cost', e.target.value)}
                                       className="h-8 text-right"
                                       disabled={charge.costCurrency === 'BRL'}
@@ -219,7 +230,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                                      <Input 
                                       type="number" 
                                       step="0.0001"
-                                      defaultValue={saleRate > 0 ? saleRate.toFixed(4) : ''}
+                                      value={editedRates[charge.id]?.saleRate?.toFixed(4) || ''}
                                       onChange={e => handleRateChange(charge.id, 'sale', e.target.value)}
                                       className="h-8 text-right"
                                       disabled={charge.saleCurrency === 'BRL'}

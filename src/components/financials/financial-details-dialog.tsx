@@ -90,9 +90,10 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                           {shipment.charges.map(charge => {
                             const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
                             const profit = canCalculateProfit ? charge.sale - charge.cost : 0;
+                            const isLoss = canCalculateProfit && profit < 0;
 
                             return (
-                              <TableRow key={charge.id}>
+                              <TableRow key={charge.id} className={cn(isLoss && 'bg-destructive/10')}>
                                 <TableCell>{charge.name}</TableCell>
                                 <TableCell className="text-muted-foreground">{charge.supplier}</TableCell>
                                 <TableCell className="text-right font-mono">
@@ -102,8 +103,8 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                                   {charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </TableCell>
                                 <TableCell className={cn(
-                                  'text-right font-mono',
-                                  canCalculateProfit ? (profit >= 0 ? 'text-success' : 'text-destructive') : 'text-muted-foreground'
+                                  'text-right font-mono font-semibold',
+                                  canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground'
                                 )}>
                                   {canCalculateProfit
                                     ? `${charge.saleCurrency} ${profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`

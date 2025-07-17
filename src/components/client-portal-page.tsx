@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShipmentChat } from '@/components/shipment-chat';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Loader2 } from 'lucide-react';
 
 const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date | null }) => {
     if (!predictedDate || !isValid(predictedDate)) {
@@ -40,18 +41,32 @@ const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'],
 
 export function ClientPortalPage({ id }: { id: string }) {
     const [shipment, setShipment] = useState<Shipment | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
     
     useEffect(() => {
+      setIsLoading(true);
       const data = getShipmentById(id);
       if (data) {
         setShipment(data);
       }
+      setIsLoading(false);
     }, [id]);
     
     const handleUpdate = (updatedShipment: Shipment) => {
         setShipment(updatedShipment);
         // You might want to save the updated shipment data back to your storage here.
+    }
+    
+    if (isLoading) {
+      return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <div className="flex flex-col items-center gap-4 text-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-lg text-muted-foreground">Carregando dados do embarque...</p>
+            </div>
+        </div>
+      );
     }
 
     if (!shipment) {

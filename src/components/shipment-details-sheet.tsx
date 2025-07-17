@@ -166,9 +166,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const [partners, setPartners] = useState<Partner[]>([]);
     const [fees, setFees] = useState<Fee[]>([]);
     const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
-    const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
-    const [manualMilestoneName, setManualMilestoneName] = useState('');
-    const [manualMilestoneDate, setManualMilestoneDate] = useState<Date | undefined>(new Date());
     
     const form = useForm<ShipmentDetailsFormData>({
         resolver: zodResolver(shipmentDetailsSchema),
@@ -255,33 +252,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         }
 
         setIsUpdating(false);
-    };
-    
-    const handleAddManualMilestone = async () => {
-        if (!shipment || !manualMilestoneName || !manualMilestoneDate) {
-            toast({ variant: 'destructive', title: 'Preencha todos os campos.' });
-            return;
-        }
-        
-        const newMilestone: Milestone = {
-            name: manualMilestoneName,
-            status: 'pending',
-            predictedDate: manualMilestoneDate,
-            effectiveDate: null,
-            details: 'Adicionado manualmente pelo operacional.',
-        };
-
-        const response = await addManualMilestone(shipment.id, newMilestone);
-
-        if (response.success && response.data) {
-            onUpdate(response.data as Shipment);
-            toast({ title: 'Milestone Adicionado!', className: 'bg-success text-success-foreground' });
-            setIsManualMilestoneOpen(false);
-            setManualMilestoneName('');
-            setManualMilestoneDate(new Date());
-        } else {
-            toast({ variant: 'destructive', title: 'Erro ao adicionar', description: response.error });
-        }
     };
 
     const generatePdf = async (type: 'client' | 'agent' | 'hbl') => {
@@ -458,10 +428,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <CardTitle>Timeline do Processo</CardTitle>
                                                     <CardDescription>Acompanhe e atualize os marcos do embarque.</CardDescription>
                                                 </div>
-                                                <Button type="button" variant="outline" size="sm" onClick={() => setIsManualMilestoneOpen(true)}>
-                                                    <PlusCircle className="mr-2 h-4 w-4"/>
-                                                    Adicionar Milestone Manual
-                                                </Button>
                                             </div>
                                         </CardHeader>
                                         <CardContent>
@@ -497,9 +463,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                     </Select>
                                                                 )} />
                                                             </div>
-                                                            <Controller control={form.control} name={`milestones.${index}.details`} render={({ field }) => (
-                                                                <Input placeholder="Adicionar comentário (visível ao cliente)..." {...field} className="h-8 text-sm" />
-                                                            )} />
                                                         </div>
                                                     </div>
                                                 )
@@ -672,35 +635,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         </div>
                     </form>
                 </Form>
-                 <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Adicionar Milestone Manual</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="milestone-name">Nome da Tarefa</Label>
-                                <Input id="milestone-name" value={manualMilestoneName} onChange={(e) => setManualMilestoneName(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Data Prevista</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !manualMilestoneDate && "text-muted-foreground")}>
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {manualMilestoneDate ? format(manualMilestoneDate, "PPP") : <span>Selecione a data</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={manualMilestoneDate} onSelect={setManualMilestoneDate} initialFocus /></PopoverContent>
-                                </Popover>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                            <Button onClick={handleAddManualMilestone}>Adicionar</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
             </SheetContent>
         </Sheet>
     );

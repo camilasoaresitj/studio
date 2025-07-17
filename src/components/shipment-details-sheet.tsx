@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -129,6 +128,10 @@ const newMilestoneSchema = z.object({
 type NewMilestoneFormData = z.infer<typeof newMilestoneSchema>;
 
 const shipmentDetailsSchema = z.object({
+  shipperId: z.number().optional(),
+  consigneeId: z.number().optional(),
+  agentId: z.number().optional(),
+  notifyName: z.string().optional(),
   carrier: z.string().optional(),
   vesselName: z.string().optional(),
   voyageNumber: z.string().optional(),
@@ -202,6 +205,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             exchangeRateService.getRates().then(setExchangeRates);
             form.reset({
                 ...shipment,
+                shipperId: shipment.shipper?.id,
+                consigneeId: shipment.consignee?.id,
+                agentId: shipment.agent?.id,
                 etd: shipment.etd ? new Date(shipment.etd) : undefined,
                 eta: shipment.eta ? new Date(shipment.eta) : undefined,
                 mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
@@ -261,6 +267,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         const updatedData = {
             ...shipment, 
             ...data,
+            shipper: partners.find(p => p.id === data.shipperId) || shipment.shipper,
+            consignee: partners.find(p => p.id === data.consigneeId) || shipment.consignee,
+            agent: partners.find(p => p.id === data.agentId) || shipment.agent,
             documents: updatedDocuments,
             milestones: (data.milestones || []).map(m => ({
                 ...m,
@@ -497,10 +506,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <div>
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
                                         <SheetDescription className="text-xs md:text-sm">
-                                            Shipper: <span className="font-semibold">{shipment.shipper?.name}</span> | 
-                                            Consignee: <span className="font-semibold">{shipment.consignee?.name}</span> | 
-                                            Notify: <span className="font-semibold">{shipment.notifyName}</span> | 
-                                            Agente: <span className="font-semibold">{shipment.agent?.name || 'N/A'}</span>
+                                            Cliente: <span className="font-semibold">{shipment.customer}</span>
                                         </SheetDescription>
                                     </div>
                                 </div>
@@ -552,44 +558,45 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             </div>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="relative border-l-2 border-border ml-4">
-                                            {milestoneFields.map((milestone, index) => {
-                                                const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
-                                                const locationDetails = getMilestoneLocationDetails(milestone.name);
-                                                return (
-                                                    <div key={milestone.id} className="relative mb-6 last:mb-0 pl-12">
-                                                        <div className={cn('absolute -left-[17px] top-1 flex h-8 w-8 items-center justify-center rounded-full', 
-                                                            milestone.effectiveDate ? 'bg-success' : 'bg-muted',
-                                                            overdue && 'bg-destructive')}>
-                                                            {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                            <div className="relative pl-4">
+                                                <div className="absolute left-8 top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
+                                                {milestoneFields.map((milestone, index) => {
+                                                    const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
+                                                    const locationDetails = getMilestoneLocationDetails(milestone.name);
+                                                    return (
+                                                        <div key={milestone.id} className="relative mb-6 last:mb-0 flex items-start gap-4">
+                                                            <div className={cn('absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full', 
+                                                                milestone.effectiveDate ? 'bg-success' : 'bg-muted',
+                                                                overdue && 'bg-destructive')}>
+                                                                {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                                            </div>
+                                                            <div className="flex justify-between items-center p-4 rounded-lg border bg-background hover:bg-secondary/50 ml-12 w-full">
+                                                              <div className="flex-1">
+                                                                <p className="font-semibold text-base">{milestone.name}</p>
+                                                                {locationDetails && (
+                                                                    <p className="text-sm text-muted-foreground">{locationDetails}</p>
+                                                                )}
+                                                              </div>
+                                                              <div className="flex items-center gap-2">
+                                                                  <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
+                                                                      <Popover><PopoverTrigger asChild><FormControl>
+                                                                          <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
+                                                                              <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
+                                                                          </Button>
+                                                                      </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                                  )} />
+                                                                  <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
+                                                                      <Popover><PopoverTrigger asChild><FormControl>
+                                                                          <Button variant="outline" size="sm" className={cn("h-7 text-xs w-32 justify-start", !field.value && "text-muted-foreground")}>
+                                                                              <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
+                                                                          </Button>
+                                                                      </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                                  )} />
+                                                              </div>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex justify-between items-center p-4 rounded-lg border bg-background hover:bg-secondary/50">
-                                                          <div className="flex-1">
-                                                            <p className="font-semibold text-base">{milestone.name}</p>
-                                                            {locationDetails && (
-                                                                <p className="text-sm text-muted-foreground">{locationDetails}</p>
-                                                            )}
-                                                          </div>
-                                                          <div className="flex items-center gap-2">
-                                                              <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
-                                                                  <Popover><PopoverTrigger asChild><FormControl>
-                                                                      <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
-                                                                          <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
-                                                                      </Button>
-                                                                  </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
-                                                              )} />
-                                                              <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
-                                                                  <Popover><PopoverTrigger asChild><FormControl>
-                                                                      <Button variant="outline" size="sm" className={cn("h-7 text-xs w-32 justify-start", !field.value && "text-muted-foreground")}>
-                                                                          <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
-                                                                      </Button>
-                                                                  </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
-                                                              )} />
-                                                          </div>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
+                                                    )
+                                                })}
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -602,7 +609,16 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <CardTitle className="text-lg">Informações do Processo</CardTitle>
                                             </CardHeader>
                                             <CardContent className="space-y-4">
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <FormField control={form.control} name="shipperId" render={({ field }) => (<FormItem><FormLabel>Shipper</FormLabel><Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                    <FormField control={form.control} name="consigneeId" render={({ field }) => (<FormItem><FormLabel>Consignee</FormLabel><Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                </div>
                                                  <div className="grid grid-cols-2 gap-4">
+                                                    <FormField control={form.control} name="notifyName" render={({ field }) => (<FormItem><FormLabel>Notify</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name="agentId" render={({ field }) => (<FormItem><FormLabel>Agente</FormLabel><Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{partners.filter(p=>p.roles.agente).map(p => <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                </div>
+                                                <Separator />
+                                                <div className="grid grid-cols-2 gap-4">
                                                     <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                     <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 </div>
@@ -711,7 +727,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 </CardHeader>
                                                 <CardContent className="space-y-2">
                                                     {containerFields.map((field, index) => (
-                                                        <div key={field.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 items-center p-2 border rounded-md relative">
+                                                        <div key={field.id} className="grid grid-cols-2 md:grid-cols-8 gap-2 items-center p-2 border rounded-md relative">
                                                             <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                                             <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="Nº Contêiner" {...field} className="h-8 col-span-2"/>} />
                                                             <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="Lacre" {...field} className="h-8"/>} />
@@ -719,6 +735,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                             <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="Peso Bruto" {...field} className="h-8"/>} />
                                                             <FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="Volumes" {...field} className="h-8"/>} />
                                                             <FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="M³" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input placeholder="Free Time" {...field} className="h-8"/>} />
                                                         </div>
                                                     ))}
                                                 </CardContent>

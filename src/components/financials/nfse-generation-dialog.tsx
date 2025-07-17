@@ -23,10 +23,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2, FileText, ChevronsUpDown, Check } from 'lucide-react';
 import type { FinancialEntry } from '@/lib/financials-data';
-import type { Shipment, QuoteCharge } from '@/lib/shipment';
+import type { Shipment, QuoteCharge, Partner } from '@/lib/shipment';
 import { runGenerateNfseXml } from '@/app/actions';
+import { getPartners } from '@/lib/partners-data';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
+import { cn } from '@/lib/utils';
 
 interface NfseGenerationDialogProps {
   isOpen: boolean;
@@ -35,17 +39,18 @@ interface NfseGenerationDialogProps {
 }
 
 const tomadorSchema = z.object({
-  cpfCnpj: z.string().min(11, 'CPF/CNPJ inválido').max(14, 'CPF/CNPJ inválido').default('08315383000107'),
-  razaoSocial: z.string().min(1, 'Obrigatório').default('LTI DO BRASIL LTDA'),
-  endereco: z.string().min(1, 'Obrigatório').default('RUA DOMINGOS FASCIN neto'),
-  numero: z.string().min(1, 'Obrigatório').default('584'),
-  bairro: z.string().min(1, 'Obrigatório').default('Vila faschin'),
-  codigoMunicipio: z.string().length(7, 'Código IBGE deve ter 7 dígitos').default('3552205'),
-  uf: z.string().length(2, 'UF deve ter 2 letras').default('SP'),
-  cep: z.string().length(8, 'CEP deve ter 8 dígitos').default('08240000'),
+  cpfCnpj: z.string().min(11, 'CPF/CNPJ inválido').max(14, 'CPF/CNPJ inválido'),
+  razaoSocial: z.string().min(1, 'Obrigatório'),
+  endereco: z.string().min(1, 'Obrigatório'),
+  numero: z.string().min(1, 'Obrigatório'),
+  bairro: z.string().min(1, 'Obrigatório'),
+  codigoMunicipio: z.string().length(7, 'Código IBGE deve ter 7 dígitos'),
+  uf: z.string().length(2, 'UF deve ter 2 letras'),
+  cep: z.string().length(8, 'CEP deve ter 8 dígitos'),
 });
 
 const nfseDialogSchema = z.object({
+  selectedTomadorId: z.string().min(1, 'Selecione um tomador.'),
   tomador: tomadorSchema,
   selectedCharges: z.array(z.string()).min(1, 'Selecione pelo menos uma despesa para a nota fiscal.'),
 });
@@ -54,30 +59,28 @@ type NfseDialogFormData = z.infer<typeof nfseDialogSchema>;
 
 export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [isPartnerPopoverOpen, setIsPartnerPopoverOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
   const form = useForm<NfseDialogFormData>({
     resolver: zodResolver(nfseDialogSchema),
-    defaultValues: {
-      tomador: {
-        cpfCnpj: '08315383000107',
-        razaoSocial: 'LTI DO BRASIL LTDA',
-        endereco: 'RUA DOMINGOS FASCIN NETO',
-        numero: '584',
-        bairro: 'VILA FASCIN',
-        codigoMunicipio: '3552205',
-        uf: 'SP',
-        cep: '08240000',
-      },
-      selectedCharges: [],
-    },
+    defaultValues: { selectedCharges: [], selectedTomadorId: '' },
   });
   
   const watchedCharges = form.watch('selectedCharges');
+  const watchedTomadorId = form.watch('selectedTomadorId');
+
+  useEffect(() => {
+    if (isOpen) {
+      setPartners(getPartners().filter(p => p.roles.cliente));
+    }
+  }, [isOpen]);
 
   const chargesToDisplay = useMemo(() => {
     if (!data) return [];
+    // Show only charges that are credits (contas a receber) and not already invoiced under another NFS-e.
     return data.shipment.charges.filter(c => c.sacado === data.entry.partner);
   }, [data]);
 
@@ -89,24 +92,44 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
 
 
   useEffect(() => {
-    if (data) {
-      // Pre-select all applicable charges when the dialog opens
-      const allChargeIds = chargesToDisplay.map(c => c.id);
-      form.reset({
-        tomador: { // You can fetch this from the partner data in a real app
-          cpfCnpj: '08315383000107',
-          razaoSocial: 'LTI DO BRASIL LTDA',
-          endereco: 'RUA DOMINGOS FASCIN NETO',
-          numero: '584',
-          bairro: 'VILA FASCIN',
-          codigoMunicipio: '3552205',
-          uf: 'SP',
-          cep: '08240000',
-        },
-        selectedCharges: allChargeIds,
-      });
+    if (data && partners.length > 0) {
+        const consignee = data.shipment.consignee;
+        const initialTomador = partners.find(p => p.id === consignee?.id) || partners[0];
+        
+        form.reset({
+            selectedTomadorId: initialTomador.id!.toString(),
+            tomador: {
+              cpfCnpj: initialTomador.cnpj?.replace(/\D/g, '') || '',
+              razaoSocial: initialTomador.name || '',
+              endereco: initialTomador.address?.street || '',
+              numero: initialTomador.address?.number || '',
+              bairro: initialTomador.address?.district || '',
+              codigoMunicipio: '3552205', // Example, should be dynamic
+              uf: initialTomador.address?.state || '',
+              cep: initialTomador.address?.zip?.replace(/\D/g, '') || '',
+            },
+            selectedCharges: chargesToDisplay.map(c => c.id),
+        });
     }
-  }, [data, chargesToDisplay, form]);
+  }, [data, partners, chargesToDisplay, form]);
+
+  useEffect(() => {
+      if (watchedTomadorId) {
+          const selectedPartner = partners.find(p => p.id?.toString() === watchedTomadorId);
+          if (selectedPartner) {
+              form.setValue('tomador', {
+                  cpfCnpj: selectedPartner.cnpj?.replace(/\D/g, '') || '',
+                  razaoSocial: selectedPartner.name || '',
+                  endereco: selectedPartner.address?.street || '',
+                  numero: selectedPartner.address?.number || '',
+                  bairro: selectedPartner.address?.district || '',
+                  codigoMunicipio: '3552205', // Example
+                  uf: selectedPartner.address?.state || '',
+                  cep: selectedPartner.address?.zip?.replace(/\D/g, '') || '',
+              });
+          }
+      }
+  }, [watchedTomadorId, partners, form]);
 
 
   const onSubmit = async (formData: NfseDialogFormData) => {
@@ -223,6 +246,49 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
                 <Separator />
 
                 <h3 className="text-lg font-semibold">Dados do Tomador</h3>
+                 <FormField
+                    control={form.control}
+                    name="selectedTomadorId"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Selecionar Tomador</FormLabel>
+                        <Popover open={isPartnerPopoverOpen} onOpenChange={setIsPartnerPopoverOpen}>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button variant="outline" role="combobox" className={cn("w-[300px] justify-between", !field.value && "text-muted-foreground")}>
+                                {field.value ? partners.find((p) => p.id?.toString() === field.value)?.name : "Selecione o Tomador"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[300px] p-0">
+                            <Command>
+                                <CommandInput placeholder="Buscar parceiro..." />
+                                <CommandList>
+                                <CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
+                                <CommandGroup>
+                                    {partners.map((partner) => (
+                                    <CommandItem
+                                        value={partner.name}
+                                        key={partner.id}
+                                        onSelect={() => {
+                                        form.setValue("selectedTomadorId", partner.id!.toString());
+                                        setIsPartnerPopoverOpen(false);
+                                        }}
+                                    >
+                                        <Check className={cn("mr-2 h-4 w-4", partner.id?.toString() === field.value ? "opacity-100" : "opacity-0")} />
+                                        {partner.name}
+                                    </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                                </CommandList>
+                            </Command>
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField control={form.control} name="tomador.cpfCnpj" render={({ field }) => (<FormItem><FormLabel>CPF/CNPJ</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="tomador.razaoSocial" render={({ field }) => (<FormItem><FormLabel>Nome/Razão Social</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />

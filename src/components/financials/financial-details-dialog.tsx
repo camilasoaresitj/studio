@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,11 +20,12 @@ import type { PartialPayment, FinancialEntry } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Button } from '../ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Receipt, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
+import { Input } from '../ui/input';
 
 interface FinancialDetailsDialogProps {
   isOpen: boolean;
@@ -37,6 +39,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
   const { toast } = useToast();
   const [partners, setPartners] = React.useState<Partner[]>([]);
   const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
+  const [editedRates, setEditedRates] = React.useState<Record<string, { costRate: number; saleRate: number }>>({});
 
   React.useEffect(() => {
     if (isOpen) {
@@ -46,8 +49,41 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
         };
         fetchRates();
         setPartners(getPartners());
+        setEditedRates({}); // Reset on open
     }
   }, [isOpen]);
+  
+  const handleRateChange = (chargeId: string, type: 'cost' | 'sale', value: string) => {
+      const rate = parseFloat(value);
+      if (isNaN(rate)) return;
+
+      setEditedRates(prev => ({
+          ...prev,
+          [chargeId]: {
+              ...prev[chargeId],
+              [type === 'cost' ? 'costRate' : 'saleRate']: rate
+          }
+      }));
+  };
+  
+  const getChargeRates = (charge: QuoteCharge) => {
+    const costPartner = partners.find(p => p.name === charge.supplier);
+    const salePartner = partners.find(p => p.name === charge.sacado);
+
+    const costAgio = costPartner?.exchangeRateAgio ?? 0;
+    const saleAgio = salePartner?.exchangeRateAgio ?? 0;
+    
+    const costPtax = exchangeRates[charge.costCurrency] || 1;
+    const salePtax = exchangeRates[charge.saleCurrency] || 1;
+    
+    const initialCostRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + costAgio / 100);
+    const initialSaleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + saleAgio / 100);
+
+    return {
+        costRate: editedRates[charge.id]?.costRate ?? initialCostRate,
+        saleRate: editedRates[charge.id]?.saleRate ?? initialSaleRate,
+    };
+  };
 
   const totals = React.useMemo(() => {
     if (!shipment) return { totalCostBRL: 0, totalSaleBRL: 0, totalProfitBRL: 0 };
@@ -56,18 +92,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
     let totalSaleBRL = 0;
 
     shipment.charges.forEach(charge => {
-        const costPartner = partners.find(p => p.name === charge.supplier);
-        const salePartner = partners.find(p => p.name === charge.sacado);
-
-        const costAgio = costPartner?.exchangeRateAgio ?? 0;
-        const saleAgio = salePartner?.exchangeRateAgio ?? 0;
-        
-        const costPtax = exchangeRates[charge.costCurrency] || 1;
-        const salePtax = exchangeRates[charge.saleCurrency] || 1;
-        
-        const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + costAgio / 100);
-        const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + saleAgio / 100);
-
+        const { costRate, saleRate } = getChargeRates(charge);
         totalCostBRL += charge.cost * costRate;
         totalSaleBRL += charge.sale * saleRate;
     });
@@ -78,7 +103,51 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
         totalProfitBRL: totalSaleBRL - totalCostBRL
     };
 
-  }, [shipment, partners, exchangeRates]);
+  }, [shipment, partners, exchangeRates, editedRates]);
+
+  const handleEmitRecibo = () => {
+    if (!shipment) return;
+    
+    const nfseEntry = shipment.charges.find(c => c.name.toLowerCase().includes("serviço"));
+    const chargesForReceipt = shipment.charges.filter(c => c.id !== nfseEntry?.id);
+
+    const newWindow = window.open();
+    if (newWindow) {
+        let receiptHtml = `
+            <html>
+                <head><title>Recibo - Processo ${shipment.id}</title>
+                 <style>
+                    body { font-family: sans-serif; margin: 2rem; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    h1 { color: #333; }
+                </style>
+                </head>
+                <body>
+                    <h1>Recibo - Processo ${shipment.id}</h1>
+                    <p><strong>Cliente:</strong> ${shipment.customer}</p>
+                    <p>Recebemos o valor referente aos seguintes serviços:</p>
+                    <table>
+                        <thead>
+                            <tr><th>Descrição</th><th>Valor</th></tr>
+                        </thead>
+                        <tbody>
+        `;
+        chargesForReceipt.forEach(charge => {
+            receiptHtml += `<tr><td>${charge.name}</td><td>${charge.saleCurrency} ${charge.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`;
+        });
+        receiptHtml += `
+                        </tbody>
+                    </table>
+                    <p><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+                </body>
+            </html>
+        `;
+        newWindow.document.write(receiptHtml);
+        newWindow.document.close();
+    }
+  };
 
   if (!shipment) return null;
 
@@ -114,18 +183,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                         </TableHeader>
                         <TableBody>
                           {shipment.charges.map(charge => {
-                            const costPartner = partners.find(p => p.name === charge.supplier);
-                            const salePartner = partners.find(p => p.name === charge.sacado);
-
-                            const costAgio = costPartner?.exchangeRateAgio ?? 0;
-                            const saleAgio = salePartner?.exchangeRateAgio ?? 0;
-                            
-                            const costPtax = exchangeRates[charge.costCurrency] || 1;
-                            const salePtax = exchangeRates[charge.saleCurrency] || 1;
-                            
-                            const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + costAgio / 100);
-                            const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + saleAgio / 100);
-
+                            const { costRate, saleRate } = getChargeRates(charge);
                             const costInBrl = charge.cost * costRate;
                             const saleInBrl = charge.sale * saleRate;
                             const profitInBrl = saleInBrl - costInBrl;
@@ -138,8 +196,15 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                                 <TableCell className="text-right font-mono text-sm">
                                   {charge.costCurrency} {charge.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </TableCell>
-                                <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                                    {charge.costCurrency !== 'BRL' ? costRate.toFixed(4) : '-'}
+                                <TableCell className="text-right font-mono text-xs text-muted-foreground w-28">
+                                    <Input 
+                                      type="number" 
+                                      step="0.0001"
+                                      defaultValue={costRate.toFixed(4)} 
+                                      onChange={e => handleRateChange(charge.id, 'cost', e.target.value)}
+                                      className="h-8 text-right"
+                                      disabled={charge.costCurrency === 'BRL'}
+                                    />
                                 </TableCell>
                                 <TableCell className="text-right font-mono text-sm">
                                   R$ {costInBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -147,8 +212,15 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                                 <TableCell className="text-right font-mono text-sm">
                                   {charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </TableCell>
-                                <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                                    {charge.saleCurrency !== 'BRL' ? saleRate.toFixed(4) : '-'}
+                                <TableCell className="text-right font-mono text-xs text-muted-foreground w-28">
+                                     <Input 
+                                      type="number" 
+                                      step="0.0001"
+                                      defaultValue={saleRate.toFixed(4)} 
+                                      onChange={e => handleRateChange(charge.id, 'sale', e.target.value)}
+                                      className="h-8 text-right"
+                                      disabled={charge.saleCurrency === 'BRL'}
+                                    />
                                 </TableCell>
                                 <TableCell className="text-right font-mono text-sm">
                                   R$ {saleInBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -210,38 +282,41 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
 
           </ScrollArea>
         </div>
-
-        <Separator className="my-4" />
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Custo Total (BRL)</CardTitle></CardHeader>
-            <CardContent className="space-y-1 text-sm">
-               <div className="flex justify-between font-semibold text-base">
-                  <span>BRL:</span>
-                  <span className="font-mono">{totals.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Venda Total (BRL)</CardTitle></CardHeader>
-            <CardContent className="space-y-1 text-sm">
+        
+        <DialogFooter className="pt-4 border-t flex-col md:flex-row md:justify-between items-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+            <Card>
+              <CardHeader className="p-2"><CardTitle className="text-base">Custo Total (BRL)</CardTitle></CardHeader>
+              <CardContent className="p-2 pt-0 text-sm">
                 <div className="flex justify-between font-semibold text-base">
-                  <span>BRL:</span>
-                  <span className="font-mono">{totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                </div>
-            </CardContent>
-          </Card>
-          <Card className={cn(totals.totalProfitBRL < 0 ? 'border-destructive' : 'border-success')}>
-            <CardHeader><CardTitle className="text-lg">Resultado (BRL)</CardTitle></CardHeader>
-            <CardContent className="space-y-1 text-sm">
-               <div className={cn("flex justify-between font-semibold text-base", totals.totalProfitBRL < 0 ? 'text-destructive' : 'text-success')}>
-                  <span>BRL:</span>
-                  <span className="font-mono">{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                </div>
-            </CardContent>
-          </Card>
-        </div>
+                    <span>BRL:</span>
+                    <span className="font-mono">{totals.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="p-2"><CardTitle className="text-base">Venda Total (BRL)</CardTitle></CardHeader>
+              <CardContent className="p-2 pt-0 text-sm">
+                  <div className="flex justify-between font-semibold text-base">
+                    <span>BRL:</span>
+                    <span className="font-mono">{totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+              </CardContent>
+            </Card>
+            <Card className={cn(totals.totalProfitBRL < 0 ? 'border-destructive' : 'border-success')}>
+              <CardHeader className="p-2"><CardTitle className="text-base">Resultado (BRL)</CardTitle></CardHeader>
+              <CardContent className="p-2 pt-0 text-sm">
+                <div className={cn("flex justify-between font-semibold text-base", totals.totalProfitBRL < 0 ? 'text-destructive' : 'text-success')}>
+                    <span>BRL:</span>
+                    <span className="font-mono">{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+              </CardContent>
+            </Card>
+          </div>
+          <Button onClick={handleEmitRecibo} variant="outline" className="mt-4 md:mt-0">
+            <Receipt className="mr-2 h-4 w-4"/> Emitir Recibo
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

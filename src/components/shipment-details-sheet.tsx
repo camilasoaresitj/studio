@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -139,6 +140,11 @@ const shipmentDetailsSchema = z.object({
   courierLastStatus: z.string().optional(),
   etd: z.date().optional(),
   eta: z.date().optional(),
+  origin: z.string().optional(), // Added
+  destination: z.string().optional(), // Added
+  collectionAddress: z.string().optional(),
+  deliveryAddress: z.string().optional(),
+  dischargeTerminal: z.string().optional(),
   containers: z.array(containerDetailSchema).optional(),
   transshipments: z.array(transshipmentDetailSchema).optional(),
   milestones: z.array(milestoneSchema).optional(),
@@ -150,9 +156,6 @@ const shipmentDetailsSchema = z.object({
   invoiceNumber: z.string().optional(),
   commodityDescription: z.string().optional(),
   ncms: z.array(z.string()).optional(),
-  collectionAddress: z.string().optional(),
-  deliveryAddress: z.string().optional(),
-  dischargeTerminal: z.string().optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -539,16 +542,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <CardTitle className="text-lg">Informações do Processo</CardTitle>
                                             </CardHeader>
                                             <CardContent className="space-y-4">
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <FormItem><FormLabel>Origem</FormLabel><Input value={shipment.origin} disabled /></FormItem>
-                                                    <FormItem><FormLabel>Destino</FormLabel><Input value={shipment.destination} disabled /></FormItem>
+                                                 <div className="grid grid-cols-2 gap-4">
+                                                    <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 </div>
                                                 {shipment.details.incoterm === 'EXW' && <FormField control={form.control} name="collectionAddress" render={({ field }) => (<FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
                                                 {(shipment.details.incoterm.startsWith('D') || shipment.charges.some(c => c.name.toLowerCase().includes('entrega'))) && <FormField control={form.control} name="deliveryAddress" render={({ field }) => (<FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (<FormItem><FormLabel>Terminal de Chegada</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                                    <FormItem><FormLabel>Terminal Redestinação</FormLabel><Input value={partners.find(p => p.id?.toString() === shipment.terminalRedestinacaoId)?.name || 'N/A'} disabled /></FormItem>
-                                                </div>
+                                                <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (<FormItem><FormLabel>Terminal de Chegada (Descarga)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                <FormItem><FormLabel>Terminal Redestinação</FormLabel><Input value={partners.find(p => p.id?.toString() === shipment.terminalRedestinacaoId)?.name || 'N/A'} disabled /></FormItem>
                                                 <Separator />
                                                 <div className="grid grid-cols-2 gap-4">
                                                      <FormField control={form.control} name="etd" render={({ field }) => (
@@ -669,7 +670,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 </TabsContent>
 
                                 <TabsContent value="financials">
-                                  {/* Restored Financials Content */}
+                                  {/* Financials Tab Content Placeholder */}
                                 </TabsContent>
                                 
                                 <TabsContent value="documents">
@@ -699,7 +700,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                             {doc.status}
                                                                         </Badge>
                                                                     </TableCell>
-                                                                    <TableCell>{doc.fileName || 'N/A'}</TableCell>
+                                                                    <TableCell>
+                                                                        {doc.fileName ? (
+                                                                            <a href="#" className="text-primary hover:underline" onClick={(e) => e.preventDefault()}>
+                                                                                {doc.fileName}
+                                                                            </a>
+                                                                        ) : 'N/A'}
+                                                                    </TableCell>
                                                                     <TableCell className="text-right">
                                                                         <Button variant="outline" size="sm" className="mr-2"><Upload className="mr-2 h-4 w-4"/> Anexar</Button>
                                                                         <Button variant="ghost" size="sm" disabled={doc.status !== 'uploaded'}><FileCheck className="mr-2 h-4 w-4"/> Aprovar</Button>

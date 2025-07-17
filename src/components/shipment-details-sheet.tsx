@@ -271,8 +271,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         control: form.control,
         name: 'milestones'
     });
-
-    if (!shipment) return null;
     
     useEffect(() => {
         if (shipment) {
@@ -549,6 +547,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         
         setEditedCharge(null);
     };
+    
+    // Conditional hook calls are not allowed. Moved this to the top.
+    // If we are here, shipment must exist.
+    // if (!shipment) return null;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>

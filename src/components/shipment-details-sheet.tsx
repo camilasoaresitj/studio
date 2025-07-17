@@ -552,7 +552,35 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         setEditedCharge(null);
     };
     
-    if (!shipment) return null;
+    if (!shipment) {
+        return (
+            <Sheet open={open} onOpenChange={onOpenChange}>
+                 <SheetContent className="sm:max-w-7xl w-full p-0 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                 </SheetContent>
+            </Sheet>
+        );
+    }
+    
+    const getMilestoneDetails = (milestone: Milestone): string => {
+        const { name, details } = milestone;
+        const lowerName = name.toLowerCase();
+
+        if (lowerName.includes('embarque') || lowerName.includes('departure')) {
+            return `${details || ''} | ${shipment?.vesselName || ''}`.trim().replace(/^\| /,'');
+        }
+        if (lowerName.includes('chegada') || lowerName.includes('arrival')) {
+             return `${details || ''} | ${shipment?.destination || ''}`.trim().replace(/^\| /,'');
+        }
+        if (lowerName.includes('gate in')) {
+             return `${details || ''} | ${shipment?.origin || ''}`.trim().replace(/^\| /,'');
+        }
+         if (lowerName.includes('transbordo')) {
+             return `${details || ''}`.trim();
+        }
+
+        return details || '';
+    };
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -673,8 +701,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                     </Select>
                                                                 )} />
                                                             </div>
+                                                             <div className="text-sm text-muted-foreground italic">
+                                                                {getMilestoneDetails(milestone)}
+                                                            </div>
                                                             <Controller control={form.control} name={`milestones.${index}.details`} render={({ field }) => (
-                                                                <Textarea {...field} value={field.value ?? ''} placeholder="Adicione um comentário ou detalhe..." className="text-sm" />
+                                                                <Input {...field} value={field.value ?? ''} placeholder="Adicionar comentário..." className="h-8 text-sm" />
                                                             )} />
                                                         </div>
                                                     </div>
@@ -935,3 +966,40 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         </Sheet>
     );
 }
+
+const rebuildMilestones = (shipment: Shipment): Milestone[] => {
+    const baseMilestones = (shipment.milestones || []).filter(m => !m.isTransshipment);
+    
+    const transshipmentMilestones: Milestone[] = (shipment.transshipments || [])
+        .filter(t => t.port && t.vessel && t.etd && t.eta)
+        .flatMap(t => [
+            {
+                name: 'Saída do Transbordo',
+                status: 'pending',
+                predictedDate: t.etd!,
+                effectiveDate: null,
+                details: `${t.port} via ${t.vessel}`,
+                isTransshipment: true,
+            },
+            {
+                name: 'Chegada no Transbordo',
+                status: 'pending',
+                predictedDate: t.eta!,
+                effectiveDate: null,
+                details: `${t.port} via ${t.vessel}`,
+                isTransshipment: true,
+            },
+        ]);
+
+    const allMilestones = [...baseMilestones, ...transshipmentMilestones];
+    
+    allMilestones.sort((a, b) => {
+        const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
+        const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return dateA - dateB;
+    });
+
+    return allMilestones;
+};

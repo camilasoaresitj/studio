@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -480,7 +481,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             toast({ variant: "destructive", title: "Arquivo não encontrado", description: "O arquivo não foi anexado nesta sessão." });
         }
     };
-
+    
+    const watchedContainers = form.watch('containers');
+    const containerTotals = React.useMemo(() => {
+        if (!watchedContainers) return { qty: 0, weight: 0, volumes: 0, cbm: 0 };
+        return {
+            qty: watchedContainers.length,
+            weight: watchedContainers.reduce((sum, c) => sum + (parseFloat(c.grossWeight) || 0), 0),
+            volumes: watchedContainers.reduce((sum, c) => sum + (parseInt(c.volumes || '0') || 0), 0),
+            cbm: watchedContainers.reduce((sum, c) => sum + (parseFloat(c.measurement || '0') || 0), 0),
+        }
+    }, [watchedContainers]);
 
     if (!shipment) {
         return (
@@ -564,13 +575,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
                                                     const locationDetails = getMilestoneLocationDetails(milestone.name);
                                                     return (
-                                                        <div key={milestone.id} className="relative mb-6 last:mb-0 flex items-start gap-4">
+                                                        <div key={milestone.id} className="relative mb-0.5 flex items-start gap-4">
                                                             <div className={cn('absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full', 
                                                                 milestone.effectiveDate ? 'bg-success' : 'bg-muted',
                                                                 overdue && 'bg-destructive')}>
                                                                 {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
                                                             </div>
-                                                            <div className="flex justify-between items-center p-4 rounded-lg border bg-background hover:bg-secondary/50 ml-12 w-full">
+                                                            <div className="flex justify-between items-center p-4 rounded-lg ml-12 w-full">
                                                               <div className="flex-1">
                                                                 <p className="font-semibold text-base">{milestone.name}</p>
                                                                 {locationDetails && (
@@ -578,7 +589,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                 )}
                                                               </div>
                                                               <div className="flex items-center gap-2">
-                                                                  <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
+                                                                 <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
                                                                       <Popover><PopoverTrigger asChild><FormControl>
                                                                           <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
                                                                               <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
@@ -598,6 +609,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     )
                                                 })}
                                             </div>
+                                             <Separator className="my-4"/>
+                                             <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel className="text-base font-semibold">Informações Adicionais (Visível ao Cliente)</FormLabel><FormControl><Textarea placeholder="Adicione aqui observações importantes sobre o processo que devem ser visíveis ao cliente no portal..." className="min-h-[100px]" {...field} /></FormControl></FormItem>)} />
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
@@ -713,14 +726,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <CardContent className="space-y-4">
                                                     <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
                                                     <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs</FormLabel><FormControl><Input placeholder="Separados por vírgula" {...field} onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()))} value={Array.isArray(field.value) ? field.value.join(', ') : ''} /></FormControl></FormItem>)} />
-                                                    <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel>Informações Adicionais (Visível ao Cliente)</FormLabel><FormControl><Textarea placeholder="Adicione aqui observações importantes sobre o processo que devem ser visíveis ao cliente no portal..." className="min-h-[100px]" {...field} /></FormControl></FormItem>)} />
                                                 </CardContent>
                                             </Card>
                                             <Card>
                                                 <CardHeader>
                                                     <div className="flex justify-between items-center">
                                                         <CardTitle className="text-lg">Detalhes dos Contêineres</CardTitle>
-                                                        <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '' })}>
+                                                        <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '', freeTime: shipment.details.freeTime })}>
                                                             <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
                                                         </Button>
                                                     </div>
@@ -735,9 +747,20 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                             <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="Peso Bruto" {...field} className="h-8"/>} />
                                                             <FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="Volumes" {...field} className="h-8"/>} />
                                                             <FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="M³" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input placeholder="Free Time" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input placeholder="Free Time" {...field} className="h-8" disabled />} />
                                                         </div>
                                                     ))}
+                                                     {containerFields.length > 0 && (
+                                                        <div className="grid grid-cols-2 md:grid-cols-8 gap-2 p-2 border-t mt-2 font-semibold">
+                                                            <div className="col-span-2">Total:</div>
+                                                            <div className="text-center">{containerTotals.qty}</div>
+                                                            <div></div> {/* Spacer for Seal */}
+                                                            <div></div> {/* Spacer for Tare */}
+                                                            <div className="text-center">{containerTotals.weight.toFixed(2)}</div>
+                                                            <div className="text-center">{containerTotals.volumes}</div>
+                                                            <div className="text-center">{containerTotals.cbm.toFixed(3)}</div>
+                                                        </div>
+                                                    )}
                                                 </CardContent>
                                             </Card>
                                             <Card>
@@ -938,3 +961,4 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         </Sheet>
     );
 }
+

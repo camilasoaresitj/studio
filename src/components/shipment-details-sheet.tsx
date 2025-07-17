@@ -2,21 +2,12 @@
 
 'use client';
 
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, isPast, isValid, differenceInDays, addDays } from 'date-fns';
-import { useRouter } from 'next/navigation';
+import { format, isPast, isValid } from 'date-fns';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter as DialogFooterComponent,
-} from '@/components/ui/dialog';
 import {
   Sheet,
   SheetContent,
@@ -58,14 +49,8 @@ import {
     Printer, 
     Upload, 
     FileCheck, 
-    CircleDot, 
-    FileText, 
-    FileDown, 
-    Edit, 
-    ChevronsUpDown, 
-    Check, 
-    Map as MapIcon, 
-    Calculator
+    CircleDot,
+    Map as MapIcon
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
@@ -93,12 +78,8 @@ import { getPartners } from '@/lib/partners-data';
 import { getShipments } from '@/lib/shipment';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Textarea } from './ui/textarea';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { BLDraftForm } from './bl-draft-form';
-import { PartnerSelectionDialog } from './partner-selection-dialog';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { ShipmentMap } from './shipment-map';
-
 
 const containerDetailSchema = z.object({
   id: z.string(),
@@ -107,7 +88,7 @@ const containerDetailSchema = z.object({
   tare: z.string().min(1, "Obrigatório"),
   grossWeight: z.string().min(1, "Obrigatório"),
   volumes: z.string().optional(),
-  measurement: z.string().optional(),
+  measurement: z.string().optional(), // CBM
   freeTime: z.string().optional(),
   type: z.string().optional(),
 });
@@ -136,29 +117,16 @@ const quoteChargeSchemaForSheet = z.object({
     financialEntryId: z.string().nullable().optional(),
 });
 
-const blDraftSchemaForSheet = z.object({
-  shipper: z.string().optional(),
-  consignee: z.string().optional(),
-  notify: z.string().optional(),
-  marksAndNumbers: z.string().optional(),
-  descriptionOfGoods: z.string().optional(),
-  grossWeight: z.string().optional(),
-  measurement: z.string().optional(),
-  ncms: z.array(z.string()).optional(),
-  due: z.string().optional(),
-  blType: z.enum(['original', 'express']).optional(),
-  containers: z.array(z.object({ 
-        number: z.string(), 
-        seal: z.string(),
-        tare: z.string(),
-        grossWeight: z.string(),
-        volumes: z.string(),
-        measurement: z.string(),
-    })).optional()
-}).optional();
+const milestoneSchema = z.object({
+    name: z.string().min(1, "O nome do milestone é obrigatório."),
+    status: z.enum(['pending', 'in_progress', 'completed']),
+    predictedDate: z.date({ required_error: "A data prevista é obrigatória." }),
+    effectiveDate: z.date().nullable(),
+    details: z.string().optional(),
+    isTransshipment: z.boolean().optional(),
+});
 
 const shipmentDetailsSchema = z.object({
-  id: z.string(),
   carrier: z.string().optional(),
   vesselName: z.string().optional(),
   voyageNumber: z.string().optional(),
@@ -172,43 +140,9 @@ const shipmentDetailsSchema = z.object({
   courierLastStatus: z.string().optional(),
   etd: z.date().optional(),
   eta: z.date().optional(),
-  origin: z.string().optional(),
-  destination: z.string().optional(),
-  collectionAddress: z.string().optional(),
-  deliveryAddress: z.string().optional(),
-  dischargeTerminal: z.string().optional(),
-  sharingLink: z.string().url().optional(),
   containers: z.array(containerDetailSchema).optional(),
-  documents: z.array(z.object({
-      name: z.string(),
-      status: z.string(),
-      fileName: z.string().optional(),
-      uploadedAt: z.date().optional()
-  })).optional(),
-  charges: z.array(quoteChargeSchemaForSheet).optional(),
-  commodityDescription: z.string().optional(),
-  ncms: z.array(z.string()).optional(),
-  netWeight: z.string().optional(),
   transshipments: z.array(transshipmentDetailSchema).optional(),
-  notifyName: z.string().optional(),
-  invoiceNumber: z.string().optional(),
-  purchaseOrderNumber: z.string().optional(),
-  ceMaster: z.string().optional(),
-  ceHouse: z.string().optional(),
-  manifesto: z.string().optional(),
-  terminalRedestinacaoId: z.string().optional(),
-  emptyPickupTerminalId: z.string().optional(),
-  fullDeliveryTerminalId: z.string().optional(),
-  custoArmazenagem: z.coerce.number().optional(),
-  details: z.object({ 
-    incoterm: z.string().optional(),
-    cargo: z.string().optional(),
-  }),
-  blDraftData: blDraftSchemaForSheet,
-  shipper: z.any().optional(),
-  consignee: z.any().optional(),
-  agent: z.any().optional(),
-  milestones: z.array(z.any()).optional(), 
+  milestones: z.array(milestoneSchema).optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -229,28 +163,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const [isGenerating, setIsGenerating] = useState(false);
     const [partners, setPartners] = useState<Partner[]>([]);
     const [fees, setFees] = useState<Fee[]>([]);
-    const [isNewMilestoneFormVisible, setIsNewMilestoneFormVisible] = useState(false);
     const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
-    const [isSharingDialogOpen, setIsSharingDialogOpen] = useState(false);
-    const [partnersForSelection, setPartnersForSelection] = useState<{ type: 'shipper' | 'consignee' | 'agent', list: Partner[] } | null>(null);
-    const [editedCharge, setEditedCharge] = useState<{ charge: QuoteCharge, index: number } | null>(null);
-    const [mapData, setMapData] = useState<any>(null); // State for map data
-
+    const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
+    const [manualMilestoneName, setManualMilestoneName] = useState('');
+    const [manualMilestoneDate, setManualMilestoneDate] = useState<Date | undefined>(new Date());
+    
     const form = useForm<ShipmentDetailsFormData>({
         resolver: zodResolver(shipmentDetailsSchema),
     });
-
-    const milestoneForm = useForm({
-        defaultValues: {
-            name: '',
-            predictedDate: new Date(),
-            details: '',
-        }
-    });
-    
-    // Watchers for dynamic fields
-    const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
-    const watchedCharges = useWatch({ control: form.control, name: 'charges' });
 
     const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
         control: form.control,
@@ -282,55 +202,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 etd: shipment.etd ? new Date(shipment.etd) : undefined,
                 eta: shipment.eta ? new Date(shipment.eta) : undefined,
                 mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
+                milestones: (shipment.milestones || []).map(m => ({...m, predictedDate: new Date(m.predictedDate), effectiveDate: m.effectiveDate ? new Date(m.effectiveDate) : null})),
             });
         }
     }, [shipment, form]);
-    
-    useEffect(() => {
-        if (open && activeTab === 'map' && shipment?.bookingNumber) {
-            runGetRouteMap(shipment.bookingNumber).then(response => {
-                if (response.success) {
-                    setMapData(response.data);
-                }
-            });
-        }
-    }, [open, activeTab, shipment?.bookingNumber]);
 
-    const totals = useMemo(() => {
-        let totalCostBRL = 0;
-        let totalSaleBRL = 0;
-
-        if (!watchedCharges || Object.keys(exchangeRates).length === 0) {
-            return { totalCostBRL, totalSaleBRL, totalProfitBRL: 0 };
-        }
-
-        watchedCharges.forEach(charge => {
-            const chargeCost = Number(charge.cost) || 0;
-            const chargeSale = Number(charge.sale) || 0;
-
-            const customer = partners.find(p => p.name === charge.sacado);
-            const supplier = partners.find(p => p.name === charge.supplier);
-            
-            const customerAgio = customer?.exchangeRateAgio ?? 0;
-            const supplierAgio = supplier?.exchangeRateAgio ?? 0;
-
-            const salePtax = exchangeRates[charge.saleCurrency] || 1;
-            const costPtax = exchangeRates[charge.costCurrency] || 1;
-
-            const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + customerAgio / 100);
-            const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + supplierAgio / 100);
-
-            totalSaleBRL += chargeSale * saleRate;
-            totalCostBRL += chargeCost * costRate;
-        });
-
-        return {
-            totalCostBRL,
-            totalSaleBRL,
-            totalProfitBRL: totalSaleBRL - totalCostBRL
-        };
-    }, [watchedCharges, exchangeRates, partners]);
-
+    const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
 
     const handleUpdate = form.handleSubmit(async (data) => {
         setIsUpdating(true);
@@ -339,48 +216,45 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         
         // Find the original shipment to merge non-form data
         const allShipments = getShipments();
-        const originalShipment = allShipments.find(s => s.id === shipment.id);
-        if(!originalShipment) return; // Should not happen
-        
-        // Rebuild milestones if transshipments changed
-        const milestones = data.transshipments?.length !== originalShipment.transshipments?.length
-            ? rebuildMilestones({ ...originalShipment, ...data } as Shipment)
-            : data.milestones;
+        const originalShipment = allShipments.find(s => s.id === shipment!.id);
 
-        onUpdate({ ...originalShipment, ...data, milestones } as Shipment);
+        onUpdate({ ...originalShipment, ...data } as Shipment);
         setIsUpdating(false);
     });
 
     const handleAddManualMilestone = async () => {
-        if(!shipment) return;
-        const values = milestoneForm.getValues();
-        if(!values.name || !values.predictedDate) {
-            toast({ variant: 'destructive', title: "Campos obrigatórios", description: "Nome e Data Prevista são obrigatórios."});
+        if (!shipment || !manualMilestoneName || !manualMilestoneDate) {
+            toast({ variant: 'destructive', title: 'Preencha todos os campos.' });
             return;
         }
         
-        const response = await addManualMilestone(shipment.id, {
-            name: values.name,
-            predictedDate: values.predictedDate,
-            details: values.details,
-        });
+        const newMilestone: Milestone = {
+            name: manualMilestoneName,
+            status: 'pending',
+            predictedDate: manualMilestoneDate,
+            effectiveDate: null,
+            details: 'Adicionado manualmente pelo operacional.',
+        };
+
+        const response = await addManualMilestone(shipment.id, newMilestone);
 
         if (response.success && response.data) {
-            onUpdate(response.data);
-            toast({ title: "Milestone Adicionado!", className: 'bg-success text-success-foreground'});
-            setIsNewMilestoneFormVisible(false);
-            milestoneForm.reset();
+            onUpdate(response.data as Shipment);
+            toast({ title: 'Milestone Adicionado!', className: 'bg-success text-success-foreground' });
+            setIsManualMilestoneOpen(false);
+            setManualMilestoneName('');
+            setManualMilestoneDate(new Date());
         } else {
-            toast({ variant: 'destructive', title: "Erro ao adicionar", description: response.error });
+            toast({ variant: 'destructive', title: 'Erro ao adicionar', description: response.error });
         }
     };
-    
+
 
     const handleRefreshTracking = async () => {
         if(!shipment) return;
         setIsUpdating(true);
-        const trackingNumber = shipment.masterBillNumber || shipment.bookingNumber;
-        const carrier = shipment.carrier;
+        const trackingNumber = form.getValues('masterBillNumber') || form.getValues('bookingNumber');
+        const carrier = form.getValues('carrier');
 
         if (!trackingNumber || !carrier) {
             toast({
@@ -395,12 +269,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         const response = await runGetTrackingInfo({ trackingNumber, carrier });
         if (response.success && response.data) {
             const fetchedDetails = response.data.shipmentDetails || {};
-            const updatedData = { ...shipment, ...fetchedDetails };
-            
-            const milestones = rebuildMilestones(updatedData as Shipment);
-            updatedData.milestones = milestones;
-            
-            onUpdate(updatedData as Shipment);
+            onUpdate({ ...shipment, ...fetchedDetails } as Shipment);
             toast({ title: 'Rastreamento Atualizado', description: `Status: ${response.data.status}` });
         } else {
             toast({
@@ -422,7 +291,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         });
         if (response.success) {
             form.setValue('courierLastStatus', response.data.lastStatus);
-            if(shipment) onUpdate({ ...shipment, courierLastStatus: response.data.lastStatus });
             toast({ title: 'Status do Courier Atualizado!' });
         } else {
             toast({ variant: 'destructive', title: 'Erro', description: response.error });
@@ -449,37 +317,22 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                     }));
 
                 response = await runGenerateClientInvoicePdf({
-                    invoiceNumber: shipment.invoiceNumber || `INV-${shipment.id}`,
+                    invoiceNumber: `INV-${shipment.id}`,
                     customerName: shipment.customer,
                     customerAddress: `${partner.address?.street}, ${partner.address?.number}`,
                     date: format(new Date(), 'dd/MM/yyyy'),
-                    dueDate: format(addDays(new Date(), 7), 'dd/MM/yyyy'),
+                    dueDate: format(new Date(), 'dd/MM/yyyy'),
                     charges,
-                    total: `R$ ${totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-                    exchangeRate: exchangeRates['USD'],
+                    total: '0.00', // needs full calculation
+                    exchangeRate: 5.25,
                     bankDetails: { bankName: "LTI GLOBAL", accountNumber: "PIX: 10.298.168/0001-89" }
                 });
             } else if (type === 'agent') {
                  if (!shipment.agent) throw new Error("Agente não encontrado no processo.");
-                 const mainCurrency = 'USD';
-                 const totalCost = shipment.charges.reduce((sum, c) => sum + (c.costCurrency === mainCurrency ? c.cost : 0), 0);
-                 const totalSale = shipment.charges.reduce((sum, c) => sum + (c.saleCurrency === mainCurrency ? c.sale : 0), 0);
                  response = await runGenerateAgentInvoicePdf({
                      invoiceNumber: `AINV-${shipment.id}`,
                      processId: shipment.id,
                      agentName: shipment.agent.name,
-                     date: new Date().toLocaleDateString('en-US'),
-                     charges: shipment.charges.map(c => ({
-                        description: c.name,
-                        cost: c.cost.toFixed(2),
-                        sale: c.sale.toFixed(2),
-                        profit: (c.sale - c.cost).toFixed(2), // Simplified
-                        currency: c.saleCurrency
-                     })),
-                     totalCost: totalCost.toFixed(2),
-                     totalSale: totalSale.toFixed(2),
-                     totalProfit: (totalSale - totalCost).toFixed(2),
-                     currency: mainCurrency,
                  });
             } else { // HBL
                 if (!shipment.blDraftData) throw new Error("Draft do BL não foi preenchido.");
@@ -518,58 +371,21 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         setIsGenerating(false);
     };
     
-    const handleSelectPartner = (partner: Partner) => {
-        if (partnersForSelection && shipment) {
-            const updatedShipment = { ...shipment, [partnersForSelection.type]: partner };
-            onUpdate(updatedShipment);
-        }
-        setPartnersForSelection(null);
-    };
-
-    const handleGenerateSharingLink = () => {
-        if(!shipment) return;
-        const link = `${window.location.origin}/portal/${shipment.id}`;
-        form.setValue('sharingLink', link);
-        navigator.clipboard.writeText(link);
-        toast({ title: 'Link Gerado e Copiado!', description: 'O link para o portal do cliente foi copiado para a área de transferência.' });
-        setIsSharingDialogOpen(false);
-    };
-    
-    const handleSaveChargeChange = async (justification: string) => {
-        if (!editedCharge || !shipment) return;
-        
-        const originalCharges = (getShipments().find(s => s.id === shipment.id))?.charges || [];
-        const originalCharge = originalCharges.find(c => c.id === editedCharge.charge.id);
-
-        if (originalCharge && (originalCharge.cost !== editedCharge.charge.cost || originalCharge.sale !== editedCharge.charge.sale)) {
-            // Values changed, requires approval
-            const updatedCharge = { ...editedCharge.charge, approvalStatus: 'pendente' as const, justification };
-            form.setValue(`charges.${editedCharge.index}`, updatedCharge);
-            await handleUpdate();
-            toast({ title: 'Solicitação de Alteração Enviada!', description: 'Sua alteração de custo/venda foi enviada para aprovação gerencial.' });
-        }
-        
-        setEditedCharge(null);
-    };
-
-    const getMilestoneDetails = (milestone: Milestone): string => {
-        const { name, details } = milestone;
-        const lowerName = name.toLowerCase();
-
+    const getMilestoneAutoDetails = (milestone: Milestone): string => {
+        const lowerName = milestone.name.toLowerCase();
         if (lowerName.includes('embarque') || lowerName.includes('departure')) {
-            return `${details || ''} | ${shipment?.vesselName || ''}`.trim().replace(/^\| /,'');
+            return `no navio ${shipment?.vesselName || 'N/A'} do porto de ${shipment?.origin || 'N/A'}.`;
         }
-        if (lowerName.includes('chegada') || lowerName.includes('arrival')) {
-             return `${details || ''} | ${shipment?.destination || ''}`.trim().replace(/^\| /,'');
+        if (lowerName.includes('chegada') || lowerName.includes('arrival') || lowerName.includes('discharged')) {
+            return `do navio ${shipment?.vesselName || 'N/A'} no porto de ${shipment?.destination || 'N/A'}.`;
+        }
+        if (lowerName.includes('transbordo') || lowerName.includes('transshipment')) {
+            return `no porto de ${milestone.details || 'N/A'}.`;
         }
         if (lowerName.includes('gate in')) {
-             return `${details || ''} | ${shipment?.origin || ''}`.trim().replace(/^\| /,'');
+            return `no porto de ${shipment?.origin || 'N/A'}.`;
         }
-         if (lowerName.includes('transbordo')) {
-             return `${details || ''}`.trim();
-        }
-
-        return details || '';
+        return milestone.details || '';
     };
 
     if (!shipment) {
@@ -609,7 +425,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <DropdownMenuItem onClick={() => generatePdf('hbl')}>HBL</DropdownMenuItem>
                                         </DropdownMenuContent>
                                      </DropdownMenu>
-                                    <Button type="button" onClick={() => setIsSharingDialogOpen(true)} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
+                                    <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
                                     <Button type="submit" disabled={isUpdating}>
                                         {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                                         Salvar Alterações
@@ -633,42 +449,20 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
                                 <div className="p-4">
                                 <TabsContent value="timeline">
-                                    {/* Timeline and Milestones */}
                                     <Card>
-                                        <CardHeader className="flex flex-row justify-between items-center">
-                                            <div>
-                                            <CardTitle>Timeline do Processo</CardTitle>
-                                            <CardDescription>Acompanhe e atualize os marcos do embarque.</CardDescription>
+                                        <CardHeader>
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <CardTitle>Timeline do Processo</CardTitle>
+                                                    <CardDescription>Acompanhe e atualize os marcos do embarque.</CardDescription>
+                                                </div>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => setIsManualMilestoneOpen(true)}>
+                                                    <PlusCircle className="mr-2 h-4 w-4"/>
+                                                    Adicionar Milestone Manual
+                                                </Button>
                                             </div>
-                                            <Button type="button" variant="outline" size="sm" onClick={() => setIsNewMilestoneFormVisible(!isNewMilestoneFormVisible)}>
-                                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Milestone Manual
-                                            </Button>
                                         </CardHeader>
                                         <CardContent>
-                                             {isNewMilestoneFormVisible && (
-                                                <div className="p-4 border rounded-md mb-6 space-y-4 bg-secondary/50">
-                                                    <h4 className="font-semibold">Novo Milestone Manual</h4>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <Input placeholder="Nome do Milestone" {...milestoneForm.register('name')} />
-                                                        <Controller control={milestoneForm.control} name="predictedDate" render={({ field }) => (
-                                                            <Popover>
-                                                                <PopoverTrigger asChild><FormControl>
-                                                                    <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                                        {field.value ? format(field.value, "PPP") : <span>Selecione a data</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                    </Button>
-                                                                </FormControl></PopoverTrigger>
-                                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
-                                                            </Popover>
-                                                        )} />
-                                                    </div>
-                                                    <Textarea placeholder="Detalhes da tarefa..." {...milestoneForm.register('details')} />
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button type="button" variant="ghost" onClick={() => setIsNewMilestoneFormVisible(false)}>Cancelar</Button>
-                                                        <Button type="button" size="sm" onClick={handleAddManualMilestone}>Adicionar</Button>
-                                                    </div>
-                                                </div>
-                                            )}
-
                                             <div className="relative pl-8">
                                             <div className="absolute left-[15px] top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
                                             {milestoneFields.map((milestone, index) => {
@@ -701,11 +495,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                     </Select>
                                                                 )} />
                                                             </div>
-                                                             <div className="text-sm text-muted-foreground italic">
-                                                                {getMilestoneDetails(milestone)}
+                                                            <div className="text-sm text-muted-foreground italic">
+                                                                {getMilestoneAutoDetails(milestone)}
                                                             </div>
                                                             <Controller control={form.control} name={`milestones.${index}.details`} render={({ field }) => (
-                                                                <Input {...field} value={field.value ?? ''} placeholder="Adicionar comentário..." className="h-8 text-sm" />
+                                                                <Input placeholder="Adicionar comentário (visível ao cliente)..." {...field} className="h-8 text-sm" />
                                                             )} />
                                                         </div>
                                                     </div>
@@ -723,9 +517,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <CardTitle className="text-lg">Informações do Processo</CardTitle>
                                             </CardHeader>
                                             <CardContent className="space-y-4">
-                                                <FormField control={form.control} name="id" render={({ field }) => (
-                                                    <FormItem><FormLabel>Processo ID</FormLabel><FormControl><Input {...field} disabled /></FormControl></FormItem>
-                                                )} />
                                                 <div className="grid grid-cols-2 gap-4">
                                                      <FormField control={form.control} name="etd" render={({ field }) => (
                                                         <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
@@ -786,27 +577,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <CardTitle className="text-lg">Parceiros do Processo</CardTitle>
                                             </CardHeader>
                                             <CardContent className="space-y-4">
-                                                <div className="space-y-1">
-                                                    <Label>Shipper</Label>
-                                                    <div className="flex items-center gap-2">
-                                                        <Input value={form.watch('shipper')?.name || ''} disabled/>
-                                                        <Button type="button" variant="outline" size="icon" onClick={() => setPartnersForSelection({ type: 'shipper', list: partners })}><Edit className="h-4 w-4"/></Button>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <Label>Consignee</Label>
-                                                    <div className="flex items-center gap-2">
-                                                        <Input value={form.watch('consignee')?.name || ''} disabled/>
-                                                        <Button type="button" variant="outline" size="icon" onClick={() => setPartnersForSelection({ type: 'consignee', list: partners })}><Edit className="h-4 w-4"/></Button>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <Label>Agente</Label>
-                                                    <div className="flex items-center gap-2">
-                                                        <Input value={form.watch('agent')?.name || 'N/A'} disabled/>
-                                                         <Button type="button" variant="outline" size="icon" onClick={() => setPartnersForSelection({ type: 'agent', list: partners.filter(p => p.roles.agente) })}><Edit className="h-4 w-4"/></Button>
-                                                    </div>
-                                                </div>
+                                                <FormItem><FormLabel>Shipper</FormLabel><FormControl><Input value={shipment.shipper.name} disabled/></FormControl></FormItem>
+                                                <FormItem><FormLabel>Consignee</FormLabel><FormControl><Input value={shipment.consignee.name} disabled/></FormControl></FormItem>
+                                                <FormItem><FormLabel>Agente</FormLabel><FormControl><Input value={shipment.agent?.name || 'N/A'} disabled/></FormControl></FormItem>
                                             </CardContent>
                                         </Card>
 
@@ -869,7 +642,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                         </TableRow>
                                                     </TableHeader>
                                                     <TableBody>
-                                                        {form.getValues('documents')?.map((doc, index) => (
+                                                        {shipment.documents.map((doc, index) => (
                                                             <TableRow key={index}>
                                                                 <TableCell className="font-medium">{doc.name}</TableCell>
                                                                 <TableCell>
@@ -892,20 +665,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 </TabsContent>
 
                                 <TabsContent value="bl_draft">
-                                    <BLDraftForm shipment={form.getValues() as Shipment} onUpdate={(updated) => onUpdate(updated)} isSheet />
+                                    <BLDraftForm shipment={shipment} onUpdate={onUpdate} isSheet />
                                 </TabsContent>
                                 
                                 <TabsContent value="map">
                                     {shipment.bookingNumber ? (
                                         <ShipmentMap shipmentNumber={shipment.bookingNumber} />
                                     ) : (
-                                        <Alert>
-                                            <AlertTriangle className="h-4 w-4" />
-                                            <AlertTitle>Mapa Indisponível</AlertTitle>
-                                            <AlertDescription>
-                                                É necessário um Booking Number para visualizar o mapa da rota.
-                                            </AlertDescription>
-                                        </Alert>
+                                        <div className="text-center p-8 text-muted-foreground">
+                                            <MapIcon className="mx-auto h-12 w-12 mb-4" />
+                                            <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                        </div>
                                     )}
                                 </TabsContent>
                                 </div>
@@ -913,93 +683,36 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         </div>
                     </form>
                 </Form>
-                 <Dialog open={isSharingDialogOpen} onOpenChange={setIsSharingDialogOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                        <DialogTitle>Compartilhar Portal do Cliente</DialogTitle>
-                        <DialogDescription>
-                            Envie este link para o seu cliente para que ele possa acompanhar o embarque em tempo real.
-                        </DialogDescription>
-                        </DialogHeader>
-                        <div className="flex items-center space-x-2">
-                            <Input value={form.getValues('sharingLink') || ''} readOnly />
-                            <Button type="button" onClick={handleGenerateSharingLink}>Gerar e Copiar Link</Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-                
-                <PartnerSelectionDialog
-                    isOpen={!!partnersForSelection}
-                    onClose={() => setPartnersForSelection(null)}
-                    partners={partnersForSelection?.list || []}
-                    onPartnerSelect={handleSelectPartner}
-                    title={`Selecione o ${partnersForSelection?.type}`}
-                />
-
-                 {editedCharge && (
-                    <Dialog open={!!editedCharge} onOpenChange={() => setEditedCharge(null)}>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Justificativa de Alteração</DialogTitle>
-                                <DialogDescription>
-                                    Você alterou um valor. Por favor, forneça uma justificativa para esta alteração ser enviada para aprovação.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <Textarea
-                                id="justification"
-                                placeholder="Ex: Custo extra de armazenagem não previsto..."
-                                onBlur={(e) => {
-                                    if (editedCharge) {
-                                        const updatedCharge = { ...editedCharge.charge, justification: e.target.value };
-                                        setEditedCharge({ ...editedCharge, charge: updatedCharge });
-                                    }
-                                }}
-                            />
-                            <DialogFooterComponent>
-                                <Button variant="outline" onClick={() => setEditedCharge(null)}>Cancelar</Button>
-                                <Button onClick={() => handleSaveChargeChange((document.getElementById('justification') as HTMLTextAreaElement).value)}>Enviar para Aprovação</Button>
-                            </DialogFooterComponent>
-                        </DialogContent>
-                    </Dialog>
-                )}
             </SheetContent>
+            <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Adicionar Milestone Manual</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="milestone-name">Nome da Tarefa</Label>
+                            <Input id="milestone-name" value={manualMilestoneName} onChange={(e) => setManualMilestoneName(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Data Prevista</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !manualMilestoneDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {manualMilestoneDate ? format(manualMilestoneDate, "PPP") : <span>Selecione a data</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={manualMilestoneDate} onSelect={setManualMilestoneDate} initialFocus /></PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsManualMilestoneOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleAddManualMilestone}>Adicionar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Sheet>
     );
 }
-
-const rebuildMilestones = (shipment: Shipment): Milestone[] => {
-    const baseMilestones = (shipment.milestones || []).filter(m => !m.isTransshipment);
-    
-    const transshipmentMilestones: Milestone[] = (shipment.transshipments || [])
-        .filter(t => t.port && t.vessel && t.etd && t.eta)
-        .flatMap(t => [
-            {
-                name: 'Saída do Transbordo',
-                status: 'pending',
-                predictedDate: t.etd!,
-                effectiveDate: null,
-                details: `${t.port} via ${t.vessel}`,
-                isTransshipment: true,
-            },
-            {
-                name: 'Chegada no Transbordo',
-                status: 'pending',
-                predictedDate: t.eta!,
-                effectiveDate: null,
-                details: `${t.port} via ${t.vessel}`,
-                isTransshipment: true,
-            },
-        ]);
-
-    const allMilestones = [...baseMilestones, ...transshipmentMilestones];
-    
-    allMilestones.sort((a, b) => {
-        const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
-        const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return dateA - dateB;
-    });
-
-    return allMilestones;
-};

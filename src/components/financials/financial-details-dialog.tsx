@@ -382,7 +382,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePaymen
         </div>
         
         <DialogFooter className="pt-4 border-t flex-col md:flex-row md:justify-between items-center">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
             <Card>
               <CardHeader className="p-2"><CardTitle className="text-base">Custo Total (BRL)</CardTitle></CardHeader>
               <CardContent className="p-2 pt-0 text-sm">
@@ -403,8 +403,8 @@ export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePaymen
             </Card>
             <Card className={cn(totals.totalProfitBRL < 0 ? 'border-destructive' : 'border-success')}>
               <CardHeader className="p-2"><CardTitle className="text-base">Resultado (BRL)</CardTitle></CardHeader>
-              <CardContent className="p-2 pt-0 text-sm">
-                <div className={cn("flex justify-between font-semibold text-base", totals.totalProfitBRL < 0 ? 'text-destructive' : 'text-success')}>
+              <CardContent className={cn("p-2 pt-0 text-sm font-semibold text-base", totals.totalProfitBRL < 0 ? 'text-destructive' : 'text-success')}>
+                <div className="flex justify-between">
                     <span>BRL:</span>
                     <span className="font-mono">{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   </div>

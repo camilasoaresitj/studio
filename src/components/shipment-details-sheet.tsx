@@ -75,6 +75,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFo
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Label } from './ui/label';
+import { addFinancialEntry } from '@/lib/financials-data';
 
 
 const containerDetailSchema = z.object({
@@ -176,6 +177,43 @@ interface ShipmentDetailsSheetProps {
     onUpdate: (updatedShipment: Shipment) => void;
 }
 
+const JustificationDialog = ({ open, onOpenChange, onConfirm }: { open: boolean, onOpenChange: (open: boolean) => void, onConfirm: (justification: string) => void }) => {
+    const [justification, setJustification] = useState('');
+
+    const handleConfirm = () => {
+        if (justification.trim().length < 10) {
+            alert('A justificativa deve ter pelo menos 10 caracteres.');
+            return;
+        }
+        onConfirm(justification);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Justificar Alteração de Valor</DialogTitle>
+                    <DialogDescription>
+                        Esta taxa já foi aprovada. Por favor, insira uma justificativa para a alteração do valor de venda. A alteração ficará pendente de aprovação gerencial.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Textarea
+                        value={justification}
+                        onChange={(e) => setJustification(e.target.value)}
+                        placeholder="Ex: Cliente solicitou remoção do seguro, reduzindo o valor final."
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                    <Button onClick={handleConfirm}>Confirmar e Enviar para Aprovação</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+
 export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('timeline');
@@ -188,6 +226,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
     const [documentPreviews, setDocumentPreviews] = useState<Record<string, string>>({});
     const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
+    const [justificationData, setJustificationData] = useState<{ chargeIndex: number, newSaleValue: number } | null>(null);
     
     const form = useForm<ShipmentDetailsFormData>({
         resolver: zodResolver(shipmentDetailsSchema),
@@ -235,7 +274,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         name: "transshipments",
     });
 
-     const { fields: chargesFields, append: appendCharge, remove: removeCharge } = useFieldArray({
+     const { fields: chargesFields, append: appendCharge, remove: removeCharge, update: updateCharge } = useFieldArray({
         control: form.control,
         name: "charges",
     });
@@ -407,39 +446,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         }
     });
 
-    const watchedCharges = useWatch({ control: form.control, name: 'charges' });
-
-    const totals = React.useMemo(() => {
-        let totalCostBRL = 0;
-        let totalSaleBRL = 0;
-
-        if (!watchedCharges) return { totalCostBRL: 0, totalSaleBRL: 0, totalProfitBRL: 0 };
-
-        watchedCharges.forEach(charge => {
-            const chargeCost = Number(charge.cost) || 0;
-            const chargeSale = Number(charge.sale) || 0;
-
-            const customer = partners.find(p => p.name === charge.sacado);
-            const supplier = partners.find(p => p.name === charge.supplier);
-
-            const customerAgio = customer?.exchangeRateAgio ?? 0;
-            const supplierAgio = supplier?.exchangeRateAgio ?? 0;
-
-            const salePtax = exchangeRates[charge.saleCurrency] || 1;
-            const costPtax = exchangeRates[charge.costCurrency] || 1;
-
-            const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + customerAgio / 100);
-            const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + supplierAgio / 100);
-
-            totalSaleBRL += chargeSale * saleRate;
-            totalCostBRL += chargeCost * costRate;
-        });
-
-        const totalProfitBRL = totalSaleBRL - totalCostBRL;
-
-        return { totalCostBRL, totalSaleBRL, totalProfitBRL };
-    }, [watchedCharges, exchangeRates, partners]);
-
     const getMilestoneLocationDetails = (milestoneName: string): string => {
         const lowerName = milestoneName.toLowerCase();
         if (lowerName.includes('embarque') || lowerName.includes('gate in') || lowerName.includes('partida')) {
@@ -570,29 +576,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             </div>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="relative pl-4">
+                                            <div className="relative pl-4 space-y-6">
                                                 <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
                                                 {milestoneFields.map((milestone, index) => {
                                                     const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
                                                     const locationDetails = getMilestoneLocationDetails(milestone.name);
                                                     return (
-                                                        <div key={milestone.id} className="relative flex items-start gap-4 pb-8">
-                                                            <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
+                                                        <div key={milestone.id} className="relative flex items-start gap-4">
+                                                             <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
                                                                 <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
                                                                     milestone.effectiveDate ? 'bg-success' : 'bg-muted',
                                                                     overdue && 'bg-destructive')}>
                                                                     {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
                                                                 </div>
                                                             </div>
-                                                            <div className="pl-12 w-full">
-                                                                <div className="flex justify-between items-center p-4 rounded-lg border bg-background">
-                                                                    <div className="flex-1">
-                                                                        <p className="font-semibold text-base">{milestone.name}</p>
-                                                                        {locationDetails && (
-                                                                            <p className="text-sm text-muted-foreground">{locationDetails}</p>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
+                                                            <div className="pl-12 w-full space-y-2">
+                                                                <p className="font-semibold text-base">{milestone.name}</p>
+                                                                {locationDetails && <p className="text-sm text-muted-foreground -mt-1">{locationDetails}</p>}
+                                                                <div className="flex items-center gap-2">
                                                                         <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
                                                                             <Popover><PopoverTrigger asChild><FormControl>
                                                                                 <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
@@ -607,7 +608,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                                 </Button>
                                                                             </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
                                                                         )} />
-                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -688,7 +688,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </Card>
                                         
                                         <div className="space-y-4">
-                                            <Card>
+                                             <Card>
                                                 <CardHeader><CardTitle className="text-lg">Referências</CardTitle></CardHeader>
                                                 <CardContent className="space-y-4">
                                                     <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (<FormItem><FormLabel>Ref. Cliente (PO)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
@@ -715,13 +715,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     {containerFields.map((field, index) => (
                                                         <div key={field.id} className="grid grid-cols-2 md:grid-cols-8 gap-2 items-center p-2 border rounded-md relative">
                                                             <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                                            <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <div className="col-span-2"><Label>Nº Contêiner</Label><Input placeholder="MSCU1234567" {...field} className="h-8 mt-1"/></div>} />
-                                                            <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <div><Label>Lacre</Label><Input placeholder="SEAL12345" {...field} className="h-8 mt-1"/></div>} />
-                                                            <FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <div><Label>Tara (Kg)</Label><Input placeholder="2250" {...field} className="h-8 mt-1"/></div>} />
-                                                            <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <div><Label>Peso Bruto (Kg)</Label><Input placeholder="24000" {...field} className="h-8 mt-1"/></div>} />
-                                                            <FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <div><Label>Volumes</Label><Input placeholder="1000" {...field} className="h-8 mt-1"/></div>} />
-                                                            <FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <div><Label>M³</Label><Input placeholder="28.5" {...field} className="h-8 mt-1"/></div>} />
-                                                            <FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <div><Label>Free Time</Label><Input placeholder="N/A" {...field} className="h-8 mt-1" disabled/></div>} />
+                                                            <div className="col-span-2"><Label>Nº Contêiner</Label><FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="MSCU1234567" {...field} className="h-8 mt-1"/>} /></div>
+                                                            <div><Label>Lacre</Label><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="SEAL12345" {...field} className="h-8 mt-1"/>} /></div>
+                                                            <div><Label>Tara (Kg)</Label><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="2250" {...field} className="h-8 mt-1"/>} /></div>
+                                                            <div><Label>Peso Bruto (Kg)</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
+                                                            <div><Label>Volumes</Label><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="1000" {...field} className="h-8 mt-1"/>} /></div>
+                                                            <div><Label>M³</Label><FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="28.5" {...field} className="h-8 mt-1"/>} /></div>
+                                                            <div><Label>Free Time</Label><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input placeholder="N/A" {...field} className="h-8 mt-1" disabled/>} /></div>
                                                         </div>
                                                     ))}
                                                      {containerFields.length > 0 && (
@@ -774,9 +774,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <CardHeader>
                                             <div className="flex justify-between items-center">
                                                 <CardTitle>Planilha de Custos e Vendas</CardTitle>
-                                                <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `new-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'aprovada' })}>
-                                                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
-                                                </Button>
+                                                 <div className="flex items-center gap-2">
+                                                    <Button type="button" variant="secondary" size="sm">Faturar Processo</Button>
+                                                    <Button type="button" variant="outline" size="sm" onClick={() => {}}>
+                                                        <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </CardHeader>
                                         <CardContent>
@@ -785,11 +788,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <TableHeader>
                                                         <TableRow>
                                                             <TableHead className="w-[180px]">Taxa</TableHead>
-                                                            <TableHead className="w-[200px]">Compra</TableHead>
-                                                            <TableHead className="w-[200px]">Venda</TableHead>
-                                                            <TableHead className="w-[120px]">Lucro</TableHead>
                                                             <TableHead className="w-[180px]">Fornecedor</TableHead>
+                                                            <TableHead className="w-[200px]">Custo</TableHead>
                                                             <TableHead className="w-[180px]">Sacado</TableHead>
+                                                            <TableHead className="w-[200px]">Venda</TableHead>
                                                             <TableHead className="w-[50px]">Ações</TableHead>
                                                         </TableRow>
                                                     </TableHeader>
@@ -798,29 +800,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                              const charge = watchedCharges[index];
                                                              if (!charge) return null;
 
-                                                             const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
-                                                             const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
-                                                             const isLoss = canCalculateProfit && profit < 0;
-
                                                             return (
                                                                 <TableRow key={field.id}>
                                                                     <TableCell className="p-1 align-top">
                                                                         <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => <Input {...field} className="h-8"/>} />
-                                                                    </TableCell>
-                                                                    <TableCell className="p-1 align-top">
-                                                                        <div className="flex gap-1">
-                                                                            <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                            <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8"/>} />
-                                                                        </div>
-                                                                    </TableCell>
-                                                                    <TableCell className="p-1 align-top">
-                                                                        <div className="flex gap-1">
-                                                                            <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                            <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8"/>} />
-                                                                        </div>
-                                                                    </TableCell>
-                                                                     <TableCell className={cn('font-semibold text-right p-1 align-top', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
-                                                                        {canCalculateProfit ? `${charge.saleCurrency} ${profit.toFixed(2)}` : 'N/A'}
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top">
                                                                         <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
@@ -830,13 +813,25 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                             </Select>
                                                                         )} />
                                                                     </TableCell>
-                                                                     <TableCell className="p-1 align-top">
+                                                                    <TableCell className="p-1 align-top">
+                                                                        <div className="flex gap-1">
+                                                                            <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                            <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8"/>} />
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    <TableCell className="p-1 align-top">
                                                                         <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
                                                                             <Select onValueChange={field.onChange} value={field.value}>
                                                                                 <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                                                                 <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
                                                                             </Select>
                                                                         )} />
+                                                                    </TableCell>
+                                                                    <TableCell className="p-1 align-top">
+                                                                        <div className="flex gap-1">
+                                                                            <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                            <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8"/>} />
+                                                                        </div>
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top">
                                                                         <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -846,11 +841,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                         })}
                                                     </TableBody>
                                                 </Table>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-4">
-                                                <Card><CardHeader className="p-2"><CardTitle className="text-base">Custo Total (BRL)</CardTitle></CardHeader><CardContent className="p-2 pt-0 font-semibold font-mono text-base">{totals.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</CardContent></Card>
-                                                <Card><CardHeader className="p-2"><CardTitle className="text-base">Venda Total (BRL)</CardTitle></CardHeader><CardContent className="p-2 pt-0 font-semibold font-mono text-base">{totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</CardContent></Card>
-                                                <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}><CardHeader className="p-2"><CardTitle className="text-base">Resultado (BRL)</CardTitle></CardHeader><CardContent className={cn("p-2 pt-0 font-semibold font-mono text-base", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</CardContent></Card>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -1023,6 +1013,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         </Form>
                     </DialogContent>
                 </Dialog>
+                
+                 <JustificationDialog
+                    open={!!justificationData}
+                    onOpenChange={() => setJustificationData(null)}
+                    onConfirm={(justification) => {
+                        if (justificationData) {
+                            const { chargeIndex, newSaleValue } = justificationData;
+                            const charge = watchedCharges[chargeIndex];
+                            updateCharge(chargeIndex, {
+                                ...charge,
+                                sale: newSaleValue,
+                                approvalStatus: 'pendente',
+                                justification,
+                            });
+                        }
+                        setJustificationData(null);
+                    }}
+                />
             </SheetContent>
         </Sheet>
     );

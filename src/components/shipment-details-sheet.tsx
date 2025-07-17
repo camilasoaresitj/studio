@@ -47,6 +47,8 @@ import {
     FileCheck,
     Map as MapIcon,
     FileText,
+    ChevronsUpDown,
+    Check
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -76,6 +78,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Label } from './ui/label';
 import { addFinancialEntries, getFinancialEntries } from '@/lib/financials-data';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 
 
 const containerDetailSchema = z.object({
@@ -134,7 +137,7 @@ const shipmentDetailsSchema = z.object({
   shipperId: z.number().optional(),
   consigneeId: z.number().optional(),
   agentId: z.number().optional(),
-  notifyName: z.string().optional(),
+  notifyId: z.number().optional(),
   carrier: z.string().optional(),
   vesselName: z.string().optional(),
   voyageNumber: z.string().optional(),
@@ -238,7 +241,7 @@ const PartnerSelectField = ({ name, label, control, partners }: { name: any, lab
                     <FormLabel>{label}</FormLabel>
                     <Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}>
                         <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-7 text-xs">
                                 <SelectValue placeholder={`Selecione um ${label.toLowerCase()}...`} />
                             </SelectTrigger>
                         </FormControl>
@@ -252,14 +255,52 @@ const PartnerSelectField = ({ name, label, control, partners }: { name: any, lab
                     </Select>
                      {selectedPartner && (
                         <div className="text-xs text-muted-foreground mt-1 p-2 border rounded-md bg-secondary/50">
-                            <p className="font-semibold">{selectedPartner.cnpj ? `CNPJ: ${selectedPartner.cnpj}` : (selectedPartner.vat ? `VAT: ${selectedPartner.vat}`: '')}</p>
-                            <p>{selectedPartner.address.street}, {selectedPartner.address.number} - {selectedPartner.address.city}, {selectedPartner.address.country}</p>
+                            <p className="font-semibold truncate">{selectedPartner.cnpj ? `CNPJ: ${selectedPartner.cnpj}` : (selectedPartner.vat ? `VAT: ${selectedPartner.vat}`: '')}</p>
+                            <p className="truncate">{selectedPartner.address.street}, {selectedPartner.address.number} - {selectedPartner.address.city}, {selectedPartner.address.country}</p>
                         </div>
                     )}
                 </FormItem>
             )}
         />
     )
+};
+
+const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
+    const [open, setOpen] = React.useState(false);
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between h-8 font-normal">
+                    {value ? value : "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+                <Command>
+                    <CommandInput placeholder="Buscar taxa..." />
+                    <CommandList>
+                        <CommandEmpty>Nenhuma taxa encontrada.</CommandEmpty>
+                        <CommandGroup>
+                            {fees.map((fee) => (
+                                <CommandItem
+                                    key={fee.id}
+                                    value={fee.name}
+                                    onSelect={(currentValue) => {
+                                        onValueChange(currentValue === value ? "" : fee.name);
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <Check className={cn("mr-2 h-4 w-4", value === fee.name ? "opacity-100" : "opacity-0")} />
+                                    {fee.name}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
 };
 
 
@@ -300,6 +341,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 shipperId: shipment.shipper?.id,
                 consigneeId: shipment.consignee?.id,
                 agentId: shipment.agent?.id,
+                notifyId: partners.find(p => p.name === shipment.notifyName)?.id,
                 etd: shipment.etd ? new Date(shipment.etd) : undefined,
                 eta: shipment.eta ? new Date(shipment.eta) : undefined,
                 mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
@@ -314,7 +356,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             setDocumentPreviews({});
             setFinancialEntries(getFinancialEntries());
         }
-    }, [shipment, form, open]);
+    }, [shipment, form, open, partners]);
     
     const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
         control: form.control,
@@ -365,6 +407,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             shipper: partners.find(p => p.id === data.shipperId) || shipment.shipper,
             consignee: partners.find(p => p.id === data.consigneeId) || shipment.consignee,
             agent: partners.find(p => p.id === data.agentId) || shipment.agent,
+            notifyName: partners.find(p => p.id === data.notifyId)?.name || shipment.notifyName,
             documents: updatedDocuments,
             milestones: (data.milestones || []).map(m => ({
                 ...m,
@@ -648,6 +691,31 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         });
     };
 
+    const handleSaleValueChange = (index: number, newValue: number) => {
+        const charge = watchedCharges[index];
+        if (charge.approvalStatus === 'aprovada' && newValue !== charge.sale) {
+            setJustificationData({ chargeIndex: index, newSaleValue: newValue });
+        } else {
+            updateCharge(index, { ...charge, sale: newValue });
+        }
+    };
+    
+    const handleFeeSelection = (feeName: string, index: number) => {
+        const fee = fees.find(f => f.name === feeName);
+        if (fee) {
+            updateCharge(index, {
+                ...watchedCharges[index],
+                name: fee.name,
+                type: fee.unit,
+                cost: parseFloat(fee.value) || 0,
+                costCurrency: fee.currency,
+                sale: parseFloat(fee.value) || 0,
+                saleCurrency: fee.currency,
+                approvalStatus: 'pendente', // New charges are pending approval
+            });
+        }
+    };
+
     if (!shipment) {
         return (
             <Sheet open={open} onOpenChange={onOpenChange}>
@@ -671,7 +739,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     </div>
                                     <div>
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
-                                        <SheetDescription className="text-xs md:text-sm flex items-center gap-2">
+                                         <SheetDescription className="text-xs md:text-sm flex items-center gap-2">
                                             <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
                                                 <div className="flex items-center gap-1"><Label htmlFor="po-header">Ref. Cliente:</Label><Input id="po-header" {...field} className="h-6 text-xs w-24"/></div>
                                             )}/>
@@ -703,7 +771,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
                                 <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
                                 <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
-                                <FormField control={form.control} name="notifyName" render={({ field }) => (<FormItem><FormLabel>Notify</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
                                 <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
                             </div>
                         </SheetHeader>
@@ -847,9 +915,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         
                                         <div className="space-y-4">
                                             <Card>
-                                                <CardHeader>
-                                                    <CardTitle className="text-lg">Referências</CardTitle>
-                                                </CardHeader>
+                                                <CardHeader><CardTitle className="text-lg">Detalhes da Carga</CardTitle></CardHeader>
                                                 <CardContent className="space-y-4">
                                                     <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
                                                     <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs</FormLabel><FormControl><Input placeholder="Separados por vírgula" {...field} onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()))} value={Array.isArray(field.value) ? field.value.join(', ') : ''} /></FormControl></FormItem>)} />
@@ -928,7 +994,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <CardTitle>Planilha de Custos e Vendas</CardTitle>
                                                  <div className="flex items-center gap-2">
                                                     <Button type="button" variant="secondary" size="sm" onClick={handleFaturarProcesso}>Faturar Processo</Button>
-                                                    <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `custom-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'aprovada' })}>
+                                                    <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `custom-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'pendente' })}>
                                                         <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
                                                     </Button>
                                                 </div>
@@ -956,11 +1022,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                             const isBilled = !!charge.financialEntryId;
                                                             const financialEntry = isBilled ? financialEntries.find(e => e.id === charge.financialEntryId) : undefined;
                                                             const isPaid = financialEntry?.status === 'Pago';
+                                                            const availableFees = fees.filter(
+                                                                fee => !watchedCharges.some(c => c.name === fee.name) || charge.name === fee.name
+                                                            );
+
 
                                                             return (
                                                                 <TableRow key={field.id} className={cn(isPaid && 'bg-green-500/10')}>
                                                                     <TableCell className="p-1 align-top">
-                                                                        <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => <Input {...field} className="h-8" disabled={isBilled} />} />
+                                                                        <FeeCombobox fees={availableFees} value={charge.name} onValueChange={(value) => handleFeeSelection(value, index)} />
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top">
                                                                         <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
@@ -997,8 +1067,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                     <TableCell className="p-1 align-top">
                                                                         <div className="flex gap-1">
                                                                             <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isBilled}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                            <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled && charge.approvalStatus !== 'pendente'} />} />
+                                                                            <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" onChange={(e) => handleSaleValueChange(index, parseFloat(e.target.value) || 0)} disabled={isBilled && charge.approvalStatus !== 'pendente'} />} />
                                                                         </div>
+                                                                        {charge.approvalStatus === 'pendente' && <Badge variant="default" className="mt-1">Pendente</Badge>}
+                                                                        {charge.approvalStatus === 'rejeitada' && <Badge variant="destructive" className="mt-1">Rejeitada</Badge>}
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top text-center">
                                                                         {isBilled ? (

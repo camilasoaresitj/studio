@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertCircle, DollarSign, Settings, ArrowRight } from 'lucide-react';
 import { getFinancialEntries, saveFinancialEntries, FinancialEntry } from '@/lib/financials-data';
-import { getShipments, saveShipments, Shipment, QuoteCharge } from '@/lib/shipment';
+import { getShipments, saveShipments, Shipment, QuoteCharge, updateShipment } from '@/lib/shipment';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -141,7 +141,7 @@ export function ApprovalsPanel() {
 
         if (viewingItem.type === 'operations') {
             const { charge, shipment } = viewingItem.item;
-            const originalCharge = shipment.charges.find(c => c.id === charge.id); // Assuming original values are in the main shipment object for comparison
+            const originalCharge = getShipmentById(shipment.id)?.charges.find(c => c.id === charge.id); // Re-fetch to be safe
             
             return (
                  <DialogHeader>
@@ -194,11 +194,13 @@ export function ApprovalsPanel() {
                 <ScrollArea className="h-[260px] pr-3">
                     <div className="space-y-4">
                         {pendingItems.length > 0 ? pendingItems.map((approvalItem, index) => (
-                            <div key={index} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
+                            <div key={`${approvalItem.type}-${index}`} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
                                  <div className="pt-1">
                                     {approvalItem.type === 'finance' ? <DollarSign className="h-5 w-5 text-blue-500" /> : <Settings className="h-5 w-5 text-orange-500" />}
                                 </div>
-                                {approvalItem.type === 'finance' ? renderFinanceItem(approvalItem.item as FinancialEntry) : renderOperationsItem(approvalItem.item as { charge: QuoteCharge; shipment: Shipment })}
+                                {approvalItem.type === 'finance' 
+                                    ? renderFinanceItem(approvalItem.item as FinancialEntry) 
+                                    : renderOperationsItem(approvalItem.item as { charge: QuoteCharge; shipment: Shipment })}
                             </div>
                         )) : (
                             <div className="text-center text-muted-foreground py-10">

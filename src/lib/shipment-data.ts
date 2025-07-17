@@ -539,11 +539,13 @@ export function updateShipment(updatedShipment: Shipment): Shipment[] {
   if (shipmentIndex === -1) {
     const newShipments = [updatedShipment, ...shipments];
     saveShipments(newShipments);
+    window.dispatchEvent(new Event('shipmentsUpdated'));
     return newShipments;
   }
 
   shipments[shipmentIndex] = updatedShipment;
   saveShipments(shipments);
+  window.dispatchEvent(new Event('shipmentsUpdated'));
   return shipments;
 }
 

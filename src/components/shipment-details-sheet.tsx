@@ -285,6 +285,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     });
 
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
+    const watchedCharges = useWatch({ control: form.control, name: 'charges' });
 
     const handleUpdate = form.handleSubmit(async (data) => {
         if (!shipment) return;
@@ -582,18 +583,23 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
                                                     const locationDetails = getMilestoneLocationDetails(milestone.name);
                                                     return (
-                                                        <div key={milestone.id} className="relative flex items-start gap-4">
-                                                             <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
-                                                                <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
-                                                                    milestone.effectiveDate ? 'bg-success' : 'bg-muted',
-                                                                    overdue && 'bg-destructive')}>
-                                                                    {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                                         <div key={milestone.id} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
+                                                            <div className="flex h-full justify-center row-span-2">
+                                                                <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
+                                                                    <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
+                                                                        milestone.effectiveDate ? 'bg-success' : 'bg-muted',
+                                                                        overdue && 'bg-destructive')}>
+                                                                        {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                            <div className="pl-12 w-full space-y-2">
-                                                                <p className="font-semibold text-base">{milestone.name}</p>
-                                                                {locationDetails && <p className="text-sm text-muted-foreground -mt-1">{locationDetails}</p>}
-                                                                <div className="flex items-center gap-2">
+                                                            <div className="w-full space-y-2 pt-1">
+                                                                <div className="flex justify-between items-center">
+                                                                    <div>
+                                                                        <p className="font-semibold text-base">{milestone.name}</p>
+                                                                        {locationDetails && <p className="text-sm text-muted-foreground -mt-1">{locationDetails}</p>}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
                                                                         <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
                                                                             <Popover><PopoverTrigger asChild><FormControl>
                                                                                 <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
@@ -608,7 +614,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                                 </Button>
                                                                             </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
                                                                         )} />
+                                                                    </div>
                                                                 </div>
+                                                                {index < milestoneFields.length - 1 && <Separator className="my-4"/>}
                                                             </div>
                                                         </div>
                                                     )
@@ -688,7 +696,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </Card>
                                         
                                         <div className="space-y-4">
-                                             <Card>
+                                            <Card>
                                                 <CardHeader><CardTitle className="text-lg">Referências</CardTitle></CardHeader>
                                                 <CardContent className="space-y-4">
                                                     <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (<FormItem><FormLabel>Ref. Cliente (PO)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
@@ -728,7 +736,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                         <div className="grid grid-cols-2 md:grid-cols-8 gap-2 p-2 border-t mt-2 font-semibold">
                                                             <div className="col-span-2">Total:</div>
                                                             <div className="text-center">{containerTotals.qty}</div>
-                                                            <div></div>
                                                             <div></div>
                                                             <div className="text-center">{containerTotals.weight.toFixed(2)}</div>
                                                             <div className="text-center">{containerTotals.volumes}</div>

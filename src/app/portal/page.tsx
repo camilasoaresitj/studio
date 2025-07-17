@@ -41,59 +41,64 @@ export default function CustomerPortalPage() {
     // In a real app, customerId would come from an authentication context
     const customerId = "Nexus Imports"; 
 
-    const fetchData = () => {
-        setIsLoading(true);
-        // Simulate fetching data for the logged-in customer
-        const allShipments = getShipments();
-        const customerShipments = allShipments.filter(s => s.customer === customerId);
-        setShipments(customerShipments);
-
-        const allInvoices = getFinancialEntries();
-        const customerInvoices = allInvoices.filter(i => i.partner === customerId && i.type === 'credit');
-        setInvoices(customerInvoices);
-        
-        const allQuotes = getInitialQuotes();
-        const customerQuotes = allQuotes.filter(q => q.customer === customerId && (q.status === 'Aprovada' || q.status === 'Perdida'));
-        setQuotes(customerQuotes);
-
-        // Calculate Draft Alerts
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const alerts: DraftAlert[] = customerShipments
-            .map(shipment => {
-                const draftMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
-                // CRITICAL FIX: Check if draftMilestone exists before accessing its properties
-                if (!draftMilestone || !draftMilestone.predictedDate || !isValid(new Date(draftMilestone.predictedDate))) {
-                    return null;
-                }
-
-                const dueDate = new Date(draftMilestone.predictedDate);
-                const draftAlreadySent = shipment.blDraftData; // Check if draft data exists
-
-                if (draftAlreadySent) return null; // Don't show alert if draft is sent
-
-                const daysRemaining = differenceInDays(dueDate, today);
-                
-                // Show alert if it's due in the next 5 days or is overdue
-                if (daysRemaining <= 5) {
-                    return {
-                        shipment,
-                        daysRemaining,
-                        isOverdue: isPast(dueDate) && daysRemaining < 0
-                    };
-                }
-                return null;
-            })
-            .filter((alert): alert is DraftAlert => alert !== null)
-            .sort((a,b) => a.daysRemaining - b.daysRemaining);
-
-        setDraftAlerts(alerts);
-        
-        setIsLoading(false);
-    };
-    
     useEffect(() => {
+        const fetchData = () => {
+            setIsLoading(true);
+            // Simulate fetching data for the logged-in customer
+            const allShipments = getShipments();
+            const customerShipments = allShipments.filter(s => s.customer === customerId);
+            setShipments(customerShipments);
+
+            const allInvoices = getFinancialEntries();
+            const customerInvoices = allInvoices.filter(i => i.partner === customerId && i.type === 'credit');
+            setInvoices(customerInvoices);
+            
+            const allQuotes = getInitialQuotes();
+            const customerQuotes = allQuotes.filter(q => q.customer === customerId && (q.status === 'Aprovada' || q.status === 'Perdida'));
+            setQuotes(customerQuotes);
+
+            // Calculate Draft Alerts
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const alerts: DraftAlert[] = customerShipments
+                .map(shipment => {
+                    const draftMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
+                    
+                    if (!draftMilestone || !draftMilestone.predictedDate || !isValid(new Date(draftMilestone.predictedDate))) {
+                        return null;
+                    }
+
+                    const dueDate = new Date(draftMilestone.predictedDate);
+                    const draftAlreadySent = shipment.blDraftData; 
+
+                    if (draftAlreadySent) return null; 
+
+                    const daysRemaining = differenceInDays(dueDate, today);
+                    
+                    
+                    if (daysRemaining <= 5) {
+                        return {
+                            shipment,
+                            daysRemaining,
+                            isOverdue: isPast(dueDate) && daysRemaining < 0
+                        };
+                    }
+                    return null;
+                })
+                .filter((alert): alert is DraftAlert => alert !== null)
+                .sort((a,b) => a.daysRemaining - b.daysRemaining);
+
+            setDraftAlerts(alerts);
+            
+            setIsLoading(false);
+        };
+
         fetchData();
+        
+        window.addEventListener('storage', fetchData);
+        return () => {
+            window.removeEventListener('storage', fetchData);
+        };
     }, [customerId]);
 
     const kpiData = useMemo(() => {
@@ -112,7 +117,10 @@ export default function CustomerPortalPage() {
 
 
     const handleRefresh = () => {
-        fetchData();
+        // The useEffect will refetch data automatically on storage/focus events,
+        // but a manual trigger can be useful.
+        const event = new Event('storage');
+        window.dispatchEvent(event);
     };
     
     const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {

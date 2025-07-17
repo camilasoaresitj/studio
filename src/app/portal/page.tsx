@@ -56,10 +56,15 @@ export default function CustomerPortalPage() {
             const allQuotes = getInitialQuotes();
             const customerQuotes = allQuotes.filter(q => q.customer === customerId && (q.status === 'Aprovada' || q.status === 'Perdida'));
             setQuotes(customerQuotes);
+            setIsLoading(false);
+        };
 
-            // Calculate Draft Alerts
+        const calculateAlerts = () => {
+             // Calculate Draft Alerts
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+            const allShipments = getShipments(); // Make sure to get fresh data
+            const customerShipments = allShipments.filter(s => s.customer === customerId);
             const alerts: DraftAlert[] = customerShipments
                 .map(shipment => {
                     const draftMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
@@ -87,17 +92,17 @@ export default function CustomerPortalPage() {
                 })
                 .filter((alert): alert is DraftAlert => alert !== null)
                 .sort((a,b) => a.daysRemaining - b.daysRemaining);
-
             setDraftAlerts(alerts);
-            
-            setIsLoading(false);
-        };
+        }
 
         fetchData();
+        calculateAlerts();
         
         window.addEventListener('storage', fetchData);
+        window.addEventListener('shipmentsUpdated', calculateAlerts);
         return () => {
             window.removeEventListener('storage', fetchData);
+            window.removeEventListener('shipmentsUpdated', calculateAlerts);
         };
     }, [customerId]);
 

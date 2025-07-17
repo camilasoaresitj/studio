@@ -16,6 +16,7 @@ import {
   SheetDescription,
   SheetFooter,
 } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
@@ -708,7 +709,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsManualMilestoneOpen(false)}>Cancelar</Button>
+                        <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
                         <Button onClick={handleAddManualMilestone}>Adicionar</Button>
                     </DialogFooter>
                 </DialogContent>

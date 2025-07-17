@@ -45,10 +45,12 @@ export function ApprovalsPanel() {
         const handleStorageChange = () => fetchPendingItems();
         window.addEventListener('storage', handleStorageChange);
         window.addEventListener('financialsUpdated', handleStorageChange);
+        window.addEventListener('shipmentsUpdated', handleStorageChange);
         
         return () => {
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('financialsUpdated', handleStorageChange);
+            window.removeEventListener('shipmentsUpdated', handleStorageChange);
         };
     }, []);
 
@@ -74,7 +76,7 @@ export function ApprovalsPanel() {
                 if (s.id === shipment.id) {
                     const updatedCharges = s.charges.map(c => {
                         if (c.id === charge.id) {
-                            return { ...c, approvalStatus: approved ? 'aprovada' : 'rejeitada' };
+                            return { ...c, approvalStatus: approved ? 'aprovada' : 'rejeitada', justification: undefined };
                         }
                         return c;
                     });
@@ -149,6 +151,12 @@ export function ApprovalsPanel() {
                     </DialogDescription>
                     <div className="space-y-4 pt-4 text-sm">
                         <p><strong>Taxa:</strong> {charge.name}</p>
+                         {charge.justification && (
+                            <div className="p-3 border rounded-md bg-amber-50 border-amber-200">
+                                <p className="font-semibold">Justificativa da alteração:</p>
+                                <p className="text-muted-foreground">"{charge.justification}"</p>
+                            </div>
+                        )}
                         <div className="grid grid-cols-3 gap-2 p-2 border rounded-md">
                             <span className="font-semibold"></span>
                             <span className="font-semibold text-muted-foreground">Original</span>
@@ -185,12 +193,12 @@ export function ApprovalsPanel() {
             <CardContent>
                 <ScrollArea className="h-[260px] pr-3">
                     <div className="space-y-4">
-                        {pendingItems.length > 0 ? pendingItems.map((item, index) => (
+                        {pendingItems.length > 0 ? pendingItems.map((approvalItem, index) => (
                             <div key={index} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
                                  <div className="pt-1">
-                                    {item.type === 'finance' ? <DollarSign className="h-5 w-5 text-blue-500" /> : <Settings className="h-5 w-5 text-orange-500" />}
+                                    {approvalItem.type === 'finance' ? <DollarSign className="h-5 w-5 text-blue-500" /> : <Settings className="h-5 w-5 text-orange-500" />}
                                 </div>
-                                {item.type === 'finance' ? renderFinanceItem(item.item as FinancialEntry) : renderOperationsItem(item.item as { charge: QuoteCharge; shipment: Shipment })}
+                                {approvalItem.type === 'finance' ? renderFinanceItem(approvalItem.item as FinancialEntry) : renderOperationsItem(approvalItem.item as { charge: QuoteCharge; shipment: Shipment })}
                             </div>
                         )) : (
                             <div className="text-center text-muted-foreground py-10">

@@ -94,8 +94,26 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
   useEffect(() => {
     if (data && partners.length > 0) {
         const consignee = data.shipment.consignee;
-        const initialTomador = partners.find(p => p.id === consignee?.id) || partners[0];
+        const initialTomador = partners.find(p => p.id === consignee?.id) || partners.find(p => p.name === data.entry.partner) || partners[0];
         
+        const isMaritime = data.shipment.details.cargo?.toLowerCase().includes('container') || !data.shipment.details.cargo?.toLowerCase().includes('kg');
+        const isImport = data.shipment.destination.toUpperCase().includes('BR');
+        
+        let defaultCharges: string[] = [];
+        if (isMaritime && isImport) {
+            defaultCharges = ['DESCONSOLIDAÇÃO', 'BL FEE'];
+        } else if (!isMaritime && isImport) {
+            defaultCharges = ['DESCONSOLIDAÇÃO', 'COLLECT FEE'];
+        } else if (!isMaritime && !isImport) {
+            defaultCharges = ['AWB FEE', 'HANDLING FEE', 'DESPACHO ADUANEIRO'];
+        } else if (isMaritime && !isImport) {
+            defaultCharges = ['BL FEE', 'LACRE'];
+        }
+
+        const defaultChargeIds = chargesToDisplay
+            .filter(c => defaultCharges.some(dc => c.name.toUpperCase().includes(dc)))
+            .map(c => c.id);
+
         form.reset({
             selectedTomadorId: initialTomador.id!.toString(),
             tomador: {
@@ -104,11 +122,11 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
               endereco: initialTomador.address?.street || '',
               numero: initialTomador.address?.number || '',
               bairro: initialTomador.address?.district || '',
-              codigoMunicipio: '3552205', // Example, should be dynamic
+              codigoMunicipio: '4208203', // Itajai
               uf: initialTomador.address?.state || '',
               cep: initialTomador.address?.zip?.replace(/\D/g, '') || '',
             },
-            selectedCharges: chargesToDisplay.map(c => c.id),
+            selectedCharges: defaultChargeIds,
         });
     }
   }, [data, partners, chargesToDisplay, form]);
@@ -123,7 +141,7 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
                   endereco: selectedPartner.address?.street || '',
                   numero: selectedPartner.address?.number || '',
                   bairro: selectedPartner.address?.district || '',
-                  codigoMunicipio: '3552205', // Example
+                  codigoMunicipio: '4208203', // Itajai
                   uf: selectedPartner.address?.state || '',
                   cep: selectedPartner.address?.zip?.replace(/\D/g, '') || '',
               });

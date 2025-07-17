@@ -75,7 +75,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFo
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Label } from './ui/label';
-import { addFinancialEntry } from '@/lib/financials-data';
+import { addFinancialEntries, getFinancialEntries } from '@/lib/financials-data';
 
 
 const containerDetailSchema = z.object({
@@ -227,7 +227,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const [documentPreviews, setDocumentPreviews] = useState<Record<string, string>>({});
     const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
     const [justificationData, setJustificationData] = useState<{ chargeIndex: number, newSaleValue: number } | null>(null);
-    
+    const [financialEntries, setFinancialEntries] = useState(getFinancialEntries());
+    const [detailsEntry, setDetailsEntry] = useState<any>(null); // State for finance details dialog
+
     const form = useForm<ShipmentDetailsFormData>({
         resolver: zodResolver(shipmentDetailsSchema),
     });
@@ -261,6 +263,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             // Reset local file state
             setUploadedFiles({});
             setDocumentPreviews({});
+            setFinancialEntries(getFinancialEntries());
         }
     }, [shipment, form, open]);
     
@@ -283,9 +286,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         control: form.control,
         name: 'milestones'
     });
+    
+    const watchedCharges = useWatch({ control: form.control, name: 'charges' });
 
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
-    const watchedCharges = useWatch({ control: form.control, name: 'charges' });
 
     const handleUpdate = form.handleSubmit(async (data) => {
         if (!shipment) return;
@@ -501,6 +505,100 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         }
     }, [watchedContainers]);
 
+    const handleFaturarProcesso = () => {
+        if (!shipment) return;
+    
+        const chargesToProcess = watchedCharges.filter(c => !c.financialEntryId);
+        if (chargesToProcess.length === 0) {
+            toast({ title: 'Nenhuma taxa nova para faturar.' });
+            return;
+        }
+    
+        const groupedCredits: { [partner: string]: QuoteCharge[] } = {};
+        const groupedDebits: { [partner: string]: QuoteCharge[] } = {};
+    
+        chargesToProcess.forEach(charge => {
+            if (charge.sacado) { // Contas a Receber
+                if (!groupedCredits[charge.sacado]) groupedCredits[charge.sacado] = [];
+                groupedCredits[charge.sacado].push(charge);
+            }
+            if (charge.supplier) { // Contas a Pagar
+                if (!groupedDebits[charge.supplier]) groupedDebits[charge.supplier] = [];
+                groupedDebits[charge.supplier].push(charge);
+            }
+        });
+    
+        const newFinancialEntries: Omit<any, 'id'>[] = [];
+        const now = new Date();
+    
+        const calculateTotalInBRL = (charges: QuoteCharge[], partnerName: string, type: 'cost' | 'sale') => {
+            const partner = partners.find(p => p.name === partnerName);
+            const agio = partner?.exchangeRateAgio ?? 0;
+            return charges.reduce((total, charge) => {
+                const currency = type === 'sale' ? charge.saleCurrency : charge.costCurrency;
+                const value = type === 'sale' ? charge.sale : charge.cost;
+                const ptax = exchangeRates[currency] || 1;
+                const finalRate = currency === 'BRL' ? 1 : ptax * (1 + agio / 100);
+                return total + (value * finalRate);
+            }, 0);
+        };
+    
+        // Process Credits (Contas a Receber)
+        for (const partnerName in groupedCredits) {
+            const charges = groupedCredits[partnerName];
+            const totalBRL = calculateTotalInBRL(charges, partnerName, 'sale');
+            newFinancialEntries.push({
+                type: 'credit',
+                partner: partnerName,
+                invoiceId: `INV-${shipment.id.replace('PROC-', '')}`,
+                dueDate: (charges[0].localPagamento === 'Origem' ? shipment.etd : shipment.eta) || addDays(now, 15),
+                amount: totalBRL,
+                currency: 'BRL',
+                processId: shipment.id,
+                status: 'Aberto',
+                expenseType: 'Operacional'
+            });
+        }
+    
+        // Process Debits (Contas a Pagar)
+        for (const partnerName in groupedDebits) {
+            const charges = groupedDebits[partnerName];
+            const totalBRL = calculateTotalInBRL(charges, partnerName, 'cost');
+            newFinancialEntries.push({
+                type: 'debit',
+                partner: partnerName,
+                invoiceId: `BILL-${shipment.id.replace('PROC-', '')}-${partnerName.substring(0, 3).toUpperCase()}`,
+                dueDate: (charges[0].localPagamento === 'Origem' ? shipment.etd : shipment.eta) || addDays(now, 15),
+                amount: totalBRL,
+                currency: 'BRL',
+                processId: shipment.id,
+                status: 'Aberto',
+                expenseType: 'Operacional'
+            });
+        }
+    
+        const createdEntries = addFinancialEntries(newFinancialEntries);
+        
+        // Link charges to financial entries
+        const updatedCharges = form.getValues('charges').map(charge => {
+            const entryForCharge = createdEntries.find(entry => 
+                (entry.type === 'credit' && entry.partner === charge.sacado) ||
+                (entry.type === 'debit' && entry.partner === charge.supplier)
+            );
+            return entryForCharge ? { ...charge, financialEntryId: entryForCharge.id } : charge;
+        });
+
+        form.setValue('charges', updatedCharges);
+        handleUpdate(form.getValues());
+        setFinancialEntries(getFinancialEntries());
+    
+        toast({
+            title: 'Processo Faturado!',
+            description: `${createdEntries.length} lançamento(s) financeiro(s) criado(s).`,
+            className: 'bg-success text-success-foreground'
+        });
+    };
+
     if (!shipment) {
         return (
             <Sheet open={open} onOpenChange={onOpenChange}>
@@ -526,6 +624,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
                                         <SheetDescription className="text-xs md:text-sm">
                                             Cliente: <span className="font-semibold">{shipment.customer}</span>
+                                            <span className="mx-2">|</span>
+                                            Ref. Cliente: <span className="font-semibold">{form.watch('purchaseOrderNumber') || 'N/A'}</span>
+                                            <span className="mx-2">|</span>
+                                            Invoice: <span className="font-semibold">{form.watch('invoiceNumber') || 'N/A'}</span>
                                         </SheetDescription>
                                     </div>
                                 </div>
@@ -782,7 +884,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <div className="flex justify-between items-center">
                                                 <CardTitle>Planilha de Custos e Vendas</CardTitle>
                                                  <div className="flex items-center gap-2">
-                                                    <Button type="button" variant="secondary" size="sm">Faturar Processo</Button>
+                                                    <Button type="button" variant="secondary" size="sm" onClick={handleFaturarProcesso}>Faturar Processo</Button>
                                                     <Button type="button" variant="outline" size="sm" onClick={() => {}}>
                                                         <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
                                                     </Button>
@@ -795,6 +897,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <TableHeader>
                                                         <TableRow>
                                                             <TableHead className="w-[180px]">Taxa</TableHead>
+                                                            <TableHead className="w-[180px]">Tipo Cobrança</TableHead>
                                                             <TableHead className="w-[180px]">Fornecedor</TableHead>
                                                             <TableHead className="w-[200px]">Custo</TableHead>
                                                             <TableHead className="w-[180px]">Sacado</TableHead>
@@ -807,14 +910,21 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                              const charge = watchedCharges[index];
                                                              if (!charge) return null;
 
+                                                            const isBilled = !!charge.financialEntryId;
+                                                            const financialEntry = isBilled ? financialEntries.find(e => e.id === charge.financialEntryId) : undefined;
+                                                            const isPaid = financialEntry?.status === 'Pago';
+
                                                             return (
-                                                                <TableRow key={field.id}>
+                                                                <TableRow key={field.id} className={cn(isPaid && 'bg-green-500/10')}>
                                                                     <TableCell className="p-1 align-top">
-                                                                        <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => <Input {...field} className="h-8"/>} />
+                                                                        <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => <Input {...field} className="h-8" disabled={isBilled} />} />
+                                                                    </TableCell>
+                                                                    <TableCell className="p-1 align-top">
+                                                                         <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => <Input {...field} className="h-8" disabled={isBilled} />} />
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top">
                                                                         <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
-                                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                            <Select onValueChange={field.onChange} value={field.value} disabled={isBilled}>
                                                                                 <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
                                                                                 <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
                                                                             </Select>
@@ -822,13 +932,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top">
                                                                         <div className="flex gap-1">
-                                                                            <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                            <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8"/>} />
+                                                                            <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isBilled}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                            <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled} />} />
                                                                         </div>
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top">
                                                                         <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
-                                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                            <Select onValueChange={field.onChange} value={field.value} disabled={isBilled}>
                                                                                 <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                                                                 <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
                                                                             </Select>
@@ -836,12 +946,28 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top">
                                                                         <div className="flex gap-1">
-                                                                            <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                            <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8"/>} />
+                                                                            <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isBilled}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                            <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled} />} />
                                                                         </div>
                                                                     </TableCell>
-                                                                    <TableCell className="p-1 align-top">
-                                                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                                    <TableCell className="p-1 align-top text-center">
+                                                                        {isBilled ? (
+                                                                            <TooltipProvider>
+                                                                                <Tooltip>
+                                                                                    <TooltipTrigger asChild>
+                                                                                        <Button type="button" variant="ghost" size="icon" onClick={() => setDetailsEntry(financialEntry)}>
+                                                                                            <Wallet className="h-5 w-5 text-primary" />
+                                                                                        </Button>
+                                                                                    </TooltipTrigger>
+                                                                                    <TooltipContent>
+                                                                                        <p>Faturado: {financialEntry?.invoiceId}</p>
+                                                                                        <p>Venc: {financialEntry ? format(new Date(financialEntry.dueDate), 'dd/MM/yyyy') : 'N/A'}</p>
+                                                                                    </TooltipContent>
+                                                                                </Tooltip>
+                                                                            </TooltipProvider>
+                                                                        ) : (
+                                                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                                        )}
                                                                     </TableCell>
                                                                 </TableRow>
                                                             )

@@ -263,6 +263,17 @@ export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'>): string 
   return newId;
 }
 
+export function addFinancialEntries(newEntries: Omit<FinancialEntry, 'id'>[]): FinancialEntry[] {
+  const currentEntries = getFinancialEntries();
+  const entriesWithIds: FinancialEntry[] = newEntries.map(entry => ({
+    ...entry,
+    id: `fin-${Date.now()}-${Math.floor(Math.random() * 10000)}`
+  }));
+  const updatedEntries = [...currentEntries, ...entriesWithIds];
+  saveFinancialEntries(updatedEntries);
+  return entriesWithIds;
+}
+
 export function findEntryById(id: string): FinancialEntry | undefined {
     // Always get the latest from storage to ensure we find dynamically added entries.
     const currentEntries = getFinancialEntries();

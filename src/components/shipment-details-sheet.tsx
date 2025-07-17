@@ -877,7 +877,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
           setJustificationRequest({
               index,
               field,
-              oldValue,
+              oldValue: oldValue,
               newValue: parsedValue,
           });
       } else {

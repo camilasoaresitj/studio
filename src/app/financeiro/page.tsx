@@ -22,7 +22,7 @@ import {
   Check,
   Split
 } from 'lucide-react';
-import { format, isPast, isToday, addMonths } from 'date-fns';
+import { format, isPast, isToday, addDays } from 'date-fns';
 import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getFinancialEntries, getBankAccounts, addFinancialEntry, updateFinancialEntry, findEntryById } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -441,29 +441,31 @@ export default function FinanceiroPage() {
             return;
         }
 
+        const partner = partners.find(p => p.name === entry.partner);
         const formatValue = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        const charges = shipment.charges.map(c => ({
-            description: c.name,
-            quantity: 1,
-            value: formatValue(c.sale),
-            total: formatValue(c.sale),
-            currency: c.saleCurrency
-        }));
-
-        const totalBRL = shipment.charges.reduce((sum, charge) => {
-            const rate = charge.saleCurrency === 'USD' ? 5.0 : 1; // Simplified rate
-            return sum + (charge.sale * rate);
-        }, 0);
+        const charges = shipment.charges
+            .filter(c => c.sacado === entry.partner)
+            .map(c => ({
+                description: c.name,
+                value: formatValue(c.sale),
+                currency: c.saleCurrency
+            }));
         
+        const customerAgio = partner?.exchangeRateAgio ?? 0;
+        const ptaxUsd = ptaxRates['USD'] || 5.0; // Fallback
+        const finalPtaxUsd = parseFloat((ptaxUsd * (1 + (customerAgio / 100))).toFixed(4));
+        const totalInBRL = getBalanceInBRL(entry);
+
         const response = await runGenerateClientInvoicePdf({
             invoiceNumber: entry.invoiceId,
             customerName: entry.partner,
-            customerAddress: shipment.consignee?.address ? `${shipment.consignee.address.street}, ${shipment.consignee.address.city}` : 'Endereço não disponível',
-            date: new Date().toLocaleDateString('pt-br'),
-            charges: charges,
-            total: formatValue(totalBRL),
-            exchangeRate: 5.0, // Simplified rate
+            customerAddress: `${partner?.address?.street || ''}, ${partner?.address?.number || ''} - ${partner?.address?.city || ''}`,
+            date: format(new Date(), 'dd/MM/yyyy'),
+            dueDate: format(new Date(entry.dueDate), 'dd/MM/yyyy'),
+            charges,
+            total: `R$ ${totalInBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            exchangeRate: entry.currency !== 'BRL' ? finalPtaxUsd : undefined,
             bankDetails: {
                 bankName: "LTI GLOBAL",
                 accountNumber: "PIX: 10.298.168/0001-89"

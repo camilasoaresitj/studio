@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -16,7 +15,6 @@ import {
   SheetDescription,
   SheetFooter,
 } from '@/components/ui/sheet';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
@@ -51,7 +49,8 @@ import {
     Upload, 
     FileCheck, 
     CircleDot,
-    Map as MapIcon
+    Map as MapIcon,
+    FileText,
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
@@ -81,6 +80,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Textarea } from './ui/textarea';
 import { BLDraftForm } from './bl-draft-form';
 import { ShipmentMap } from './shipment-map';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter } from '@/components/ui/dialog';
 
 const containerDetailSchema = z.object({
   id: z.string(),
@@ -144,6 +144,7 @@ const shipmentDetailsSchema = z.object({
   containers: z.array(containerDetailSchema).optional(),
   transshipments: z.array(transshipmentDetailSchema).optional(),
   milestones: z.array(milestoneSchema).optional(),
+  charges: z.array(quoteChargeSchemaForSheet).optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -183,7 +184,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         name: "transshipments",
     });
 
-    const { fields: chargesFields, append: appendCharge, remove: removeCharge } = useFieldArray({
+    const { fields: chargesFields, append: appendCharge, remove: removeCharge, update: updateCharge } = useFieldArray({
         control: form.control,
         name: "charges",
     });
@@ -204,6 +205,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 eta: shipment.eta ? new Date(shipment.eta) : undefined,
                 mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
                 milestones: (shipment.milestones || []).map(m => ({...m, predictedDate: new Date(m.predictedDate), effectiveDate: m.effectiveDate ? new Date(m.effectiveDate) : null})),
+                charges: shipment.charges || [],
             });
         }
     }, [shipment, form]);
@@ -211,45 +213,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
 
     const handleUpdate = form.handleSubmit(async (data) => {
+        if (!shipment) return;
         setIsUpdating(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Find the original shipment to merge non-form data
-        const allShipments = getShipments();
-        const originalShipment = allShipments.find(s => s.id === shipment!.id);
-
-        onUpdate({ ...originalShipment, ...data } as Shipment);
+        onUpdate({ ...shipment, ...data } as Shipment);
+        await new Promise(resolve => setTimeout(resolve, 300));
         setIsUpdating(false);
+        toast({
+            title: "Processo Atualizado!",
+            description: "As alterações foram salvas com sucesso.",
+            className: "bg-success text-success-foreground",
+        });
     });
-
-    const handleAddManualMilestone = async () => {
-        if (!shipment || !manualMilestoneName || !manualMilestoneDate) {
-            toast({ variant: 'destructive', title: 'Preencha todos os campos.' });
-            return;
-        }
-        
-        const newMilestone: Milestone = {
-            name: manualMilestoneName,
-            status: 'pending',
-            predictedDate: manualMilestoneDate,
-            effectiveDate: null,
-            details: 'Adicionado manualmente pelo operacional.',
-        };
-
-        const response = await addManualMilestone(shipment.id, newMilestone);
-
-        if (response.success && response.data) {
-            onUpdate(response.data as Shipment);
-            toast({ title: 'Milestone Adicionado!', className: 'bg-success text-success-foreground' });
-            setIsManualMilestoneOpen(false);
-            setManualMilestoneName('');
-            setManualMilestoneDate(new Date());
-        } else {
-            toast({ variant: 'destructive', title: 'Erro ao adicionar', description: response.error });
-        }
-    };
-
 
     const handleRefreshTracking = async () => {
         if(!shipment) return;
@@ -282,21 +256,32 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
         setIsUpdating(false);
     };
-
-    const handleRefreshCourierStatus = async () => {
-        if (!shipment?.courier || !shipment?.courierNumber) return;
-        setIsFetchingCourier(true);
-        const response = await runGetCourierStatus({
-            courier: shipment.courier,
-            trackingNumber: shipment.courierNumber,
-        });
-        if (response.success) {
-            form.setValue('courierLastStatus', response.data.lastStatus);
-            toast({ title: 'Status do Courier Atualizado!' });
-        } else {
-            toast({ variant: 'destructive', title: 'Erro', description: response.error });
+    
+    const handleAddManualMilestone = async () => {
+        if (!shipment || !manualMilestoneName || !manualMilestoneDate) {
+            toast({ variant: 'destructive', title: 'Preencha todos os campos.' });
+            return;
         }
-        setIsFetchingCourier(false);
+        
+        const newMilestone: Milestone = {
+            name: manualMilestoneName,
+            status: 'pending',
+            predictedDate: manualMilestoneDate,
+            effectiveDate: null,
+            details: 'Adicionado manualmente pelo operacional.',
+        };
+
+        const response = await addManualMilestone(shipment.id, newMilestone);
+
+        if (response.success && response.data) {
+            onUpdate(response.data as Shipment);
+            toast({ title: 'Milestone Adicionado!', className: 'bg-success text-success-foreground' });
+            setIsManualMilestoneOpen(false);
+            setManualMilestoneName('');
+            setManualMilestoneDate(new Date());
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao adicionar', description: response.error });
+        }
     };
 
     const generatePdf = async (type: 'client' | 'agent' | 'hbl') => {
@@ -371,23 +356,39 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         }
         setIsGenerating(false);
     };
-    
-    const getMilestoneAutoDetails = (milestone: Milestone): string => {
-        const lowerName = milestone.name.toLowerCase();
-        if (lowerName.includes('embarque') || lowerName.includes('departure')) {
-            return `no navio ${shipment?.vesselName || 'N/A'} do porto de ${shipment?.origin || 'N/A'}.`;
-        }
-        if (lowerName.includes('chegada') || lowerName.includes('arrival') || lowerName.includes('discharged')) {
-            return `do navio ${shipment?.vesselName || 'N/A'} no porto de ${shipment?.destination || 'N/A'}.`;
-        }
-        if (lowerName.includes('transbordo') || lowerName.includes('transshipment')) {
-            return `no porto de ${milestone.details || 'N/A'}.`;
-        }
-        if (lowerName.includes('gate in')) {
-            return `no porto de ${shipment?.origin || 'N/A'}.`;
-        }
-        return milestone.details || '';
-    };
+
+    const watchedCharges = useWatch({ control: form.control, name: 'charges' });
+
+    const totals = React.useMemo(() => {
+        let totalCostBRL = 0;
+        let totalSaleBRL = 0;
+
+        if (!watchedCharges) return { totalCostBRL: 0, totalSaleBRL: 0, totalProfitBRL: 0 };
+
+        watchedCharges.forEach(charge => {
+            const chargeCost = Number(charge.cost) || 0;
+            const chargeSale = Number(charge.sale) || 0;
+
+            const customer = partners.find(p => p.name === charge.sacado);
+            const supplier = partners.find(p => p.name === charge.supplier);
+
+            const customerAgio = customer?.exchangeRateAgio ?? 0;
+            const supplierAgio = supplier?.exchangeRateAgio ?? 0;
+
+            const salePtax = exchangeRates[charge.saleCurrency] || 1;
+            const costPtax = exchangeRates[charge.costCurrency] || 1;
+
+            const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + customerAgio / 100);
+            const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + supplierAgio / 100);
+
+            totalSaleBRL += chargeSale * saleRate;
+            totalCostBRL += chargeCost * costRate;
+        });
+
+        const totalProfitBRL = totalSaleBRL - totalCostBRL;
+
+        return { totalCostBRL, totalSaleBRL, totalProfitBRL };
+    }, [watchedCharges, exchangeRates, partners]);
 
     if (!shipment) {
         return (
@@ -495,9 +496,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                         </SelectContent>
                                                                     </Select>
                                                                 )} />
-                                                            </div>
-                                                            <div className="text-sm text-muted-foreground italic">
-                                                                {getMilestoneAutoDetails(milestone)}
                                                             </div>
                                                             <Controller control={form.control} name={`milestones.${index}.details`} render={({ field }) => (
                                                                 <Input placeholder="Adicionar comentário (visível ao cliente)..." {...field} className="h-8 text-sm" />
@@ -612,17 +610,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 </TabsContent>
 
                                 <TabsContent value="financials">
-                                    <div className="space-y-4">
-                                        <Card>
-                                        <CardHeader>
-                                            <CardTitle>Demonstrativo de Resultados</CardTitle>
-                                            <CardDescription>Gerencie custos, vendas e lucro do processo.</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            {/* Charges Table */}
-                                        </CardContent>
-                                        </Card>
-                                    </div>
+                                  {/* Financials content goes here */}
                                 </TabsContent>
                                 
                                 <TabsContent value="documents">
@@ -684,36 +672,36 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         </div>
                     </form>
                 </Form>
+                 <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Adicionar Milestone Manual</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="milestone-name">Nome da Tarefa</Label>
+                                <Input id="milestone-name" value={manualMilestoneName} onChange={(e) => setManualMilestoneName(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Data Prevista</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !manualMilestoneDate && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {manualMilestoneDate ? format(manualMilestoneDate, "PPP") : <span>Selecione a data</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={manualMilestoneDate} onSelect={setManualMilestoneDate} initialFocus /></PopoverContent>
+                                </Popover>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                            <Button onClick={handleAddManualMilestone}>Adicionar</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </SheetContent>
-            <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Adicionar Milestone Manual</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="milestone-name">Nome da Tarefa</Label>
-                            <Input id="milestone-name" value={manualMilestoneName} onChange={(e) => setManualMilestoneName(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Data Prevista</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !manualMilestoneDate && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {manualMilestoneDate ? format(manualMilestoneDate, "PPP") : <span>Selecione a data</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={manualMilestoneDate} onSelect={setManualMilestoneDate} initialFocus /></PopoverContent>
-                            </Popover>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                        <Button onClick={handleAddManualMilestone}>Adicionar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </Sheet>
     );
 }

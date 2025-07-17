@@ -287,14 +287,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     }, [shipment, form]);
     
     useEffect(() => {
-        if (activeTab === 'map' && shipment?.bookingNumber) {
+        if (open && activeTab === 'map' && shipment?.bookingNumber) {
             runGetRouteMap(shipment.bookingNumber).then(response => {
                 if (response.success) {
                     setMapData(response.data);
                 }
             });
         }
-    }, [activeTab, shipment?.bookingNumber]);
+    }, [open, activeTab, shipment?.bookingNumber]);
 
     const totals = useMemo(() => {
         let totalCostBRL = 0;
@@ -352,6 +352,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     });
 
     const handleAddManualMilestone = async () => {
+        if(!shipment) return;
         const values = milestoneForm.getValues();
         if(!values.name || !values.predictedDate) {
             toast({ variant: 'destructive', title: "Campos obrigatórios", description: "Nome e Data Prevista são obrigatórios."});
@@ -376,6 +377,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     
 
     const handleRefreshTracking = async () => {
+        if(!shipment) return;
         setIsUpdating(true);
         const trackingNumber = shipment.masterBillNumber || shipment.bookingNumber;
         const carrier = shipment.carrier;
@@ -412,7 +414,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     };
 
     const handleRefreshCourierStatus = async () => {
-        if (!shipment.courier || !shipment.courierNumber) return;
+        if (!shipment?.courier || !shipment?.courierNumber) return;
         setIsFetchingCourier(true);
         const response = await runGetCourierStatus({
             courier: shipment.courier,
@@ -420,7 +422,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         });
         if (response.success) {
             form.setValue('courierLastStatus', response.data.lastStatus);
-            onUpdate({ ...shipment, courierLastStatus: response.data.lastStatus });
+            if(shipment) onUpdate({ ...shipment, courierLastStatus: response.data.lastStatus });
             toast({ title: 'Status do Courier Atualizado!' });
         } else {
             toast({ variant: 'destructive', title: 'Erro', description: response.error });
@@ -517,13 +519,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     };
     
     const handleSelectPartner = (partner: Partner) => {
-        if (partnersForSelection) {
-            form.setValue(partnersForSelection.type, partner);
+        if (partnersForSelection && shipment) {
+            const updatedShipment = { ...shipment, [partnersForSelection.type]: partner };
+            onUpdate(updatedShipment);
         }
         setPartnersForSelection(null);
     };
 
     const handleGenerateSharingLink = () => {
+        if(!shipment) return;
         const link = `${window.location.origin}/portal/${shipment.id}`;
         form.setValue('sharingLink', link);
         navigator.clipboard.writeText(link);
@@ -532,7 +536,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     };
     
     const handleSaveChargeChange = async (justification: string) => {
-        if (!editedCharge) return;
+        if (!editedCharge || !shipment) return;
         
         const originalCharges = (getShipments().find(s => s.id === shipment.id))?.charges || [];
         const originalCharge = originalCharges.find(c => c.id === editedCharge.charge.id);
@@ -548,9 +552,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         setEditedCharge(null);
     };
     
-    // Conditional hook calls are not allowed. Moved this to the top.
-    // If we are here, shipment must exist.
-    // if (!shipment) return null;
+    if (!shipment) return null;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>

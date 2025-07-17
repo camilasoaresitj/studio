@@ -611,64 +611,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
   const onSubmit = async (data: ShipmentDetailsFormData) => {
     if (!shipment) return;
-    
-    // Check for changes that need justification
-    const originalCharges = shipment.charges || [];
-    const changedCharges: { index: number; field: 'cost' | 'sale'; oldValue: number; newValue: number }[] = [];
-
-    data.charges?.forEach((charge, index) => {
-        const originalCharge = originalCharges.find(c => c.id === charge.id);
-        if (originalCharge && originalCharge.approvalStatus === 'aprovada') {
-            const originalCost = Number(originalCharge.cost) || 0;
-            const newCost = Number(charge.cost) || 0;
-            if (originalCost !== newCost) {
-                changedCharges.push({ index, field: 'cost', oldValue: originalCost, newValue: newCost });
-            }
-
-            const originalSale = Number(originalCharge.sale) || 0;
-            const newSale = Number(charge.sale) || 0;
-            if (originalSale !== newSale) {
-                changedCharges.push({ index, field: 'sale', oldValue: originalSale, newValue: newSale });
-            }
-        }
-    });
-
-    if (changedCharges.length > 0) {
-        // Sequentially ask for justification
-        for (const change of changedCharges) {
-            const charge = data.charges?.[change.index];
-            if (!charge) continue;
-            
-            const justification = await new Promise<string | null>((resolve) => {
-                 setJustificationRequest({ ...change }); // Trigger dialog
-                 
-                 // This is tricky. We need to wait for the dialog to resolve.
-                 // We can use a temporary state in the component to handle this.
-                 // For now, let's assume we have a way to get this.
-                 const checkInterval = setInterval(() => {
-                     if (justificationRequest === null) {
-                         clearInterval(checkInterval);
-                         const updatedCharge = form.getValues(`charges.${change.index}`);
-                         resolve(updatedCharge.justification || null);
-                     }
-                 }, 100);
-            });
-
-            if (justification) {
-                // Justification was provided, the state is already updated in handleJustificationSubmit
-            } else {
-                // User cancelled, revert the change
-                const originalCharge = originalCharges.find(c => c.id === charge.id);
-                if(originalCharge) {
-                    form.setValue(`charges.${change.index}`, originalCharge as any);
-                }
-            }
-        }
-    }
-
-    // Now, submit the final form data
-    const finalData = form.getValues();
-    const updatedShipment: Shipment = { ...shipment, ...finalData };
+    const updatedShipment: Shipment = { ...shipment, ...data };
     onUpdate(updatedShipment);
   };
   
@@ -922,12 +865,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const handleJustificationSubmit = (justification: string) => {
         if (!justificationRequest) return;
 
-        const { index, field, newValue } = justificationRequest;
+        const { index, field } = justificationRequest;
         const charge = watchedCharges[index];
 
         updateCharge(index, {
             ...charge,
-            [field]: newValue,
             approvalStatus: 'pendente',
             justification: justification,
         });
@@ -940,8 +882,22 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         
         setJustificationRequest(null);
     };
-
   
+    const handleChargeValueChange = (index: number, field: 'cost' | 'sale', value: string) => {
+        const originalCharge = shipment?.charges.find(c => c.id === watchedCharges[index]?.id);
+        const newValue = parseFloat(value) || 0;
+        
+        if (originalCharge && originalCharge.approvalStatus === 'aprovada') {
+            const oldValue = Number(originalCharge[field]) || 0;
+            if (newValue !== oldValue) {
+                // Trigger justification dialog
+                setJustificationRequest({ index, field, oldValue, newValue });
+            }
+        }
+        // Update form state immediately for responsiveness
+        updateCharge(index, { ...watchedCharges[index], [field]: newValue });
+    };
+
   const handleFeeSelection = (feeName: string, index: number) => {
     const fee = fees.find(f => f.name === feeName);
     if (fee) {
@@ -1862,12 +1818,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                     </Select>
                                                                 )} />
                                                                 <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
-                                                                    <Input type="number" {...field} onBlur={(e) => {
-                                                                        const originalCharge = shipment?.charges.find(c => c.id === charge.id);
-                                                                        if (originalCharge && originalCharge.approvalStatus === 'aprovada' && parseFloat(e.target.value) !== originalCharge.cost) {
-                                                                            setJustificationRequest({ index, field: 'cost', oldValue: originalCharge.cost, newValue: parseFloat(e.target.value) || 0 });
-                                                                        }
-                                                                    }} />
+                                                                    <Input type="number" {...field} onBlur={(e) => handleChargeValueChange(index, 'cost', e.target.value)} />
                                                                 )} />
                                                             </div>
                                                         </TableCell>
@@ -1882,12 +1833,7 @@ const handlePartnerUpdate = (partner: Partner) => {
                                                                     </Select>
                                                                 )} />
                                                                 <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
-                                                                     <Input type="number" {...field} onBlur={(e) => {
-                                                                        const originalCharge = shipment?.charges.find(c => c.id === charge.id);
-                                                                        if (originalCharge && originalCharge.approvalStatus === 'aprovada' && parseFloat(e.target.value) !== originalCharge.sale) {
-                                                                            setJustificationRequest({ index, field: 'sale', oldValue: originalCharge.sale, newValue: parseFloat(e.target.value) || 0 });
-                                                                        }
-                                                                    }} />
+                                                                     <Input type="number" {...field} onBlur={(e) => handleChargeValueChange(index, 'sale', e.target.value)} />
                                                                 )} />
                                                             </div>
                                                         </TableCell>
@@ -1982,20 +1928,22 @@ const handlePartnerUpdate = (partner: Partner) => {
                 if(justificationRequest) {
                      // Revert change if dialog is closed without confirmation
                     const charge = watchedCharges[justificationRequest.index];
-                    updateCharge(justificationRequest.index, {
-                        ...charge,
-                        [justificationRequest.field]: justificationRequest.oldValue,
-                    });
+                    const originalCharge = shipment?.charges.find(c => c.id === charge.id);
+                    if (originalCharge) {
+                        updateCharge(justificationRequest.index, {
+                            ...charge,
+                            [justificationRequest.field]: originalCharge[justificationRequest.field],
+                        });
+                    }
                 }
                 setJustificationRequest(null);
             }}
             onConfirm={handleJustificationSubmit}
             chargeName={justificationRequest ? watchedCharges[justificationRequest.index]?.name : ''}
             field={justificationRequest?.field === 'cost' ? 'Custo' : 'Venda'}
-            oldValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${(justificationRequest?.oldValue ?? 0).toFixed(2)}`}
-            newValue={`${watchedCharges[justificationRequest?.index || 0]?.saleCurrency} ${(justificationRequest?.newValue ?? 0).toFixed(2)}`}
+            oldValue={`${watchedCharges[justificationRequest?.index || 0]?.costCurrency} ${Number(justificationRequest?.oldValue || 0).toFixed(2)}`}
+            newValue={`${watchedCharges[justificationRequest?.index || 0]?.saleCurrency} ${Number(justificationRequest?.newValue || 0).toFixed(2)}`}
         />
       </>
   );
 }
-

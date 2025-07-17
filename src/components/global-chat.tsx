@@ -134,14 +134,14 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
                 {!selectedShipment ? (
                     <ScrollArea className="h-full">
                         {conversations.length > 0 ? conversations.map(({ shipment, lastMessage, hasUnread }) => (
-                            <div key={shipment.id} className={cn("flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-accent", hasUnread && "bg-primary/10")} onClick={() => handleSelectConversation(shipment)}>
+                            <div key={shipment.id} className={cn("flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-accent", hasUnread && "bg-primary/10 font-bold")} onClick={() => handleSelectConversation(shipment)}>
                                 <Avatar className="relative">
                                     <AvatarFallback>{shipment.customer?.substring(0, 2).toUpperCase()}</AvatarFallback>
                                     {hasUnread && <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-destructive ring-2 ring-background" />}
                                 </Avatar>
                                 <div className="flex-grow overflow-hidden">
                                     <p className="font-semibold truncate">{shipment.id} - {shipment.customer}</p>
-                                    <p className={cn("text-sm truncate", hasUnread ? "text-foreground font-medium" : "text-muted-foreground")}>
+                                    <p className={cn("text-sm truncate", hasUnread ? "text-foreground" : "text-muted-foreground")}>
                                         {lastMessage.sender === 'Cliente' ? '' : 'Você: '}{lastMessage.message}
                                     </p>
                                 </div>

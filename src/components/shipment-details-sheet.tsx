@@ -80,6 +80,8 @@ import { Textarea } from './ui/textarea';
 import { BLDraftForm } from './bl-draft-form';
 import { ShipmentMap } from './shipment-map';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter } from '@/components/ui/dialog';
+import { Switch } from './ui/switch';
+
 
 const containerDetailSchema = z.object({
   id: z.string(),
@@ -182,7 +184,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         resolver: zodResolver(newMilestoneSchema),
         defaultValues: { name: '', details: '' }
     });
-
+    
     useEffect(() => {
         if (shipment) {
             setPartners(getPartners());
@@ -384,7 +386,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
         return { totalCostBRL, totalSaleBRL, totalProfitBRL };
     }, [watchedCharges, exchangeRates, partners]);
-    
+
     if (!shipment) {
         return (
             <Sheet open={open} onOpenChange={onOpenChange}>

@@ -145,6 +145,7 @@ const shipmentDetailsSchema = z.object({
   collectionAddress: z.string().optional(),
   deliveryAddress: z.string().optional(),
   dischargeTerminal: z.string().optional(),
+  terminalRedestinacaoId: z.string().optional(),
   containers: z.array(containerDetailSchema).optional(),
   transshipments: z.array(transshipmentDetailSchema).optional(),
   milestones: z.array(milestoneSchema).optional(),
@@ -181,6 +182,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const form = useForm<ShipmentDetailsFormData>({
         resolver: zodResolver(shipmentDetailsSchema),
     });
+
+    const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
 
     const newMilestoneForm = useForm<NewMilestoneFormData>({
         resolver: zodResolver(newMilestoneSchema),
@@ -505,9 +508,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                             overdue && 'bg-destructive text-destructive-foreground')}>
                                                             {milestone.effectiveDate ? <CheckCircle className="h-5 w-5" /> : (overdue ? <AlertTriangle className="h-5 w-5" /> : <Circle className="h-5 w-5" />)}
                                                         </div>
-                                                        <div className="flex-grow space-y-1">
+                                                        <div className="flex-grow space-y-1 pl-4">
                                                             <p className="font-semibold text-base">{milestone.name}</p>
-                                                            {locationDetails && (
+                                                             {locationDetails && (
                                                                 <p className="text-sm text-muted-foreground">{locationDetails}</p>
                                                             )}
                                                         </div>
@@ -546,11 +549,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                     <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 </div>
-                                                {shipment.details.incoterm === 'EXW' && <FormField control={form.control} name="collectionAddress" render={({ field }) => (<FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
-                                                {(shipment.details.incoterm.startsWith('D') || shipment.charges.some(c => c.name.toLowerCase().includes('entrega'))) && <FormField control={form.control} name="deliveryAddress" render={({ field }) => (<FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
-                                                <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (<FormItem><FormLabel>Terminal de Chegada (Descarga)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                                <FormItem><FormLabel>Terminal Redestinação</FormLabel><Input value={partners.find(p => p.id?.toString() === shipment.terminalRedestinacaoId)?.name || 'N/A'} disabled /></FormItem>
-                                                <Separator />
                                                 <div className="grid grid-cols-2 gap-4">
                                                      <FormField control={form.control} name="etd" render={({ field }) => (
                                                         <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
@@ -571,24 +569,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                         </FormItem>
                                                     )} />
                                                 </div>
-                                                <FormField control={form.control} name="carrier" render={({ field }) => (
-                                                    <FormItem><FormLabel>Transportadora</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                                )} />
+                                                <FormField control={form.control} name="carrier" render={({ field }) => (<FormItem><FormLabel>Transportadora</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 <div className="grid grid-cols-2 gap-4">
-                                                     <FormField control={form.control} name="vesselName" render={({ field }) => (
-                                                        <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                                    )} />
-                                                     <FormField control={form.control} name="voyageNumber" render={({ field }) => (
-                                                        <FormItem><FormLabel>Viagem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                                    )} />
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                     <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
-                                                        <FormItem><FormLabel>Master BL / AWB</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                                    )} />
-                                                     <FormField control={form.control} name="houseBillNumber" render={({ field }) => (
-                                                        <FormItem><FormLabel>House BL / AWB</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                                    )} />
+                                                     <FormField control={form.control} name="vesselName" render={({ field }) => (<FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                     <FormField control={form.control} name="voyageNumber" render={({ field }) => (<FormItem><FormLabel>Viagem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 </div>
                                                 <FormField control={form.control} name="bookingNumber" render={({ field }) => (
                                                     <FormItem><FormLabel>Booking Number</FormLabel>
@@ -597,12 +581,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                         <Button type="button" variant="secondary" onClick={handleRefreshTracking} disabled={isUpdating}>
                                                             {isUpdating ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}
                                                         </Button>
-                                                        <Button type="button" variant="secondary" onClick={() => runUpdateShipmentInTracking({ shipmentNumber: form.getValues('bookingNumber')})} disabled={isUpdating}>
-                                                            <RefreshCw className="h-4 w-4 text-green-500"/>
-                                                        </Button>
                                                     </div>
                                                     </FormItem>
                                                 )} />
+                                                <div className="grid grid-cols-2 gap-4">
+                                                     <FormField control={form.control} name="masterBillNumber" render={({ field }) => (<FormItem><FormLabel>Master BL / AWB</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                     <FormField control={form.control} name="houseBillNumber" render={({ field }) => (<FormItem><FormLabel>House BL / AWB</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                </div>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <FormField control={form.control} name="ceMaster" render={({ field }) => (<FormItem><FormLabel>CE Master</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                     <FormField control={form.control} name="ceHouse" render={({ field }) => (<FormItem><FormLabel>CE House</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
@@ -612,6 +597,40 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (<FormItem><FormLabel>Ref. Cliente (PO)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                     <FormField control={form.control} name="invoiceNumber" render={({ field }) => (<FormItem><FormLabel>Invoice Number</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 </div>
+                                                {shipment.details?.incoterm === 'EXW' && <FormField control={form.control} name="collectionAddress" render={({ field }) => (<FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
+                                                {(shipment.details?.incoterm.startsWith('D') || shipment.charges.some(c => c.name.toLowerCase().includes('entrega'))) && <FormField control={form.control} name="deliveryAddress" render={({ field }) => (<FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
+                                                
+                                                <FormField
+                                                    control={form.control}
+                                                    name="dischargeTerminal"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Terminal de Chegada (Descarga)</FormLabel>
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione um terminal..." /></SelectTrigger></FormControl>
+                                                                <SelectContent>
+                                                                    {terminalPartners.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="terminalRedestinacaoId"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Terminal de Redestinação</FormLabel>
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione um terminal..." /></SelectTrigger></FormControl>
+                                                                <SelectContent>
+                                                                     {terminalPartners.map(t => <SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>)}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </FormItem>
+                                                    )}
+                                                />
+
                                             </CardContent>
                                         </Card>
                                         
@@ -636,7 +655,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     {containerFields.map((field, index) => (
                                                         <div key={field.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 items-center p-2 border rounded-md relative">
                                                             <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                                            <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="Nº Contêiner" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="Nº Contêiner" {...field} className="h-8 col-span-2"/>} />
                                                             <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="Lacre" {...field} className="h-8"/>} />
                                                             <FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="Tara" {...field} className="h-8"/>} />
                                                             <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="Peso Bruto" {...field} className="h-8"/>} />

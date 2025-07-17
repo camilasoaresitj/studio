@@ -64,6 +64,11 @@ const generateClientInvoiceHtmlFlow = ai.defineFlow(
       const logoHtml = data.companyLogoUrl
         ? `<img src="${data.companyLogoUrl}" alt="Company Logo" style="height: 45px; max-width: 180px; object-fit: contain;" />`
         : `<span>CargaInteligente</span>`;
+      
+      const exchangeRateHtml = data.exchangeRate
+        ? `<p style="margin-top: 10px; color: #6b7280;">*Valores em moeda estrangeira foram convertidos a uma taxa de câmbio de BRL ${data.exchangeRate.toFixed(4)}.</p>`
+        : '';
+
 
       return `
       <!DOCTYPE html>
@@ -137,7 +142,7 @@ const generateClientInvoiceHtmlFlow = ai.defineFlow(
             <h4 style="font-weight: 700; color: #374151; margin: 0 0 10px 0;">INSTRUÇÕES DE PAGAMENTO</h4>
             <p style="margin: 0 0 5px 0;"><strong>Banco:</strong> ${data.bankDetails.bankName}</p>
             <p style="margin: 0;"><strong>PIX / Conta:</strong> ${data.bankDetails.accountNumber}</p>
-             ${data.exchangeRate ? `<p style="margin-top: 10px; color: #6b7280;">*Valores em moeda estrangeira foram convertidos a uma taxa de câmbio de BRL ${data.exchangeRate.toFixed(4)}.</p>` : ''}
+            ${exchangeRateHtml}
           </div>
         </div>
       </body>
@@ -149,3 +154,5 @@ const generateClientInvoiceHtmlFlow = ai.defineFlow(
     return { html: finalHtml };
   }
 );
+
+    

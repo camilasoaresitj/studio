@@ -21,6 +21,7 @@ import '@/ai/flows/extract-partner-info.ts';
 import '@/ai/flows/get-ship-schedules.ts';
 import '@/ai/flows/get-flight-schedules.ts';
 import '@/ai/flows/generate-quote-pdf-html.ts';
+import '@/ai/flows/generate-client-invoice-html.ts';
 import '@/ai/flows/extract-quote-details-from-text.ts';
 import '@/ai/flows/get-tracking-info.ts';
 import '@/ai/flows/get-booking-info.ts';
@@ -39,4 +40,5 @@ import '@/ai/flows/get-courier-rates.ts';
 import '@/ai/flows/send-draft-approval-request.ts';
 import '@/ai/flows/update-shipment-in-tracking.ts';
 import '@/ai/flows/get-route-map.ts';
+
 

@@ -7,6 +7,7 @@ import { extractPartnerInfo } from "@/ai/flows/extract-partner-info";
 import { extractQuoteDetailsFromText } from "@/ai/flows/extract-quote-details-from-text";
 import { extractRatesFromText } from "@/ai/flows/extract-rates-from-text";
 import { generateQuotePdfHtml } from "@/ai/flows/generate-quote-pdf-html";
+import { generateClientInvoiceHtml } from "@/ai/flows/generate-client-invoice-html";
 import { generateAgentInvoiceHtml } from "@/ai/flows/generate-agent-invoice-html";
 import { generateHblHtml } from "@/ai/flows/generate-hbl-html";
 import { getFreightRates, getAirFreightRates } from "@/ai/flows/get-freight-rates";
@@ -104,9 +105,19 @@ export async function runSendWhatsapp(to: string, message: string) {
     }
 }
 
-export async function runGenerateClientInvoicePdf(input: any) {
+export async function runGenerateQuotePdf(input: any) {
   try {
     const output = await generateQuotePdfHtml(input);
+    return { success: true, data: output };
+  } catch (error: any) {
+    console.error("Server Action Failed", error);
+    return { success: false, error: error.message || "Failed to run flow" };
+  }
+}
+
+export async function runGenerateClientInvoicePdf(input: any) {
+  try {
+    const output = await generateClientInvoiceHtml(input);
     return { success: true, data: output };
   } catch (error: any) {
     console.error("Server Action Failed", error);
@@ -414,10 +425,13 @@ export async function fetchShipmentForDraft(shipmentId: string) {
     }
 }
 
-// This function needs to be a server action but it cannot call client functions.
-// It must receive all necessary data from the client.
-export async function sendChatMessage(shipment: Shipment, message: ChatMessage) {
+export async function sendChatMessage(shipmentId: string, message: ChatMessage) {
   try {
+    const shipment = getShipmentById(shipmentId);
+    if (!shipment) {
+      throw new Error('Embarque não encontrado.');
+    }
+
     const updatedShipment = {
         ...shipment,
         chatMessages: [...(shipment.chatMessages || []), message],

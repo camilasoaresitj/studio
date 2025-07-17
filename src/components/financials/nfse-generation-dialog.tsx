@@ -73,30 +73,6 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
       selectedCharges: [],
     },
   });
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "selectedCharges" as never,
-  });
-
-  useEffect(() => {
-    if (data) {
-      // Reset form with default values when new data is provided
-      form.reset({
-        tomador: {
-          cpfCnpj: '08315383000107',
-          razaoSocial: 'LTI DO BRASIL LTDA',
-          endereco: 'RUA DOMINGOS FASCIN NETO',
-          numero: '584',
-          bairro: 'VILA FASCIN',
-          codigoMunicipio: '3552205',
-          uf: 'SP',
-          cep: '08240000',
-        },
-        selectedCharges: [],
-      });
-    }
-  }, [data, form]);
   
   const watchedCharges = form.watch('selectedCharges');
 
@@ -110,6 +86,27 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
       .filter(charge => watchedCharges.includes(charge.id))
       .reduce((sum, charge) => sum + charge.sale, 0);
   }, [watchedCharges, chargesToDisplay]);
+
+
+  useEffect(() => {
+    if (data) {
+      // Pre-select all applicable charges when the dialog opens
+      const allChargeIds = chargesToDisplay.map(c => c.id);
+      form.reset({
+        tomador: { // You can fetch this from the partner data in a real app
+          cpfCnpj: '08315383000107',
+          razaoSocial: 'LTI DO BRASIL LTDA',
+          endereco: 'RUA DOMINGOS FASCIN NETO',
+          numero: '584',
+          bairro: 'VILA FASCIN',
+          codigoMunicipio: '3552205',
+          uf: 'SP',
+          cep: '08240000',
+        },
+        selectedCharges: allChargeIds,
+      });
+    }
+  }, [data, chargesToDisplay, form]);
 
 
   const onSubmit = async (formData: NfseDialogFormData) => {
@@ -171,41 +168,54 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-grow flex flex-col overflow-y-auto pr-2">
                 
                 <h3 className="text-lg font-semibold">Despesas da Fatura</h3>
-                <ScrollArea className="h-48 border rounded-md">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-10"></TableHead>
-                                <TableHead>Descrição</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {chargesToDisplay.map((charge) => (
-                                <TableRow key={charge.id}>
-                                    <TableCell>
-                                        <FormField
-                                            control={form.control}
-                                            name="selectedCharges"
-                                            render={({ field }) => (
-                                                <Checkbox
-                                                    checked={field.value?.includes(charge.id)}
-                                                    onCheckedChange={(checked) => {
-                                                        return checked
-                                                        ? field.onChange([...(field.value || []), charge.id])
-                                                        : field.onChange(field.value?.filter((value) => value !== charge.id))
-                                                    }}
-                                                />
-                                            )}
-                                        />
-                                    </TableCell>
-                                    <TableCell>{charge.name}</TableCell>
-                                    <TableCell className="text-right font-mono">{charge.saleCurrency} {charge.sale.toFixed(2)}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </ScrollArea>
+                 <FormField
+                    control={form.control}
+                    name="selectedCharges"
+                    render={() => (
+                        <FormItem>
+                            <ScrollArea className="h-48 border rounded-md">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-10"></TableHead>
+                                            <TableHead>Descrição</TableHead>
+                                            <TableHead className="text-right">Valor</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {chargesToDisplay.map((charge) => (
+                                             <FormField
+                                                key={charge.id}
+                                                control={form.control}
+                                                name="selectedCharges"
+                                                render={({ field }) => {
+                                                    return (
+                                                    <TableRow>
+                                                        <TableCell>
+                                                            <FormControl>
+                                                                <Checkbox
+                                                                    checked={field.value?.includes(charge.id)}
+                                                                    onCheckedChange={(checked) => {
+                                                                        return checked
+                                                                        ? field.onChange([...(field.value || []), charge.id])
+                                                                        : field.onChange(field.value?.filter((value) => value !== charge.id))
+                                                                    }}
+                                                                />
+                                                            </FormControl>
+                                                        </TableCell>
+                                                        <TableCell>{charge.name}</TableCell>
+                                                        <TableCell className="text-right font-mono">{charge.saleCurrency} {charge.sale.toFixed(2)}</TableCell>
+                                                    </TableRow>
+                                                )}}
+                                            />
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <div className="text-right font-bold text-lg">
                     Valor Total da Nota: BRL {totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                 </div>

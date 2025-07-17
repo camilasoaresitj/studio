@@ -21,7 +21,7 @@ import {
   Check,
   Split
 } from 'lucide-react';
-import { format, isPast, isToday, addMonths } from 'date-fns';
+import { format, isPast, isToday, addDays } from 'date-fns';
 import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getFinancialEntries, getBankAccounts, addFinancialEntry, updateFinancialEntry, findEntryById } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -46,6 +46,7 @@ import { RenegotiationDialog } from './renegotiation-dialog';
 import { NfseConsulta } from './nfse-consulta';
 import { PartnersRegistry } from '../partners-registry';
 import { Partner, getPartners, savePartners } from '@/lib/partners-data';
+import { exchangeRateService } from '@/services/exchange-rate-service';
 
 
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
@@ -79,14 +80,17 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit'>('all');
     const [textFilters, setTextFilters] = useState({ partner: '', processId: '', value: '' });
     const [isGenerating, setIsGenerating] = useState(false);
+    const [ptaxRates, setPtaxRates] = useState<Record<string, number>>({});
     const { toast } = useToast();
     
     useEffect(() => {
-        const loadData = () => {
+        const loadData = async () => {
             setEntries(getFinancialEntries());
             setAccounts(getBankAccounts());
             setAllShipments(getShipments());
             setPartners(getPartners());
+            const rates = await exchangeRateService.getRates();
+            setPtaxRates(rates);
         };
         
         loadData();
@@ -443,28 +447,30 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         }
 
         const formatValue = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const partner = partners.find(p => p.name === entry.partner);
 
-        const charges = shipment.charges.map(c => ({
-            description: c.name,
-            quantity: 1,
-            value: formatValue(c.sale),
-            total: formatValue(c.sale),
-            currency: c.saleCurrency
-        }));
-
-        const totalBRL = shipment.charges.reduce((sum, charge) => {
-            const rate = charge.saleCurrency === 'USD' ? 5.0 : 1; // Simplified rate
-            return sum + (charge.sale * rate);
-        }, 0);
+        const charges = shipment.charges
+            .filter(c => c.sacado === entry.partner)
+            .map(c => ({
+                description: c.name,
+                value: formatValue(c.sale),
+                currency: c.saleCurrency
+            }));
+        
+        const customerAgio = partner?.exchangeRateAgio ?? 0;
+        const ptaxUsd = ptaxRates['USD'] || 5.0; // Fallback
+        const finalPtaxUsd = parseFloat((ptaxUsd * (1 + (customerAgio / 100))).toFixed(4));
+        const totalInBRL = getBalanceInBRL(entry);
         
         const response = await runGenerateClientInvoicePdf({
             invoiceNumber: entry.invoiceId,
             customerName: entry.partner,
-            customerAddress: shipment.consignee?.address ? `${shipment.consignee.address.street}, ${shipment.consignee.address.city}` : 'Endereço não disponível',
-            date: new Date().toLocaleDateString('pt-br'),
+            customerAddress: `${partner?.address?.street || ''}, ${partner?.address?.number || ''} - ${partner?.address?.city || ''}`,
+            date: format(new Date(), 'dd/MM/yyyy'),
+            dueDate: format(new Date(entry.dueDate), 'dd/MM/yyyy'),
             charges: charges,
-            total: formatValue(totalBRL),
-            exchangeRate: 5.0, // Simplified rate
+            total: `R$ ${totalInBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            exchangeRate: entry.currency !== 'BRL' ? finalPtaxUsd : undefined,
             bankDetails: {
                 bankName: "LTI GLOBAL",
                 accountNumber: "PIX: 10.298.168/0001-89"
@@ -655,6 +661,17 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         window.dispatchEvent(new Event('partnersUpdated'));
     };
 
+    const getBalanceInBRL = (entry: FinancialEntry): number => {
+        const balance = getEntryBalance(entry);
+        if (entry.currency === 'BRL') return balance;
+        
+        const partner = partners.find(p => p.name === entry.partner);
+        const agio = partner?.exchangeRateAgio ?? 0;
+        const rate = (ptaxRates[entry.currency] || 0) * (1 + (agio / 100));
+        
+        return balance * rate;
+    }
+
     const renderEntriesTable = (tableEntries: FinancialEntry[], isLegalTable = false) => (
         <div className="border rounded-lg">
             <Table>
@@ -680,15 +697,15 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                 <TableHead className="w-40">Status</TableHead>
                 {isLegalTable && <TableHead>Comentários</TableHead>}
                 <TableHead>Vencimento</TableHead>
-                <TableHead className="text-right">Valor Total</TableHead>
-                <TableHead className="text-right">Saldo</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-right">Saldo (BRL)</TableHead>
                 <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {tableEntries.length > 0 ? tableEntries.map((entry) => {
                     const { status, variant } = getEntryStatus(entry);
-                    const balance = getEntryBalance(entry);
+                    const balanceBRL = getBalanceInBRL(entry);
                     return (
                         <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
                             {!isLegalTable && <TableCell>
@@ -756,7 +773,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                 {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </TableCell>
                              <TableCell className={cn("text-right font-mono font-bold", entry.type === 'credit' ? 'text-success' : 'text-destructive')}>
-                                {entry.currency} {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                R$ {balanceBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="text-center">
                                 <DropdownMenu>
@@ -764,6 +781,9 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuItem onClick={() => handleProcessClick(entry)}>
                                             <FileText className="mr-2 h-4 w-4" /> Detalhes do Processo
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={entry.type === 'debit'}>
+                                            <Printer className="mr-2 h-4 w-4" /> Imprimir Fatura Cliente
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={entry.type === 'credit'}>
                                             <Printer className="mr-2 h-4 w-4" /> Imprimir Invoice Agente

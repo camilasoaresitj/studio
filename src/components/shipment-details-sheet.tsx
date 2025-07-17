@@ -7,6 +7,7 @@ import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, isPast, isValid } from 'date-fns';
+import Image from 'next/image';
 
 import {
   Sheet,
@@ -22,7 +23,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner, UploadedDocument } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { 
     Calendar as CalendarIcon, 
@@ -72,6 +73,7 @@ import { BLDraftForm } from './bl-draft-form';
 import { ShipmentMap } from './shipment-map';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from './ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
 const containerDetailSchema = z.object({
@@ -178,6 +180,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const [fees, setFees] = useState<Fee[]>([]);
     const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
     const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
+    const [documentPreviews, setDocumentPreviews] = useState<Record<string, string>>({});
+    const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
     
     const form = useForm<ShipmentDetailsFormData>({
         resolver: zodResolver(shipmentDetailsSchema),
@@ -205,6 +209,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 charges: shipment.charges || [],
                 ncms: shipment.ncms || [],
             });
+            // Reset local file state
+            setUploadedFiles({});
+            setDocumentPreviews({});
         }
     }, [shipment, form, open]);
     
@@ -233,15 +240,33 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const handleUpdate = form.handleSubmit(async (data) => {
         if (!shipment) return;
         setIsUpdating(true);
+        
+        const updatedDocuments = (shipment.documents || []).map(doc => {
+            const uploadedFile = uploadedFiles[doc.name];
+            if (uploadedFile) {
+                return {
+                    ...doc,
+                    status: 'uploaded' as const,
+                    fileName: uploadedFile.name,
+                    uploadedAt: new Date(),
+                    // In a real app, you would upload the file and store a URL, not the file object itself.
+                    // For simulation, we'll just keep the filename.
+                };
+            }
+            return doc;
+        });
+        
         const updatedData = {
             ...shipment, 
             ...data,
+            documents: updatedDocuments,
             milestones: (data.milestones || []).map(m => ({
                 ...m,
                 status: m.effectiveDate ? 'completed' as const : m.status,
             }))
         };
         onUpdate(updatedData as Shipment);
+        setUploadedFiles({}); // Clear after save
         await new Promise(resolve => setTimeout(resolve, 300));
         setIsUpdating(false);
         toast({
@@ -416,6 +441,35 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         }
         return '';
     };
+    
+    const handleDocumentUpload = (docName: string, file: File | null) => {
+        if (!file) return;
+
+        setUploadedFiles(prev => ({ ...prev, [docName]: file }));
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setDocumentPreviews(prev => ({ ...prev, [docName]: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
+    };
+    
+    const handleDownload = (doc: DocumentStatus) => {
+        const file = uploadedFiles[doc.name];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } else {
+            toast({ variant: "destructive", title: "Arquivo não encontrado", description: "O arquivo não foi anexado nesta sessão." });
+        }
+    };
+
 
     if (!shipment) {
         return (
@@ -501,14 +555,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
                                                 const locationDetails = getMilestoneLocationDetails(milestone.name);
                                                 return (
-                                                    <div key={milestone.id} className="relative mb-8 pl-12">
+                                                    <div key={milestone.id} className="relative mb-6 last:mb-0 pl-12">
                                                         <div className={cn('absolute -left-[17px] top-1 flex h-8 w-8 items-center justify-center rounded-full', 
                                                             milestone.effectiveDate ? 'bg-success' : 'bg-muted',
                                                             overdue && 'bg-destructive')}>
                                                             {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
                                                         </div>
-                                                        <div className="flex justify-between items-center">
-                                                          <div>
+                                                        <div className="flex justify-between items-center p-4 rounded-lg border bg-background hover:bg-secondary/50">
+                                                          <div className="flex-1">
                                                             <p className="font-semibold text-base">{milestone.name}</p>
                                                             {locationDetails && (
                                                                 <p className="text-sm text-muted-foreground">{locationDetails}</p>
@@ -517,14 +571,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                           <div className="flex items-center gap-2">
                                                               <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
                                                                   <Popover><PopoverTrigger asChild><FormControl>
-                                                                      <Button variant="outline" size="sm" className="h-7 text-xs">
+                                                                      <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
                                                                           <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
                                                                       </Button>
                                                                   </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
                                                               )} />
                                                               <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
                                                                   <Popover><PopoverTrigger asChild><FormControl>
-                                                                      <Button variant="outline" size="sm" className={cn("h-7 text-xs", !field.value && "text-muted-foreground")}>
+                                                                      <Button variant="outline" size="sm" className={cn("h-7 text-xs w-32 justify-start", !field.value && "text-muted-foreground")}>
                                                                           <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
                                                                       </Button>
                                                                   </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
@@ -712,7 +766,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
-                                                            {(shipment.documents || []).map((doc, index) => (
+                                                            {(shipment.documents || []).map((doc, index) => {
+                                                                const previewUrl = documentPreviews[doc.name];
+                                                                const hasFile = doc.fileName || uploadedFiles[doc.name];
+                                                                return (
                                                                 <TableRow key={index}>
                                                                     <TableCell className="font-medium">{doc.name}</TableCell>
                                                                     <TableCell>
@@ -721,18 +778,34 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                         </Badge>
                                                                     </TableCell>
                                                                     <TableCell>
-                                                                        {doc.fileName ? (
-                                                                            <a href="#" className="text-primary hover:underline" onClick={(e) => e.preventDefault()}>
-                                                                                {doc.fileName}
-                                                                            </a>
+                                                                        {hasFile ? (
+                                                                             <TooltipProvider>
+                                                                                <Tooltip>
+                                                                                    <TooltipTrigger asChild>
+                                                                                        <a href="#" className="text-primary hover:underline" onClick={(e) => { e.preventDefault(); handleDownload(doc); }}>
+                                                                                            {uploadedFiles[doc.name]?.name || doc.fileName}
+                                                                                        </a>
+                                                                                    </TooltipTrigger>
+                                                                                    <TooltipContent>
+                                                                                        {previewUrl ? (
+                                                                                            <Image src={previewUrl} alt={`Preview de ${doc.fileName}`} width={200} height={200} className="object-contain" />
+                                                                                        ) : (
+                                                                                            <p>Pré-visualização indisponível.</p>
+                                                                                        )}
+                                                                                    </TooltipContent>
+                                                                                </Tooltip>
+                                                                            </TooltipProvider>
                                                                         ) : 'N/A'}
                                                                     </TableCell>
                                                                     <TableCell className="text-right">
-                                                                        <Button variant="outline" size="sm" className="mr-2"><Upload className="mr-2 h-4 w-4"/> Anexar</Button>
+                                                                        <Button asChild variant="outline" size="sm" className="mr-2">
+                                                                            <label htmlFor={`upload-${doc.name}`} className="cursor-pointer"><Upload className="mr-2 h-4 w-4"/> Anexar</label>
+                                                                        </Button>
+                                                                        <Input id={`upload-${doc.name}`} type="file" className="hidden" onChange={(e) => handleDocumentUpload(doc.name, e.target.files ? e.target.files[0] : null)} />
                                                                         <Button variant="ghost" size="sm" disabled={doc.status !== 'uploaded'}><FileCheck className="mr-2 h-4 w-4"/> Aprovar</Button>
                                                                     </TableCell>
                                                                 </TableRow>
-                                                            ))}
+                                                            )})}
                                                         </TableBody>
                                                     </Table>
                                                 </div>

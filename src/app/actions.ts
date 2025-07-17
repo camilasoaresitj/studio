@@ -370,17 +370,7 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
         };
         updatedShipment.milestones.push(newTask);
     } else {
-        history.revisions.push({ date: now, lateFee: undefined });
-        
-        const newTask: Milestone = {
-            name: "[REVISÃO] Enviar Draft MBL ao armador",
-            status: 'pending',
-            predictedDate: now,
-            effectiveDate: null,
-            details: `Revisão do draft recebida do cliente ${updatedShipment.customer}.`
-        };
-        updatedShipment.milestones.push(newTask);
-        
+        const newRevision = { date: now, lateFee: undefined };
         if (isLateSubmission) {
             const lateFeeCharge: QuoteCharge = {
                 id: `late-fee-${Date.now()}`,
@@ -395,8 +385,18 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
                 approvalStatus: 'aprovada',
             };
             updatedShipment.charges = [...(updatedShipment.charges || []), lateFeeCharge];
-            history.revisions[history.revisions.length - 1].lateFee = { cost: 150, currency: 'USD' };
+            (newRevision as any).lateFee = { cost: 150, currency: 'USD' };
         }
+        history.revisions.push(newRevision as any);
+        
+        const newTask: Milestone = {
+            name: "[REVISÃO] Enviar Draft MBL ao armador",
+            status: 'pending',
+            predictedDate: now,
+            effectiveDate: null,
+            details: `Revisão do draft recebida do cliente ${updatedShipment.customer}.`
+        };
+        updatedShipment.milestones.push(newTask);
     }
 
     updatedShipment.blDraftHistory = history;
@@ -427,14 +427,16 @@ export async function fetchShipmentForDraft(shipmentId: string) {
 
 export async function sendChatMessage(shipmentId: string, message: ChatMessage) {
   try {
-    const shipment = getShipmentById(shipmentId);
-    if (!shipment) {
+    const allShipments = getShipments();
+    const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
+    
+    if (shipmentIndex === -1) {
       throw new Error('Embarque não encontrado.');
     }
-
+    
     const updatedShipment = {
-        ...shipment,
-        chatMessages: [...(shipment.chatMessages || []), message],
+        ...allShipments[shipmentIndex],
+        chatMessages: [...(allShipments[shipmentIndex].chatMessages || []), message],
     };
 
     updateShipment(updatedShipment);
@@ -468,5 +470,32 @@ export async function markMessagesAsRead(shipmentId: string, userId: string) {
     } catch(error: any) {
         console.error("Mark Messages As Read Action Failed", error);
         return { success: false, error: error.message || "Failed to mark messages as read" };
+    }
+}
+
+export async function addManualMilestone(shipmentId: string, milestone: Omit<Milestone, 'status' | 'effectiveDate'>) {
+    try {
+        const shipment = getShipmentById(shipmentId);
+        if (!shipment) {
+            throw new Error('Embarque não encontrado.');
+        }
+
+        const newMilestone: Milestone = {
+            ...milestone,
+            status: 'pending',
+            effectiveDate: null,
+        };
+
+        const updatedShipment = {
+            ...shipment,
+            milestones: [...(shipment.milestones || []), newMilestone].sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime()),
+        };
+
+        updateShipment(updatedShipment);
+        return { success: true, data: updatedShipment };
+
+    } catch (error: any) {
+        console.error("Add Manual Milestone Action Failed", error);
+        return { success: false, error: error.message || "Failed to add milestone" };
     }
 }

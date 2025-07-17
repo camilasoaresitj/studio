@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -46,7 +47,7 @@ export function ShipmentChat({ shipment, onUpdate }: ShipmentChatProps) {
             readBy: []
         };
 
-        const response = await sendChatMessage(shipment, messageToSend);
+        const response = await sendChatMessage(shipment.id, messageToSend);
 
         if (response.success && response.data) {
             onUpdate(response.data);

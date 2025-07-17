@@ -8,12 +8,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getShipments, updateShipment } from '@/lib/shipment-data';
+import { getShipments, updateShipment } from '@/lib/shipment';
 import type { Shipment, ChatMessage } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { sendChatMessage } from '@/app/actions';
+import { sendChatMessage, markMessagesAsRead } from '@/app/actions';
 import { Send, Loader2, MessageSquare, ArrowLeft, Building, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -72,13 +72,12 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
             readBy: ['user-1']
         };
 
-        const response = await sendChatMessage(selectedShipment, messageToSend);
+        const response = await sendChatMessage(selectedShipment.id, messageToSend);
         
         if (response.success && response.data) {
             setSelectedShipment(response.data);
             setNewMessage('');
-            // Trigger a global event to update shipments everywhere
-            window.dispatchEvent(new Event('shipmentsUpdated'));
+            setShipments(getShipments()); // Refresh list
         } else {
              toast({
                 variant: 'destructive',
@@ -90,18 +89,15 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
         setIsLoading(false);
     };
     
-    const handleSelectConversation = (shipment: Shipment) => {
-        const latestShipmentState = getShipments().find(s => s.id === shipment.id) || shipment;
-        const lastMessage = latestShipmentState.chatMessages?.[latestShipmentState.chatMessages.length - 1];
+    const handleSelectConversation = async (shipment: Shipment) => {
+        const latestShipmentState = getShipmentById(shipment.id) || shipment;
+        setSelectedShipment(latestShipmentState);
 
-        if (lastMessage && lastMessage.sender === 'Cliente' && !lastMessage.readBy?.includes('user-1')) {
-            lastMessage.readBy = [...(lastMessage.readBy || []), 'user-1'];
-            updateShipment(latestShipmentState);
-            // Manually trigger a re-render of the list
+        const hasUnread = (latestShipmentState.chatMessages || []).some(m => m.sender === 'Cliente' && !m.readBy?.includes('user-1'));
+        if (hasUnread) {
+            await markMessagesAsRead(shipment.id, 'user-1');
             setShipments(getShipments());
         }
-        
-        setSelectedShipment(latestShipmentState);
     }
     
     const DepartmentIcon = ({ dept }: { dept: ChatMessage['department'] }) => {

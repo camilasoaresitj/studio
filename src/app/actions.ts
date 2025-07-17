@@ -330,10 +330,10 @@ export async function createEmailCampaign(instruction: string, partners: Partner
     }
 }
 
-export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, isLateSubmission: boolean) {
+export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean) {
   try {
     const allShipments = getShipments();
-    const shipmentIndex = allShipments.findIndex(s => s.id === shipment.id);
+    const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
     if (shipmentIndex === -1) {
         throw new Error("Shipment not found");
     }

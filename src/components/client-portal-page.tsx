@@ -162,6 +162,11 @@ export function ClientPortalPage({ id }: { id: string }) {
                                                     <p className="text-sm text-muted-foreground">
                                                         {milestone.status === 'completed' && milestone.effectiveDate ? `Concluído em: ${format(new Date(milestone.effectiveDate), 'dd/MM/yyyy')}` : `Previsto para: ${milestone.predictedDate ? format(new Date(milestone.predictedDate), 'dd/MM/yyyy') : 'N/A'}`}
                                                     </p>
+                                                    {milestone.details && (
+                                                        <p className="text-xs text-muted-foreground italic mt-1">
+                                                            {milestone.details}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -273,5 +278,3 @@ export function ClientPortalPage({ id }: { id: string }) {
         </div>
     );
 }
-
-    

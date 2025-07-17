@@ -60,49 +60,53 @@ export default function CustomerPortalPage() {
         };
 
         const calculateAlerts = () => {
-             // Calculate Draft Alerts
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const allShipments = getShipments(); // Make sure to get fresh data
-            const customerShipments = allShipments.filter(s => s.customer === customerId);
-            const alerts: DraftAlert[] = customerShipments
-                .map(shipment => {
-                    const draftMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
-                    
-                    if (!draftMilestone || !draftMilestone.predictedDate || !isValid(new Date(draftMilestone.predictedDate))) {
-                        return null;
-                    }
+             const allShipments = getShipments(); // Make sure to get fresh data
+             const customerShipments = allShipments.filter(s => s.customer === customerId);
+             const today = new Date();
+             today.setHours(0, 0, 0, 0);
 
-                    const dueDate = new Date(draftMilestone.predictedDate);
-                    const draftAlreadySent = shipment.blDraftData; 
+             const alerts: DraftAlert[] = customerShipments
+                 .map(shipment => {
+                     const draftMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
+                     
+                     if (!draftMilestone || !draftMilestone.predictedDate || !isValid(new Date(draftMilestone.predictedDate))) {
+                         return null;
+                     }
 
-                    if (draftAlreadySent) return null; 
+                     const dueDate = new Date(draftMilestone.predictedDate);
+                     const draftAlreadySent = shipment.blDraftData; 
 
-                    const daysRemaining = differenceInDays(dueDate, today);
-                    
-                    
-                    if (daysRemaining <= 5) {
-                        return {
-                            shipment,
-                            daysRemaining,
-                            isOverdue: isPast(dueDate) && daysRemaining < 0
-                        };
-                    }
-                    return null;
-                })
-                .filter((alert): alert is DraftAlert => alert !== null)
-                .sort((a,b) => a.daysRemaining - b.daysRemaining);
-            setDraftAlerts(alerts);
+                     if (draftAlreadySent) return null; 
+
+                     const daysRemaining = differenceInDays(dueDate, today);
+                     
+                     if (daysRemaining <= 5) {
+                         return {
+                             shipment,
+                             daysRemaining,
+                             isOverdue: isPast(dueDate) && daysRemaining < 0
+                         };
+                     }
+                     return null;
+                 })
+                 .filter((alert): alert is DraftAlert => alert !== null)
+                 .sort((a,b) => a.daysRemaining - b.daysRemaining);
+             setDraftAlerts(alerts);
         }
 
         fetchData();
         calculateAlerts();
         
-        window.addEventListener('storage', fetchData);
-        window.addEventListener('shipmentsUpdated', calculateAlerts);
+        window.addEventListener('storage', () => {
+            fetchData();
+            calculateAlerts();
+        });
+        
         return () => {
-            window.removeEventListener('storage', fetchData);
-            window.removeEventListener('shipmentsUpdated', calculateAlerts);
+            window.removeEventListener('storage', () => {
+                fetchData();
+                calculateAlerts();
+            });
         };
     }, [customerId]);
 

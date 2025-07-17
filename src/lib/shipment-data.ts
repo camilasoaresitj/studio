@@ -6,10 +6,8 @@ import type { Partner } from '@/lib/partners-data';
 import { addDays, isValid, subDays } from 'date-fns';
 import { runSendShippingInstructions } from '@/app/actions';
 import type { PartialPayment } from './financials-data';
-import { addFinancialEntry } from './financials-data';
 
-
-const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v9';
+const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v10';
 
 // --- Type Definitions ---
 
@@ -24,10 +22,9 @@ export type QuoteCharge = {
   saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
   supplier: string;
   sacado?: string;
-  // Expanded approval status
   approvalStatus: 'aprovada' | 'pendente' | 'rejeitada';
-  justification?: string; // Reason for a pending change
-  financialEntryId?: string | null; // ID of the invoice/bill it belongs to
+  justification?: string; 
+  financialEntryId?: string | null; 
 };
 
 export type QuoteDetails = {
@@ -36,8 +33,6 @@ export type QuoteDetails = {
     validity: string;
     freeTime: string;
     incoterm: string;
-    collectionAddress?: string;
-    deliveryAddress?: string;
 };
 
 export type UploadedDocument = {
@@ -45,7 +40,6 @@ export type UploadedDocument = {
     file: File;
 };
 
-// The shape of the quote object needed to create a shipment
 export type ShipmentCreationData = {
   id: string;
   origin: string;
@@ -53,7 +47,6 @@ export type ShipmentCreationData = {
   customer: string;
   charges: QuoteCharge[];
   details: QuoteDetails;
-  // Add partners to the creation data
   shipper: Partner;
   consignee: Partner;
   agent?: Partner;
@@ -63,6 +56,8 @@ export type ShipmentCreationData = {
   invoiceNumber: string;
   purchaseOrderNumber: string;
   uploadedDocs: UploadedDocument[];
+  collectionAddress?: string;
+  deliveryAddress?: string;
 };
 
 export type Milestone = {
@@ -70,8 +65,8 @@ export type Milestone = {
   status: 'pending' | 'in_progress' | 'completed';
   predictedDate: Date;
   effectiveDate: Date | null;
-  details?: string; // For vessel/port/voyage info
-  isTransshipment?: boolean; // To identify milestones generated from transshipment data
+  details?: string;
+  isTransshipment?: boolean;
 };
 
 export type ContainerDetail = {
@@ -83,9 +78,9 @@ export type ContainerDetail = {
   volumes?: string;
   measurement?: string; // CBM
   freeTime?: string;
-  type: string; // Add type for demurrage calculation
+  type: string;
   effectiveReturnDate?: Date;
-  effectiveGateInDate?: Date; // For detention
+  effectiveGateInDate?: Date;
 };
 
 export type TransshipmentDetail = {
@@ -143,13 +138,12 @@ export type ChatMessage = {
     message: string;
     timestamp: string; // ISO String
     department: 'Operacional' | 'Financeiro' | 'Sistema';
-    readBy?: string[]; // Array of user IDs who have read the message
+    readBy?: string[]; 
 };
 
-
 export type Shipment = {
-  id: string; // The process number, derived from quote ID
-  quoteId: string; // The original quote ID
+  id: string; 
+  quoteId: string;
   origin: string;
   destination: string;
   shipper: Partner;
@@ -160,7 +154,6 @@ export type Shipment = {
   details: QuoteDetails;
   milestones: Milestone[];
   documents: DocumentStatus[];
-  // Existing operational fields
   carrier?: string;
   bookingNumber?: string;
   mblPrintingAtDestination?: boolean;
@@ -175,33 +168,30 @@ export type Shipment = {
   etd?: Date;
   eta?: Date;
   containers?: ContainerDetail[];
-  commodityDescription?: string;
-  ncms?: string[];
   netWeight?: string;
   transshipments?: TransshipmentDetail[];
   notifyName?: string;
-  invoiceNumber?: string;
-  purchaseOrderNumber?: string;
   ceMaster?: string;
   ceHouse?: string;
   manifesto?: string;
   payments?: PartialPayment[];
   blDraftData?: BLDraftData;
   blType?: 'original' | 'express';
-  // Redestinação fields
   terminalRedestinacaoId?: string;
   emptyPickupTerminalId?: string;
   fullDeliveryTerminalId?: string;
   custoArmazenagem?: number;
-  // Deprecated field, shipper/cnee are top-level
   customer: string;
   overseasPartner?: Partner;
-  // New fields
   collectionAddress?: string;
   deliveryAddress?: string;
   dischargeTerminal?: string;
   chatMessages?: ChatMessage[];
   blDraftHistory?: BLDraftHistory;
+  purchaseOrderNumber?: string;
+  invoiceNumber?: string;
+  commodityDescription?: string;
+  ncms?: string[];
 };
 
 // --- Milestone Templates & Due Date Calculation ---
@@ -214,9 +204,9 @@ const IMPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Container Gate In (Entregue no Porto)': 13,
   'Confirmação de Embarque': 14,
   'Documentos Originais Emitidos': 16,
-  'Transbordo': 0, // Placeholder
-  'CE Mercante Lançado': 0, // Placeholder, calculated based on ETA
-  'Chegada ao Destino': 0, // Placeholder, calculated based on ETD + transit time
+  'Transbordo': 0, 
+  'CE Mercante Lançado': 0, 
+  'Chegada ao Destino': 0, 
 };
 
 const EXPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
@@ -226,8 +216,8 @@ const EXPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Cut Off Documental': 6,
   'Desembaraço de Exportação': 7,
   'Embarque': 8,
-  'Chegada no Destino': 0, // Placeholder
-  'Confirmação de Entrega': 2, // Days after arrival
+  'Chegada no Destino': 0, 
+  'Confirmação de Entrega': 2, 
 };
 
 function generateInitialMilestones(isImport: boolean, transitTimeStr: string, freeTimeStr: string, creationDate: Date): Milestone[] {
@@ -240,7 +230,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         const milestoneNames = Object.keys(IMPORT_MILESTONE_DUE_DAYS);
         const etd = addDays(creationDate, IMPORT_MILESTONE_DUE_DAYS['Confirmação de Embarque']);
         const eta = addDays(etd, transitTime);
-        const freeTimeDueDate = addDays(eta, freeDays - 1); // Day 0 is arrival day
+        const freeTimeDueDate = addDays(eta, freeDays - 1);
 
         const baseMilestones = milestoneNames.map(name => {
             let predictedDate: Date;
@@ -257,7 +247,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         const demurrageMilestone: Milestone = {
             name: 'Verificar Devolução do Contêiner',
             status: 'pending',
-            predictedDate: addDays(freeTimeDueDate, -2), // Reminder 2 days before
+            predictedDate: addDays(freeTimeDueDate, -2),
             effectiveDate: null,
             details: `Free time termina em ${freeTimeDueDate.toLocaleDateString('pt-BR')}`
         };
@@ -270,7 +260,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         const eta = addDays(etd, transitTime);
         
         const emptyPickupDate = addDays(creationDate, EXPORT_MILESTONE_DUE_DAYS['Retirada do Vazio']);
-        const gateInDueDate = addDays(emptyPickupDate, freeDays - 1); // Day 0 is pickup day
+        const gateInDueDate = addDays(emptyPickupDate, freeDays - 1);
 
          milestones = milestoneNames.map(name => {
             let predictedDate: Date;
@@ -286,7 +276,6 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         
         const deadLineCargaDate = milestones.find(m => m.name === 'Cut Off Documental')?.predictedDate;
 
-        // Add specific gate-in milestone for detention tracking
         milestones.push({
             name: 'Prazo de Entrega (Gate In)',
             status: 'pending',
@@ -296,21 +285,14 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         });
     }
 
-    // Sort all milestones by date
     milestones.sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime());
     return milestones;
 }
 
-
-// --- LocalStorage Interaction ---
 function getInitialShipments(): Shipment[] {
-    // This function provides initial data if localStorage is empty.
-    return []; // Start with an empty list by default.
+    return [];
 }
 
-/**
- * Retrieves all shipments from localStorage, parsing dates correctly.
- */
 export function getShipments(): Shipment[] {
   if (typeof window === 'undefined') {
     return [];
@@ -324,7 +306,6 @@ export function getShipments(): Shipment[] {
     };
     
     const parsed = JSON.parse(storedShipments) as any[];
-    // Safe date parsing
     return parsed.map(shipment => {
         const safeDate = (dateString: string | Date | undefined | null): Date | undefined => {
             if (!dateString) return undefined;
@@ -361,7 +342,7 @@ export function getShipments(): Shipment[] {
                 ...m,
                 predictedDate: safeMilestoneDate(m.predictedDate || m.dueDate),
                 effectiveDate: safeMilestoneDate(m.effectiveDate || m.completedDate),
-            })).filter((m: Milestone) => m.predictedDate !== null), // Filter out milestones with invalid dates
+            })).filter((m: Milestone) => m.predictedDate !== null),
             blDraftHistory: shipment.blDraftHistory ? {
                 ...shipment.blDraftHistory,
                 sentAt: safeDate(shipment.blDraftHistory.sentAt),
@@ -378,43 +359,30 @@ export function getShipments(): Shipment[] {
   }
 }
 
-/**
- * Retrieves a single shipment by its ID.
- */
 export function getShipmentById(id: string): Shipment | null {
   const shipments = getShipments();
   return shipments.find(s => s.id === id) || null;
 }
 
-
-/**
- * Saves all shipments to localStorage.
- */
 export function saveShipments(shipments: Shipment[]): void {
   if (typeof window === 'undefined') {
     return;
   }
   try {
     localStorage.setItem(SHIPMENTS_STORAGE_KEY, JSON.stringify(shipments));
-    // Dispatch event to notify other components of the update
     window.dispatchEvent(new Event('shipmentsUpdated'));
   } catch (error) {
     console.error("Failed to save shipments to localStorage", error);
   }
 }
 
-// --- Public Shipment Management Functions ---
-
-/**
- * Creates a new shipment from an approved quote and saves it.
- */
 export async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
   const isImport = quoteData.destination.toUpperCase().includes('BR');
   const creationDate = new Date();
   const milestones = generateInitialMilestones(isImport, quoteData.details.transitTime, quoteData.details.freeTime, creationDate);
   
   if (milestones.length > 0 && quoteData.agent) {
-      milestones[0].status = 'completed'; // Mark as "Sent"
+      milestones[0].status = 'completed';
       milestones[0].effectiveDate = new Date();
   }
 
@@ -438,7 +406,6 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     baseDocuments.push({ name: 'Extrato DUE', status: 'pending' });
   }
 
-  // Add documents from the approval dialog
   const uploadedDocuments: DocumentStatus[] = quoteData.uploadedDocs.map(doc => ({
       name: doc.name,
       status: 'uploaded',
@@ -460,8 +427,8 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     quoteId: quoteData.id,
     origin: quoteData.origin,
     destination: quoteData.destination,
-    collectionAddress: quoteData.details.collectionAddress,
-    deliveryAddress: quoteData.details.deliveryAddress,
+    collectionAddress: quoteData.collectionAddress,
+    deliveryAddress: quoteData.deliveryAddress,
     dischargeTerminal: '',
     shipper: quoteData.shipper,
     consignee: quoteData.consignee,
@@ -480,7 +447,8 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
     houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     invoiceNumber: quoteData.invoiceNumber,
     purchaseOrderNumber: quoteData.purchaseOrderNumber,
-    ncms: ['0000.00.00'],
+    commodityDescription: '',
+    ncms: [],
     mblPrintingAtDestination: false,
     notifyName: quoteData.notifyName,
     customer: quoteData.customer, 
@@ -529,9 +497,6 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   return newShipment;
 }
 
-/**
- * Updates an existing shipment.
- */
 export function updateShipment(updatedShipment: Shipment): Shipment[] {
   const shipments = getShipments();
   const shipmentIndex = shipments.findIndex(s => s.id === updatedShipment.id);
@@ -547,9 +512,6 @@ export function updateShipment(updatedShipment: Shipment): Shipment[] {
   return shipments;
 }
 
-/**
- * Rebuilds the milestone list based on the shipment's transshipment data.
- */
 export function rebuildMilestones(shipment: Shipment): Milestone[] {
     const baseMilestones = shipment.milestones.filter(m => !m.isTransshipment);
     

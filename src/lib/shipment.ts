@@ -26,6 +26,7 @@ import type {
 } from './shipment-data';
 
 // Re-export all types
+export type { Partner } from '@/lib/partners-data';
 export type Shipment = ShipmentType;
 export type Milestone = MilestoneType;
 export type TransshipmentDetail = TransshipmentDetailType;

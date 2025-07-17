@@ -159,6 +159,7 @@ const shipmentDetailsSchema = z.object({
   invoiceNumber: z.string().optional(),
   commodityDescription: z.string().optional(),
   ncms: z.array(z.string()).optional(),
+  operationalNotes: z.string().optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -208,6 +209,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 transshipments: (shipment.transshipments || []).map(t => ({...t, etd: t.etd ? new Date(t.etd) : undefined, eta: t.eta ? new Date(t.eta) : undefined })),
                 charges: shipment.charges || [],
                 ncms: shipment.ncms || [],
+                operationalNotes: shipment.operationalNotes || '',
             });
             // Reset local file state
             setUploadedFiles({});
@@ -695,6 +697,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <CardContent className="space-y-4">
                                                     <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
                                                     <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs</FormLabel><FormControl><Input placeholder="Separados por vírgula" {...field} onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()))} value={Array.isArray(field.value) ? field.value.join(', ') : ''} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel>Informações Adicionais (Visível ao Cliente)</FormLabel><FormControl><Textarea placeholder="Adicione aqui observações importantes sobre o processo que devem ser visíveis ao cliente no portal..." className="min-h-[100px]" {...field} /></FormControl></FormItem>)} />
                                                 </CardContent>
                                             </Card>
                                             <Card>

@@ -7,7 +7,7 @@ import { getShipmentById, Shipment, Milestone, DocumentStatus } from '@/lib/ship
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare, Wallet } from 'lucide-react';
+import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare, Wallet, Info } from 'lucide-react';
 import { format, isValid, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
@@ -124,6 +124,16 @@ export function ClientPortalPage({ id }: { id: string }) {
                     <AlertTitle>Ação Necessária</AlertTitle>
                     <AlertDescription>
                         Por favor, preencha as instruções de embarque na aba "Instruções de Embarque (Draft)" para darmos continuidade ao processo.
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {shipment.operationalNotes && (
+                <Alert className="animate-in fade-in-50 duration-500">
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Avisos Importantes</AlertTitle>
+                    <AlertDescription className="whitespace-pre-wrap">
+                        {shipment.operationalNotes}
                     </AlertDescription>
                 </Alert>
             )}

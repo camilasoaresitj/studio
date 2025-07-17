@@ -72,8 +72,9 @@ import { Textarea } from './ui/textarea';
 import { BLDraftForm } from './bl-draft-form';
 import { ShipmentMap } from './shipment-map';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Switch } from './ui/switch';
+import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Label } from './ui/label';
 
 
 const containerDetailSchema = z.object({
@@ -517,7 +518,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <div>
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
                                         <SheetDescription className="text-xs md:text-sm">
-                                            Cliente: <span className="font-semibold">{shipment.customer}</span> | Shipper: <span className="font-semibold">{shipment.shipper?.name}</span> | Cnee: <span className="font-semibold">{shipment.consignee?.name}</span> | Agente: <span className="font-semibold">{shipment.agent?.name || 'N/A'}</span>
+                                            Cliente: <span className="font-semibold">{shipment.customer}</span>
                                         </SheetDescription>
                                     </div>
                                 </div>
@@ -570,47 +571,51 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </CardHeader>
                                         <CardContent>
                                             <div className="relative pl-4">
-                                                <div className="absolute left-8 top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
+                                                <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
                                                 {milestoneFields.map((milestone, index) => {
                                                     const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
                                                     const locationDetails = getMilestoneLocationDetails(milestone.name);
                                                     return (
-                                                        <div key={milestone.id} className="relative mb-0.5 flex items-start gap-4">
-                                                            <div className={cn('absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full', 
-                                                                milestone.effectiveDate ? 'bg-success' : 'bg-muted',
-                                                                overdue && 'bg-destructive')}>
-                                                                {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                                        <div key={milestone.id} className="relative flex items-start gap-4 pb-8">
+                                                            <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
+                                                                <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
+                                                                    milestone.effectiveDate ? 'bg-success' : 'bg-muted',
+                                                                    overdue && 'bg-destructive')}>
+                                                                    {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                                                </div>
                                                             </div>
-                                                            <div className="flex justify-between items-center p-4 rounded-lg ml-12 w-full">
-                                                              <div className="flex-1">
-                                                                <p className="font-semibold text-base">{milestone.name}</p>
-                                                                {locationDetails && (
-                                                                    <p className="text-sm text-muted-foreground">{locationDetails}</p>
-                                                                )}
-                                                              </div>
-                                                              <div className="flex items-center gap-2">
-                                                                 <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
-                                                                      <Popover><PopoverTrigger asChild><FormControl>
-                                                                          <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
-                                                                              <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
-                                                                          </Button>
-                                                                      </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
-                                                                  )} />
-                                                                  <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
-                                                                      <Popover><PopoverTrigger asChild><FormControl>
-                                                                          <Button variant="outline" size="sm" className={cn("h-7 text-xs w-32 justify-start", !field.value && "text-muted-foreground")}>
-                                                                              <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
-                                                                          </Button>
-                                                                      </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
-                                                                  )} />
-                                                              </div>
+                                                            <div className="pl-12 w-full">
+                                                                <div className="flex justify-between items-center p-4 rounded-lg border bg-background">
+                                                                    <div className="flex-1">
+                                                                        <p className="font-semibold text-base">{milestone.name}</p>
+                                                                        {locationDetails && (
+                                                                            <p className="text-sm text-muted-foreground">{locationDetails}</p>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
+                                                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                                                <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
+                                                                                    <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
+                                                                                </Button>
+                                                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                                        )} />
+                                                                        <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
+                                                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                                                <Button variant="outline" size="sm" className={cn("h-7 text-xs w-32 justify-start", !field.value && "text-muted-foreground")}>
+                                                                                    <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
+                                                                                </Button>
+                                                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                                        )} />
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     )
                                                 })}
                                             </div>
-                                             <Separator className="my-4"/>
-                                             <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel className="text-base font-semibold">Informações Adicionais (Visível ao Cliente)</FormLabel><FormControl><Textarea placeholder="Adicione aqui observações importantes sobre o processo que devem ser visíveis ao cliente no portal..." className="min-h-[100px]" {...field} /></FormControl></FormItem>)} />
+                                            <Separator className="my-4"/>
+                                            <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel className="text-base font-semibold">Informações Adicionais (Visível ao Cliente)</FormLabel><FormControl><Textarea placeholder="Adicione aqui observações importantes sobre o processo que devem ser visíveis ao cliente no portal..." className="min-h-[100px]" {...field} /></FormControl></FormItem>)} />
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
@@ -679,48 +684,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <FormField control={form.control} name="ceHouse" render={({ field }) => (<FormItem><FormLabel>CE House</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 </div>
                                                 <FormField control={form.control} name="manifesto" render={({ field }) => (<FormItem><FormLabel>Manifesto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (<FormItem><FormLabel>Ref. Cliente (PO)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                                    <FormField control={form.control} name="invoiceNumber" render={({ field }) => (<FormItem><FormLabel>Invoice Number</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                                </div>
-                                                {shipment.details?.incoterm === 'EXW' && <FormField control={form.control} name="collectionAddress" render={({ field }) => (<FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
-                                                {(shipment.details?.incoterm.startsWith('D') || shipment.charges.some(c => c.name.toLowerCase().includes('entrega'))) && <FormField control={form.control} name="deliveryAddress" render={({ field }) => (<FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
-                                                
-                                                <FormField
-                                                    control={form.control}
-                                                    name="dischargeTerminal"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Terminal de Chegada (Descarga)</FormLabel>
-                                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione um terminal..." /></SelectTrigger></FormControl>
-                                                                <SelectContent>
-                                                                    {terminalPartners.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <FormField
-                                                    control={form.control}
-                                                    name="terminalRedestinacaoId"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Terminal de Redestinação</FormLabel>
-                                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione um terminal..." /></SelectTrigger></FormControl>
-                                                                <SelectContent>
-                                                                     {terminalPartners.map(t => <SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>)}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )}
-                                                />
-
                                             </CardContent>
                                         </Card>
                                         
                                         <div className="space-y-4">
+                                            <Card>
+                                                <CardHeader><CardTitle className="text-lg">Referências</CardTitle></CardHeader>
+                                                <CardContent className="space-y-4">
+                                                    <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (<FormItem><FormLabel>Ref. Cliente (PO)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name="invoiceNumber" render={({ field }) => (<FormItem><FormLabel>Invoice Number</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                </CardContent>
+                                            </Card>
                                             <Card>
                                                 <CardHeader><CardTitle className="text-lg">Detalhes da Carga</CardTitle></CardHeader>
                                                 <CardContent className="space-y-4">
@@ -741,21 +715,21 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     {containerFields.map((field, index) => (
                                                         <div key={field.id} className="grid grid-cols-2 md:grid-cols-8 gap-2 items-center p-2 border rounded-md relative">
                                                             <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                                            <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="Nº Contêiner" {...field} className="h-8 col-span-2"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="Lacre" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="Tara" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="Peso Bruto" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="Volumes" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="M³" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input placeholder="Free Time" {...field} className="h-8" disabled />} />
+                                                            <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <div className="col-span-2"><Label>Nº Contêiner</Label><Input placeholder="MSCU1234567" {...field} className="h-8 mt-1"/></div>} />
+                                                            <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <div><Label>Lacre</Label><Input placeholder="SEAL12345" {...field} className="h-8 mt-1"/></div>} />
+                                                            <FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <div><Label>Tara (Kg)</Label><Input placeholder="2250" {...field} className="h-8 mt-1"/></div>} />
+                                                            <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <div><Label>Peso Bruto (Kg)</Label><Input placeholder="24000" {...field} className="h-8 mt-1"/></div>} />
+                                                            <FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <div><Label>Volumes</Label><Input placeholder="1000" {...field} className="h-8 mt-1"/></div>} />
+                                                            <FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <div><Label>M³</Label><Input placeholder="28.5" {...field} className="h-8 mt-1"/></div>} />
+                                                            <FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <div><Label>Free Time</Label><Input placeholder="N/A" {...field} className="h-8 mt-1" disabled/></div>} />
                                                         </div>
                                                     ))}
                                                      {containerFields.length > 0 && (
                                                         <div className="grid grid-cols-2 md:grid-cols-8 gap-2 p-2 border-t mt-2 font-semibold">
                                                             <div className="col-span-2">Total:</div>
                                                             <div className="text-center">{containerTotals.qty}</div>
-                                                            <div></div> {/* Spacer for Seal */}
-                                                            <div></div> {/* Spacer for Tare */}
+                                                            <div></div>
+                                                            <div></div>
                                                             <div className="text-center">{containerTotals.weight.toFixed(2)}</div>
                                                             <div className="text-center">{containerTotals.volumes}</div>
                                                             <div className="text-center">{containerTotals.cbm.toFixed(3)}</div>
@@ -780,6 +754,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                             <FormField control={form.control} name={`transshipments.${index}.vessel`} render={({ field }) => <Input placeholder="Navio/Voo" {...field} className="h-8"/>} />
                                                         </div>
                                                     ))}
+                                                </CardContent>
+                                            </Card>
+                                            <Card>
+                                                <CardHeader><CardTitle className="text-lg">Endereços e Terminais</CardTitle></CardHeader>
+                                                <CardContent className="space-y-4">
+                                                    {shipment.details?.incoterm === 'EXW' && <FormField control={form.control} name="collectionAddress" render={({ field }) => (<FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
+                                                    {(shipment.details?.incoterm.startsWith('D') || shipment.charges.some(c => c.name.toLowerCase().includes('entrega'))) && <FormField control={form.control} name="deliveryAddress" render={({ field }) => (<FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
+                                                    <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (<FormItem><FormLabel>Terminal de Chegada (Descarga)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um terminal..." /></SelectTrigger></FormControl><SelectContent>{terminalPartners.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                    <FormField control={form.control} name="terminalRedestinacaoId" render={({ field }) => (<FormItem><FormLabel>Terminal de Redestinação</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um terminal..." /></SelectTrigger></FormControl><SelectContent>{terminalPartners.map(t => <SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
                                                 </CardContent>
                                             </Card>
                                         </div>
@@ -1044,4 +1027,3 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         </Sheet>
     );
 }
-

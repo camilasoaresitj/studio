@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, isPast, isValid } from 'date-fns';
+import { format, isPast, isValid, addDays } from 'date-fns';
 import Image from 'next/image';
 
 import {
@@ -182,7 +182,7 @@ const JustificationDialog = ({ open, onOpenChange, onConfirm }: { open: boolean,
 
     const handleConfirm = () => {
         if (justification.trim().length < 10) {
-            alert('A justificativa deve ter pelo menos 10 caracteres.');
+            toast({ variant: 'destructive', title: 'Justificativa muito curta', description: 'Por favor, detalhe o motivo da alteração com pelo menos 10 caracteres.' });
             return;
         }
         onConfirm(justification);
@@ -450,7 +450,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             toast({ variant: 'destructive', title: 'Erro', description: response.error });
         }
     });
-
+    
     const getMilestoneLocationDetails = (milestoneName: string): string => {
         const lowerName = milestoneName.toLowerCase();
         if (lowerName.includes('embarque') || lowerName.includes('gate in') || lowerName.includes('partida')) {
@@ -831,7 +831,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                             <div><Label>Peso Bruto (Kg)</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
                                                             <div><Label>Volumes</Label><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="1000" {...field} className="h-8 mt-1"/>} /></div>
                                                             <div><Label>M³</Label><FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="28.5" {...field} className="h-8 mt-1"/>} /></div>
-                                                            <div><Label>Free Time</Label><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input placeholder="N/A" {...field} className="h-8 mt-1" disabled/>} /></div>
+                                                            <div><Label>Free Time</Label><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input placeholder="N/A" {...field} value={shipment.details.freeTime} className="h-8 mt-1" disabled/>} /></div>
                                                         </div>
                                                     ))}
                                                      {containerFields.length > 0 && (

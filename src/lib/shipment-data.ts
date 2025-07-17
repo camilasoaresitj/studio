@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Partner } from '@/lib/partners-data';

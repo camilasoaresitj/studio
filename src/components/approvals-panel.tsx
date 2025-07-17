@@ -141,7 +141,7 @@ export function ApprovalsPanel() {
 
         if (viewingItem.type === 'operations') {
             const { charge, shipment } = viewingItem.item;
-            const originalCharge = getShipmentById(shipment.id)?.charges.find(c => c.id === charge.id); // Re-fetch to be safe
+            const originalCharge = getShipmentById(shipment.id)?.charges.find(c => c.id === charge.id);
             
             return (
                  <DialogHeader>

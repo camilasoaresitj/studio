@@ -7,7 +7,6 @@ import {
     getShipmentById as getShipmentByIdData, 
     saveShipments as saveShipmentsData,
     createShipment as createShipmentData,
-    updateShipment as updateShipmentData,
     rebuildMilestones as rebuildMilestonesData,
 } from './shipment-data';
 import type { 
@@ -46,5 +45,23 @@ export const getShipments = getShipmentsData;
 export const getShipmentById = getShipmentByIdData;
 export const saveShipments = saveShipmentsData;
 export const createShipment = createShipmentData;
-export const updateShipment = updateShipmentData;
 export const rebuildMilestones = rebuildMilestonesData;
+
+/**
+ * Updates an existing shipment. This function is designed to be used
+ * on the client-side, as it interacts with localStorage.
+ */
+export function updateShipment(updatedShipment: Shipment): Shipment[] {
+  const shipments = getShipments();
+  const shipmentIndex = shipments.findIndex(s => s.id === updatedShipment.id);
+
+  if (shipmentIndex === -1) {
+    const newShipments = [updatedShipment, ...shipments];
+    saveShipments(newShipments);
+    return newShipments;
+  }
+
+  shipments[shipmentIndex] = updatedShipment;
+  saveShipments(shipments);
+  return shipments;
+}

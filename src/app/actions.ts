@@ -33,7 +33,7 @@ import { sendDraftApprovalRequest } from "@/ai/flows/send-draft-approval-request
 import { format } from 'date-fns';
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { updateShipment, getShipmentById, getShipments, type Shipment, type BLDraftData, type Milestone, type QuoteCharge, type ChatMessage } from '@/lib/shipment';
+import { saveShipments, getShipments, getShipmentById, type Shipment, type BLDraftData, type Milestone, type QuoteCharge, type ChatMessage } from '@/lib/shipment';
 
 
 export async function runGetFreightRates(input: any) {
@@ -332,7 +332,13 @@ export async function createEmailCampaign(instruction: string, partners: Partner
 
 export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, isLateSubmission: boolean) {
   try {
-    const updatedShipment = { ...shipment };
+    const allShipments = getShipments();
+    const shipmentIndex = allShipments.findIndex(s => s.id === shipment.id);
+    if (shipmentIndex === -1) {
+        throw new Error("Shipment not found");
+    }
+
+    const updatedShipment = { ...allShipments[shipmentIndex] };
 
     // Update main shipment fields with draft data
     updatedShipment.blDraftData = draftData;
@@ -404,7 +410,8 @@ export async function submitBLDraft(shipment: Shipment, draftData: BLDraftData, 
     // Sort milestones to ensure correct order
     updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
 
-    updateShipment(updatedShipment); 
+    allShipments[shipmentIndex] = updatedShipment;
+    saveShipments(allShipments);
 
     return { success: true, data: updatedShipment };
   } catch (error: any) {
@@ -439,7 +446,8 @@ export async function sendChatMessage(shipmentId: string, message: ChatMessage) 
         chatMessages: [...(allShipments[shipmentIndex].chatMessages || []), message],
     };
 
-    updateShipment(updatedShipment);
+    allShipments[shipmentIndex] = updatedShipment;
+    saveShipments(allShipments);
 
     return { success: true, data: updatedShipment };
   } catch (error: any) {
@@ -462,8 +470,13 @@ export async function markMessagesAsRead(shipmentId: string, userId: string) {
             }
             return msg;
         });
-
-        updateShipment(updatedShipment);
+        
+        const allShipments = getShipments();
+        const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
+        if (shipmentIndex !== -1) {
+            allShipments[shipmentIndex] = updatedShipment;
+            saveShipments(allShipments);
+        }
 
         return { success: true, data: updatedShipment };
 
@@ -475,10 +488,14 @@ export async function markMessagesAsRead(shipmentId: string, userId: string) {
 
 export async function addManualMilestone(shipmentId: string, milestone: Omit<Milestone, 'status' | 'effectiveDate'>) {
     try {
-        const shipment = getShipmentById(shipmentId);
-        if (!shipment) {
+        const allShipments = getShipments();
+        const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
+
+        if (shipmentIndex === -1) {
             throw new Error('Embarque não encontrado.');
         }
+        
+        const shipment = allShipments[shipmentIndex];
 
         const newMilestone: Milestone = {
             ...milestone,
@@ -491,7 +508,8 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
             milestones: [...(shipment.milestones || []), newMilestone].sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime()),
         };
 
-        updateShipment(updatedShipment);
+        allShipments[shipmentIndex] = updatedShipment;
+        saveShipments(allShipments);
         return { success: true, data: updatedShipment };
 
     } catch (error: any) {

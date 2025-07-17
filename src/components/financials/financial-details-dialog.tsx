@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -20,26 +21,37 @@ import type { PartialPayment, FinancialEntry } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Button } from '../ui/button';
-import { Trash2, Receipt, FileText } from 'lucide-react';
+import { Trash2, Receipt, FileText, Gavel } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
 import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Textarea } from '../ui/textarea';
 
 interface FinancialDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  shipment: (Shipment & { payments?: PartialPayment[] }) | null;
+  entry: FinancialEntry | null;
   onReversePayment?: (paymentId: string, entryId: string) => void;
   findEntryForPayment: (paymentId: string) => FinancialEntry | undefined;
+  findShipmentForEntry: (entry: FinancialEntry) => Shipment | undefined;
+  onEntryUpdate?: (entry: FinancialEntry) => void;
 }
 
-export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePayment, findEntryForPayment }: FinancialDetailsDialogProps) {
+export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePayment, findEntryForPayment, findShipmentForEntry, onEntryUpdate }: FinancialDetailsDialogProps) {
   const { toast } = useToast();
   const [partners, setPartners] = React.useState<Partner[]>([]);
   const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
   const [editedRates, setEditedRates] = React.useState<Record<string, { costRate?: number; saleRate?: number }>>({});
+  const [shipment, setShipment] = React.useState<Shipment | null>(null);
+  
+  const [legalStatus, setLegalStatus] = React.useState<string | undefined>('');
+  const [processoJudicial, setProcessoJudicial] = React.useState<string | undefined>('');
+  const [legalComments, setLegalComments] = React.useState<string | undefined>('');
+
 
   const getChargeRates = React.useCallback((charge: QuoteCharge) => {
     const costPartner = partners.find(p => p.name === charge.supplier);
@@ -61,28 +73,42 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
   }, [partners, exchangeRates, editedRates]);
 
   React.useEffect(() => {
-    if (isOpen) {
+    if (isOpen && entry) {
         const fetchAndSetData = async () => {
             const partnersData = getPartners();
             const ratesData = await exchangeRateService.getRates();
+            const associatedShipment = findShipmentForEntry(entry);
             setPartners(partnersData);
             setExchangeRates(ratesData);
-            
-            // Now that we have partners and rates, pre-fill editedRates
-            if(shipment) {
+            setShipment(associatedShipment || null);
+            setLegalStatus(entry.legalStatus);
+            setProcessoJudicial(entry.processoJudicial);
+            setLegalComments(entry.legalComments);
+
+            if(associatedShipment) {
                 const initialEditedRates: Record<string, { costRate?: number; saleRate?: number }> = {};
-                shipment.charges.forEach(charge => {
-                    const { costRate, saleRate } = getChargeRates(charge);
+                associatedShipment.charges.forEach(charge => {
+                    // This function now depends on state that is set within this effect.
+                    // To solve this, we can pass the newly fetched data directly.
+                    const costPartner = partnersData.find(p => p.name === charge.supplier);
+                    const salePartner = partnersData.find(p => p.name === charge.sacado);
+                    const costAgio = costPartner?.exchangeRateAgio ?? 0;
+                    const saleAgio = salePartner?.exchangeRateAgio ?? 0;
+                    const costPtax = ratesData[charge.costCurrency] || 1;
+                    const salePtax = ratesData[charge.saleCurrency] || 1;
+                    const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + costAgio / 100);
+                    const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + saleAgio / 100);
+
                     initialEditedRates[charge.id] = { costRate, saleRate };
                 });
                 setEditedRates(initialEditedRates);
             } else {
-                 setEditedRates({}); // Reset on open if no shipment
+                 setEditedRates({});
             }
         };
         fetchAndSetData();
     }
-  }, [isOpen, shipment, getChargeRates]);
+  }, [isOpen, entry, findShipmentForEntry]);
   
   const handleRateChange = (chargeId: string, type: 'cost' | 'sale', value: string) => {
       const rate = parseFloat(value);
@@ -163,20 +189,44 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
     }
   };
 
-  if (!shipment) return null;
+  const handleSaveChanges = () => {
+    if (entry && onEntryUpdate) {
+      onEntryUpdate({
+        ...entry,
+        legalStatus,
+        processoJudicial,
+        legalComments,
+      });
+      toast({
+        title: 'Informações Salvas!',
+        description: 'As observações do processo jurídico foram atualizadas.',
+        className: 'bg-success text-success-foreground'
+      });
+    }
+  };
+
+  if (!entry) return null;
+  const isLegalCase = entry.status === 'Jurídico';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-7xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Detalhes Financeiros do Processo: {shipment.id}</DialogTitle>
+          <DialogTitle>Detalhes Financeiros do Processo: {entry.processId}</DialogTitle>
           <DialogDescription>
-            Análise de custos, vendas e lucro para o embarque de {shipment.customer}.
+            Análise de custos, vendas e lucro para o embarque de {entry.partner}.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-grow overflow-hidden">
           <ScrollArea className="h-full pr-4 space-y-6">
+            {!shipment && (
+                <Card className="flex items-center justify-center h-48">
+                    <p className="text-muted-foreground">Processo administrativo ou dados do embarque não encontrados.</p>
+                </Card>
+            )}
+
+            {shipment && (
             <Card>
                 <CardHeader><CardTitle className="text-lg">Tabela de Custos e Vendas</CardTitle></CardHeader>
                 <CardContent>
@@ -253,8 +303,42 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                     </div>
                 </CardContent>
             </Card>
+            )}
 
-            {shipment.payments && shipment.payments.length > 0 && (
+            {isLegalCase && (
+                <Card>
+                    <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Gavel/> Acompanhamento Jurídico</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <Label>Status do Processo</Label>
+                                <Select value={legalStatus} onValueChange={setLegalStatus}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Extrajudicial">Extrajudicial</SelectItem>
+                                        <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
+                                        <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
+                                        <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1">
+                                <Label>Nº do Processo Judicial</Label>
+                                <Input value={processoJudicial} onChange={(e) => setProcessoJudicial(e.target.value)} />
+                            </div>
+                        </div>
+                         <div className="space-y-1">
+                            <Label>Comentários / Observações</Label>
+                            <Textarea value={legalComments} onChange={(e) => setLegalComments(e.target.value)} className="min-h-[100px]" />
+                        </div>
+                        <div className="flex justify-end">
+                            <Button onClick={handleSaveChanges}>Salvar Observações</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {entry.payments && entry.payments.length > 0 && (
                 <Card>
                     <CardHeader><CardTitle className="text-lg">Histórico de Pagamentos</CardTitle></CardHeader>
                     <CardContent>
@@ -270,7 +354,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {shipment.payments.map(payment => {
+                                    {entry.payments.map(payment => {
                                       const relatedEntry = findEntryForPayment(payment.id);
                                       return (
                                         <TableRow key={payment.id}>
@@ -327,9 +411,11 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
               </CardContent>
             </Card>
           </div>
-          <Button onClick={handleEmitRecibo} variant="outline" className="mt-4 md:mt-0">
-            <Receipt className="mr-2 h-4 w-4"/> Emitir Recibo
-          </Button>
+          {shipment && (
+            <Button onClick={handleEmitRecibo} variant="outline" className="mt-4 md:mt-0">
+                <Receipt className="mr-2 h-4 w-4"/> Emitir Recibo
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

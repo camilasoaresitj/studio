@@ -71,7 +71,7 @@ export default function FinanceiroPage() {
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
-    const [detailsShipment, setDetailsShipment] = useState<(Shipment & { payments?: PartialPayment[] }) | null>(null);
+    const [detailsEntry, setDetailsEntry] = useState<FinancialEntry | null>(null);
     const [statusFilter, setStatusFilter] = useState<string[]>(['Aberto', 'Parcialmente Pago', 'Vencido', 'Pendente de Aprovação']);
     const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit'>('all');
     const [textFilters, setTextFilters] = useState({ partner: '', processId: '', value: '' });
@@ -352,20 +352,18 @@ export default function FinanceiroPage() {
     };
 
     const handleProcessClick = (entry: FinancialEntry) => {
-        const shipment = findShipmentForEntry(entry);
-        if (shipment) {
-            const relatedEntries = entries.filter(e => e.processId === shipment.id || (shipment.quoteId && e.invoiceId === shipment.quoteId));
-            const allPayments = relatedEntries.flatMap(e => e.payments || []);
-            const shipmentWithPayments = { ...shipment, payments: allPayments };
-            setDetailsShipment(shipmentWithPayments as Shipment & { payments: PartialPayment[] });
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Processo não encontrado",
-                description: `O embarque para o processo ${entry.processId} (fatura ${entry.invoiceId}) não foi localizado.`
-            });
-        }
+        setDetailsEntry(entry);
     };
+    
+    const handleCloseDetails = () => {
+        setDetailsEntry(null);
+    }
+    
+    const handleDetailsEntryUpdate = (entry: FinancialEntry) => {
+        updateFinancialEntry(entry.id, entry);
+        setEntries(getFinancialEntries());
+    };
+
 
     const handleOpenNfseDialog = (entry: FinancialEntry) => {
         const relatedShipment = findShipmentForEntry(entry);
@@ -701,7 +699,7 @@ export default function FinanceiroPage() {
                     const { status, variant } = getEntryStatus(entry);
                     const balanceBRL = getBalanceInBRL(entry);
                     return (
-                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
+                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"} className={isLegalTable ? 'cursor-pointer' : ''} onClick={() => isLegalTable && handleProcessClick(entry)}>
                             {!isLegalTable && <TableCell>
                                 <Checkbox
                                     checked={selectedRows.has(entry.id)}
@@ -724,7 +722,8 @@ export default function FinanceiroPage() {
                                         value={entry.processoJudicial || ''}
                                         onChange={(e) => handleLegalEntryUpdate(entry.id, 'processoJudicial', e.target.value)}
                                         placeholder="Adicionar nº"
-                                        className="h-8 text-xs"
+                                        className="h-8 text-xs bg-transparent border-0"
+                                        onClick={(e) => e.stopPropagation()}
                                     />
                                 ) : (
                                     <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry); }} className="text-muted-foreground hover:text-primary hover:underline">
@@ -734,18 +733,20 @@ export default function FinanceiroPage() {
                             </TableCell>
                             <TableCell>
                                 {isLegalTable ? (
-                                    <Select
-                                        value={entry.legalStatus}
-                                        onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
-                                    >
-                                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Extrajudicial">Extrajudicial</SelectItem>
-                                            <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
-                                            <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
-                                            <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                        <Select
+                                            value={entry.legalStatus}
+                                            onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs bg-transparent border-0"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Extrajudicial">Extrajudicial</SelectItem>
+                                                <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
+                                                <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
+                                                <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 ) : (
                                     <Badge variant={variant} className="capitalize w-[130px] justify-center">{status}</Badge>
                                 )}
@@ -756,7 +757,8 @@ export default function FinanceiroPage() {
                                         value={entry.legalComments || ''}
                                         onChange={(e) => handleLegalEntryUpdate(entry.id, 'legalComments', e.target.value)}
                                         placeholder="Adicionar comentário..."
-                                        className="h-8 text-xs"
+                                        className="h-8 text-xs bg-transparent border-0"
+                                        onClick={(e) => e.stopPropagation()}
                                     />
                                 </TableCell>
                             )}
@@ -1076,11 +1078,13 @@ export default function FinanceiroPage() {
         />
         
         <FinancialDetailsDialog
-            shipment={detailsShipment}
-            isOpen={!!detailsShipment}
-            onClose={() => setDetailsShipment(null)}
+            entry={detailsEntry}
+            isOpen={!!detailsEntry}
+            onClose={handleCloseDetails}
             onReversePayment={handleReversePayment}
             findEntryForPayment={findEntryForPayment}
+            findShipmentForEntry={findShipmentForEntry}
+            onEntryUpdate={handleDetailsEntryUpdate}
         />
 
     </>

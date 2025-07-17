@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertCircle, DollarSign, Settings, ArrowRight } from 'lucide-react';
 import { getFinancialEntries, saveFinancialEntries, FinancialEntry } from '@/lib/financials-data';
-import { getShipments, saveShipments, Shipment, QuoteCharge, updateShipment } from '@/lib/shipment';
+import { getShipments, saveShipments, Shipment, QuoteCharge } from '@/lib/shipment';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -42,18 +42,18 @@ export function ApprovalsPanel() {
     useEffect(() => {
         fetchPendingItems();
         
-        const handleStorageChange = () => fetchPendingItems();
-        // Using focus event is a robust way to ensure data is fresh when the user returns to the tab.
-        window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('focus', handleStorageChange);
-        window.addEventListener('financialsUpdated', handleStorageChange);
-        window.addEventListener('shipmentsUpdated', handleStorageChange);
+        const handleDataChange = () => fetchPendingItems();
+        // Using focus and storage events is a robust way to ensure data is fresh when the user interacts with the app.
+        window.addEventListener('storage', handleDataChange);
+        window.addEventListener('focus', handleDataChange);
+        window.addEventListener('financialsUpdated', handleDataChange);
+        window.addEventListener('shipmentsUpdated', handleDataChange);
         
         return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('focus', handleStorageChange);
-            window.removeEventListener('financialsUpdated', handleStorageChange);
-            window.removeEventListener('shipmentsUpdated', handleStorageChange);
+            window.removeEventListener('storage', handleDataChange);
+            window.removeEventListener('focus', handleDataChange);
+            window.removeEventListener('financialsUpdated', handleDataChange);
+            window.removeEventListener('shipmentsUpdated', handleDataChange);
         };
     }, []);
 
@@ -75,7 +75,8 @@ export function ApprovalsPanel() {
             });
         } else if (viewingItem.type === 'operations') {
             const { charge, shipment } = viewingItem.item;
-            const updatedShipments = getShipments().map(s => {
+            const allShipments = getShipments();
+            const updatedShipments = allShipments.map(s => {
                 if (s.id === shipment.id) {
                     const updatedCharges = s.charges.map(c => {
                         if (c.id === charge.id) {
@@ -144,8 +145,10 @@ export function ApprovalsPanel() {
 
         if (viewingItem.type === 'operations') {
             const { charge, shipment } = viewingItem.item;
-            const originalCharge = getShipmentById(shipment.id)?.charges.find(c => c.id === charge.id);
-            
+            // We need to find the original state of the charge before the pending change.
+            // This is a simplified approach; a real app might store a temporary 'original' value.
+            const originalCharge = getShipments().find(s => s.id === shipment.id)?.charges.find(c => c.id === charge.id);
+
             return (
                  <DialogHeader>
                     <DialogTitle>Aprovação de Alteração Operacional</DialogTitle>

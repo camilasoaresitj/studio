@@ -226,7 +226,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const handleUpdate = form.handleSubmit(async (data) => {
         if (!shipment) return;
         setIsUpdating(true);
-        onUpdate({ ...shipment, ...data } as Shipment);
+        const updatedData = {
+            ...shipment, 
+            ...data,
+            // Ensure dates are correctly formatted back to ISO strings if needed, or handled by the update logic
+            milestones: (data.milestones || []).map(m => ({
+                ...m,
+                // If effectiveDate is set, status is completed
+                status: m.effectiveDate ? 'completed' as const : m.status,
+            }))
+        };
+        onUpdate(updatedData as Shipment);
         await new Promise(resolve => setTimeout(resolve, 300));
         setIsUpdating(false);
         toast({
@@ -387,6 +397,21 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         return { totalCostBRL, totalSaleBRL, totalProfitBRL };
     }, [watchedCharges, exchangeRates, partners]);
 
+    const getMilestoneLocationDetails = (milestoneName: string): string => {
+        const lowerName = milestoneName.toLowerCase();
+        if (lowerName.includes('embarque') || lowerName.includes('gate in') || lowerName.includes('partida')) {
+            return `${shipment?.origin || ''} | ${shipment?.vesselName || ''}`;
+        }
+        if (lowerName.includes('chegada') || lowerName.includes('desembarque')) {
+            return `${shipment?.destination || ''} | ${shipment?.vesselName || ''}`;
+        }
+        if (lowerName.includes('transbordo')) {
+            const transshipment = shipment?.transshipments?.[0]; // Simple logic for now
+            return `${transshipment?.port || ''} | ${transshipment?.vessel || ''}`;
+        }
+        return '';
+    };
+
     if (!shipment) {
         return (
             <Sheet open={open} onOpenChange={onOpenChange}>
@@ -465,12 +490,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <div className="absolute left-[15px] top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
                                             {milestoneFields.map((milestone, index) => {
                                                 const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
+                                                const locationDetails = getMilestoneLocationDetails(milestone.name);
                                                 return (
                                                     <div key={milestone.id} className="relative mb-6 flex items-start gap-4">
                                                         <div className={cn('absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full -translate-x-1/2', 
-                                                            milestone.status === 'completed' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground',
+                                                            milestone.effectiveDate ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground',
                                                             overdue && 'bg-destructive text-destructive-foreground')}>
-                                                            {milestone.status === 'completed' ? <CheckCircle className="h-5 w-5" /> : (overdue ? <AlertTriangle className="h-5 w-5" /> : <Circle className="h-5 w-5" />)}
+                                                            {milestone.effectiveDate ? <CheckCircle className="h-5 w-5" /> : (overdue ? <AlertTriangle className="h-5 w-5" /> : <Circle className="h-5 w-5" />)}
                                                         </div>
                                                         <div className="pt-1.5 flex-grow space-y-2">
                                                             <div className="flex items-center gap-4">
@@ -482,24 +508,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                         </Button>
                                                                     </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
                                                                 )} />
-                                                                <Controller control={form.control} name={`milestones.${index}.status`} render={({ field }) => (
-                                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                                        <SelectTrigger className="h-7 w-40 text-xs"><SelectValue /></SelectTrigger>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="pending">Pendente</SelectItem>
-                                                                            <SelectItem value="in_progress">Em Andamento</SelectItem>
-                                                                            <SelectItem value="completed">Concluído</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
+                                                                <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
+                                                                    <Popover><PopoverTrigger asChild><FormControl>
+                                                                        <Button variant="outline" size="sm" className={cn("h-7 text-xs", !field.value && "text-muted-foreground")}>
+                                                                            <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efetiva: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Data Efetiva'}
+                                                                        </Button>
+                                                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
                                                                 )} />
                                                             </div>
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`milestones.${index}.details`}
-                                                                render={({ field }) => (
-                                                                    <Input {...field} placeholder="Adicionar comentário ou detalhes..."/>
-                                                                )}
-                                                            />
+                                                            {locationDetails && (
+                                                                <p className="text-sm text-muted-foreground pl-1">{locationDetails}</p>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )

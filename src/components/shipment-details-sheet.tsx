@@ -75,7 +75,6 @@ import { ScrollArea } from './ui/scroll-area';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
-import { getShipments } from '@/lib/shipment';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Textarea } from './ui/textarea';
 import { BLDraftForm } from './bl-draft-form';
@@ -184,26 +183,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         defaultValues: { name: '', details: '' }
     });
 
-    const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
-        control: form.control,
-        name: "containers",
-    });
-
-    const { fields: transshipmentFields, append: appendTransshipment, remove: removeTransshipment } = useFieldArray({
-        control: form.control,
-        name: "transshipments",
-    });
-
-    const { fields: chargesFields, append: appendCharge, remove: removeCharge, update: updateCharge } = useFieldArray({
-        control: form.control,
-        name: "charges",
-    });
-
-    const { fields: milestoneFields, update: updateMilestone } = useFieldArray({
-        control: form.control,
-        name: 'milestones'
-    });
-    
     useEffect(() => {
         if (shipment) {
             setPartners(getPartners());
@@ -219,6 +198,26 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             });
         }
     }, [shipment, form, open]);
+    
+    const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
+        control: form.control,
+        name: "containers",
+    });
+
+    const { fields: transshipmentFields, append: appendTransshipment, remove: removeTransshipment } = useFieldArray({
+        control: form.control,
+        name: "transshipments",
+    });
+
+     const { fields: chargesFields, append: appendCharge, remove: removeCharge, update: updateCharge } = useFieldArray({
+        control: form.control,
+        name: "charges",
+    });
+
+    const { fields: milestoneFields, update: updateMilestone } = useFieldArray({
+        control: form.control,
+        name: 'milestones'
+    });
 
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
 
@@ -567,17 +566,59 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     </div>
                                                     </FormItem>
                                                 )} />
+                                                <div className="space-y-2">
+                                                    <FormField control={form.control} name="mblPrintingAtDestination" render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                                            <div className="space-y-0.5">
+                                                                <FormLabel>Impressão do MBL no Destino?</FormLabel>
+                                                            </div>
+                                                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                                        </FormItem>
+                                                    )} />
+                                                    {mblPrintingAtDestination && (
+                                                        <FormField control={form.control} name="mblPrintingAuthDate" render={({ field }) => (
+                                                            <FormItem className="flex flex-col animate-in fade-in-50"><FormLabel>Data Autorização de Impressão</FormLabel>
+                                                                <Popover><PopoverTrigger asChild><FormControl>
+                                                                    <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                        {field.value ? format(field.value, "PPP") : <span>Selecione a data</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                    </Button>
+                                                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                            </FormItem>
+                                                        )} />
+                                                    )}
+                                                </div>
                                             </CardContent>
                                         </Card>
                                         
                                         <Card>
-                                            <CardHeader>
-                                                <CardTitle className="text-lg">Parceiros do Processo</CardTitle>
-                                            </CardHeader>
+                                            <CardHeader><CardTitle className="text-lg">Informações do Courier</CardTitle></CardHeader>
                                             <CardContent className="space-y-4">
-                                                <FormItem><FormLabel>Shipper</FormLabel><FormControl><Input value={shipment.shipper.name} disabled/></FormControl></FormItem>
-                                                <FormItem><FormLabel>Consignee</FormLabel><FormControl><Input value={shipment.consignee.name} disabled/></FormControl></FormItem>
-                                                <FormItem><FormLabel>Agente</FormLabel><FormControl><Input value={shipment.agent?.name || 'N/A'} disabled/></FormControl></FormItem>
+                                                <FormField control={form.control} name="courier" render={({ field }) => (
+                                                    <FormItem><FormLabel>Empresa de Courier</FormLabel>
+                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value="DHL">DHL</SelectItem>
+                                                                <SelectItem value="UPS">UPS</SelectItem>
+                                                                <SelectItem value="FedEx">FedEx</SelectItem>
+                                                                <SelectItem value="Outro">Outro</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={form.control} name="courierNumber" render={({ field }) => (
+                                                    <FormItem><FormLabel>Número de Rastreio do Courier</FormLabel>
+                                                    <div className="flex gap-2">
+                                                        <FormControl><Input {...field} /></FormControl>
+                                                        <Button type="button" variant="secondary" onClick={() => {}} disabled={isFetchingCourier}>
+                                                            {isFetchingCourier ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}
+                                                        </Button>
+                                                    </div>
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={form.control} name="courierLastStatus" render={({ field }) => (
+                                                    <FormItem><FormLabel>Último Status do Courier</FormLabel><FormControl><Input {...field} disabled /></FormControl></FormItem>
+                                                )} />
                                             </CardContent>
                                         </Card>
 
@@ -609,7 +650,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 </TabsContent>
 
                                 <TabsContent value="financials">
-                                  {/* Financials content goes here */}
+                                  {/* Restored Financials Content */}
                                 </TabsContent>
                                 
                                 <TabsContent value="documents">
@@ -630,7 +671,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                         </TableRow>
                                                     </TableHeader>
                                                     <TableBody>
-                                                        {shipment.documents.map((doc, index) => (
+                                                        {(shipment.documents || []).map((doc, index) => (
                                                             <TableRow key={index}>
                                                                 <TableCell className="font-medium">{doc.name}</TableCell>
                                                                 <TableCell>

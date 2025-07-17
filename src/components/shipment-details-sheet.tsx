@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -81,7 +80,7 @@ const containerDetailSchema = z.object({
   tare: z.string().min(1, "Obrigatório"),
   grossWeight: z.string().min(1, "Obrigatório"),
   volumes: z.string().optional(),
-  measurement: z.string().optional(),
+  measurement: z.string().optional(), // CBM
   freeTime: z.string().optional(),
   type: z.string().optional(),
 });
@@ -106,7 +105,7 @@ const quoteChargeSchemaForSheet = z.object({
     supplier: z.string().min(1, 'Obrigatório'),
     sacado: z.string().optional(),
     approvalStatus: z.enum(['aprovada', 'pendente', 'rejeitada']),
-    justification: z.string().optional(),
+    justification: z.string().optional(), 
     financialEntryId: z.string().nullable().optional(),
 });
 
@@ -616,6 +615,102 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </Card>
                                         
                                         <div className="space-y-4">
+                                            <Card>
+                                                <CardHeader><CardTitle className="text-lg">Detalhes da Carga</CardTitle></CardHeader>
+                                                <CardContent className="space-y-4">
+                                                    <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs</FormLabel><FormControl><Input placeholder="Separados por vírgula" {...field} onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()))} value={Array.isArray(field.value) ? field.value.join(', ') : ''} /></FormControl></FormItem>)} />
+                                                </CardContent>
+                                            </Card>
+                                            <Card>
+                                                <CardHeader>
+                                                    <div className="flex justify-between items-center">
+                                                        <CardTitle className="text-lg">Detalhes dos Contêineres</CardTitle>
+                                                        <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '' })}>
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                                                        </Button>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="space-y-2">
+                                                    {containerFields.map((field, index) => (
+                                                        <div key={field.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 items-center p-2 border rounded-md relative">
+                                                            <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                            <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="Nº Contêiner" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="Lacre" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="Tara" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="Peso Bruto" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="Volumes" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="M³" {...field} className="h-8"/>} />
+                                                        </div>
+                                                    ))}
+                                                </CardContent>
+                                            </Card>
+                                            <Card>
+                                                <CardHeader>
+                                                    <div className="flex justify-between items-center">
+                                                        <CardTitle className="text-lg">Portos de Transbordo</CardTitle>
+                                                        <Button type="button" size="sm" variant="outline" onClick={() => appendTransshipment({ id: `ts-${Date.now()}`, port: '', vessel: '' })}>
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                                                        </Button>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="space-y-2">
+                                                    {transshipmentFields.map((field, index) => (
+                                                        <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-center p-2 border rounded-md relative">
+                                                            <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeTransshipment(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                            <FormField control={form.control} name={`transshipments.${index}.port`} render={({ field }) => <Input placeholder="Porto de Transbordo" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`transshipments.${index}.vessel`} render={({ field }) => <Input placeholder="Navio/Voo" {...field} className="h-8"/>} />
+                                                        </div>
+                                                    ))}
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="financials">
+                                  {/* Restored Financials Content */}
+                                </TabsContent>
+                                
+                                <TabsContent value="documents">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Gestão de Documentos</CardTitle>
+                                                <CardDescription>Anexe, aprove e gerencie os documentos do processo.</CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="border rounded-lg">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Documento</TableHead>
+                                                                <TableHead>Status</TableHead>
+                                                                <TableHead>Arquivo</TableHead>
+                                                                <TableHead className="text-right">Ações</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {(shipment.documents || []).map((doc, index) => (
+                                                                <TableRow key={index}>
+                                                                    <TableCell className="font-medium">{doc.name}</TableCell>
+                                                                    <TableCell>
+                                                                        <Badge variant={doc.status === 'approved' ? 'success' : (doc.status === 'uploaded' ? 'default' : 'secondary')}>
+                                                                            {doc.status}
+                                                                        </Badge>
+                                                                    </TableCell>
+                                                                    <TableCell>{doc.fileName || 'N/A'}</TableCell>
+                                                                    <TableCell className="text-right">
+                                                                        <Button variant="outline" size="sm" className="mr-2"><Upload className="mr-2 h-4 w-4"/> Anexar</Button>
+                                                                        <Button variant="ghost" size="sm" disabled={doc.status !== 'uploaded'}><FileCheck className="mr-2 h-4 w-4"/> Aprovar</Button>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
                                         <Card>
                                             <CardHeader><CardTitle className="text-lg">Informações do Courier</CardTitle></CardHeader>
                                             <CardContent className="space-y-4">
@@ -664,103 +759,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 )} />
                                             </CardContent>
                                         </Card>
-                                            <Card>
-                                                <CardHeader>
-                                                    <div className="flex justify-between items-center">
-                                                        <CardTitle className="text-lg">Portos de Transbordo</CardTitle>
-                                                        <Button type="button" size="sm" variant="outline" onClick={() => appendTransshipment({ id: `ts-${Date.now()}`, port: '', vessel: '' })}>
-                                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
-                                                        </Button>
-                                                    </div>
-                                                </CardHeader>
-                                                <CardContent className="space-y-2">
-                                                    {transshipmentFields.map((field, index) => (
-                                                        <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-center p-2 border rounded-md relative">
-                                                            <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeTransshipment(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                                            <FormField control={form.control} name={`transshipments.${index}.port`} render={({ field }) => <Input placeholder="Porto de Transbordo" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`transshipments.${index}.vessel`} render={({ field }) => <Input placeholder="Navio/Voo" {...field} className="h-8"/>} />
-                                                        </div>
-                                                    ))}
-                                                </CardContent>
-                                            </Card>
-                                        </div>
                                     </div>
-                                    <div className="lg:col-span-2 space-y-4">
-                                            <Card>
-                                                <CardHeader><CardTitle className="text-lg">Detalhes da Carga</CardTitle></CardHeader>
-                                                <CardContent className="space-y-4">
-                                                    <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
-                                                    <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs</FormLabel><FormControl><Input placeholder="Separados por vírgula" {...field} onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()))} value={Array.isArray(field.value) ? field.value.join(', ') : ''} /></FormControl></FormItem>)} />
-                                                </CardContent>
-                                            </Card>
-                                            <Card>
-                                                <CardHeader>
-                                                    <div className="flex justify-between items-center">
-                                                        <CardTitle className="text-lg">Detalhes dos Contêineres</CardTitle>
-                                                        <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '' })}>
-                                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
-                                                        </Button>
-                                                    </div>
-                                                </CardHeader>
-                                                <CardContent className="space-y-2">
-                                                    {containerFields.map((field, index) => (
-                                                        <div key={field.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 items-center p-2 border rounded-md relative">
-                                                            <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                                            <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="Nº Contêiner" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="Lacre" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="Tara" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="Peso Bruto" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="Volumes" {...field} className="h-8"/>} />
-                                                            <FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="M³" {...field} className="h-8"/>} />
-                                                        </div>
-                                                    ))}
-                                                </CardContent>
-                                            </Card>
-                                        </div>
-                                </TabsContent>
-
-                                <TabsContent value="financials">
-                                  {/* Restored Financials Content */}
-                                </TabsContent>
-                                
-                                <TabsContent value="documents">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Gestão de Documentos</CardTitle>
-                                            <CardDescription>Anexe, aprove e gerencie os documentos do processo.</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="border rounded-lg">
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead>Documento</TableHead>
-                                                            <TableHead>Status</TableHead>
-                                                            <TableHead>Arquivo</TableHead>
-                                                            <TableHead className="text-right">Ações</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {(shipment.documents || []).map((doc, index) => (
-                                                            <TableRow key={index}>
-                                                                <TableCell className="font-medium">{doc.name}</TableCell>
-                                                                <TableCell>
-                                                                     <Badge variant={doc.status === 'approved' ? 'success' : (doc.status === 'uploaded' ? 'default' : 'secondary')}>
-                                                                        {doc.status}
-                                                                     </Badge>
-                                                                </TableCell>
-                                                                <TableCell>{doc.fileName || 'N/A'}</TableCell>
-                                                                <TableCell className="text-right">
-                                                                    <Button variant="outline" size="sm" className="mr-2"><Upload className="mr-2 h-4 w-4"/> Anexar</Button>
-                                                                    <Button variant="ghost" size="sm" disabled={doc.status !== 'uploaded'}><FileCheck className="mr-2 h-4 w-4"/> Aprovar</Button>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
                                 </TabsContent>
 
                                 <TabsContent value="bl_draft">

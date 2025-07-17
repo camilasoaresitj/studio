@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, isPast, isValid, differenceInDays, addDays } from 'date-fns';
@@ -230,6 +230,11 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const [partners, setPartners] = useState<Partner[]>([]);
     const [fees, setFees] = useState<Fee[]>([]);
     const [isNewMilestoneFormVisible, setIsNewMilestoneFormVisible] = useState(false);
+    const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
+    const [isSharingDialogOpen, setIsSharingDialogOpen] = useState(false);
+    const [partnersForSelection, setPartnersForSelection] = useState<{ type: 'shipper' | 'consignee' | 'agent', list: Partner[] } | null>(null);
+    const [editedCharge, setEditedCharge] = useState<{ charge: QuoteCharge, index: number } | null>(null);
+    const [mapData, setMapData] = useState<any>(null); // State for map data
 
     const form = useForm<ShipmentDetailsFormData>({
         resolver: zodResolver(shipmentDetailsSchema),
@@ -245,11 +250,35 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     
     // Watchers for dynamic fields
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
+    const watchedCharges = useWatch({ control: form.control, name: 'charges' });
 
+    const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
+        control: form.control,
+        name: "containers",
+    });
+
+    const { fields: transshipmentFields, append: appendTransshipment, remove: removeTransshipment } = useFieldArray({
+        control: form.control,
+        name: "transshipments",
+    });
+
+    const { fields: chargesFields, append: appendCharge, remove: removeCharge } = useFieldArray({
+        control: form.control,
+        name: "charges",
+    });
+
+    const { fields: milestoneFields, update: updateMilestone } = useFieldArray({
+        control: form.control,
+        name: 'milestones'
+    });
+
+    if (!shipment) return null;
+    
     useEffect(() => {
         if (shipment) {
             setPartners(getPartners());
             setFees(getFees());
+            exchangeRateService.getRates().then(setExchangeRates);
             form.reset({
                 ...shipment,
                 etd: shipment.etd ? new Date(shipment.etd) : undefined,
@@ -258,8 +287,52 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             });
         }
     }, [shipment, form]);
+    
+    useEffect(() => {
+        if (activeTab === 'map' && shipment?.bookingNumber) {
+            runGetRouteMap(shipment.bookingNumber).then(response => {
+                if (response.success) {
+                    setMapData(response.data);
+                }
+            });
+        }
+    }, [activeTab, shipment?.bookingNumber]);
 
-    if (!shipment) return null;
+    const totals = useMemo(() => {
+        let totalCostBRL = 0;
+        let totalSaleBRL = 0;
+
+        if (!watchedCharges || Object.keys(exchangeRates).length === 0) {
+            return { totalCostBRL, totalSaleBRL, totalProfitBRL: 0 };
+        }
+
+        watchedCharges.forEach(charge => {
+            const chargeCost = Number(charge.cost) || 0;
+            const chargeSale = Number(charge.sale) || 0;
+
+            const customer = partners.find(p => p.name === charge.sacado);
+            const supplier = partners.find(p => p.name === charge.supplier);
+            
+            const customerAgio = customer?.exchangeRateAgio ?? 0;
+            const supplierAgio = supplier?.exchangeRateAgio ?? 0;
+
+            const salePtax = exchangeRates[charge.saleCurrency] || 1;
+            const costPtax = exchangeRates[charge.costCurrency] || 1;
+
+            const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + customerAgio / 100);
+            const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + supplierAgio / 100);
+
+            totalSaleBRL += chargeSale * saleRate;
+            totalCostBRL += chargeCost * costRate;
+        });
+
+        return {
+            totalCostBRL,
+            totalSaleBRL,
+            totalProfitBRL: totalSaleBRL - totalCostBRL
+        };
+    }, [watchedCharges, exchangeRates, partners]);
+
 
     const handleUpdate = form.handleSubmit(async (data) => {
         setIsUpdating(true);
@@ -444,67 +517,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         }
         setIsGenerating(false);
     };
-
-    const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
-        control: form.control,
-        name: "containers",
-    });
-
-    const { fields: transshipmentFields, append: appendTransshipment, remove: removeTransshipment } = useFieldArray({
-        control: form.control,
-        name: "transshipments",
-    });
-
-    const { fields: chargesFields, append: appendCharge, remove: removeCharge } = useFieldArray({
-        control: form.control,
-        name: "charges",
-    });
-
-    const watchedCharges = useWatch({ control: form.control, name: 'charges' });
-
-    const totals = useMemo(() => {
-        let totalCostBRL = 0;
-        let totalSaleBRL = 0;
-
-        if (!watchedCharges || Object.keys(exchangeRates).length === 0) {
-            return { totalCostBRL, totalSaleBRL, totalProfitBRL: 0 };
-        }
-
-        watchedCharges.forEach(charge => {
-            const chargeCost = Number(charge.cost) || 0;
-            const chargeSale = Number(charge.sale) || 0;
-
-            const customer = partners.find(p => p.name === charge.sacado);
-            const supplier = partners.find(p => p.name === charge.supplier);
-            
-            const customerAgio = customer?.exchangeRateAgio ?? 0;
-            const supplierAgio = supplier?.exchangeRateAgio ?? 0;
-
-            const salePtax = exchangeRates[charge.saleCurrency] || 1;
-            const costPtax = exchangeRates[charge.costCurrency] || 1;
-
-            const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + customerAgio / 100);
-            const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + supplierAgio / 100);
-
-            totalSaleBRL += chargeSale * saleRate;
-            totalCostBRL += chargeCost * costRate;
-        });
-
-        return {
-            totalCostBRL,
-            totalSaleBRL,
-            totalProfitBRL: totalSaleBRL - totalCostBRL
-        };
-    }, [watchedCharges, exchangeRates, partners]);
-
-    const { fields: milestoneFields, update: updateMilestone } = useFieldArray({
-        control: form.control,
-        name: 'milestones'
-    });
     
-    const [isSharingDialogOpen, setIsSharingDialogOpen] = useState(false);
-    const [partnersForSelection, setPartnersForSelection] = useState<{ type: 'shipper' | 'consignee' | 'agent', list: Partner[] } | null>(null);
-
     const handleSelectPartner = (partner: Partner) => {
         if (partnersForSelection) {
             form.setValue(partnersForSelection.type, partner);
@@ -519,8 +532,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         toast({ title: 'Link Gerado e Copiado!', description: 'O link para o portal do cliente foi copiado para a área de transferência.' });
         setIsSharingDialogOpen(false);
     };
-    
-    const [editedCharge, setEditedCharge] = useState<{ charge: QuoteCharge, index: number } | null>(null);
     
     const handleSaveChargeChange = async (justification: string) => {
         if (!editedCharge) return;
@@ -538,18 +549,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         
         setEditedCharge(null);
     };
-    
-    const [mapData, setMapData] = useState<any>(null); // State for map data
-
-    useEffect(() => {
-        if (activeTab === 'map' && shipment.bookingNumber) {
-            runGetRouteMap(shipment.bookingNumber).then(response => {
-                if (response.success) {
-                    setMapData(response.data);
-                }
-            });
-        }
-    }, [activeTab, shipment.bookingNumber]);
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -657,7 +656,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                         <Button variant="outline" size="sm" className="h-7 text-xs">
                                                                             <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? format(new Date(field.value), 'dd/MM/yy') : 'N/A'}
                                                                         </Button>
-                                                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
                                                                 )} />
                                                                 <Controller control={form.control} name={`milestones.${index}.status`} render={({ field }) => (
                                                                     <Select onValueChange={field.onChange} value={field.value}>
@@ -671,7 +670,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                 )} />
                                                             </div>
                                                             <Controller control={form.control} name={`milestones.${index}.details`} render={({ field }) => (
-                                                                <Textarea {...field} placeholder="Adicione um comentário ou detalhe..." className="text-sm" />
+                                                                <Textarea {...field} value={field.value ?? ''} placeholder="Adicione um comentário ou detalhe..." className="text-sm" />
                                                             )} />
                                                         </div>
                                                     </div>

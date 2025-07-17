@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -22,7 +23,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { 
     Calendar as CalendarIcon, 
@@ -73,7 +74,6 @@ import { getFees } from '@/lib/fees-data';
 import type { Fee } from '@/lib/fees-data';
 import { ScrollArea } from './ui/scroll-area';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Textarea } from './ui/textarea';
@@ -153,6 +153,14 @@ const shipmentDetailsSchema = z.object({
   transshipments: z.array(transshipmentDetailSchema).optional(),
   milestones: z.array(milestoneSchema).optional(),
   charges: z.array(quoteChargeSchemaForSheet).optional(),
+  // New fields
+  ceMaster: z.string().optional(),
+  ceHouse: z.string().optional(),
+  manifesto: z.string().optional(),
+  purchaseOrderNumber: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  commodityDescription: z.string().optional(),
+  ncms: z.array(z.string()).optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -197,6 +205,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
                 milestones: (shipment.milestones || []).map(m => ({...m, predictedDate: new Date(m.predictedDate), effectiveDate: m.effectiveDate ? new Date(m.effectiveDate) : null})),
                 charges: shipment.charges || [],
+                ncms: shipment.ncms || [],
             });
         }
     }, [shipment, form, open]);
@@ -428,14 +437,19 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 <Form {...form}>
                     <form onSubmit={handleUpdate} className="flex flex-col h-full">
                         <SheetHeader className="p-4 border-b">
-                            <div className="flex justify-between items-center">
+                            <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-4">
                                     <div className="bg-primary/10 p-3 rounded-full">
                                         <GanttChart className="h-8 w-8 text-primary"/>
                                     </div>
                                     <div>
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
-                                        <SheetDescription>Gerencie todos os aspectos do embarque de {shipment.customer}.</SheetDescription>
+                                        <SheetDescription className="text-xs md:text-sm">
+                                            Shipper: <span className="font-semibold">{shipment.shipper?.name}</span> | 
+                                            Consignee: <span className="font-semibold">{shipment.consignee?.name}</span> | 
+                                            Notify: <span className="font-semibold">{shipment.notifyName}</span> | 
+                                            Agente: <span className="font-semibold">{shipment.agent?.name || 'N/A'}</span>
+                                        </SheetDescription>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -587,26 +601,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     </div>
                                                     </FormItem>
                                                 )} />
-                                                <div className="space-y-2">
-                                                    <FormField control={form.control} name="mblPrintingAtDestination" render={({ field }) => (
-                                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                                            <div className="space-y-0.5">
-                                                                <FormLabel>Impressão do MBL no Destino?</FormLabel>
-                                                            </div>
-                                                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                                        </FormItem>
-                                                    )} />
-                                                    {mblPrintingAtDestination && (
-                                                        <FormField control={form.control} name="mblPrintingAuthDate" render={({ field }) => (
-                                                            <FormItem className="flex flex-col animate-in fade-in-50"><FormLabel>Data Autorização de Impressão</FormLabel>
-                                                                <Popover><PopoverTrigger asChild><FormControl>
-                                                                    <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                                        {field.value ? format(field.value, "PPP") : <span>Selecione a data</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                    </Button>
-                                                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
-                                                            </FormItem>
-                                                        )} />
-                                                    )}
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <FormField control={form.control} name="ceMaster" render={({ field }) => (<FormItem><FormLabel>CE Master</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name="ceHouse" render={({ field }) => (<FormItem><FormLabel>CE House</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                </div>
+                                                <FormField control={form.control} name="manifesto" render={({ field }) => (<FormItem><FormLabel>Manifesto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (<FormItem><FormLabel>Ref. Cliente (PO)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name="invoiceNumber" render={({ field }) => (<FormItem><FormLabel>Invoice Number</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 </div>
                                             </CardContent>
                                         </Card>
@@ -614,9 +616,26 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <Card>
                                             <CardHeader><CardTitle className="text-lg">Informações do Courier</CardTitle></CardHeader>
                                             <CardContent className="space-y-4">
+                                                <FormField control={form.control} name="mblPrintingAtDestination" render={({ field }) => (
+                                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                                        <div className="space-y-0.5"><FormLabel>Impressão do MBL no Destino?</FormLabel></div>
+                                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                                    </FormItem>
+                                                )} />
+                                                {mblPrintingAtDestination && (
+                                                    <FormField control={form.control} name="mblPrintingAuthDate" render={({ field }) => (
+                                                        <FormItem className="flex flex-col animate-in fade-in-50"><FormLabel>Data Autorização de Impressão</FormLabel>
+                                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                                <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                    {field.value ? format(field.value, "PPP") : <span>Selecione a data</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                        </FormItem>
+                                                    )} />
+                                                )}
                                                 <FormField control={form.control} name="courier" render={({ field }) => (
                                                     <FormItem><FormLabel>Empresa de Courier</FormLabel>
-                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                        <Select onValueChange={field.onChange} value={field.value} disabled={mblPrintingAtDestination}>
                                                             <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
                                                             <SelectContent>
                                                                 <SelectItem value="DHL">DHL</SelectItem>
@@ -630,8 +649,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <FormField control={form.control} name="courierNumber" render={({ field }) => (
                                                     <FormItem><FormLabel>Número de Rastreio do Courier</FormLabel>
                                                     <div className="flex gap-2">
-                                                        <FormControl><Input {...field} /></FormControl>
-                                                        <Button type="button" variant="secondary" onClick={() => {}} disabled={isFetchingCourier}>
+                                                        <FormControl><Input {...field} disabled={mblPrintingAtDestination} /></FormControl>
+                                                        <Button type="button" variant="secondary" onClick={() => {}} disabled={isFetchingCourier || mblPrintingAtDestination}>
                                                             {isFetchingCourier ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}
                                                         </Button>
                                                     </div>
@@ -642,30 +661,36 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 )} />
                                             </CardContent>
                                         </Card>
-
-                                        {/* Container Details */}
-                                        <div className="lg:col-span-2">
-                                        <Card>
-                                            <CardHeader>
-                                                <div className="flex justify-between items-center">
-                                                    <CardTitle className="text-lg">Detalhes dos Contêineres</CardTitle>
-                                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '' })}>
-                                                        <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
-                                                    </Button>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent className="space-y-2">
-                                                {containerFields.map((field, index) => (
-                                                    <div key={field.id} className="grid grid-cols-2 md:grid-cols-5 gap-2 items-center p-2 border rounded-md">
-                                                        <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="Nº Contêiner" {...field} className="h-8"/>} />
-                                                        <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="Lacre" {...field} className="h-8"/>} />
-                                                        <FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="Tara" {...field} className="h-8"/>} />
-                                                        <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="Peso Bruto" {...field} className="h-8"/>} />
-                                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                        
+                                        <div className="lg:col-span-2 space-y-4">
+                                            <Card>
+                                                <CardHeader><CardTitle className="text-lg">Detalhes da Carga</CardTitle></CardHeader>
+                                                <CardContent className="space-y-4">
+                                                    <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
+                                                    <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs</FormLabel><FormControl><Input placeholder="Separados por vírgula" {...field} onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()))} value={Array.isArray(field.value) ? field.value.join(', ') : ''} /></FormControl></FormItem>)} />
+                                                </CardContent>
+                                            </Card>
+                                            <Card>
+                                                <CardHeader>
+                                                    <div className="flex justify-between items-center">
+                                                        <CardTitle className="text-lg">Detalhes dos Contêineres</CardTitle>
+                                                        <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '' })}>
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                                                        </Button>
                                                     </div>
-                                                ))}
-                                            </CardContent>
-                                        </Card>
+                                                </CardHeader>
+                                                <CardContent className="space-y-2">
+                                                    {containerFields.map((field, index) => (
+                                                        <div key={field.id} className="grid grid-cols-2 md:grid-cols-5 gap-2 items-center p-2 border rounded-md">
+                                                            <FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="Nº Contêiner" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="Lacre" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="Tara" {...field} className="h-8"/>} />
+                                                            <FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="Peso Bruto" {...field} className="h-8"/>} />
+                                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                        </div>
+                                                    ))}
+                                                </CardContent>
+                                            </Card>
                                         </div>
                                     </div>
                                 </TabsContent>

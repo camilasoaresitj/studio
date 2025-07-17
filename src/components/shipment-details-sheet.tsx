@@ -214,6 +214,54 @@ const JustificationDialog = ({ open, onOpenChange, onConfirm }: { open: boolean,
     );
 };
 
+const chargeTypeOptions = [
+    'Por Contêiner',
+    'Por BL',
+    'Por Processo',
+    'W/M',
+    'Por KG',
+    'Por AWB',
+    'Fixo',
+    'Percentual',
+];
+
+const PartnerSelectField = ({ name, label, control, partners }: { name: any, label: string, control: any, partners: Partner[] }) => {
+    const selectedId = useWatch({ control, name });
+    const selectedPartner = partners.find(p => p.id === selectedId);
+    
+    return (
+        <FormField
+            control={control}
+            name={name}
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>{label}</FormLabel>
+                    <Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder={`Selecione um ${label.toLowerCase()}...`} />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {partners.map(p => (
+                                <SelectItem key={p.id} value={p.id!.toString()}>
+                                    {p.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                     {selectedPartner && (
+                        <div className="text-xs text-muted-foreground mt-1 p-2 border rounded-md bg-secondary/50">
+                            <p className="font-semibold">{selectedPartner.cnpj ? `CNPJ: ${selectedPartner.cnpj}` : (selectedPartner.vat ? `VAT: ${selectedPartner.vat}`: '')}</p>
+                            <p>{selectedPartner.address.street}, {selectedPartner.address.number} - {selectedPartner.address.city}, {selectedPartner.address.country}</p>
+                        </div>
+                    )}
+                </FormItem>
+            )}
+        />
+    )
+};
+
 
 export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
@@ -615,7 +663,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             <SheetContent className="sm:max-w-7xl w-full p-0">
                 <Form {...form}>
                     <form onSubmit={handleUpdate} className="flex flex-col h-full">
-                        <SheetHeader className="p-4 border-b">
+                        <SheetHeader className="p-4 border-b space-y-4">
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-4">
                                     <div className="bg-primary/10 p-3 rounded-full">
@@ -651,6 +699,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         Salvar Alterações
                                     </Button>
                                 </div>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
+                                <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
+                                <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
+                                <FormField control={form.control} name="notifyName" render={({ field }) => (<FormItem><FormLabel>Notify</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
                             </div>
                         </SheetHeader>
                         
@@ -741,15 +795,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             </CardHeader>
                                             <CardContent className="space-y-4">
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <FormField control={form.control} name="shipperId" render={({ field }) => (<FormItem><FormLabel>Shipper</FormLabel><Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                                    <FormField control={form.control} name="consigneeId" render={({ field }) => (<FormItem><FormLabel>Consignee</FormLabel><Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                                </div>
-                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <FormField control={form.control} name="notifyName" render={({ field }) => (<FormItem><FormLabel>Notify</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                                    <FormField control={form.control} name="agentId" render={({ field }) => (<FormItem><FormLabel>Agente</FormLabel><Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>{partners.filter(p=>p.roles.agente).map(p => <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
-                                                </div>
-                                                <Separator />
-                                                <div className="grid grid-cols-2 gap-4">
                                                     <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                     <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 </div>
@@ -801,8 +846,10 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </Card>
                                         
                                         <div className="space-y-4">
-                                             <Card>
-                                                <CardHeader><CardTitle className="text-lg">Detalhes da Carga</CardTitle></CardHeader>
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle className="text-lg">Referências</CardTitle>
+                                                </CardHeader>
                                                 <CardContent className="space-y-4">
                                                     <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
                                                     <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs</FormLabel><FormControl><Input placeholder="Separados por vírgula" {...field} onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()))} value={Array.isArray(field.value) ? field.value.join(', ') : ''} /></FormControl></FormItem>)} />
@@ -824,7 +871,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                             <div className="col-span-2"><Label>Nº Contêiner</Label><FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="MSCU1234567" {...field} className="h-8 mt-1"/>} /></div>
                                                             <div><Label>Lacre</Label><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="SEAL12345" {...field} className="h-8 mt-1"/>} /></div>
                                                             <div><Label>Tara (Kg)</Label><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="2250" {...field} className="h-8 mt-1"/>} /></div>
-                                                            <div><Label>Peso Bruto (Kg)</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
+                                                            <div><Label>Peso Bruto</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
                                                             <div><Label>Volumes</Label><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="1000" {...field} className="h-8 mt-1"/>} /></div>
                                                             <div><Label>M³</Label><FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="28.5" {...field} className="h-8 mt-1"/>} /></div>
                                                             <div><Label>Free Time</Label><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input {...field} value={shipment.details.freeTime} className="h-8 mt-1" disabled/>} /></div>
@@ -881,7 +928,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                 <CardTitle>Planilha de Custos e Vendas</CardTitle>
                                                  <div className="flex items-center gap-2">
                                                     <Button type="button" variant="secondary" size="sm" onClick={handleFaturarProcesso}>Faturar Processo</Button>
-                                                    <Button type="button" variant="outline" size="sm" onClick={() => {}}>
+                                                    <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `custom-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'aprovada' })}>
                                                         <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
                                                     </Button>
                                                 </div>
@@ -920,7 +967,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                              <Select onValueChange={field.onChange} value={field.value} disabled={isBilled}>
                                                                                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                                                                 <SelectContent>
-                                                                                    {['Por Contêiner', 'Por BL', 'Por Processo', 'W/M', 'Por KG', 'Por AWB', 'Fixo', 'Percentual'].map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                                                                    {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                                                                                 </SelectContent>
                                                                             </Select>
                                                                         )} />
@@ -1171,3 +1218,4 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         </Sheet>
     );
 }
+

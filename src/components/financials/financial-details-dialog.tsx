@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -15,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import type { Shipment } from '@/lib/shipment';
+import type { Shipment, QuoteCharge } from '@/lib/shipment';
 import type { PartialPayment, FinancialEntry } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -202,7 +203,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                                     <Input 
                                       type="number" 
                                       step="0.0001"
-                                      defaultValue={costRate.toFixed(4)} 
+                                      defaultValue={costRate > 0 ? costRate.toFixed(4) : ''}
                                       onChange={e => handleRateChange(charge.id, 'cost', e.target.value)}
                                       className="h-8 text-right"
                                       disabled={charge.costCurrency === 'BRL'}
@@ -218,7 +219,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
                                      <Input 
                                       type="number" 
                                       step="0.0001"
-                                      defaultValue={saleRate.toFixed(4)} 
+                                      defaultValue={saleRate > 0 ? saleRate.toFixed(4) : ''}
                                       onChange={e => handleRateChange(charge.id, 'sale', e.target.value)}
                                       className="h-8 text-right"
                                       disabled={charge.saleCurrency === 'BRL'}

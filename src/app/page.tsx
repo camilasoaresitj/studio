@@ -1,25 +1,35 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Truck, DollarSign, ClipboardList, UserX, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Truck, DollarSign, ClipboardList, UserX, ArrowUpRight, ArrowDownRight, Briefcase, Settings, Landmark } from 'lucide-react';
 import { ShipmentsChart } from '@/components/shipments-chart';
 import { RecentShipments } from '@/components/recent-shipments';
 import { ApprovalsPanel } from '@/components/approvals-panel';
 import { getShipments, Shipment } from '@/lib/shipment';
 import { getPartners, Partner } from '@/lib/partners-data';
+import { getFinancialEntries } from '@/lib/financials-data';
+import { getLtiTariffs } from '@/lib/lti-tariffs-data';
+import { getDemurrageTariffs } from '@/lib/demurrage-tariffs-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import { isPast, isThisMonth, subDays, format, isValid } from 'date-fns';
+import { isThisMonth, subDays, format, isValid } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+interface ProfitDetails {
+  commercial: number;
+  operational: number;
+  financial: number;
+  total: number;
+}
 
 interface KpiData {
     monthlyShipments: Shipment[];
-    profitableShipments: (Shipment & { profit: number })[];
+    profitDetails: ProfitDetails;
     overdueTasks: (Shipment & { milestone: any })[];
     inactiveClients: Partner[];
 }
@@ -42,29 +52,70 @@ export default function Home() {
     useEffect(() => {
         const calculateKpis = async () => {
             const shipments = getShipments();
+            const financialEntries = getFinancialEntries();
+            const ltiTariffs = getLtiTariffs();
+            const costTariffs = getDemurrageTariffs();
             const rates = await exchangeRateService.getRates();
 
-            // 1. Embarques no Mês
+            // --- KPI Calculations ---
             const monthlyShipments = shipments.filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd)));
 
-            // 2. Lucro Bruto (Mês)
-            const profitableShipments = monthlyShipments.map(shipment => {
-                const profit = shipment.charges.reduce((chargeProfit, charge) => {
+            // 1. Commercial Profit
+            const commercialProfit = monthlyShipments.reduce((totalProfit, shipment) => {
+                const shipmentProfit = shipment.charges.reduce((chargeProfit, charge) => {
                     const costInBrl = (charge.costCurrency === 'BRL' ? charge.cost : charge.cost * (rates[charge.costCurrency] || 1));
                     const saleInBrl = (charge.saleCurrency === 'BRL' ? charge.sale : charge.sale * (rates[charge.saleCurrency] || 1));
                     return chargeProfit + (saleInBrl - costInBrl);
                 }, 0);
-                return { ...shipment, profit };
-            });
+                return totalProfit + shipmentProfit;
+            }, 0);
 
-            // 3. Tarefas Atrasadas
+            // 2. Operational Profit (Late Fees)
+            const operationalProfit = monthlyShipments.reduce((totalProfit, shipment) => {
+                const lateFeeProfit = (shipment.charges || [])
+                    .filter(c => c.name.toUpperCase().includes('TAXA DE CORREÇÃO DE BL'))
+                    .reduce((sum, c) => sum + (c.sale - c.cost), 0);
+                return totalProfit + lateFeeProfit;
+            }, 0);
+            
+            // 3. Financial Profit (Demurrage + Exchange Rate Gains)
+            const demurrageEntries = financialEntries.filter(e => e.description?.toLowerCase().includes('demurrage') && isThisMonth(new Date(e.dueDate)));
+            const demurrageProfit = demurrageEntries.reduce((totalProfit, entry) => {
+                 const containerNumber = entry.invoiceId.replace('DEM-', '');
+                 const shipment = shipments.find(s => s.containers?.some(c => c.number === containerNumber));
+                 if (!shipment) return totalProfit;
+                 
+                 // Simplified cost calculation for demonstration
+                 const containerType = shipment.containers?.find(c => c.number === containerNumber)?.type.toLowerCase();
+                 let tariffType: 'dry' | 'reefer' | 'special' = 'dry';
+                 if (containerType?.includes('rf')) tariffType = 'reefer';
+                 if (containerType?.includes('ot') || containerType?.includes('fr')) tariffType = 'special';
+                 const costTariff = costTariffs.find(t => t.carrier.toLowerCase() === shipment.carrier?.toLowerCase() && t.containerType === tariffType);
+                 const cost = costTariff ? costTariff.costPeriods[0].rate * 5 : 0; // Simplified cost
+                 
+                 return totalProfit + (entry.amount - cost);
+            }, 0);
+
+            // For now, Exchange Rate profit is not calculated here as it depends on user input at payment time.
+            // This would require a more complex data structure to track saved rates vs paid rates.
+            const exchangeProfit = 0; 
+            const financialProfit = demurrageProfit + exchangeProfit;
+
+            const profitDetails = {
+                commercial: commercialProfit,
+                operational: operationalProfit,
+                financial: financialProfit,
+                total: commercialProfit + operationalProfit + financialProfit
+            };
+
+            // 4. Overdue Tasks
             const overdueTasks = shipments.flatMap(s => 
                 s.milestones
                  .filter(m => m.status !== 'completed' && m.predictedDate && isValid(new Date(m.predictedDate)) && isPast(new Date(m.predictedDate)))
                  .map(milestone => ({...s, milestone}))
             );
 
-            // 4. Clientes Inativos (sem embarques nos últimos 90 dias)
+            // 5. Inactive Clients
             const ninetyDaysAgo = subDays(new Date(), 90);
             const clientPartners = allPartners.filter(p => p.roles.cliente);
             const activeClients = new Set(
@@ -76,7 +127,7 @@ export default function Home() {
             
             setKpiData({
                 monthlyShipments,
-                profitableShipments,
+                profitDetails,
                 overdueTasks,
                 inactiveClients,
             });
@@ -120,26 +171,23 @@ export default function Home() {
                 };
                 break;
             case 'profit':
+                 const profitData = [
+                    { department: 'Comercial', icon: Briefcase, profit: kpiData.profitDetails.commercial, description: 'Lucro da venda de fretes e taxas.' },
+                    { department: 'Operacional', icon: Settings, profit: kpiData.profitDetails.operational, description: 'Receita de taxas extras (ex: correção de BL).' },
+                    { department: 'Financeiro', icon: Landmark, profit: kpiData.profitDetails.financial, description: 'Lucro de demurrage e ganhos de câmbio.' },
+                 ];
                  reportData = {
-                    title: 'Relatório de Lucro Bruto (Mês)',
-                    description: 'Detalhamento do lucro por embarque no mês corrente.',
-                    data: kpiData.profitableShipments.sort((a,b) => b.profit - a.profit),
-                    headers: ['Processo', 'Cliente', 'Modal', 'Responsável Comercial', 'Lucro Bruto (BRL)'],
-                    renderRow: (item: Shipment & { profit: number }) => {
-                        const isAir = item.details.cargo.toLowerCase().includes('kg');
-                        const modal = isAir ? 'Aéreo' : 'Marítimo';
-                        const customerPartner = allPartners.find(p => p.name === item.customer);
-                        const commercialContact = customerPartner?.contacts.find(c => c.departments.includes('Comercial')) || customerPartner?.contacts[0];
-                        return (
-                            <TableRow key={item.id}>
-                                <TableCell>{item.id}</TableCell>
-                                <TableCell>{item.customer}</TableCell>
-                                <TableCell>{modal}</TableCell>
-                                <TableCell>{commercialContact?.name || 'N/A'}</TableCell>
-                                <TableCell className="text-right font-mono text-success">{item.profit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                            </TableRow>
-                        )
-                    },
+                    title: 'Detalhamento do Lucro Bruto (Mês)',
+                    description: 'Lucratividade consolidada por departamento.',
+                    data: profitData,
+                    headers: ['Departamento', 'Descrição', 'Lucro Bruto (BRL)'],
+                    renderRow: (item: typeof profitData[0]) => (
+                        <TableRow key={item.department}>
+                            <TableCell className="font-medium flex items-center gap-2"><item.icon className="h-4 w-4 text-muted-foreground"/>{item.department}</TableCell>
+                            <TableCell className="text-muted-foreground">{item.description}</TableCell>
+                            <TableCell className="text-right font-mono text-success">{item.profit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        </TableRow>
+                    ),
                 };
                 break;
             case 'tasks':
@@ -149,15 +197,13 @@ export default function Home() {
                     data: kpiData.overdueTasks,
                     headers: ['Processo', 'Cliente', 'Tarefa', 'Data Prevista', 'Responsável Operacional'],
                     renderRow: (item: Shipment & { milestone: any }) => {
-                        const customerPartner = allPartners.find(p => p.name === item.customer);
-                        const operationalContact = customerPartner?.contacts.find(c => c.departments.includes('Operacional')) || customerPartner?.contacts[0];
                         return (
                         <TableRow key={`${item.id}-${item.milestone.name}`}>
                             <TableCell>{item.id}</TableCell>
                             <TableCell>{item.customer}</TableCell>
                             <TableCell>{item.milestone.name}</TableCell>
                             <TableCell className="text-destructive">{format(new Date(item.milestone.predictedDate), 'dd/MM/yyyy')}</TableCell>
-                             <TableCell>{operationalContact?.name || 'N/A'}</TableCell>
+                             <TableCell>{item.responsibleUser || 'N/A'}</TableCell>
                         </TableRow>
                     )},
                 };
@@ -187,7 +233,7 @@ export default function Home() {
         if (!kpiData) return [];
         return [
             { title: "Embarques no Mês", value: kpiData.monthlyShipments.length.toString(), change: "+12.5%", icon: <Truck className="h-6 w-6 text-muted-foreground" />, positive: true, onClick: () => handleOpenReport('shipments') },
-            { title: "Lucro Bruto (Mês)", value: kpiData.profitableShipments.reduce((sum, s) => sum + s.profit, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), change: "+8.2%", icon: <DollarSign className="h-6 w-6 text-muted-foreground" />, positive: true, onClick: () => handleOpenReport('profit') },
+            { title: "Lucro Bruto (Mês)", value: kpiData.profitDetails.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), change: "+8.2%", icon: <DollarSign className="h-6 w-6 text-muted-foreground" />, positive: true, onClick: () => handleOpenReport('profit') },
             { title: "Tarefas Atrasadas", value: kpiData.overdueTasks.length.toString(), change: "+5.1%", icon: <ClipboardList className="h-6 w-6 text-muted-foreground" />, positive: false, onClick: () => handleOpenReport('tasks') },
             { title: "Clientes Inativos", value: kpiData.inactiveClients.length.toString(), change: "Últimos 90 dias", icon: <UserX className="h-6 w-6 text-muted-foreground" />, positive: false, onClick: () => handleOpenReport('clients') },
         ]
@@ -270,7 +316,7 @@ export default function Home() {
                   {report?.data.length === 0 ? (
                     <TableRow><TableCell colSpan={report.headers.length} className="text-center h-24">Nenhum dado a exibir.</TableCell></TableRow>
                   ) : (
-                    report?.data.map(item => report.renderRow(item))
+                    report?.data.map((item, index) => report.renderRow(item))
                   )}
                 </TableBody>
               </Table>

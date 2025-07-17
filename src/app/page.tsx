@@ -14,7 +14,7 @@ import { getFinancialEntries } from '@/lib/financials-data';
 import { getLtiTariffs } from '@/lib/lti-tariffs-data';
 import { getDemurrageTariffs } from '@/lib/demurrage-tariffs-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import { isThisMonth, subDays, format, isValid } from 'date-fns';
+import { isThisMonth, subDays, format, isValid, isPast } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

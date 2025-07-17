@@ -70,7 +70,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Textarea } from './ui/textarea';
 import { BLDraftForm } from './bl-draft-form';
 import { ShipmentMap } from './shipment-map';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from './ui/switch';
 
 
@@ -493,39 +493,39 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             </div>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="relative pl-8">
-                                            <div className="absolute left-[15px] top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
+                                            <div className="relative pl-12">
+                                            <div className="absolute left-[23px] top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
                                             {milestoneFields.map((milestone, index) => {
                                                 const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
                                                 const locationDetails = getMilestoneLocationDetails(milestone.name);
                                                 return (
-                                                    <div key={milestone.id} className="relative mb-6 flex items-start gap-4">
+                                                    <div key={milestone.id} className="relative mb-6 flex items-center gap-4">
                                                         <div className={cn('absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full -translate-x-1/2', 
                                                             milestone.effectiveDate ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground',
                                                             overdue && 'bg-destructive text-destructive-foreground')}>
                                                             {milestone.effectiveDate ? <CheckCircle className="h-5 w-5" /> : (overdue ? <AlertTriangle className="h-5 w-5" /> : <Circle className="h-5 w-5" />)}
                                                         </div>
-                                                        <div className="pt-1.5 flex-grow space-y-2">
-                                                            <div className="flex items-center gap-4">
-                                                                <p className="font-semibold text-base">{milestone.name}</p>
-                                                                 <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
-                                                                    <Popover><PopoverTrigger asChild><FormControl>
-                                                                        <Button variant="outline" size="sm" className="h-7 text-xs">
-                                                                            <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
-                                                                        </Button>
-                                                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
-                                                                )} />
-                                                                <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
-                                                                    <Popover><PopoverTrigger asChild><FormControl>
-                                                                        <Button variant="outline" size="sm" className={cn("h-7 text-xs", !field.value && "text-muted-foreground")}>
-                                                                            <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
-                                                                        </Button>
-                                                                    </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
-                                                                )} />
-                                                            </div>
+                                                        <div className="flex-grow space-y-1">
+                                                            <p className="font-semibold text-base">{milestone.name}</p>
                                                             {locationDetails && (
-                                                                <p className="text-sm text-muted-foreground pl-1">{locationDetails}</p>
+                                                                <p className="text-sm text-muted-foreground">{locationDetails}</p>
                                                             )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
+                                                                <Popover><PopoverTrigger asChild><FormControl>
+                                                                    <Button variant="outline" size="sm" className="h-7 text-xs">
+                                                                        <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
+                                                                    </Button>
+                                                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                            )} />
+                                                            <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
+                                                                <Popover><PopoverTrigger asChild><FormControl>
+                                                                    <Button variant="outline" size="sm" className={cn("h-7 text-xs", !field.value && "text-muted-foreground")}>
+                                                                        <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
+                                                                    </Button>
+                                                                </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                            )} />
                                                         </div>
                                                     </div>
                                                 )
@@ -792,9 +792,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle>Adicionar Milestone Manual</DialogTitle>
+                            <DialogDescription>
+                                Insira os detalhes da nova tarefa operacional.
+                            </DialogDescription>
                         </DialogHeader>
                         <Form {...newMilestoneForm}>
-                            <form onSubmit={handleAddManualMilestone} className="space-y-4">
+                            <form onSubmit={handleAddManualMilestone} className="space-y-4 pt-4">
                                  <FormField control={newMilestoneForm.control} name="name" render={({ field }) => (
                                     <FormItem><FormLabel>Nome da Tarefa</FormLabel><FormControl><Input placeholder="Ex: Enviar pré-alerta ao cliente" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>

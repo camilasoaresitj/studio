@@ -111,7 +111,7 @@ const quoteChargeSchemaForSheet = z.object({
     sacado: z.string().optional(),
     approvalStatus: z.enum(['aprovada', 'pendente', 'rejeitada']),
     justification: z.string().optional(), 
-    financialEntryId: z.string().nullable().optional(),
+    financialEntryId: z.string().nullable().optional(), 
 });
 
 const milestoneSchema = z.object({
@@ -179,6 +179,7 @@ interface ShipmentDetailsSheetProps {
 
 const JustificationDialog = ({ open, onOpenChange, onConfirm }: { open: boolean, onOpenChange: (open: boolean) => void, onConfirm: (justification: string) => void }) => {
     const [justification, setJustification] = useState('');
+    const { toast } = useToast();
 
     const handleConfirm = () => {
         if (justification.trim().length < 10) {
@@ -622,10 +623,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     </div>
                                     <div>
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
-                                        <SheetDescription className="text-xs md:text-sm">
-                                            Ref. Cliente: <span className="font-semibold">{form.watch('purchaseOrderNumber') || 'N/A'}</span>
-                                            <span className="mx-2">|</span>
-                                            Invoice: <span className="font-semibold">{form.watch('invoiceNumber') || 'N/A'}</span>
+                                        <SheetDescription className="text-xs md:text-sm flex items-center gap-2">
+                                            <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                                                <div className="flex items-center gap-1"><Label htmlFor="po-header">Ref. Cliente:</Label><Input id="po-header" {...field} className="h-6 text-xs w-24"/></div>
+                                            )}/>
+                                            <Separator orientation="vertical" className="h-4"/>
+                                            <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                                <div className="flex items-center gap-1"><Label htmlFor="inv-header">Invoice:</Label><Input id="inv-header" {...field} className="h-6 text-xs w-24"/></div>
+                                            )}/>
                                         </SheetDescription>
                                     </div>
                                 </div>
@@ -796,14 +801,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </Card>
                                         
                                         <div className="space-y-4">
-                                            <Card>
-                                                <CardHeader><CardTitle className="text-lg">Referências</CardTitle></CardHeader>
-                                                <CardContent className="space-y-4">
-                                                    <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (<FormItem><FormLabel>Ref. Cliente (PO)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                                    <FormField control={form.control} name="invoiceNumber" render={({ field }) => (<FormItem><FormLabel>Invoice Number</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                                </CardContent>
-                                            </Card>
-                                            <Card>
+                                             <Card>
                                                 <CardHeader><CardTitle className="text-lg">Detalhes da Carga</CardTitle></CardHeader>
                                                 <CardContent className="space-y-4">
                                                     <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
@@ -829,7 +827,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                             <div><Label>Peso Bruto (Kg)</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
                                                             <div><Label>Volumes</Label><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="1000" {...field} className="h-8 mt-1"/>} /></div>
                                                             <div><Label>M³</Label><FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="28.5" {...field} className="h-8 mt-1"/>} /></div>
-                                                            <div><Label>Free Time</Label><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input placeholder="N/A" {...field} value={shipment.details.freeTime} className="h-8 mt-1" disabled/>} /></div>
+                                                            <div><Label>Free Time</Label><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input {...field} value={shipment.details.freeTime} className="h-8 mt-1" disabled/>} /></div>
                                                         </div>
                                                     ))}
                                                      {containerFields.length > 0 && (
@@ -863,7 +861,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     ))}
                                                 </CardContent>
                                             </Card>
-                                            <Card>
+                                             <Card>
                                                 <CardHeader><CardTitle className="text-lg">Endereços e Terminais</CardTitle></CardHeader>
                                                 <CardContent className="space-y-4">
                                                     {shipment.details?.incoterm === 'EXW' && <FormField control={form.control} name="collectionAddress" render={({ field }) => (<FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
@@ -918,7 +916,14 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                         <FormField control={form.control} name={`charges.${index}.name`} render={({ field }) => <Input {...field} className="h-8" disabled={isBilled} />} />
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top">
-                                                                         <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => <Input {...field} className="h-8" disabled={isBilled} />} />
+                                                                        <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
+                                                                             <Select onValueChange={field.onChange} value={field.value} disabled={isBilled}>
+                                                                                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    {['Por Contêiner', 'Por BL', 'Por Processo', 'W/M', 'Por KG', 'Por AWB', 'Fixo', 'Percentual'].map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        )} />
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top">
                                                                         <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
@@ -945,7 +950,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                     <TableCell className="p-1 align-top">
                                                                         <div className="flex gap-1">
                                                                             <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isBilled}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                            <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled} />} />
+                                                                            <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled && charge.approvalStatus !== 'pendente'} />} />
                                                                         </div>
                                                                     </TableCell>
                                                                     <TableCell className="p-1 align-top text-center">

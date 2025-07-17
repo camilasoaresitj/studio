@@ -774,6 +774,9 @@ export default function FinanceiroPage() {
                                         <DropdownMenuItem onClick={() => handleProcessClick(entry)}>
                                             <FileText className="mr-2 h-4 w-4" /> Detalhes do Processo
                                         </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={entry.type === 'debit'}>
+                                            <Printer className="mr-2 h-4 w-4" /> Emitir Fatura (PDF)
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={entry.type === 'credit'}>
                                             <Printer className="mr-2 h-4 w-4" /> Imprimir Invoice Agente
                                         </DropdownMenuItem>

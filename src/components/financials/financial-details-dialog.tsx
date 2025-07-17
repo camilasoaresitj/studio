@@ -39,17 +39,17 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
   const { toast } = useToast();
   const [partners, setPartners] = React.useState<Partner[]>([]);
   const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
-  const [editedRates, setEditedRates] = React.useState<Record<string, { costRate: number; saleRate: number }>>({});
+  const [editedRates, setEditedRates] = React.useState<Record<string, { costRate?: number; saleRate?: number }>>({});
 
   React.useEffect(() => {
     if (isOpen) {
-        const fetchRates = async () => {
+        const fetchAndSetData = async () => {
             const rates = await exchangeRateService.getRates();
             setExchangeRates(rates);
+            setPartners(getPartners());
+            setEditedRates({}); // Reset on open to use fresh initial rates
         };
-        fetchRates();
-        setPartners(getPartners());
-        setEditedRates({}); // Reset on open
+        fetchAndSetData();
     }
   }, [isOpen]);
   
@@ -66,7 +66,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
       }));
   };
   
-  const getChargeRates = (charge: QuoteCharge) => {
+  const getChargeRates = React.useCallback((charge: QuoteCharge) => {
     const costPartner = partners.find(p => p.name === charge.supplier);
     const salePartner = partners.find(p => p.name === charge.sacado);
 
@@ -83,10 +83,12 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
         costRate: editedRates[charge.id]?.costRate ?? initialCostRate,
         saleRate: editedRates[charge.id]?.saleRate ?? initialSaleRate,
     };
-  };
+  }, [partners, exchangeRates, editedRates]);
 
   const totals = React.useMemo(() => {
-    if (!shipment) return { totalCostBRL: 0, totalSaleBRL: 0, totalProfitBRL: 0 };
+    if (!shipment || partners.length === 0 || Object.keys(exchangeRates).length === 0) {
+        return { totalCostBRL: 0, totalSaleBRL: 0, totalProfitBRL: 0 };
+    }
     
     let totalCostBRL = 0;
     let totalSaleBRL = 0;
@@ -103,13 +105,13 @@ export function FinancialDetailsDialog({ isOpen, onClose, shipment, onReversePay
         totalProfitBRL: totalSaleBRL - totalCostBRL
     };
 
-  }, [shipment, partners, exchangeRates, editedRates]);
+  }, [shipment, partners, exchangeRates, getChargeRates]);
 
   const handleEmitRecibo = () => {
     if (!shipment) return;
     
-    const nfseEntry = shipment.charges.find(c => c.name.toLowerCase().includes("serviço"));
-    const chargesForReceipt = shipment.charges.filter(c => c.id !== nfseEntry?.id);
+    const nfseCharge = shipment.charges.find(c => c.name.toLowerCase().includes("serviço"));
+    const chargesForReceipt = shipment.charges.filter(c => !nfseCharge || c.id !== nfseCharge.id);
 
     const newWindow = window.open();
     if (newWindow) {

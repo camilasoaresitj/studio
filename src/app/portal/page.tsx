@@ -62,7 +62,10 @@ export default function CustomerPortalPage() {
         const alerts: DraftAlert[] = customerShipments
             .map(shipment => {
                 const draftMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
-                if (!draftMilestone || !draftMilestone.predictedDate || !isValid(new Date(draftMilestone.predictedDate))) return null;
+                // CRITICAL FIX: Check if draftMilestone exists before accessing its properties
+                if (!draftMilestone || !draftMilestone.predictedDate || !isValid(new Date(draftMilestone.predictedDate))) {
+                    return null;
+                }
 
                 const dueDate = new Date(draftMilestone.predictedDate);
                 const draftAlreadySent = shipment.blDraftData; // Check if draft data exists

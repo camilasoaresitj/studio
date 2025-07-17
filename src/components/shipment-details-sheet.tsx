@@ -127,6 +127,13 @@ const milestoneSchema = z.object({
     isTransshipment: z.boolean().optional(),
 });
 
+const newMilestoneSchema = z.object({
+    name: z.string().min(3, "Nome da tarefa é obrigatório."),
+    predictedDate: z.date({ required_error: "Data prevista é obrigatória."}),
+    details: z.string().optional(),
+});
+type NewMilestoneFormData = z.infer<typeof newMilestoneSchema>;
+
 const shipmentDetailsSchema = z.object({
   carrier: z.string().optional(),
   vesselName: z.string().optional(),
@@ -166,9 +173,15 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const [partners, setPartners] = useState<Partner[]>([]);
     const [fees, setFees] = useState<Fee[]>([]);
     const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
+    const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
     
     const form = useForm<ShipmentDetailsFormData>({
         resolver: zodResolver(shipmentDetailsSchema),
+    });
+
+    const newMilestoneForm = useForm<NewMilestoneFormData>({
+        resolver: zodResolver(newMilestoneSchema),
+        defaultValues: { name: '', details: '' }
     });
 
     const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
@@ -205,7 +218,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 charges: shipment.charges || [],
             });
         }
-    }, [shipment, form]);
+    }, [shipment, form, open]);
 
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
 
@@ -327,6 +340,19 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         setIsGenerating(false);
     };
 
+    const handleAddManualMilestone = newMilestoneForm.handleSubmit(async (data) => {
+        if (!shipment) return;
+        const response = await addManualMilestone(shipment.id, data);
+        if (response.success && response.data) {
+            onUpdate(response.data);
+            toast({ title: 'Milestone adicionado!', className: 'bg-success text-success-foreground' });
+            setIsManualMilestoneOpen(false);
+            newMilestoneForm.reset();
+        } else {
+            toast({ variant: 'destructive', title: 'Erro', description: response.error });
+        }
+    });
+
     const watchedCharges = useWatch({ control: form.control, name: 'charges' });
 
     const totals = React.useMemo(() => {
@@ -359,7 +385,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
         return { totalCostBRL, totalSaleBRL, totalProfitBRL };
     }, [watchedCharges, exchangeRates, partners]);
-
+    
     if (!shipment) {
         return (
             <Sheet open={open} onOpenChange={onOpenChange}>
@@ -428,6 +454,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     <CardTitle>Timeline do Processo</CardTitle>
                                                     <CardDescription>Acompanhe e atualize os marcos do embarque.</CardDescription>
                                                 </div>
+                                                <Button size="sm" type="button" variant="outline" onClick={() => setIsManualMilestoneOpen(true)}>
+                                                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Milestone Manual
+                                                </Button>
                                             </div>
                                         </CardHeader>
                                         <CardContent>
@@ -463,6 +492,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                                     </Select>
                                                                 )} />
                                                             </div>
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`milestones.${index}.details`}
+                                                                render={({ field }) => (
+                                                                    <Input {...field} placeholder="Adicionar comentário ou detalhes..."/>
+                                                                )}
+                                                            />
                                                         </div>
                                                     </div>
                                                 )
@@ -635,6 +671,36 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         </div>
                     </form>
                 </Form>
+                 <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Adicionar Milestone Manual</DialogTitle>
+                        </DialogHeader>
+                        <Form {...newMilestoneForm}>
+                            <form onSubmit={handleAddManualMilestone} className="space-y-4">
+                                 <FormField control={newMilestoneForm.control} name="name" render={({ field }) => (
+                                    <FormItem><FormLabel>Nome da Tarefa</FormLabel><FormControl><Input placeholder="Ex: Enviar pré-alerta ao cliente" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                 <FormField control={newMilestoneForm.control} name="predictedDate" render={({ field }) => (
+                                    <FormItem className="flex flex-col"><FormLabel>Data Prevista</FormLabel>
+                                        <Popover><PopoverTrigger asChild><FormControl>
+                                            <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                {field.value ? format(field.value, "PPP") : <span>Selecione a data</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover>
+                                    <FormMessage /></FormItem>
+                                )}/>
+                                 <FormField control={newMilestoneForm.control} name="details" render={({ field }) => (
+                                    <FormItem><FormLabel>Detalhes (Opcional)</FormLabel><FormControl><Input placeholder="Ex: Aguardando numerário" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
+                                    <Button type="submit">Adicionar Tarefa</Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </DialogContent>
+                </Dialog>
             </SheetContent>
         </Sheet>
     );

@@ -31,7 +31,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { BankAccountDialog } from '@/components/financials/bank-account-form';
 import { NfseGenerationDialog } from '@/components/financials/nfse-generation-dialog';
-import type { Shipment } from '@/lib/shipment-data';
+import type { Shipment } from '@/lib/shipment';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
 import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote } from '@/app/actions';
@@ -40,7 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
-import { getShipments } from '@/lib/shipment-data';
+import { getShipments } from '@/lib/shipment';
 import { FinancialEntryDialog } from './financial-entry-dialog';
 import { RenegotiationDialog } from './renegotiation-dialog';
 import { NfseConsulta } from './nfse-consulta';
@@ -75,7 +75,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
-    const [detailsShipment, setDetailsShipment] = useState<(Shipment & { payments?: PartialPayment[] }) | null>(null);
+    const [detailsEntry, setDetailsEntry] = useState<FinancialEntry | null>(null);
     const [statusFilter, setStatusFilter] = useState<string[]>(['Aberto', 'Parcialmente Pago', 'Vencido', 'Pendente de Aprovação']);
     const [typeFilter, setTypeFilter] = useState<'all' | 'credit' | 'debit'>('all');
     const [textFilters, setTextFilters] = useState({ partner: '', processId: '', value: '' });
@@ -357,20 +357,18 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
     };
 
     const handleProcessClick = (entry: FinancialEntry) => {
-        const shipment = findShipmentForEntry(entry);
-        if (shipment) {
-            const relatedEntries = entries.filter(e => e.processId === shipment.id || (shipment.quoteId && e.invoiceId === shipment.quoteId));
-            const allPayments = relatedEntries.flatMap(e => e.payments || []);
-            const shipmentWithPayments = { ...shipment, payments: allPayments };
-            setDetailsShipment(shipmentWithPayments as Shipment & { payments: PartialPayment[] });
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Processo não encontrado",
-                description: `O embarque para o processo ${entry.processId} (fatura ${entry.invoiceId}) não foi localizado.`
-            });
-        }
+        setDetailsEntry(entry);
     };
+    
+    const handleCloseDetails = () => {
+        setDetailsEntry(null);
+    }
+    
+    const handleDetailsEntryUpdate = (entry: FinancialEntry) => {
+        updateFinancialEntry(entry.id, entry);
+        setEntries(getFinancialEntries());
+    };
+
 
     const handleOpenNfseDialog = (entry: FinancialEntry) => {
         const relatedShipment = findShipmentForEntry(entry);
@@ -446,8 +444,8 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
             return;
         }
 
-        const formatValue = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const partner = partners.find(p => p.name === entry.partner);
+        const formatValue = (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         const charges = shipment.charges
             .filter(c => c.sacado === entry.partner)
@@ -461,14 +459,14 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         const ptaxUsd = ptaxRates['USD'] || 5.0; // Fallback
         const finalPtaxUsd = parseFloat((ptaxUsd * (1 + (customerAgio / 100))).toFixed(4));
         const totalInBRL = getBalanceInBRL(entry);
-        
+
         const response = await runGenerateClientInvoicePdf({
             invoiceNumber: entry.invoiceId,
             customerName: entry.partner,
             customerAddress: `${partner?.address?.street || ''}, ${partner?.address?.number || ''} - ${partner?.address?.city || ''}`,
             date: format(new Date(), 'dd/MM/yyyy'),
             dueDate: format(new Date(entry.dueDate), 'dd/MM/yyyy'),
-            charges: charges,
+            charges,
             total: `R$ ${totalInBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             exchangeRate: entry.currency !== 'BRL' ? finalPtaxUsd : undefined,
             bankDetails: {
@@ -707,7 +705,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                     const { status, variant } = getEntryStatus(entry);
                     const balanceBRL = getBalanceInBRL(entry);
                     return (
-                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
+                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"} className={isLegalTable ? 'cursor-pointer' : ''} onClick={() => isLegalTable && handleProcessClick(entry)}>
                             {!isLegalTable && <TableCell>
                                 <Checkbox
                                     checked={selectedRows.has(entry.id)}
@@ -730,7 +728,8 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                         value={entry.processoJudicial || ''}
                                         onChange={(e) => handleLegalEntryUpdate(entry.id, 'processoJudicial', e.target.value)}
                                         placeholder="Adicionar nº"
-                                        className="h-8 text-xs"
+                                        className="h-8 text-xs bg-transparent border-0"
+                                        onClick={(e) => e.stopPropagation()}
                                     />
                                 ) : (
                                     <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry); }} className="text-muted-foreground hover:text-primary hover:underline">
@@ -740,18 +739,20 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                             </TableCell>
                             <TableCell>
                                 {isLegalTable ? (
-                                    <Select
-                                        value={entry.legalStatus}
-                                        onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
-                                    >
-                                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Extrajudicial">Extrajudicial</SelectItem>
-                                            <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
-                                            <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
-                                            <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                        <Select
+                                            value={entry.legalStatus}
+                                            onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs bg-transparent border-0"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Extrajudicial">Extrajudicial</SelectItem>
+                                                <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
+                                                <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
+                                                <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 ) : (
                                     <Badge variant={variant} className="capitalize w-[130px] justify-center">{status}</Badge>
                                 )}
@@ -762,7 +763,8 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                         value={entry.legalComments || ''}
                                         onChange={(e) => handleLegalEntryUpdate(entry.id, 'legalComments', e.target.value)}
                                         placeholder="Adicionar comentário..."
-                                        className="h-8 text-xs"
+                                        className="h-8 text-xs bg-transparent border-0"
+                                        onClick={(e) => e.stopPropagation()}
                                     />
                                 </TableCell>
                             )}
@@ -783,7 +785,7 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
                                             <FileText className="mr-2 h-4 w-4" /> Detalhes do Processo
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={entry.type === 'debit'}>
-                                            <Printer className="mr-2 h-4 w-4" /> Imprimir Fatura Cliente
+                                            <Printer className="mr-2 h-4 w-4" /> Emitir Fatura (PDF)
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={entry.type === 'credit'}>
                                             <Printer className="mr-2 h-4 w-4" /> Imprimir Invoice Agente
@@ -1071,11 +1073,13 @@ export function FinancialPageClient({ initialEntries, initialAccounts, initialSh
         />
         
         <FinancialDetailsDialog
-            shipment={detailsShipment}
-            isOpen={!!detailsShipment}
-            onClose={() => setDetailsShipment(null)}
+            entry={detailsEntry}
+            isOpen={!!detailsEntry}
+            onClose={handleCloseDetails}
             onReversePayment={handleReversePayment}
             findEntryForPayment={findEntryForPayment}
+            findShipmentForEntry={findShipmentForEntry}
+            onEntryUpdate={handleDetailsEntryUpdate}
         />
 
     </div>

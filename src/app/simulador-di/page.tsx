@@ -28,6 +28,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { exchangeRateService } from '@/services/exchange-rate-service';
 
 const itemSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -130,6 +131,7 @@ export default function SimuladorDIPage() {
   const [simulations, setSimulations] = useState<Simulation[]>([]);
   const [isSimulationsDialogOpen, setIsSimulationsDialogOpen] = useState(false);
   const [isPartnerPopoverOpen, setIsPartnerPopoverOpen] = useState(false);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
 
   const form = useForm<SimulationFormData>({
     resolver: zodResolver(simulationSchema),
@@ -168,11 +170,17 @@ export default function SimuladorDIPage() {
   const watchedLclCbm = useWatch({ control: form.control, name: 'lclCbm' });
   const watchedLclWeight = useWatch({ control: form.control, name: 'lclWeight' });
   const watchedAirWeight = useWatch({ control: form.control, name: 'airWeight' });
+  const watchedFreteUSD = useWatch({ control: form.control, name: 'despesasGerais.freteInternacionalUSD' });
   
   useEffect(() => {
-    setStandardFees(getFees());
-    setPartners(getPartners().filter(p => p.roles.cliente));
-    setSimulations(getSimulations());
+    const fetchInitialData = async () => {
+        setStandardFees(getFees());
+        setPartners(getPartners().filter(p => p.roles.cliente));
+        setSimulations(getSimulations());
+        const rates = await exchangeRateService.getRates();
+        setExchangeRates(rates);
+    };
+    fetchInitialData();
   }, []);
 
   useEffect(() => {
@@ -190,26 +198,36 @@ export default function SimuladorDIPage() {
 
     const newExpenses: { description: string, value: number }[] = relevantFees.map(fee => {
         let value = parseFloat(fee.value) || 0;
+        
+        // Handle currency conversion
+        const ptaxRate = exchangeRates[fee.currency] || 1;
+        const valueInBRL = fee.currency === 'BRL' ? value : value * ptaxRate;
+        
         if (fee.type === 'Por Contêiner' && watchedChargeType === 'fcl' && watchedContainers) {
             const totalContainers = watchedContainers.reduce((sum, c) => sum + c.quantity, 0);
-            value *= totalContainers;
-        }
-        if (fee.type === 'Por CBM/Ton' && watchedChargeType === 'lcl') {
+            value = valueInBRL * totalContainers;
+        } else if (fee.type === 'Por CBM/Ton' && watchedChargeType === 'lcl') {
             const chargeableWeight = Math.max(watchedLclCbm || 0, (watchedLclWeight || 0) / 1000);
-            value = Math.max(fee.minValue || 0, value * chargeableWeight);
+            const calculatedValue = valueInBRL * chargeableWeight;
+            value = fee.minValue && calculatedValue < fee.minValue ? fee.minValue : calculatedValue;
+        } else if (fee.type === 'Por KG' && watchedModal === 'aereo') {
+            const calculatedValue = valueInBRL * (watchedAirWeight || 0);
+            value = fee.minValue && calculatedValue < fee.minValue ? fee.minValue : calculatedValue;
+        } else if (fee.type === 'Percentual' && fee.name.toUpperCase().includes('AFRMM')) {
+            if (watchedModal === 'maritimo') {
+                 const freteBRL = (watchedFreteUSD || 0) * (exchangeRates['USD'] || 1);
+                 value = freteBRL * (parseFloat(fee.value) / 100);
+            } else {
+                value = 0; // AFRMM is only for maritime
+            }
+        } else {
+            value = valueInBRL; // Fixed fees already converted
         }
-        if (fee.type === 'Por KG' && watchedModal === 'aereo') {
-            value = Math.max(fee.minValue || 0, value * (watchedAirWeight || 0));
-        }
-        if (fee.type === 'Percentual' && fee.name.toUpperCase().includes('AFRMM')) {
-            const frete = form.getValues('despesasGerais.freteInternacionalUSD') || 0;
-            value = frete * (value / 100);
-        }
-        return { description: fee.name, value };
+        return { description: fee.name, value: parseFloat(value.toFixed(2)) };
     });
 
     replaceExpenses(newExpenses);
-  }, [watchedModal, watchedChargeType, watchedContainers, watchedLclCbm, watchedLclWeight, watchedAirWeight, standardFees, replaceExpenses, form]);
+  }, [watchedModal, watchedChargeType, watchedContainers, watchedLclCbm, watchedLclWeight, watchedAirWeight, standardFees, replaceExpenses, form, exchangeRates, watchedFreteUSD]);
 
 
   const calculateCosts = useCallback((data: SimulationFormData): SimulationResult | null => {
@@ -223,6 +241,9 @@ export default function SimuladorDIPage() {
         if (pesoTotal === 0) return null;
 
         const valorAduaneiro = (valorFOBTotalUSD + despesasGerais.freteInternacionalUSD + despesasGerais.seguroUSD) * taxasCambio.di;
+        
+        // Dynamic storage calculation
+        const calculatedStorage = Math.max(2500, valorAduaneiro * 0.01);
         
         let totalII = 0, totalIPI = 0, totalPIS = 0, totalCOFINS = 0;
 
@@ -248,14 +269,14 @@ export default function SimuladorDIPage() {
         const baseICMS = valorAduaneiro + totalII + totalIPI + totalPIS + totalCOFINS;
         const totalICMS = (baseICMS / (1 - (icmsGeral / 100))) * (icmsGeral / 100);
         
-        const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0);
+        const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + calculatedStorage;
         const totalImpostos = totalII + totalIPI + totalPIS + totalCOFINS + totalICMS;
         const custoTotal = valorAduaneiro + totalImpostos + totalDespesasLocais;
         
         const itensResultadoFinal = itensResultado.map(item => {
             const proporcaoPeso = (item.pesoKg * item.quantidade) / pesoTotal;
             const impostosRateadosComIcms = item.impostosRateados + (totalICMS * proporcaoPeso);
-            const despesasLocaisRateadas = totalDespesasLocais * proporcaoPeso;
+            const despesasLocaisRateadas = (totalDespesasLocais * proporcaoPeso);
             const custoTotalItem = item.valorAduaneiroRateado + impostosRateadosComIcms + despesasLocaisRateadas;
             const custoUnitarioFinal = custoTotalItem / item.quantidade;
 

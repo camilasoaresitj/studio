@@ -59,7 +59,6 @@ const initialFeesData: Fee[] = [
     { id: 14, name: 'DESPACHO ADUANEIRO', value: '1000', currency: 'BRL', type: 'Fixo', unit: 'Por Processo', modal: 'Ambos', direction: 'Importação' },
     { id: 15, name: 'SEGURO INTERNACIONAL', value: '0.3', currency: 'BRL', type: 'Opcional', unit: 'Sobre Valor Carga', modal: 'Ambos', direction: 'Ambos', minValue: 50 },
     { id: 32, name: 'REDESTINAÇÃO DE CARGA', value: '1200', currency: 'BRL', type: 'Opcional', unit: 'Por Processo', modal: 'Marítimo', direction: 'Importação' },
-    { id: 33, name: 'ARMAZENAGEM', value: '800', currency: 'BRL', type: 'Fixo', unit: 'Por Processo', modal: 'Ambos', direction: 'Importação' },
     { id: 34, name: 'AFRMM', value: '8', currency: 'BRL', type: 'Percentual', unit: '% sobre Frete', modal: 'Marítimo', direction: 'Importação' },
     { id: 35, name: 'ENTREGA RODOVIÁRIA', value: '1500', currency: 'BRL', type: 'Fixo', unit: 'Por Processo', modal: 'Ambos', direction: 'Importação' },
     { id: 36, name: 'SERVIÇOS DE TRADING', value: '2500', currency: 'BRL', type: 'Fixo', unit: 'Por Processo', modal: 'Ambos', direction: 'Importação' },

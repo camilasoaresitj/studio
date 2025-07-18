@@ -16,8 +16,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen } from 'lucide-react';
 import { runExtractInvoiceItems, runGetNcmRates, runGenerateSimulationPdf } from '@/app/actions';
-import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
-import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,6 +29,8 @@ import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { exchangeRateService } from '@/services/exchange-rate-service';
+import type { InvoiceItem } from '@/lib/schemas/invoice';
+import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
 
 const itemSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -257,22 +257,22 @@ export default function SimuladorDIPage() {
 
         const itensComImpostos = itens.map(item => {
             const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
-            const itemValorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
+            const valorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
             
             const cleanNcm = item.ncm.replace(/\D/g, '');
             const aliquotas = ncmRates?.[cleanNcm] ?? { ii: 0, ipi: 0, pis: 0, cofins: 0 };
             
-            const ii = itemValorAduaneiroRateado * ((aliquotas.ii || 0) / 100);
-            const ipi = (itemValorAduaneiroRateado + ii) * ((aliquotas.ipi || 0) / 100);
-            const pis = itemValorAduaneiroRateado * ((aliquotas.pis || 0) / 100);
-            const cofins = itemValorAduaneiroRateado * ((aliquotas.cofins || 0) / 100);
+            const ii = valorAduaneiroRateado * ((aliquotas.ii || 0) / 100);
+            const ipi = (valorAduaneiroRateado + ii) * ((aliquotas.ipi || 0) / 100);
+            const pis = valorAduaneiroRateado * ((aliquotas.pis || 0) / 100);
+            const cofins = valorAduaneiroRateado * ((aliquotas.cofins || 0) / 100);
             
             totalII += ii;
             totalIPI += ipi;
             totalPIS += pis;
             totalCOFINS += cofins;
             
-            return { ...item, valorAduaneiroRateado: itemValorAduaneiroRateado, ii, ipi, pis, cofins };
+            return { ...item, valorAduaneiroRateado, ii, ipi, pis, cofins };
         });
         
         const totalImpostosFederais = totalII + totalIPI + totalPIS + totalCOFINS;
@@ -288,7 +288,7 @@ export default function SimuladorDIPage() {
         const calculatedAFRMM = modal === 'maritimo' ? (freteComercialBRL * 0.08) : 0;
         const calculatedStorage = Math.max(2500, valorAduaneiroTotal * 0.01);
         
-        const totalDespesasLocaisManuais = despesasLocais.reduce((sum, d) => sum + d.value, 0);
+        const totalDespesasLocaisManuais = despesasLocais.reduce((sum, d) => sum + (d.value || 0), 0);
         const totalDespesasLocais = totalDespesasLocaisManuais + taxaSiscomex + calculatedStorage + calculatedAFRMM;
 
         const valorMercadoriaComercialBRL = valorFOBTotalUSD * taxasCambio.di;
@@ -307,7 +307,7 @@ export default function SimuladorDIPage() {
             const custoTotalItem = valorMercadoriaItemBRL + freteSeguroItemBRL + impostosRateados + despesasLocaisRateadas;
             const custoUnitarioFinal = custoTotalItem / item.quantidade;
 
-            return { ...item, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal };
+            return { ...item, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal, valorAduaneiroRateado: item.valorAduaneiroRateado };
         });
 
         return {

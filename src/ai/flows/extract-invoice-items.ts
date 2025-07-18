@@ -68,8 +68,8 @@ Analyze the text below and extract all product line items. For each item, you mu
 - **pesoKg**: The weight PER UNIT in kilograms.
 
 **CRITICAL RULES:**
-1.  If the text provides a TOTAL price and a quantity, you MUST calculate the `valorUnitarioUSD` by dividing the total price by the quantity.
-2.  If the text provides a TOTAL weight and a quantity, you MUST calculate the `pesoKg` (weight per unit) by dividing the total weight by the quantity.
+1.  If the text provides a TOTAL price and a quantity, you MUST calculate the \`valorUnitarioUSD\` by dividing the total price by the quantity.
+2.  If the text provides a TOTAL weight and a quantity, you MUST calculate the \`pesoKg\` (weight per unit) by dividing the total weight by the quantity.
 3.  Do not invent information. If a field is missing for an item, omit the entire item from the result.
 
 **Example Input (from a CSV):**

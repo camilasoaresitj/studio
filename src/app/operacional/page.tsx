@@ -14,10 +14,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
-import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2 } from 'lucide-react';
+import { AlertTriangle, ListTodo, Calendar as CalendarIcon, PackagePlus, Loader2, FileCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CustomsClearanceTab } from '@/components/customs-clearance-tab';
 
 type Task = {
     milestone: Milestone;
@@ -293,157 +295,176 @@ export default function OperacionalPage() {
   return (
     <>
     <div className="p-4 md:p-8">
-      <div className="space-y-8">
-          <header className="mb-0">
+        <header className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground">Dashboard Operacional</h1>
             <p className="text-muted-foreground mt-2 text-lg">
-            Gerencie suas tarefas diárias e acompanhe os embarques ativos.
+            Gerencie suas tarefas diárias, embarques ativos e processos de desembaraço.
             </p>
         </header>
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                    <div>
-                    <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5 text-primary" />Tarefas Operacionais</CardTitle>
-                    <CardDescription>Marcos pendentes ou em andamento. Tarefas atrasadas são destacadas.</CardDescription>
-                    </div>
-                    <div className="flex gap-2 self-start sm:self-center">
-                        <Button variant={taskFilter === 'today' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('today')}>Hoje</Button>
-                        <Button variant={taskFilter === '3days' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('3days')}>3 Dias</Button>
-                        <Button variant={taskFilter === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('week')}>7 Dias</Button>
-                        <Button variant={taskFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('all')}>Todas</Button>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-3">
-                    {filteredTasks.length > 0 ? filteredTasks.map(({ milestone, shipment }) => {
-                        const predictedDate = new Date(milestone.predictedDate);
-                        const overdue = isValid(predictedDate) && isPast(predictedDate) && milestone.status !== 'completed';
-                        return (
-                            <div
-                                key={`${shipment.id}-${milestone.name}-${milestone.predictedDate}`}
-                                className={cn(
-                                    "flex items-center gap-4 p-3 rounded-lg border cursor-pointer hover:bg-accent",
-                                    overdue ? 'bg-destructive/10 border-destructive' : 'bg-background'
-                                )}
-                                onClick={() => setSelectedShipment(shipment)}
-                            >
-                                {overdue && <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />}
-                                <div className="flex-grow">
-                                    <p className="font-semibold">{milestone.name}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Embarque <span className="font-medium text-primary">{shipment.id}</span>
-                                        {` para ${shipment.customer}`}
-                                    </p>
-                                </div>
-                                <div className="text-right">
-                                    <p className={cn("text-sm font-medium", overdue ? "text-destructive" : "text-foreground")}>
-                                        {isValid(predictedDate) ? format(predictedDate, 'dd/MM/yyyy') : 'Sem data'}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">Data Prevista</p>
-                                </div>
+
+        <Tabs defaultValue="shipments" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="shipments">
+                    <ListTodo className="mr-2 h-4 w-4" />
+                    Embarques e Tarefas
+                </TabsTrigger>
+                <TabsTrigger value="clearance">
+                    <FileCode className="mr-2 h-4 w-4" />
+                    Desembaraço
+                </TabsTrigger>
+                <TabsTrigger value="other" disabled>
+                    Outra Aba (WIP)
+                </TabsTrigger>
+            </TabsList>
+            <TabsContent value="shipments" className="mt-6 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                            <div>
+                            <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5 text-primary" />Tarefas Operacionais</CardTitle>
+                            <CardDescription>Marcos pendentes ou em andamento. Tarefas atrasadas são destacadas.</CardDescription>
                             </div>
-                        )
-                    }) : (
-                        <div className="text-center text-muted-foreground p-8">
-                            <CalendarIcon className="mx-auto h-12 w-12 mb-2" />
-                            <p>Nenhuma tarefa encontrada para este período.</p>
+                            <div className="flex gap-2 self-start sm:self-center">
+                                <Button variant={taskFilter === 'today' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('today')}>Hoje</Button>
+                                <Button variant={taskFilter === '3days' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('3days')}>3 Dias</Button>
+                                <Button variant={taskFilter === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('week')}>7 Dias</Button>
+                                <Button variant={taskFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setTaskFilter('all')}>Todas</Button>
+                            </div>
                         </div>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-        
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                    <div className="flex-grow">
-                        <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5 text-primary" />Embarques Ativos</CardTitle>
-                        <CardDescription>Clique em um processo para ver e editar todos os detalhes.</CardDescription>
-                    </div>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button>
-                                <PackagePlus className="mr-2 h-4 w-4" /> Novo Processo por Booking
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="sm:max-w-md">
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Importar/Sincronizar Processo</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Insira o número do Booking ou Master BL para buscar os dados mais recentes.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="booking-number" className="text-right">
-                                        Booking / BL
-                                    </Label>
-                                    <Input
-                                        id="booking-number"
-                                        placeholder="Nº Booking ou Master BL"
-                                        value={newBookingNumber}
-                                        onChange={(e) => setNewBookingNumber(e.target.value)}
-                                        className="col-span-3"
-                                    />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-3">
+                            {filteredTasks.length > 0 ? filteredTasks.map(({ milestone, shipment }) => {
+                                const predictedDate = new Date(milestone.predictedDate);
+                                const overdue = isValid(predictedDate) && isPast(predictedDate) && milestone.status !== 'completed';
+                                return (
+                                    <div
+                                        key={`${shipment.id}-${milestone.name}-${milestone.predictedDate}`}
+                                        className={cn(
+                                            "flex items-center gap-4 p-3 rounded-lg border cursor-pointer hover:bg-accent",
+                                            overdue ? 'bg-destructive/10 border-destructive' : 'bg-background'
+                                        )}
+                                        onClick={() => setSelectedShipment(shipment)}
+                                    >
+                                        {overdue && <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />}
+                                        <div className="flex-grow">
+                                            <p className="font-semibold">{milestone.name}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Embarque <span className="font-medium text-primary">{shipment.id}</span>
+                                                {` para ${shipment.customer}`}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={cn("text-sm font-medium", overdue ? "text-destructive" : "text-foreground")}>
+                                                {isValid(predictedDate) ? format(predictedDate, 'dd/MM/yyyy') : 'Sem data'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">Data Prevista</p>
+                                        </div>
+                                    </div>
+                                )
+                            }) : (
+                                <div className="text-center text-muted-foreground p-8">
+                                    <CalendarIcon className="mx-auto h-12 w-12 mb-2" />
+                                    <p>Nenhuma tarefa encontrada para este período.</p>
                                 </div>
-                            </div>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleFetchNewBooking(newBookingNumber)} disabled={isFetchingBooking}>
-                                    {isFetchingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
-                                    Importar
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="border rounded-lg">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="p-2">Processo</TableHead>
-                                <TableHead className="p-2">Cliente</TableHead>
-                                <TableHead className="p-2">Rota</TableHead>
-                                <TableHead className="p-2">ETD</TableHead>
-                                <TableHead className="p-2">ETA</TableHead>
-                                <TableHead className="p-2">Master</TableHead>
-                                <TableHead className="p-2">Modal</TableHead>
-                                <TableHead className="p-2">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {shipments.filter(s => getShipmentStatus(s).text !== 'Finalizado').length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={8} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell>
-                                </TableRow>
-                            ) : (
-                                shipments.filter(s => getShipmentStatus(s).text !== 'Finalizado').map((shipment, index) => {
-                                    const status = getShipmentStatus(shipment);
-                                    return (
-                                    <TableRow key={`${shipment.id}-${shipment.bookingNumber || index}`} onClick={() => setSelectedShipment(shipment)} className="cursor-pointer text-xs">
-                                        <TableCell className="font-semibold text-primary p-2">
-                                            <a className="hover:underline">{shipment.id}</a>
-                                        </TableCell>
-                                        <TableCell className="p-2">{shipment.customer}</TableCell>
-                                        <TableCell className="p-2">{shipment.origin} &rarr; {shipment.destination}</TableCell>
-                                        <TableCell className="p-2">{shipment.etd && isValid(new Date(shipment.etd)) ? format(new Date(shipment.etd), 'dd/MM/yy') : 'N/A'}</TableCell>
-                                        <TableCell className="p-2">{shipment.eta && isValid(new Date(shipment.eta)) ? format(new Date(shipment.eta), 'dd/MM/yy') : 'N/A'}</TableCell>
-                                        <TableCell className="p-2">{shipment.masterBillNumber || 'N/A'}</TableCell>
-                                        <TableCell className="p-2">{shipment.details?.cargo?.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
-                                        <TableCell className="p-2"><Badge variant={status.variant} className="whitespace-nowrap">{status.text}</Badge></TableCell>
-                                    </TableRow>
-                                )})
                             )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-        </Card>
-      </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader>
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                            <div className="flex-grow">
+                                <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5 text-primary" />Embarques Ativos</CardTitle>
+                                <CardDescription>Clique em um processo para ver e editar todos os detalhes.</CardDescription>
+                            </div>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button>
+                                        <PackagePlus className="mr-2 h-4 w-4" /> Novo Processo por Booking
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="sm:max-w-md">
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Importar/Sincronizar Processo</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Insira o número do Booking ou Master BL para buscar os dados mais recentes.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="booking-number" className="text-right">
+                                                Booking / BL
+                                            </Label>
+                                            <Input
+                                                id="booking-number"
+                                                placeholder="Nº Booking ou Master BL"
+                                                value={newBookingNumber}
+                                                onChange={(e) => setNewBookingNumber(e.target.value)}
+                                                className="col-span-3"
+                                            />
+                                        </div>
+                                    </div>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleFetchNewBooking(newBookingNumber)} disabled={isFetchingBooking}>
+                                            {isFetchingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
+                                            Importar
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="p-2">Processo</TableHead>
+                                        <TableHead className="p-2">Cliente</TableHead>
+                                        <TableHead className="p-2">Rota</TableHead>
+                                        <TableHead className="p-2">ETD</TableHead>
+                                        <TableHead className="p-2">ETA</TableHead>
+                                        <TableHead className="p-2">Master</TableHead>
+                                        <TableHead className="p-2">Modal</TableHead>
+                                        <TableHead className="p-2">Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {shipments.filter(s => getShipmentStatus(s).text !== 'Finalizado').length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={8} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        shipments.filter(s => getShipmentStatus(s).text !== 'Finalizado').map((shipment, index) => {
+                                            const status = getShipmentStatus(shipment);
+                                            return (
+                                            <TableRow key={`${shipment.id}-${shipment.bookingNumber || index}`} onClick={() => setSelectedShipment(shipment)} className="cursor-pointer text-xs">
+                                                <TableCell className="font-semibold text-primary p-2">
+                                                    <a className="hover:underline">{shipment.id}</a>
+                                                </TableCell>
+                                                <TableCell className="p-2">{shipment.customer}</TableCell>
+                                                <TableCell className="p-2">{shipment.origin} &rarr; {shipment.destination}</TableCell>
+                                                <TableCell className="p-2">{shipment.etd && isValid(new Date(shipment.etd)) ? format(new Date(shipment.etd), 'dd/MM/yy') : 'N/A'}</TableCell>
+                                                <TableCell className="p-2">{shipment.eta && isValid(new Date(shipment.eta)) ? format(new Date(shipment.eta), 'dd/MM/yy') : 'N/A'}</TableCell>
+                                                <TableCell className="p-2">{shipment.masterBillNumber || 'N/A'}</TableCell>
+                                                <TableCell className="p-2">{shipment.details?.cargo?.toLowerCase().includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
+                                                <TableCell className="p-2"><Badge variant={status.variant} className="whitespace-nowrap">{status.text}</Badge></TableCell>
+                                            </TableRow>
+                                        )})
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="clearance" className="mt-6">
+                <CustomsClearanceTab shipments={shipments} />
+            </TabsContent>
+        </Tabs>
     </div>
     <ShipmentDetailsSheet 
         shipment={selectedShipment}

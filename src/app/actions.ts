@@ -33,6 +33,8 @@ import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getShipments, saveShipments, updateShipment as updateShipmentClient } from "@/lib/shipment";
 import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision } from '@/lib/shipment';
 import { isPast } from "date-fns";
+import { generateDiXml } from '@/ai/flows/generate-di-xml';
+import { registerDue } from '@/ai/flows/register-due';
 
 export async function runGetFreightRates(input: any) {
     try {
@@ -390,7 +392,7 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData):
         history.revisions.push(newRevision);
         
         const revisionTaskName = '[REVISÃO] Enviar Draft MBL ao armador';
-        const revisionTaskExists = updatedShipment.milestones.some(m => m.name === revisionTaskName);
+        const revisionTaskExists = updatedShipment.milestones.some(m => m.name === revisionTaskName && m.status !== 'completed');
         if (!revisionTaskExists) {
              updatedShipment.milestones.push({
                 name: revisionTaskName,
@@ -444,5 +446,25 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
     } catch (error: any) {
         console.error("Add Manual Milestone Action Failed", error);
         return { success: false, error: error.message || "Failed to add milestone" };
+    }
+}
+
+export async function runGenerateDiXml(input: any) {
+    try {
+        const data = await generateDiXml(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Generate DI XML Action Failed", error);
+        return { success: false, error: error.message || "Failed to generate DI XML" };
+    }
+}
+
+export async function runRegisterDue(input: any) {
+    try {
+        const data = await registerDue(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Register DUE Action Failed", error);
+        return { success: false, error: error.message || "Failed to register DUE" };
     }
 }

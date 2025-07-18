@@ -40,5 +40,5 @@ import '@/ai/flows/get-courier-rates.ts';
 import '@/ai/flows/send-draft-approval-request.ts';
 import '@/ai/flows/update-shipment-in-tracking.ts';
 import '@/ai/flows/get-route-map.ts';
-
-
+import '@/ai/flows/generate-di-xml.ts';
+import '@/ai/flows/register-due.ts';

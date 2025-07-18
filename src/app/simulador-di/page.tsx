@@ -264,12 +264,11 @@ export default function SimuladorDIPage() {
             
             const aliquotas = (ncmRates && ncmRates[item.ncm])
                 ? ncmRates[item.ncm]
-                : { ii: 0, ipi: 0, pis: 0, cofins: 0 }; // Default to 0 if not found
+                : { ii: 0, ipi: 0, pis: 0, cofins: 0 };
             
             const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
             const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
             
-            // PIS/COFINS base de cálculo = Valor Aduaneiro
             const pis = valorAduaneiroRateado * (aliquotas.pis / 100);
             const cofins = valorAduaneiroRateado * (aliquotas.cofins / 100);
             
@@ -283,17 +282,14 @@ export default function SimuladorDIPage() {
         
         const totalImpostosFederais = totalII + totalIPI + totalPIS + totalCOFINS;
         
-        // ICMS "por dentro"
         const baseICMS = (valorAduaneiroTotal + totalII + totalIPI + totalPIS + totalCOFINS) / (1 - (icmsGeral / 100));
         const totalICMS = baseICMS * (icmsGeral / 100);
 
-        // Despesas Locais + Dinâmicas
-        const calculatedStorage = Math.max(2500, valorAduaneiroTotal * 0.01);
         const freteComercialBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
         const calculatedAFRMM = modal === 'maritimo' ? (freteComercialBRL * 0.08) : 0;
+        const calculatedStorage = Math.max(2500, valorAduaneiroTotal * 0.01);
         const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + calculatedStorage + calculatedAFRMM;
 
-        // Custo Final
         const valorMercadoriaComercialBRL = valorFOBTotalUSD * taxasCambio.di;
         const seguroComercialBRL = despesasGerais.seguroUSD * taxasCambio.frete;
         const totalImpostos = totalImpostosFederais + totalICMS;
@@ -311,7 +307,7 @@ export default function SimuladorDIPage() {
             const custoTotalItem = valorMercadoriaItemBRL + freteSeguroItemBRL + impostosRateados + despesasLocaisRateadas;
             const custoUnitarioFinal = custoTotalItem / item.quantidade;
 
-            return { ...item, valorAduaneiroRateado, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal };
+            return { ...item, valorAduaneiroRateado: item.valorAduaneiroRateado, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal };
         });
 
         return {

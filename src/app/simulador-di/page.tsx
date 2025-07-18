@@ -81,7 +81,7 @@ const simulationSchema = z.object({
 });
 
 export type SimulationFormData = z.infer<typeof simulationSchema>;
-type SimulationResult = {
+export type SimulationResult = {
   valorAduaneiro: number;
   totalII: number;
   totalIPI: number;
@@ -247,9 +247,11 @@ export default function SimuladorDIPage() {
 
         if (pesoTotal === 0) return null;
         
-        const valorAduaneiro = (valorFOBTotalUSD + despesasGerais.freteInternacionalUSD + despesasGerais.seguroUSD) * taxasCambio.di;
+        const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) 
+                             + (despesasGerais.freteInternacionalUSD * taxasCambio.frete)
+                             + (despesasGerais.seguroUSD * taxasCambio.frete);
         
-        const freteBRL = despesasGerais.freteInternacionalUSD * taxasCambio.di;
+        const freteBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
         const calculatedStorage = Math.max(2500, valorAduaneiro * 0.01);
         const calculatedAFRMM = modal === 'maritimo' ? freteBRL * 0.08 : 0;
         
@@ -277,7 +279,7 @@ export default function SimuladorDIPage() {
         });
 
         const baseICMS = valorAduaneiro + totalII + totalIPI + totalPIS + totalCOFINS;
-        const totalICMS = (baseICMS / (1 - (icmsGeral / 100))) * (icmsGeral / 100);
+        const totalICMS = (baseICMS / (1 - (icmsGeral / 100))) - baseICMS;
         
         const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + calculatedStorage + calculatedAFRMM;
         const totalImpostos = totalII + totalIPI + totalPIS + totalCOFINS + totalICMS;

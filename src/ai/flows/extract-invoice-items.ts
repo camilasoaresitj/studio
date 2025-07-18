@@ -44,7 +44,8 @@ const extractFromXml = (buffer: Buffer): string => {
 const extractInvoiceItemsPrompt = ai.definePrompt({
   name: 'extractInvoiceItemsPrompt',
   input: { schema: z.object({ textContent: z.string() }) },
-  output: { schema: z.array(InvoiceItemSchema) },
+  // Ensure the prompt output matches the main output schema structure
+  output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) }, 
   prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided text, which could be from a CSV, XML, or plain text invoice.
 
 Analyze the text below and extract all product line items. For each item, you must find:
@@ -58,6 +59,7 @@ Analyze the text below and extract all product line items. For each item, you mu
 1.  If the text provides a TOTAL price and a quantity, you MUST calculate the \`valorUnitarioUSD\` by dividing the total price by the quantity.
 2.  If the text provides a TOTAL weight and a quantity, you MUST calculate the \`pesoKg\` (weight per unit) by dividing the total weight by the quantity.
 3.  Do not invent information. If a field is missing for an item, omit the entire item from the result.
+4.  You MUST return the final result inside a JSON object with a single key "data" which contains the array of items.
 
 **Example Input (from a CSV):**
 "Description,Quantity,Total Price USD,NCM,Total Weight KG
@@ -66,25 +68,27 @@ Product B,5,250.00,87654321,100.0"
 
 **Expected Example JSON Output:**
 \`\`\`json
-[
-  {
-    "descricao": "Product A",
-    "quantidade": 10,
-    "valorUnitarioUSD": 10.00,
-    "ncm": "12345678",
-    "pesoKg": 5.0
-  },
-  {
-    "descricao": "Product B",
-    "quantidade": 5,
-    "valorUnitarioUSD": 50.00,
-    "ncm": "87654321",
-    "pesoKg": 20.0
-  }
-]
+{
+  "data": [
+    {
+      "descricao": "Product A",
+      "quantidade": 10,
+      "valorUnitarioUSD": 10.00,
+      "ncm": "12345678",
+      "pesoKg": 5.0
+    },
+    {
+      "descricao": "Product B",
+      "quantidade": 5,
+      "valorUnitarioUSD": 50.00,
+      "ncm": "87654321",
+      "pesoKg": 20.0
+    }
+  ]
+}
 \`\`\`
 
-Now, analyze the following text content:
+Now, analyze the following text content and return the JSON object:
 {{{textContent}}}
 `,
 });
@@ -114,11 +118,11 @@ const extractInvoiceItemsFlow = ai.defineFlow(
 
         const { output } = await extractInvoiceItemsPrompt({ textContent });
         
-        if (!output || output.length === 0) {
-        throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo e o formato.");
+        if (!output || !output.data || output.data.length === 0) {
+            throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo e o formato.");
         }
         
-        return { success: true, data: output };
+        return { success: true, data: output.data };
 
     } catch (error: any) {
         console.error('Error in extractInvoiceItems flow:', error);

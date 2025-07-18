@@ -247,9 +247,7 @@ export default function SimuladorDIPage() {
 
         if (pesoTotal === 0) return null;
         
-        const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) 
-                             + (despesasGerais.freteInternacionalUSD * taxasCambio.frete)
-                             + (despesasGerais.seguroUSD * taxasCambio.frete);
+        const valorAduaneiro = (valorFOBTotalUSD + despesasGerais.freteInternacionalUSD + despesasGerais.seguroUSD) * taxasCambio.di;
         
         const freteBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
         const calculatedStorage = Math.max(2500, valorAduaneiro * 0.01);
@@ -261,7 +259,7 @@ export default function SimuladorDIPage() {
           const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
           const valorAduaneiroRateado = valorAduaneiro * proporcaoFOB;
           
-          const aliquotas = ncmRates[item.ncm] || { ii: 0, ipi: 0, pis: 0, cofins: 0 };
+          const aliquotas = (ncmRates && ncmRates[item.ncm]) || { ii: 0, ipi: 0, pis: 0, cofins: 0 };
 
           const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
           const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
@@ -638,7 +636,7 @@ export default function SimuladorDIPage() {
                         <CardDescription>Defina as alíquotas para cada NCM único listado nos itens da fatura.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {uniqueNcms.length > 0 ? uniqueNcms.map(ncm => (
+                        {uniqueNcms.map(ncm => (
                             <div key={ncm} className="p-3 border rounded-md">
                                 <div className="flex justify-between items-center mb-3">
                                     <h4 className="font-semibold">NCM: {ncm}</h4>
@@ -651,7 +649,8 @@ export default function SimuladorDIPage() {
                                     <FormField control={form.control} name={`ncmRates.${ncm}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" placeholder="9.65" {...field} /></FormControl></FormItem>)}/>
                                 </div>
                             </div>
-                        )) : (
+                        ))}
+                        {uniqueNcms.length === 0 && (
                             <p className="text-sm text-muted-foreground">Adicione itens com NCMs válidos para definir as alíquotas.</p>
                         )}
                     </CardContent>

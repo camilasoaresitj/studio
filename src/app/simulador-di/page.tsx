@@ -245,11 +245,8 @@ export default function SimuladorDIPage() {
         if (itens.length === 0) return null;
 
         const valorFOBTotalUSD = itens.reduce((sum, item) => sum + item.valorUnitarioUSD * item.quantidade, 0);
-        const pesoTotal = itens.reduce((sum, item) => sum + item.pesoKg * item.quantidade, 0);
+        if (valorFOBTotalUSD === 0) return null;
 
-        if (pesoTotal === 0 || valorFOBTotalUSD === 0) return null;
-
-        // VALOR ADUANEIRO (BASE PARA IMPOSTOS)
         const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) 
                              + (despesasGerais.freteInternacionalUSD * taxasCambio.di) 
                              + (despesasGerais.seguroUSD * taxasCambio.di);
@@ -261,7 +258,7 @@ export default function SimuladorDIPage() {
           const valorAduaneiroRateado = valorAduaneiro * proporcaoFOB;
           
           const aliquotas = (ncmRates && ncmRates[item.ncm]) ? ncmRates[item.ncm] : { ii: 0, ipi: 0, pis: 0, cofins: 0 };
-
+          
           const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
           const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
           const pis = valorAduaneiroRateado * (aliquotas.pis / 100);
@@ -274,7 +271,7 @@ export default function SimuladorDIPage() {
           
           return { ...item, valorAduaneiroRateado, ii, ipi, pis, cofins };
         });
-
+        
         const baseICMS = valorAduaneiro + totalII + totalIPI + totalPIS + totalCOFINS;
         const totalICMS = (baseICMS / (1 - (icmsGeral / 100))) - baseICMS;
         
@@ -301,12 +298,13 @@ export default function SimuladorDIPage() {
             const custoTotalItem = valorMercadoriaItemBRL + freteSeguroItemBRL + impostosRateados + despesasLocaisRateadas;
             const custoUnitarioFinal = custoTotalItem / item.quantidade;
 
-            return { ...item, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal };
+            return { ...item, valorAduaneiroRateado, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal };
         });
 
         return {
           valorAduaneiro, totalII, totalIPI, totalPIS, totalCOFINS, totalICMS,
-          custoTotal, pesoTotal,
+          custoTotal, 
+          pesoTotal: itens.reduce((sum, item) => sum + item.pesoKg * item.quantidade, 0),
           quantidadeTotal: itens.reduce((sum, i) => sum + i.quantidade, 0),
           itens: itensResultadoFinal
         };

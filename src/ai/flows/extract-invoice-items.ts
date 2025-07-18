@@ -5,28 +5,10 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import * as XLSX from 'xlsx';
+import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
 import type { ExtractInvoiceItemsInput, ExtractInvoiceItemsOutput } from '@/lib/schemas/invoice';
 
-
-const extractFromSpreadsheet = (dataUri: string): { textContent: string; media?: never } => {
-    const base64 = dataUri.split(',')[1];
-    if (!base64) throw new Error('Invalid Data URI format.');
-    const buffer = Buffer.from(base64, 'base64');
-    
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    if (!sheetName) throw new Error('No sheets found in the workbook.');
-    const worksheet = workbook.Sheets[sheetName];
-    const csvContent = XLSX.utils.sheet_to_csv(worksheet);
-    
-    if (!csvContent || csvContent.trim().length < 5) {
-        throw new Error('Spreadsheet seems to be empty or could not be read.');
-    }
-    
-    return { textContent: csvContent };
-};
 
 const extractFromXml = (dataUri: string): { textContent: string; media?: never } => {
     const base64 = dataUri.split(',')[1];
@@ -109,7 +91,11 @@ const extractInvoiceItemsFlow = ai.defineFlow(
         if (lowerFileName.endsWith('.xml')) {
             promptInput = extractFromXml(input.fileDataUri);
         } else if (lowerFileName.endsWith('.xlsx') || lowerFileName.endsWith('.xls') || lowerFileName.endsWith('.csv')) {
-            promptInput = extractFromSpreadsheet(input.fileDataUri);
+            const base64 = input.fileDataUri.split(',')[1];
+            if (!base64) throw new Error('Invalid Data URI format for spreadsheet.');
+            const buffer = Buffer.from(base64, 'base64');
+            const textContent = await extractTextFromXlsx(buffer);
+            promptInput = { textContent };
         } else if (lowerFileName.endsWith('.jpg') || lowerFileName.endsWith('.jpeg') || lowerFileName.endsWith('.png') || lowerFileName.endsWith('.pdf')) {
             promptInput = extractFromMedia(input.fileDataUri);
         } else {

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -19,7 +20,8 @@ import {
   Printer,
   Gavel,
   Check,
-  Split
+  Split,
+  HandCoins,
 } from 'lucide-react';
 import { format, isPast, isToday, addDays } from 'date-fns';
 import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getFinancialEntries, getBankAccounts, addFinancialEntry, updateFinancialEntry, findEntryById } from '@/lib/financials-data';
@@ -47,6 +49,7 @@ import { NfseConsulta } from './nfse-consulta';
 import { PartnersRegistry } from '../partners-registry';
 import { Partner, getPartners, savePartners } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
+import { CommissionManagement } from './commission-management';
 
 
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
@@ -854,8 +857,9 @@ export function FinancialPageClient() {
         </div>
 
         <Tabs defaultValue="lancamentos" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 max-w-4xl">
+            <TabsList className="grid w-full grid-cols-5 max-w-5xl">
                 <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+                <TabsTrigger value="comissoes">Comissões</TabsTrigger>
                 <TabsTrigger value="parceiros">Parceiros</TabsTrigger>
                 <TabsTrigger value="nfse">Consulta NFS-e</TabsTrigger>
                 <TabsTrigger value="juridico">Jurídico</TabsTrigger>
@@ -922,6 +926,14 @@ export function FinancialPageClient() {
                         {renderEntriesTable(filteredEntries)}
                     </CardContent>
                 </Card>
+            </TabsContent>
+            
+            <TabsContent value="comissoes" className="mt-6">
+                <CommissionManagement
+                    partners={partners}
+                    shipments={allShipments}
+                    exchangeRates={ptaxRates}
+                />
             </TabsContent>
 
             <TabsContent value="parceiros" className="mt-6">

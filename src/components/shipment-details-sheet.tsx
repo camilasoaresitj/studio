@@ -333,7 +333,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     
     useEffect(() => {
         if (shipment) {
-            setPartners(getPartners());
+            const allPartners = getPartners();
+            setPartners(allPartners);
             setFees(getFees());
             exchangeRateService.getRates().then(setExchangeRates);
             form.reset({
@@ -341,7 +342,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 shipperId: shipment.shipper?.id,
                 consigneeId: shipment.consignee?.id,
                 agentId: shipment.agent?.id,
-                notifyId: partners.find(p => p.name === shipment.notifyName)?.id,
+                notifyId: allPartners.find(p => p.name === shipment.notifyName)?.id,
                 etd: shipment.etd ? new Date(shipment.etd) : undefined,
                 eta: shipment.eta ? new Date(shipment.eta) : undefined,
                 mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
@@ -356,7 +357,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             setDocumentPreviews({});
             setFinancialEntries(getFinancialEntries());
         }
-    }, [shipment, form, open, partners]);
+    }, [shipment, form, open]);
     
     const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
         control: form.control,
@@ -1290,4 +1291,5 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
         </Sheet>
     );
 }
+
 

@@ -523,17 +523,13 @@ export async function runGenerateDiXmlFromSpreadsheet(input: any) {
 }
 
 export async function runExtractInvoiceItems(input: ExtractInvoiceItemsInput): Promise<ExtractInvoiceItemsOutput> {
-    try {
-        const result = await extractInvoiceItems(input);
-        if (!result.success) {
-            // Rethrow the error from the flow to be caught by the component
-            throw new Error(result.error || 'Unknown error occurred during item extraction.');
-        }
-        return result;
-    } catch (error: any) {
-        console.error("Extract Invoice Items Action Failed:", error);
-        return { success: false, data: [], error: error.message || "Failed to extract items" };
-    }
+  try {
+    const result = await extractInvoiceItems(input);
+    return result;
+  } catch (error: any) {
+    console.error("Extract Invoice Items Action Failed:", error);
+    return { success: false, data: [], error: error.message || "Failed to extract items" };
+  }
 }
 
 export async function runGetNcmRates(ncm: string) {

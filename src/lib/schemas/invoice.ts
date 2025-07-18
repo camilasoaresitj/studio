@@ -1,6 +1,3 @@
-
-'use server';
-
 import { z } from 'zod';
 
 export const ExtractInvoiceItemsInputSchema = z.object({

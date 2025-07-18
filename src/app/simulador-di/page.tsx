@@ -343,36 +343,34 @@ export default function SimuladorDIPage() {
                         <CardDescription>As alíquotas serão agrupadas por NCM. Insira o ICMS abaixo.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                         {aliquotaFields.map((field, index) => (
-                           <Card key={field.id} className="p-4">
-                               <h4 className="font-semibold text-sm mb-2">NCM: {field.ncm}</h4>
-                               <div className="flex justify-between items-center mb-2">
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button type="button" variant="outline" size="sm" className="w-full">
-                                            <Search className="mr-2 h-4 w-4"/> Buscar
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-md">
-                                        <DialogHeader>
-                                            <DialogTitle>Buscar Alíquotas para NCM: {field.ncm}</DialogTitle>
-                                            <DialogDescription>
-                                                Informe o NCM para consultar as alíquotas de impostos federais (II, IPI, PIS, COFINS).
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <NcmRateFinder onRatesFound={(rates) => handleRatesFound(field.ncm, rates)} />
-                                    </DialogContent>
-                                </Dialog>
-                               </div>
-                               <div className="space-y-2">
-                                  <FormField control={form.control} name={`aliquotas.${index}.ii`} render={({ field }) => (<FormItem className="flex items-center gap-2"><FormLabel className="w-10">II</FormLabel><FormControl><Input type="number" placeholder="0.14" {...field} /></FormControl></FormItem>)}/>
-                                  <FormField control={form.control} name={`aliquotas.${index}.ipi`} render={({ field }) => (<FormItem className="flex items-center gap-2"><FormLabel className="w-10">IPI</FormLabel><FormControl><Input type="number" placeholder="0.10" {...field} /></FormControl></FormItem>)}/>
-                                  <FormField control={form.control} name={`aliquotas.${index}.pis`} render={({ field }) => (<FormItem className="flex items-center gap-2"><FormLabel className="w-10">PIS</FormLabel><FormControl><Input type="number" placeholder="0.0186" {...field} /></FormControl></FormItem>)}/>
-                                  <FormField control={form.control} name={`aliquotas.${index}.cofins`} render={({ field }) => (<FormItem className="flex items-center gap-2"><FormLabel className="w-10">COFINS</FormLabel><FormControl><Input type="number" placeholder="0.0854" {...field} /></FormControl></FormItem>)}/>
-                               </div>
-                           </Card>
-                         ))}
+                        <div className="flex flex-wrap gap-4">
+                            {aliquotaFields.map((field, index) => (
+                                <Card key={field.id} className="p-4 w-full sm:w-auto sm:min-w-[240px] flex-1">
+                                    <h4 className="font-semibold text-sm mb-2">NCM: {field.ncm}</h4>
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button type="button" variant="outline" size="sm" className="w-full mb-3">
+                                                <Search className="mr-2 h-4 w-4"/> Buscar Alíquotas
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-md">
+                                            <DialogHeader>
+                                                <DialogTitle>Buscar Alíquotas para NCM: {field.ncm}</DialogTitle>
+                                                <DialogDescription>
+                                                    A IA irá consultar as alíquotas de impostos federais (II, IPI, PIS, COFINS).
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <NcmRateFinder onRatesFound={(rates) => handleRatesFound(field.ncm, rates)} />
+                                        </DialogContent>
+                                    </Dialog>
+                                    <div className="space-y-2">
+                                        <FormField control={form.control} name={`aliquotas.${index}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" placeholder="0.14" {...field} /></FormControl></FormItem>)}/>
+                                        <FormField control={form.control} name={`aliquotas.${index}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" placeholder="0.10" {...field} /></FormControl></FormItem>)}/>
+                                        <FormField control={form.control} name={`aliquotas.${index}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" placeholder="0.0186" {...field} /></FormControl></FormItem>)}/>
+                                        <FormField control={form.control} name={`aliquotas.${index}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" placeholder="0.0854" {...field} /></FormControl></FormItem>)}/>
+                                    </div>
+                                </Card>
+                            ))}
                         </div>
                         <FormField control={form.control} name="icmsGeral" render={({ field }) => (<FormItem className="max-w-xs mt-4"><FormLabel>Alíquota Geral de ICMS (%)</FormLabel><FormControl><Input type="number" placeholder="0.17" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                     </CardContent>

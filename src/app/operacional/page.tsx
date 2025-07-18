@@ -303,7 +303,7 @@ export default function OperacionalPage() {
         </header>
 
         <Tabs defaultValue="shipments" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="shipments">
                     <ListTodo className="mr-2 h-4 w-4" />
                     Embarques e Tarefas
@@ -311,9 +311,6 @@ export default function OperacionalPage() {
                 <TabsTrigger value="clearance">
                     <FileCode className="mr-2 h-4 w-4" />
                     Desembaraço
-                </TabsTrigger>
-                <TabsTrigger value="other" disabled>
-                    Outra Aba (WIP)
                 </TabsTrigger>
             </TabsList>
             <TabsContent value="shipments" className="mt-6 space-y-6">

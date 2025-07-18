@@ -75,7 +75,7 @@ import { BLDraftForm } from './bl-draft-form';
 import { ShipmentMap } from './shipment-map';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { Label } from './ui/label';
 import { addFinancialEntries, getFinancialEntries } from '@/lib/financials-data';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
@@ -741,13 +741,17 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     <div>
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
                                          <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
-                                             <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
-                                                 <div className="flex items-center gap-1"><Label htmlFor="po-header">Ref. Cliente:</Label><Input id="po-header" {...field} className="h-6 text-xs w-24"/></div>
-                                             )}/>
+                                            <div className="flex items-center gap-1"><Label htmlFor="po-header">Ref. Cliente:</Label>
+                                                <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                                                    <Input id="po-header" {...field} className="h-6 text-xs w-24"/>
+                                                )}/>
+                                            </div>
                                              <Separator orientation="vertical" className="h-4"/>
-                                             <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                                 <div className="flex items-center gap-1"><Label htmlFor="inv-header">Invoice:</Label><Input id="inv-header" {...field} className="h-6 text-xs w-24"/></div>
-                                             )}/>
+                                            <div className="flex items-center gap-1"><Label htmlFor="inv-header">Invoice:</Label>
+                                                 <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                                    <Input id="inv-header" {...field} className="h-6 text-xs w-24"/>
+                                                )}/>
+                                            </div>
                                          </div>
                                     </div>
                                 </div>

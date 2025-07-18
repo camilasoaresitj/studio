@@ -1,0 +1,35 @@
+diff --git a/node_modules/handlebars/lib/index.js b/node_modules/handlebars/lib/index.js
+index 03689e4..0a80313 100644
+--- a/node_modules/handlebars/lib/index.js
++++ b/node_modules/handlebars/lib/index.js
+@@ -1,6 +1,3 @@
+-/* global define */
+-import Handlebars from './handlebars.runtime';
+-
+ import base from './handlebars/base';
+ 
+ // Each of these augment the Handlebars object. No need to setup here.
+@@ -15,19 +12,4 @@ import { registerDefaultHelpers } from './handlebars/helpers';
+ import { moveHelperToHooks } from './handlebars/utils';
+ import { VERSION } from './handlebars/constants';
+ 
+-function create() {
+-  const hb = new base.HandlebarsEnvironment();
+-
+-  moveHelperToHooks(hb, 'helperMissing', true);
+-  moveHelperToHooks(hb, 'blockHelperMissing', true);
+-
+-  registerDefaultDecorators(hb);
+-  registerDefaultHelpers(hb);
+-
+-  return hb;
+-}
+-
+-const inst = create();
+-inst.create = create;
+-
+-inst.VERSION = VERSION;
+-inst.default = inst; // eslint-disable-line no-undef
+-
+-export default inst;
++export default Handlebars;

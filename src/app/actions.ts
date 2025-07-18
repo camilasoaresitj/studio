@@ -31,7 +31,7 @@ import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getShipments, saveShipments } from "@/lib/shipment";
-import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage } from '@/lib/shipment';
+import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision } from '@/lib/shipment';
 
 export async function runGetFreightRates(input: any) {
     try {
@@ -335,7 +335,8 @@ export async function submitBLDraft(allShipments: Shipment[], shipmentId: string
     }
 
     const updatedShipment = { ...allShipments[shipmentIndex] };
-
+    const now = new Date();
+    
     // Update main shipment fields with draft data
     updatedShipment.blDraftData = draftData;
     updatedShipment.commodityDescription = draftData.descriptionOfGoods;
@@ -356,23 +357,21 @@ export async function submitBLDraft(allShipments: Shipment[], shipmentId: string
       };
     });
     
-    // Update history and charge for late correction
-    const now = new Date();
+    // Update history, charge for late correction, and add milestone
     const history = updatedShipment.blDraftHistory || { sentAt: null, revisions: [] };
+    let newTask: Milestone;
 
     if (!history.sentAt) {
         history.sentAt = now;
-        // Create milestone for the operational team
-        const newTask: Milestone = {
+        newTask = {
             name: "Enviar Draft MBL ao armador",
             status: 'pending',
             predictedDate: now,
             effectiveDate: null,
             details: `Draft inicial recebido do cliente ${updatedShipment.customer}.`
         };
-        updatedShipment.milestones.push(newTask);
     } else {
-        const newRevision = { date: now, lateFee: undefined };
+        const newRevision: BLDraftRevision = { date: now };
         if (isLateSubmission) {
             const lateFeeCharge: QuoteCharge = {
                 id: `late-fee-${Date.now()}`,
@@ -387,21 +386,21 @@ export async function submitBLDraft(allShipments: Shipment[], shipmentId: string
                 approvalStatus: 'aprovada',
             };
             updatedShipment.charges = [...(updatedShipment.charges || []), lateFeeCharge];
-            (newRevision as any).lateFee = { cost: 150, currency: 'USD' };
+            newRevision.lateFee = { cost: 150, currency: 'USD' };
         }
-        history.revisions.push(newRevision as any);
+        history.revisions.push(newRevision);
         
-        const newTask: Milestone = {
+        newTask = {
             name: "[REVISÃO] Enviar Draft MBL ao armador",
             status: 'pending',
             predictedDate: now,
             effectiveDate: null,
             details: `Revisão do draft recebida do cliente ${updatedShipment.customer}.`
         };
-        updatedShipment.milestones.push(newTask);
     }
-
+    
     updatedShipment.blDraftHistory = history;
+    updatedShipment.milestones.push(newTask);
     
     // Sort milestones to ensure correct order
     updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());

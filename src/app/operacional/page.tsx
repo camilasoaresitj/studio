@@ -278,25 +278,6 @@ export default function OperacionalPage() {
     return { text: `Aguardando Embarque`, variant: 'secondary' };
   };
 
-  const lastUnreadMessage = useMemo(() => {
-    if (!isClient) return null;
-    let lastMsg: (Omit<Task, 'milestone'> & { message: string, timestamp: string }) | null = null;
-    shipments.forEach(shipment => {
-        const clientMessages = (shipment.chatMessages || []).filter(m => m.sender === 'Cliente' && !m.readBy?.includes('user-1'));
-        if (clientMessages.length > 0) {
-            const lastClientMsg = clientMessages[clientMessages.length - 1];
-            if (!lastMsg || new Date(lastClientMsg.timestamp) > new Date(lastMsg.timestamp)) {
-                lastMsg = {
-                    shipment,
-                    message: lastClientMsg.message,
-                    timestamp: lastClientMsg.timestamp,
-                };
-            }
-        }
-    });
-    return lastMsg;
-  }, [shipments, isClient]);
-
   if (!isClient) {
     return (
         <div className="p-4 md:p-8">

@@ -12,12 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane } from 'lucide-react';
 import { runExtractInvoiceItems, runGetNcmRates } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getFees, Fee } from '@/lib/fees-data';
 
 const itemSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -36,7 +38,18 @@ const localExpenseSchema = z.object({
   value: z.coerce.number().min(0, 'Valor deve ser maior ou igual a zero.'),
 });
 
+const containerSchema = z.object({
+  type: z.string().min(1, 'Tipo é obrigatório'),
+  quantity: z.coerce.number().min(1, 'Qtde. é obrigatória'),
+});
+
 const simulationSchema = z.object({
+  modal: z.enum(['maritimo', 'aereo']),
+  chargeType: z.enum(['fcl', 'lcl', 'aereo']),
+  containers: z.array(containerSchema).optional(),
+  lclCbm: z.coerce.number().optional(),
+  lclWeight: z.coerce.number().optional(),
+  airWeight: z.coerce.number().optional(),
   itens: z.array(itemSchema).min(1, 'Adicione pelo menos um item.'),
   taxasCambio: z.object({
     di: z.coerce.number().min(0.01, 'Taxa de câmbio da DI é obrigatória.'),
@@ -101,18 +114,18 @@ export default function SimuladorDIPage() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [standardFees, setStandardFees] = useState<Fee[]>([]);
 
   const form = useForm<SimulationFormData>({
     resolver: zodResolver(simulationSchema),
     defaultValues: {
+      modal: 'maritimo',
+      chargeType: 'fcl',
+      containers: [{ type: '20\'GP', quantity: 1 }],
       itens: [],
       taxasCambio: { di: 5.67, frete: 5.87 },
       despesasGerais: { freteInternacionalUSD: 1400, seguroUSD: 100 },
-      despesasLocais: [
-        { description: 'Armazenagem', value: 2500 },
-        { description: 'Despachante Aduaneiro', value: 2000 },
-        { description: 'Transporte Rodoviário', value: 1500 },
-      ],
+      despesasLocais: [],
       icmsGeral: 0.17,
     },
   });
@@ -122,11 +135,60 @@ export default function SimuladorDIPage() {
     name: "itens",
   });
 
-   const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({
+   const { fields: expenseFields, append: appendExpense, remove: removeExpense, replace: replaceExpenses } = useFieldArray({
     control: form.control,
     name: "despesasLocais",
   });
   
+   const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
+    control: form.control,
+    name: "containers",
+  });
+
+  const watchedModal = useWatch({ control: form.control, name: 'modal' });
+  const watchedChargeType = useWatch({ control: form.control, name: 'chargeType' });
+  const watchedContainers = useWatch({ control: form.control, name: 'containers' });
+  const watchedLclCbm = useWatch({ control: form.control, name: 'lclCbm' });
+  const watchedLclWeight = useWatch({ control: form.control, name: 'lclWeight' });
+  const watchedAirWeight = useWatch({ control: form.control, name: 'airWeight' });
+  
+  useEffect(() => {
+    setStandardFees(getFees());
+  }, []);
+
+  useEffect(() => {
+    const relevantFees = standardFees.filter(fee => {
+        const directionMatch = fee.direction === 'Importação' || fee.direction === 'Ambos';
+        let modalMatch = false;
+        if (watchedModal === 'maritimo' && (fee.modal === 'Marítimo' || fee.modal === 'Ambos')) {
+            modalMatch = !fee.chargeType || fee.chargeType === watchedChargeType.toUpperCase() || fee.chargeType === 'NONE';
+        }
+        if (watchedModal === 'aereo' && (fee.modal === 'Aéreo' || fee.modal === 'Ambos')) {
+            modalMatch = !fee.chargeType || fee.chargeType === 'Aéreo' || fee.chargeType === 'NONE';
+        }
+        return directionMatch && modalMatch && fee.type !== 'Opcional';
+    });
+
+    const newExpenses: { description: string, value: number }[] = relevantFees.map(fee => {
+        let value = parseFloat(fee.value) || 0;
+        if (fee.type === 'Por Contêiner' && watchedChargeType === 'fcl' && watchedContainers) {
+            const totalContainers = watchedContainers.reduce((sum, c) => sum + c.quantity, 0);
+            value *= totalContainers;
+        }
+        if (fee.type === 'Por CBM/Ton' && watchedChargeType === 'lcl') {
+            const chargeableWeight = Math.max(watchedLclCbm || 0, (watchedLclWeight || 0) / 1000);
+            value = Math.max(fee.minValue || 0, value * chargeableWeight);
+        }
+        if (fee.type === 'Por KG' && watchedModal === 'aereo') {
+            value = Math.max(fee.minValue || 0, value * (watchedAirWeight || 0));
+        }
+        return { description: fee.name, value };
+    });
+
+    replaceExpenses(newExpenses);
+  }, [watchedModal, watchedChargeType, watchedContainers, watchedLclCbm, watchedLclWeight, watchedAirWeight, standardFees, replaceExpenses]);
+
+
   const calculateCosts = useCallback((data: SimulationFormData): SimulationResult | null => {
       try {
         const { itens, taxasCambio, despesasGerais, despesasLocais, icmsGeral } = data;
@@ -213,7 +275,6 @@ export default function SimuladorDIPage() {
                 fileName: file.name
             });
             if (response.success && response.data.length > 0) {
-                // Add default tax rates to the imported items
                 const itemsWithTaxes = response.data.map(item => ({...item, ii: 0.14, ipi: 0.10, pis: 0.021, cofins: 0.0965 }))
                 replaceItems(itemsWithTaxes);
                 toast({
@@ -256,6 +317,57 @@ export default function SimuladorDIPage() {
             <div className="lg:col-span-2 space-y-6">
                  <Card>
                     <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5"/> Detalhes do Embarque</CardTitle>
+                        <CardDescription>Informe os detalhes da carga para que o sistema sugira as despesas locais automaticamente.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                       <Tabs
+                          value={watchedModal}
+                          onValueChange={(value) => {
+                            form.setValue('modal', value as 'maritimo' | 'aereo');
+                            if (value === 'maritimo') form.setValue('chargeType', 'fcl');
+                            if (value === 'aereo') form.setValue('chargeType', 'aereo');
+                          }}
+                        >
+                          <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="maritimo"><Ship className="mr-2 h-4 w-4"/> Marítimo</TabsTrigger>
+                            <TabsTrigger value="aereo"><Plane className="mr-2 h-4 w-4"/> Aéreo</TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="maritimo" className="mt-4">
+                              <Tabs
+                                value={watchedChargeType}
+                                onValueChange={(value) => form.setValue('chargeType', value as 'fcl' | 'lcl')}
+                              >
+                                  <TabsList className="grid w-full grid-cols-2">
+                                      <TabsTrigger value="fcl">FCL (Full Container Load)</TabsTrigger>
+                                      <TabsTrigger value="lcl">LCL (Less than Container Load)</TabsTrigger>
+                                  </TabsList>
+                                  <TabsContent value="fcl" className="mt-4 space-y-2">
+                                    {containerFields.map((field, index) => (
+                                      <div key={field.id} className="flex items-end gap-2">
+                                        <FormField control={form.control} name={`containers.${index}.type`} render={({ field }) => (<FormItem className="flex-grow"><FormLabel>Tipo</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="20'GP">20'GP</SelectItem><SelectItem value="40'GP">40'GP</SelectItem><SelectItem value="40'HC">40'HC</SelectItem><SelectItem value="20'RF">20'RF</SelectItem></SelectContent></Select></FormItem>)}/>
+                                        <FormField control={form.control} name={`containers.${index}.quantity`} render={({ field }) => (<FormItem><FormLabel>Qtde</FormLabel><FormControl><Input type="number" {...field}/></FormControl></FormItem>)}/>
+                                        <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4"/></Button>
+                                      </div>
+                                    ))}
+                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ type: '20\'GP', quantity: 1 })}>
+                                        <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Contêiner
+                                    </Button>
+                                  </TabsContent>
+                                  <TabsContent value="lcl" className="mt-4 grid grid-cols-2 gap-4">
+                                      <FormField control={form.control} name="lclCbm" render={({ field }) => (<FormItem><FormLabel>CBM Total</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
+                                      <FormField control={form.control} name="lclWeight" render={({ field }) => (<FormItem><FormLabel>Peso Total (Kg)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
+                                  </TabsContent>
+                              </Tabs>
+                          </TabsContent>
+                           <TabsContent value="aereo" className="mt-4">
+                                <FormField control={form.control} name="airWeight" render={({ field }) => (<FormItem><FormLabel>Peso Taxado (Kg)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
+                           </TabsContent>
+                       </Tabs>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5"/> Importar Dados da Fatura</CardTitle>
                         <CardDescription>Importe um arquivo (.xlsx, .csv, .xml) para que a IA preencha os itens automaticamente.</CardDescription>
                     </CardHeader>
@@ -273,7 +385,6 @@ export default function SimuladorDIPage() {
                         </Button>
                     </CardContent>
                 </Card>
-
                 <Card>
                     <CardHeader className="flex flex-row justify-between items-center">
                         <div>
@@ -314,7 +425,6 @@ export default function SimuladorDIPage() {
                          </div>
                     </CardContent>
                 </Card>
-                
                 <Card>
                     <CardHeader><CardTitle>Parâmetros e Despesas</CardTitle></CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -347,7 +457,6 @@ export default function SimuladorDIPage() {
                     </CardContent>
                 </Card>
             </div>
-
             <div className="lg:col-span-1 space-y-6 sticky top-8">
                 <Card>
                     <CardHeader>

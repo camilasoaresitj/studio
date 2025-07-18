@@ -31,15 +31,14 @@ const GenerateClientInvoiceHtmlInputSchema = z.object({
   charges: z.array(ChargeSchema).describe('An array of all charges to be listed.'),
   total: z.string().describe('The final total amount (e.g., "R$ 13.500,00").'),
   exchangeRate: z.number().optional().describe('The exchange rate used for conversion, if applicable.'),
-  bankDetails: BankDetailsSchema.describe('The bank details for payment.'),
   companyLogoUrl: z.string().optional().describe('The data URL of the company logo.'),
 });
-export type GenerateClientInvoiceHtmlInput = z.infer<typeof GenerateClientInvoiceHtmlInputSchema>;
+type GenerateClientInvoiceHtmlInput = z.infer<typeof GenerateClientInvoiceHtmlInputSchema>;
 
 const GenerateClientInvoiceHtmlOutputSchema = z.object({
   html: z.string().describe('The full, styled HTML content for the invoice PDF.'),
 });
-export type GenerateClientInvoiceHtmlOutput = z.infer<typeof GenerateClientInvoiceHtmlOutputSchema>;
+type GenerateClientInvoiceHtmlOutput = z.infer<typeof GenerateClientInvoiceHtmlOutputSchema>;
 
 export async function generateClientInvoiceHtml(input: GenerateClientInvoiceHtmlInput): Promise<GenerateClientInvoiceHtmlOutput> {
   return generateClientInvoiceHtmlFlow(input);
@@ -53,8 +52,8 @@ const generateClientInvoiceHtmlFlow = ai.defineFlow(
   },
   async (input) => {
     // This function replaces Handlebars to have more control and avoid server-side bundling issues.
-    function applyTemplate(data: GenerateClientInvoiceHtmlInput): string {
-      const chargesHtml = data.charges.map(charge => `
+    function applyTemplate(data: any): string {
+      const chargesHtml = data.charges.map((charge:any) => `
         <tr style="border-bottom: 1px solid #eee;">
           <td style="padding: 12px 15px;">${charge.description}</td>
           <td style="padding: 12px 15px; text-align: right; font-family: 'Inter', sans-serif;">${charge.currency} ${charge.value}</td>

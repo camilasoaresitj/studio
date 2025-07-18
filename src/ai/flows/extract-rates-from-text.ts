@@ -14,7 +14,7 @@ import { z } from 'zod';
 const ExtractRatesFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
 });
-export type ExtractRatesFromTextInput = z.infer<typeof ExtractRatesFromTextInputSchema>;
+type ExtractRatesFromTextInput = z.infer<typeof ExtractRatesFromTextInputSchema>;
 
 const AgentContactSchema = z.object({
   name: z.string().describe("The agent's contact person's full name."),
@@ -37,7 +37,7 @@ const ParsedRateSchema = z.object({
   agentContact: AgentContactSchema.optional(),
 });
 const ExtractRatesFromTextOutputSchema = z.array(ParsedRateSchema);
-export type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutputSchema>;
+type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutputSchema>;
 
 
 // A more lenient schema for the AI prompt's output. The AI will extract what it can,

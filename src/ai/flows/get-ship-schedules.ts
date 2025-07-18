@@ -15,7 +15,7 @@ const GetVesselSchedulesInputSchema = z.object({
   origin: z.string().describe('The origin port code (e.g., CNSHA).'),
   destination: z.string().describe('The destination port code (e.g., BRSSZ).'),
 });
-export type GetVesselSchedulesInput = z.infer<typeof GetVesselSchedulesInputSchema>;
+type GetVesselSchedulesInput = z.infer<typeof GetVesselSchedulesInputSchema>;
 
 const VesselScheduleSchema = z.object({
   vesselName: z.string(),
@@ -27,7 +27,7 @@ const VesselScheduleSchema = z.object({
 });
 
 const GetVesselSchedulesOutputSchema = z.array(VesselScheduleSchema);
-export type GetVesselSchedulesOutput = z.infer<typeof GetVesselSchedulesOutputSchema>;
+type GetVesselSchedulesOutput = z.infer<typeof GetVesselSchedulesOutputSchema>;
 
 export async function getVesselSchedules(input: GetVesselSchedulesInput): Promise<GetVesselSchedulesOutput> {
   return getVesselSchedulesFlow(input);

@@ -16,13 +16,13 @@ const UpdateShipmentInTrackingInputSchema = z.object({
   // Add other updatable fields as needed based on what your app supports.
   // For now, we'll keep it simple as the primary logic is just to trigger the update.
 });
-export type UpdateShipmentInTrackingInput = z.infer<typeof UpdateShipmentInTrackingInputSchema>;
+type UpdateShipmentInTrackingInput = z.infer<typeof UpdateShipmentInTrackingInputSchema>;
 
 const UpdateShipmentInTrackingOutputSchema = z.object({
   success: z.boolean(),
   message: z.string(),
 });
-export type UpdateShipmentInTrackingOutput = z.infer<typeof UpdateShipmentInTrackingOutputSchema>;
+type UpdateShipmentInTrackingOutput = z.infer<typeof UpdateShipmentInTrackingOutputSchema>;
 
 
 export async function updateShipmentInTracking(input: UpdateShipmentInTrackingInput): Promise<UpdateShipmentInTrackingOutput> {

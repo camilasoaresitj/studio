@@ -17,7 +17,7 @@ const MonitorEmailForTasksInputSchema = z.object({
   emailSubject: z.string().describe('The subject of the email.'),
   sender: z.string().email().describe('The email address of the sender.'),
 });
-export type MonitorEmailForTasksInput = z.infer<typeof MonitorEmailForTasksInputSchema>;
+type MonitorEmailForTasksInput = z.infer<typeof MonitorEmailForTasksInputSchema>;
 
 const MonitorEmailForTasksOutputSchema = z.object({
   taskDetected: z.boolean().describe('Whether a task was detected in the email.'),
@@ -26,7 +26,7 @@ const MonitorEmailForTasksOutputSchema = z.object({
   isFinancial: z.boolean().describe('Whether the task is financial.'),
   reminderNeeded: z.boolean().describe('Whether a reminder should be sent.'),
 });
-export type MonitorEmailForTasksOutput = z.infer<typeof MonitorEmailForTasksOutputSchema>;
+type MonitorEmailForTasksOutput = z.infer<typeof MonitorEmailForTasksOutputSchema>;
 
 export async function monitorEmailForTasks(input: MonitorEmailForTasksInput): Promise<MonitorEmailForTasksOutput> {
   return monitorEmailForTasksFlow(input);

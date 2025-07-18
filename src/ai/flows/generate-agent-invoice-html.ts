@@ -32,12 +32,12 @@ const GenerateAgentInvoiceHtmlInputSchema = z.object({
   companyLogoUrl: z.string().optional().describe('The data URL of the company logo.'),
   companyName: z.string().describe('The name of the company issuing the invoice.'),
 });
-export type GenerateAgentInvoiceHtmlInput = z.infer<typeof GenerateAgentInvoiceHtmlInputSchema>;
+type GenerateAgentInvoiceHtmlInput = z.infer<typeof GenerateAgentInvoiceHtmlInputSchema>;
 
 const GenerateAgentInvoiceHtmlOutputSchema = z.object({
   html: z.string().describe('The full, styled HTML content for the agent invoice PDF.'),
 });
-export type GenerateAgentInvoiceHtmlOutput = z.infer<typeof GenerateAgentInvoiceHtmlOutputSchema>;
+type GenerateAgentInvoiceHtmlOutput = z.infer<typeof GenerateAgentInvoiceHtmlOutputSchema>;
 
 export async function generateAgentInvoiceHtml(input: GenerateAgentInvoiceHtmlInput): Promise<GenerateAgentInvoiceHtmlOutput> {
   return generateAgentInvoiceHtmlFlow(input);

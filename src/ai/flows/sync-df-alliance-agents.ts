@@ -17,10 +17,10 @@ const DFAgentSchema = z.object({
   country: z.string().describe('The country where the agent is located.'),
   website: z.string().url().describe('The full URL of the agent\'s website.'),
 });
-export type DFAgent = z.infer<typeof DFAgentSchema>;
+type DFAgent = z.infer<typeof DFAgentSchema>;
 
 const SyncDFAgentsOutputSchema = z.array(DFAgentSchema);
-export type SyncDFAgentsOutput = z.infer<typeof SyncDFAgentsOutputSchema>;
+type SyncDFAgentsOutput = z.infer<typeof SyncDFAgentsOutputSchema>;
 
 // Tool to fetch the raw HTML content from the directory URL.
 const fetchDirectoryPageContent = ai.defineTool(

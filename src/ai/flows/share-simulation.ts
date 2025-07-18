@@ -17,14 +17,14 @@ const ShareSimulationInputSchema = z.object({
   totalCostBRL: z.number().describe('The total final cost of the import in BRL.'),
   simulationLink: z.string().url().describe('The URL the customer will use to view the full simulation.'),
 });
-export type ShareSimulationInput = z.infer<typeof ShareSimulationInputSchema>;
+type ShareSimulationInput = z.infer<typeof ShareSimulationInputSchema>;
 
 const ShareSimulationOutputSchema = z.object({
   emailSubject: z.string().describe("The subject line for the email."),
   emailBody: z.string().describe("The HTML content for the body of the email. It MUST include the primary action link as a styled button."),
   whatsappMessage: z.string().describe("A concise and friendly WhatsApp message with the summary and the primary action link."),
 });
-export type ShareSimulationOutput = z.infer<typeof ShareSimulationOutputSchema>;
+type ShareSimulationOutput = z.infer<typeof ShareSimulationOutputSchema>;
 
 export async function shareSimulation(input: ShareSimulationInput): Promise<ShareSimulationOutput> {
   return shareSimulationFlow(input);

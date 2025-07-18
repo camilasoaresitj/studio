@@ -20,13 +20,13 @@ const SendDemurrageInvoiceInputSchema = z.object({
   totalAmountUSD: z.string().describe('The total amount due in USD (e.g., "USD 1,500.00").'),
   exchangeRate: z.string().describe('The exchange rate that will be used for conversion to BRL (e.g., "5.8644").'),
 });
-export type SendDemurrageInvoiceInput = z.infer<typeof SendDemurrageInvoiceInputSchema>;
+type SendDemurrageInvoiceInput = z.infer<typeof SendDemurrageInvoiceInputSchema>;
 
 const SendDemurrageInvoiceOutputSchema = z.object({
   emailSubject: z.string().describe("The subject line for the demurrage invoice email."),
   emailBody: z.string().describe("The HTML content for the body of the email."),
 });
-export type SendDemurrageInvoiceOutput = z.infer<typeof SendDemurrageInvoiceOutputSchema>;
+type SendDemurrageInvoiceOutput = z.infer<typeof SendDemurrageInvoiceOutputSchema>;
 
 export async function sendDemurrageInvoice(input: SendDemurrageInvoiceInput): Promise<SendDemurrageInvoiceOutput> {
   return sendDemurrageInvoiceFlow(input);

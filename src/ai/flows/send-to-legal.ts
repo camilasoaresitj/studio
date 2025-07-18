@@ -19,13 +19,13 @@ const SendToLegalInputSchema = z.object({
   invoiceAmount: z.string().describe('The total amount due, including currency (e.g., "BRL 12.345,67").'),
   comments: z.string().describe('The comments and instructions from the finance department.'),
 });
-export type SendToLegalInput = z.infer<typeof SendToLegalInputSchema>;
+type SendToLegalInput = z.infer<typeof SendToLegalInputSchema>;
 
 const SendToLegalOutputSchema = z.object({
   emailSubject: z.string().describe("The subject line for the email to the lawyer."),
   emailBody: z.string().describe("The HTML content for the body of the email. It must mention the attachments (Fatura e HBL)."),
 });
-export type SendToLegalOutput = z.infer<typeof SendToLegalOutputSchema>;
+type SendToLegalOutput = z.infer<typeof SendToLegalOutputSchema>;
 
 export async function sendToLegal(input: SendToLegalInput): Promise<SendToLegalOutput> {
   return sendToLegalFlow(input);

@@ -37,12 +37,12 @@ const ExtractPartnerInfoOutputSchema = z.object({
   address: AddressSchema.describe('The full address of the company.'),
   contacts: z.array(ContactSchema).describe('A list of contacts from the company.'),
 });
-export type ExtractPartnerInfoOutput = z.infer<typeof ExtractPartnerInfoOutputSchema>;
+type ExtractPartnerInfoOutput = z.infer<typeof ExtractPartnerInfoOutputSchema>;
 
 const ExtractPartnerInfoInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing company and contact information, like an email signature or a text block.'),
 });
-export type ExtractPartnerInfoInput = z.infer<typeof ExtractPartnerInfoInputSchema>;
+type ExtractPartnerInfoInput = z.infer<typeof ExtractPartnerInfoInputSchema>;
 
 
 export async function extractPartnerInfo(input: ExtractPartnerInfoInput): Promise<ExtractPartnerInfoOutput> {

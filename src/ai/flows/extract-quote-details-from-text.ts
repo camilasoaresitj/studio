@@ -15,7 +15,7 @@ import { baseFreightQuoteFormSchema, oceanContainerSchema } from '@/lib/schemas'
 const ExtractQuoteDetailsFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight quote request information, like an email.'),
 });
-export type ExtractQuoteDetailsFromTextInput = z.infer<typeof ExtractQuoteDetailsFromTextInputSchema>;
+type ExtractQuoteDetailsFromTextInput = z.infer<typeof ExtractQuoteDetailsFromTextInputSchema>;
 
 // The output schema should be a partial version of the form schema,
 // as not all fields might be present in the text.
@@ -30,7 +30,7 @@ const ExtractQuoteDetailsFromTextOutputSchema = baseFreightQuoteFormSchema.parti
     }).partial().optional()
 });
 
-export type ExtractQuoteDetailsFromTextOutput = z.infer<typeof ExtractQuoteDetailsFromTextOutputSchema>;
+type ExtractQuoteDetailsFromTextOutput = z.infer<typeof ExtractQuoteDetailsFromTextOutputSchema>;
 
 export async function extractQuoteDetailsFromText(input: ExtractQuoteDetailsFromTextInput): Promise<ExtractQuoteDetailsFromTextOutput> {
   return extractQuoteDetailsFromTextFlow(input);

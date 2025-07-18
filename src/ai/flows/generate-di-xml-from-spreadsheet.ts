@@ -16,12 +16,12 @@ const GenerateDiXmlFromSpreadsheetInputSchema = z.object({
   spreadsheetData: z.array(z.any()).describe("Data extracted from the CargoWise spreadsheet."),
   shipmentData: z.any().describe("Data from the current shipment process."),
 });
-export type GenerateDiXmlFromSpreadsheetInput = z.infer<typeof GenerateDiXmlFromSpreadsheetInputSchema>;
+type GenerateDiXmlFromSpreadsheetInput = z.infer<typeof GenerateDiXmlFromSpreadsheetInputSchema>;
 
 const GenerateDiXmlFromSpreadsheetOutputSchema = z.object({
   xml: z.string().describe('The generated XML string for the DI.'),
 });
-export type GenerateDiXmlFromSpreadsheetOutput = z.infer<typeof GenerateDiXmlFromSpreadsheetOutputSchema>;
+type GenerateDiXmlFromSpreadsheetOutput = z.infer<typeof GenerateDiXmlFromSpreadsheetOutputSchema>;
 
 export async function generateDiXmlFromSpreadsheet(input: GenerateDiXmlFromSpreadsheetInput): Promise<GenerateDiXmlFromSpreadsheetOutput> {
   return generateDiXmlFromSpreadsheetFlow(input);

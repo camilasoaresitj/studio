@@ -14,12 +14,12 @@ import { z } from 'zod';
 const DetectCarrierFromBookingInputSchema = z.object({
   bookingNumber: z.string().describe('The booking or Bill of Lading number.'),
 });
-export type DetectCarrierFromBookingInput = z.infer<typeof DetectCarrierFromBookingInputSchema>;
+type DetectCarrierFromBookingInput = z.infer<typeof DetectCarrierFromBookingInputSchema>;
 
 const DetectCarrierFromBookingOutputSchema = z.object({
   carrier: z.string().describe('The most likely carrier name (e.g., Maersk, MSC, Hapag-Lloyd). Return "Unknown" if not identifiable.'),
 });
-export type DetectCarrierFromBookingOutput = z.infer<typeof DetectCarrierFromBookingOutputSchema>;
+type DetectCarrierFromBookingOutput = z.infer<typeof DetectCarrierFromBookingOutputSchema>;
 
 export async function detectCarrierFromBooking(input: DetectCarrierFromBookingInput): Promise<DetectCarrierFromBookingOutput> {
   return detectCarrierFromBookingFlow(input);

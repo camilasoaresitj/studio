@@ -15,7 +15,7 @@ const GetFlightSchedulesInputSchema = z.object({
   origin: z.string().describe('The origin airport code (e.g., GRU).'),
   destination: z.string().describe('The destination airport code (e.g., MIA).'),
 });
-export type GetFlightSchedulesInput = z.infer<typeof GetFlightSchedulesInputSchema>;
+type GetFlightSchedulesInput = z.infer<typeof GetFlightSchedulesInputSchema>;
 
 const FlightScheduleSchema = z.object({
   flightNumber: z.string(),
@@ -27,7 +27,7 @@ const FlightScheduleSchema = z.object({
 });
 
 const GetFlightSchedulesOutputSchema = z.array(FlightScheduleSchema);
-export type GetFlightSchedulesOutput = z.infer<typeof GetFlightSchedulesOutputSchema>;
+type GetFlightSchedulesOutput = z.infer<typeof GetFlightSchedulesOutputSchema>;
 
 export async function getFlightSchedules(input: GetFlightSchedulesInput): Promise<GetFlightSchedulesOutput> {
   return getFlightSchedulesFlow(input);

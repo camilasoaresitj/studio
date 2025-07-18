@@ -12,13 +12,13 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import * as schemas from '@/lib/schemas';
 
-export type RequestAgentQuoteInput = schemas.FreightQuoteFormData;
+type RequestAgentQuoteInput = schemas.FreightQuoteFormData;
 
 const RequestAgentQuoteOutputSchema = z.object({
   emailSubject: z.string().describe("The subject line for the quote request email in English."),
   emailBody: z.string().describe("The HTML content for the body of the email. It must be in English and clearly list all shipment details."),
 });
-export type RequestAgentQuoteOutput = z.infer<typeof RequestAgentQuoteOutputSchema>;
+type RequestAgentQuoteOutput = z.infer<typeof RequestAgentQuoteOutputSchema>;
 
 export async function requestAgentQuote(input: RequestAgentQuoteInput): Promise<RequestAgentQuoteOutput> {
   return requestAgentQuoteFlow(input);

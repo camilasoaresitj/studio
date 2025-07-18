@@ -18,14 +18,14 @@ const CreateEmailCampaignInputSchema = z.object({
   partners: z.array(z.any()).describe("A list of all partners (customers)."),
   quotes: z.array(z.any()).describe("A list of all past quotes."),
 });
-export type CreateEmailCampaignInput = z.infer<typeof CreateEmailCampaignInputSchema>;
+type CreateEmailCampaignInput = z.infer<typeof CreateEmailCampaignInputSchema>;
 
 const CreateEmailCampaignOutputSchema = z.object({
   clients: z.array(z.string()).describe('A list of client names that match the campaign criteria.'),
   emailSubject: z.string().describe('The generated subject line for the promotional email.'),
   emailBody: z.string().describe('The generated HTML body for the promotional email.'),
 });
-export type CreateEmailCampaignOutput = z.infer<typeof CreateEmailCampaignOutputSchema>;
+type CreateEmailCampaignOutput = z.infer<typeof CreateEmailCampaignOutputSchema>;
 
 export async function createEmailCampaign(input: CreateEmailCampaignInput): Promise<CreateEmailCampaignOutput> {
   return createEmailCampaignFlow(input);

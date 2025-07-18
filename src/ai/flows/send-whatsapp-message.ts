@@ -16,13 +16,13 @@ const SendWhatsappMessageInputSchema = z.object({
   to: z.string().describe('The recipient phone number in E.164 format (e.g., +5511999999999).'),
   message: z.string().describe('The content of the message to send.'),
 });
-export type SendWhatsappMessageInput = z.infer<typeof SendWhatsappMessageInputSchema>;
+type SendWhatsappMessageInput = z.infer<typeof SendWhatsappMessageInputSchema>;
 
 const SendWhatsappMessageOutputSchema = z.object({
   sid: z.string().describe('The unique SID of the message from Twilio.'),
   status: z.string().describe('The status of the message sending process.'),
 });
-export type SendWhatsappMessageOutput = z.infer<typeof SendWhatsappMessageOutputSchema>;
+type SendWhatsappMessageOutput = z.infer<typeof SendWhatsappMessageOutputSchema>;
 
 export async function sendWhatsappMessage(input: SendWhatsappMessageInput): Promise<SendWhatsappMessageOutput> {
   return sendWhatsappMessageFlow(input);

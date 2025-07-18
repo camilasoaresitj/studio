@@ -20,7 +20,7 @@ const GetCourierRatesInputSchema = z.object({
   destination: z.string(),
   pieces: z.array(airPieceSchema),
 });
-export type GetCourierRatesInput = z.infer<typeof GetCourierRatesInputSchema>;
+type GetCourierRatesInput = z.infer<typeof GetCourierRatesInputSchema>;
 
 const CourierRateSchema = z.object({
   id: z.string(),
@@ -34,7 +34,7 @@ const CourierRateSchema = z.object({
   source: z.string(),
 });
 const GetCourierRatesOutputSchema = z.array(CourierRateSchema);
-export type GetCourierRatesOutput = z.infer<typeof GetCourierRatesOutputSchema>;
+type GetCourierRatesOutput = z.infer<typeof GetCourierRatesOutputSchema>;
 
 export async function getCourierRates(input: GetCourierRatesInput): Promise<GetCourierRatesOutput> {
   return getCourierRatesFlow(input);

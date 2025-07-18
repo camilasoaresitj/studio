@@ -807,4 +807,3 @@ export default function SimuladorDIPage() {
     </div>
   );
 }
-

@@ -54,6 +54,7 @@ export const partnerSchema = z.object({
       amount: z.coerce.number().optional(),
       unit: z.enum(['porcentagem_lucro', 'por_container', 'por_bl']).optional(),
       currency: z.enum(['USD', 'BRL']).default('BRL').optional(),
+      commissionClients: z.array(z.string()).optional(), // List of client names
   }).optional(),
   terminalCommission: z.object({
     amount: z.coerce.number().optional(),
@@ -97,7 +98,7 @@ export const partnerSchema = z.object({
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v7';
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v8';
 
 function getInitialPartners(): Partner[] {
     return [

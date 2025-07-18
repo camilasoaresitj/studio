@@ -98,7 +98,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       paymentTerm: 30,
       exchangeRateAgio: 0,
       profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
-      commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
+      commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL', commissionClients: [] },
       terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
       observations: '',
       kpi: {
@@ -127,6 +127,8 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const documentType = isEmpresaNoExterior ? 'vat' : 'cnpj';
   const documentLabel = isEmpresaNoExterior ? 'VAT / Tax ID' : 'CNPJ / CPF';
 
+  const clientPartners = useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
+
   const handleOpenDialog = (partner: Partner | null) => {
     setEditingPartner(partner);
     form.reset(
@@ -144,7 +146,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         paymentTerm: 30,
         exchangeRateAgio: 0,
         profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
-        commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL' },
+        commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL', commissionClients: [] },
         terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
         observations: '',
         kpi: { manual: { mainRoutes: [], mainModals: [] } }
@@ -314,7 +316,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const handleAddRoute = () => {
     if (routeInput.trim()) {
-        appendRoute(routeInput.trim());
+        appendRoute({ value: routeInput.trim() });
         setRouteInput('');
     }
   };
@@ -559,6 +561,36 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                                 </SelectContent></Select><FormMessage /></FormItem>
                              )}/>
                         </div>
+                        <FormField
+                            control={form.control}
+                            name="commissionAgreement.commissionClients"
+                            render={({ field }) => (
+                                <FormItem className="mt-4">
+                                    <FormLabel>Clientes Comissionados</FormLabel>
+                                    <FormControl>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2 border rounded-md max-h-32 overflow-y-auto">
+                                            {clientPartners.map((client) => (
+                                                <FormItem key={client.id} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value?.includes(client.name)}
+                                                            onCheckedChange={(checked) => {
+                                                                const currentValue = field.value || [];
+                                                                return checked
+                                                                    ? field.onChange([...currentValue, client.name])
+                                                                    : field.onChange(currentValue.filter((name) => name !== client.name));
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel className="text-sm font-normal">{client.name}</FormLabel>
+                                                </FormItem>
+                                            ))}
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </div>}
 
                     {isTerminal && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">

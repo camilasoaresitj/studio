@@ -45,7 +45,9 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
     const commissionPartners = partners.filter(p => p.roles.comissionado && p.commissionAgreement?.amount);
 
     const data = commissionPartners.map(partner => {
-      const associatedShipments = shipments.filter(s => s.agent?.id === partner.id);
+      const commissionableClientNames = new Set(partner.commissionAgreement?.commissionClients || []);
+      
+      const associatedShipments = shipments.filter(s => commissionableClientNames.has(s.customer));
       
       const commissionableShipments: CommissionableShipment[] = associatedShipments.map(shipment => {
         const chargesWithProfit = shipment.charges.map(charge => {

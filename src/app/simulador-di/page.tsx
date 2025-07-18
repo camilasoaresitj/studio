@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen } from 'lucide-react';
 import { runExtractInvoiceItems, runGetNcmRates } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
@@ -20,6 +20,14 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getFees, Fee } from '@/lib/fees-data';
+import { getPartners, Partner } from '@/lib/partners-data';
+import { getSimulations, saveSimulations, Simulation } from '@/lib/simulations-data';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 const itemSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -44,6 +52,8 @@ const containerSchema = z.object({
 });
 
 const simulationSchema = z.object({
+  simulationName: z.string().min(1, 'Nome da simulação é obrigatório.'),
+  customerName: z.string().min(1, 'Nome do cliente é obrigatório.'),
   modal: z.enum(['maritimo', 'aereo']),
   chargeType: z.enum(['fcl', 'lcl', 'aereo']),
   containers: z.array(containerSchema).optional(),
@@ -63,7 +73,7 @@ const simulationSchema = z.object({
   icmsGeral: z.coerce.number().min(0, 'Alíquota de ICMS é obrigatória.'),
 });
 
-type SimulationFormData = z.infer<typeof simulationSchema>;
+export type SimulationFormData = z.infer<typeof simulationSchema>;
 type SimulationResult = {
   valorAduaneiro: number;
   totalII: number;
@@ -112,13 +122,20 @@ const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (rate
 export default function SimuladorDIPage() {
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [standardFees, setStandardFees] = useState<Fee[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [simulations, setSimulations] = useState<Simulation[]>([]);
+  const [isSimulationsDialogOpen, setIsSimulationsDialogOpen] = useState(false);
+  const [isPartnerPopoverOpen, setIsPartnerPopoverOpen] = useState(false);
 
   const form = useForm<SimulationFormData>({
     resolver: zodResolver(simulationSchema),
     defaultValues: {
+      simulationName: '',
+      customerName: '',
       modal: 'maritimo',
       chargeType: 'fcl',
       containers: [{ type: '20\'GP', quantity: 1 }],
@@ -154,6 +171,8 @@ export default function SimuladorDIPage() {
   
   useEffect(() => {
     setStandardFees(getFees());
+    setPartners(getPartners().filter(p => p.roles.cliente));
+    setSimulations(getSimulations());
   }, []);
 
   useEffect(() => {
@@ -306,6 +325,36 @@ export default function SimuladorDIPage() {
       form.setValue(`itens.${itemIndex}.cofins`, rates.cofins);
       toast({ title: 'Alíquotas aplicadas!', description: `Alíquotas para o NCM ${rates.ncm} foram carregadas no item.` });
   };
+  
+  const handleSaveSimulation = form.handleSubmit(async (data) => {
+    setIsSaving(true);
+    await new Promise(res => setTimeout(res, 500));
+    const newSimulation: Simulation = {
+        id: `SIM-${Date.now()}`,
+        name: data.simulationName,
+        customer: data.customerName,
+        createdAt: new Date(),
+        data: data,
+    };
+    const currentSimulations = getSimulations();
+    saveSimulations([newSimulation, ...currentSimulations]);
+    setSimulations([newSimulation, ...currentSimulations]);
+    toast({
+        title: 'Simulação Salva!',
+        description: `A simulação "${data.simulationName}" foi salva com sucesso.`,
+        className: 'bg-success text-success-foreground'
+    });
+    setIsSaving(false);
+  });
+  
+  const handleLoadSimulation = (simulation: Simulation) => {
+      form.reset(simulation.data);
+      toast({
+          title: `Simulação "${simulation.name}" Carregada!`,
+          description: 'Os dados foram preenchidos no formulário.'
+      });
+      setIsSimulationsDialogOpen(false);
+  };
 
   return (
     <div className="p-4 md:p-8">
@@ -319,6 +368,53 @@ export default function SimuladorDIPage() {
       <Form {...form}>
         <form className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><FileDown className="h-5 w-5"/> Salvar e Carregar Simulação</CardTitle>
+                        <CardDescription>Nomeie sua simulação para salvá-la ou carregue uma existente.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="simulationName" render={({ field }) => (<FormItem><FormLabel>Nome da Simulação</FormLabel><FormControl><Input placeholder="Ex: Importação Notebooks Jan/25" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                             <FormField control={form.control} name="customerName" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Cliente</FormLabel>
+                                    <Popover open={isPartnerPopoverOpen} onOpenChange={setIsPartnerPopoverOpen}>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                                <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                                                    {field.value || "Selecione um cliente"}
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Buscar cliente..." />
+                                                <CommandList><CommandEmpty>Nenhum cliente.</CommandEmpty><CommandGroup>
+                                                    {partners.map(p => (<CommandItem value={p.name} key={p.id} onSelect={() => {form.setValue("customerName", p.name); setIsPartnerPopoverOpen(false);}}>
+                                                        <Check className={cn("mr-2 h-4 w-4", p.name === field.value ? "opacity-100" : "opacity-0")}/>{p.name}
+                                                    </CommandItem>))}
+                                                </CommandGroup></CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                        </div>
+                        <div className="flex gap-2">
+                             <Button type="button" onClick={handleSaveSimulation} disabled={isSaving}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                                Salvar Simulação
+                            </Button>
+                            <Button type="button" variant="outline" onClick={() => setIsSimulationsDialogOpen(true)}>
+                                <FolderOpen className="mr-2 h-4 w-4"/>
+                                Minhas Simulações
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
                  <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5"/> Detalhes do Embarque</CardTitle>
@@ -471,15 +567,15 @@ export default function SimuladorDIPage() {
                             <div className="space-y-3 animate-in fade-in-50 duration-500">
                                 <div className="p-4 border rounded-lg bg-secondary/50">
                                     <p className="text-sm text-muted-foreground">Custo Total da Importação</p>
-                                    <p className="text-3xl font-bold">BRL {result.custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                    <p className="text-3xl font-bold">BRL {result.custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                                 </div>
                                 <div className="space-y-1 text-sm">
-                                    <div className="flex justify-between"><span>Valor Aduaneiro:</span><span className="font-mono">BRL {result.valorAduaneiro.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- II:</span><span className="font-mono">BRL {result.totalII.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- IPI:</span><span className="font-mono">BRL {result.totalIPI.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- PIS:</span><span className="font-mono">BRL {result.totalPIS.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- COFINS:</span><span className="font-mono">BRL {result.totalCOFINS.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- ICMS:</span><span className="font-mono">BRL {result.totalICMS.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between"><span>Valor Aduaneiro:</span><span className="font-mono">BRL {result.valorAduaneiro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- II:</span><span className="font-mono">BRL {result.totalII.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- IPI:</span><span className="font-mono">BRL {result.totalIPI.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- PIS:</span><span className="font-mono">BRL {result.totalPIS.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- COFINS:</span><span className="font-mono">BRL {result.totalCOFINS.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- ICMS:</span><span className="font-mono">BRL {result.totalICMS.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                                 </div>
                                  <div className="flex justify-end pt-2">
                                     <Button variant="outline"><FileDown className="mr-2 h-4 w-4"/> Exportar PDF</Button>
@@ -506,7 +602,7 @@ export default function SimuladorDIPage() {
                                     {result.itens.map(item => (
                                         <TableRow key={item.descricao}>
                                             <TableCell className="text-sm">{item.descricao}</TableCell>
-                                            <TableCell className="text-right font-mono font-semibold">BRL {item.custoUnitarioFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                            <TableCell className="text-right font-mono font-semibold">BRL {item.custoUnitarioFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -517,6 +613,34 @@ export default function SimuladorDIPage() {
             </div>
         </form>
       </Form>
+       <Dialog open={isSimulationsDialogOpen} onOpenChange={setIsSimulationsDialogOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Carregar Simulação</DialogTitle>
+                    <DialogDescription>Selecione uma simulação salva para carregar seus dados no formulário.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <ScrollArea className="h-96">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Ação</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {simulations.length > 0 ? simulations.map(sim => (
+                                    <TableRow key={sim.id}>
+                                        <TableCell>{sim.name}</TableCell>
+                                        <TableCell>{sim.customer}</TableCell>
+                                        <TableCell>{new Date(sim.createdAt).toLocaleDateString()}</TableCell>
+                                        <TableCell><Button size="sm" onClick={() => handleLoadSimulation(sim)}>Carregar</Button></TableCell>
+                                    </TableRow>
+                                )) : <TableRow><TableCell colSpan={4} className="text-center h-24">Nenhuma simulação salva.</TableCell></TableRow>}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Fechar</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }

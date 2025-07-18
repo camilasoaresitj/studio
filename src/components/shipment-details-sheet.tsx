@@ -241,7 +241,7 @@ const PartnerSelectField = ({ name, label, control, partners }: { name: any, lab
                     <FormLabel>{label}</FormLabel>
                     <Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}>
                         <FormControl>
-                            <SelectTrigger className="h-7 text-xs">
+                            <SelectTrigger className="h-8 text-xs">
                                 <SelectValue placeholder={`Selecione um ${label.toLowerCase()}...`} />
                             </SelectTrigger>
                         </FormControl>
@@ -785,6 +785,16 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 </Button>
                             </div>
                         </div>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2 pt-4">
+                                    <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
+                                    <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
+                                    <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
+                                    <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
+                                </div>
+                            </form>
+                        </Form>
                     </SheetHeader>
                     
                     <div className="flex-grow overflow-y-auto">

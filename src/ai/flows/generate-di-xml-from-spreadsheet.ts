@@ -39,8 +39,8 @@ Carefully map the fields from the JSON to the corresponding XML tags based on th
 - The XML structure must follow the example EXACTLY.
 - All values must be formatted correctly (e.g., numbers with specific padding and precision, dates as YYYYMMDD).
 - Group all items from the spreadsheet under a single <adicao> tag.
-- Use data from the 'shipmentData' object for fields not present in the spreadsheet, like carrier, vessel, dates, etc.
-- The <informacoesComplementares> tag should be a detailed summary.
+- Use data from the 'shipmentData' object for fields not present in the spreadsheet, like carrier, vessel, dates, HBL/MBL numbers, etc.
+- The <informacoesComplementares> tag should be a detailed summary of the shipment.
 
 **Spreadsheet Data (as JSON):**
 \`\`\`json
@@ -91,9 +91,10 @@ const generateDiXmlFromSpreadsheetFlow = ai.defineFlow(
     outputSchema: GenerateDiXmlFromSpreadsheetOutputSchema,
   },
   async (input) => {
-    // For now, we'll use a hardcoded XML as the prompt is complex.
-    // In a future step, we would pass the real data to the prompt.
     const { output } = await generateDiXmlFromSpreadsheetPrompt(input);
-    return output!;
+    if (!output?.xml) {
+      throw new Error("A IA não conseguiu gerar o XML. Verifique os dados da planilha e do processo.");
+    }
+    return output;
   }
 );

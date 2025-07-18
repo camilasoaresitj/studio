@@ -17,7 +17,7 @@ import { runExtractInvoiceItems, runGetNcmRates } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getFees, Fee } from '@/lib/fees-data';
 

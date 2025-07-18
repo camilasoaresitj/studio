@@ -44,3 +44,4 @@ import '@/ai/flows/generate-di-xml.ts';
 import '@/ai/flows/register-due.ts';
 import '@/ai/flows/generate-di-xml-from-spreadsheet.ts';
 import '@/ai/flows/extract-invoice-items.ts';
+import '@/ai/flows/get-ncm-rates.ts';

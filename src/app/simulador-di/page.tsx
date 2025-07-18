@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,9 +14,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, Loader2, Upload, FileUp, Calculator, Wand2, FileText, BarChart2, PieChart, FileDown } from 'lucide-react';
-import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
+import { PlusCircle, Trash2, Loader2, Upload, FileUp, Calculator, Wand2, FileText, BarChart2, PieChart, FileDown, Search } from 'lucide-react';
+import { runExtractInvoiceItems } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { runGetNcmRates } from '@/app/actions';
+import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
+
 
 const itemSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -65,6 +69,37 @@ type SimulationResult = {
   })[];
 };
 
+const NcmRateFinder = ({ onRatesFound }: { onRatesFound: (rates: GetNcmRatesOutput) => void }) => {
+    const [ncm, setNcm] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
+
+    const handleSearch = async () => {
+        if (ncm.length < 8) {
+            toast({ variant: 'destructive', title: 'NCM Inválido', description: 'O NCM deve ter pelo menos 8 dígitos.' });
+            return;
+        }
+        setIsLoading(true);
+        const response = await runGetNcmRates(ncm);
+        if (response.success && response.data) {
+            onRatesFound(response.data);
+            toast({ title: 'Alíquotas encontradas!', description: `Alíquotas para o NCM ${ncm} foram carregadas.` });
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao buscar NCM', description: response.error });
+        }
+        setIsLoading(false);
+    };
+
+    return (
+        <div className="flex items-center gap-2">
+            <Input value={ncm} onChange={(e) => setNcm(e.target.value)} placeholder="Digite o NCM..."/>
+            <Button type="button" onClick={handleSearch} disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}
+            </Button>
+        </div>
+    );
+};
+
 export default function SimuladorDIPage() {
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -101,6 +136,7 @@ export default function SimuladorDIPage() {
       const pis = valorAduaneiro * aliquotas.pis;
       const cofins = valorAduaneiro * aliquotas.cofins;
 
+      // Correção na fórmula do ICMS por dentro (base de cálculo)
       const baseICMS = (valorAduaneiro + ii + ipi + pis + cofins) / (1 - aliquotas.icms);
       const icms = baseICMS * aliquotas.icms;
 
@@ -152,7 +188,7 @@ export default function SimuladorDIPage() {
         setResult(calculateCosts(form.getValues()));
      }
     return () => subscription.unsubscribe();
-  }, [form.watch, form.formState.isValid]);
+  }, [form, form.formState.isValid]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -164,7 +200,7 @@ export default function SimuladorDIPage() {
     reader.onload = async (e) => {
         try {
             const fileContent = e.target?.result as string;
-            const response = await extractInvoiceItems({
+            const response = await runExtractInvoiceItems({
                 fileDataUri: fileContent,
                 fileName: file.name
             });
@@ -186,6 +222,13 @@ export default function SimuladorDIPage() {
         }
     };
     reader.readAsDataURL(file);
+  };
+  
+  const handleRatesFound = (rates: GetNcmRatesOutput) => {
+      form.setValue('aliquotas.ii', rates.ii / 100);
+      form.setValue('aliquotas.ipi', rates.ipi / 100);
+      form.setValue('aliquotas.pis', rates.pis / 100);
+      form.setValue('aliquotas.cofins', rates.cofins / 100);
   };
 
   return (
@@ -265,7 +308,28 @@ export default function SimuladorDIPage() {
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle>Alíquotas de Impostos</CardTitle></CardHeader>
+                    <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <CardTitle>Alíquotas de Impostos</CardTitle>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button type="button" variant="outline" size="sm">
+                                        <Search className="mr-2 h-4 w-4"/>
+                                        Buscar Alíquotas por NCM
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Buscar Alíquotas (Simulação)</DialogTitle>
+                                        <DialogDescription>
+                                            Informe o NCM para consultar as alíquotas de impostos federais (II, IPI, PIS, COFINS).
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <NcmRateFinder onRatesFound={handleRatesFound} />
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    </CardHeader>
                     <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                          <FormField control={form.control} name="aliquotas.ii" render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" placeholder="0.14" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                          <FormField control={form.control} name="aliquotas.ipi" render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" placeholder="0.10" {...field} /></FormControl><FormMessage/></FormItem>)}/>

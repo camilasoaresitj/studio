@@ -37,6 +37,7 @@ import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import { registerDue } from '@/ai/flows/register-due';
 import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-spreadsheet';
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
+import { getNcmRates } from '@/ai/flows/get-ncm-rates';
 
 
 export async function runGetFreightRates(input: any) {
@@ -522,9 +523,20 @@ export async function runGenerateDiXmlFromSpreadsheet(input: any) {
 
 export async function runExtractInvoiceItems(input: { fileName: string, fileDataUri: string }) {
     try {
-        return await extractInvoiceItems(input);
+        const result = await extractInvoiceItems(input);
+        return result;
     } catch (error: any) {
         console.error("Extract Invoice Items Action Failed:", error);
         return { success: false, data: [], error: error.message || "Failed to extract items" };
+    }
+}
+
+export async function runGetNcmRates(ncm: string) {
+    try {
+        const data = await getNcmRates({ ncm });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Get NCM Rates Action Failed", error);
+        return { success: false, error: error.message || "Failed to get NCM rates" };
     }
 }

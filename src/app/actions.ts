@@ -334,31 +334,16 @@ export async function submitBLDraft(allShipments: Shipment[], shipmentId: string
         throw new Error("Shipment not found");
     }
 
-    const updatedShipment = { ...allShipments[shipmentIndex] };
+    const updatedShipments = [...allShipments];
+    const updatedShipment = { ...updatedShipments[shipmentIndex] };
     const now = new Date();
     
     // Update main shipment fields with draft data
     updatedShipment.blDraftData = draftData;
-    updatedShipment.commodityDescription = draftData.descriptionOfGoods;
-    updatedShipment.ncms = draftData.ncms;
     updatedShipment.blType = draftData.blType;
 
-    // Update container details from the draft form
-    updatedShipment.containers = draftData.containers.map((draftContainer, index) => {
-      const existingContainer = updatedShipment.containers?.[index] || { id: `cont-${Date.now()}-${index}`, type: 'DRY' };
-      return {
-        ...existingContainer,
-        number: draftContainer.number,
-        seal: draftContainer.seal,
-        tare: draftContainer.tare,
-        grossWeight: draftContainer.grossWeight,
-        volumes: draftContainer.volumes,
-        measurement: draftContainer.measurement,
-      };
-    });
-    
     // Update history, charge for late correction, and add milestone
-    const history = updatedShipment.blDraftHistory || { sentAt: null, revisions: [] };
+    const history: BLDraftHistory = updatedShipment.blDraftHistory || { sentAt: null, revisions: [] };
     let newTask: Milestone;
 
     if (!history.sentAt) {
@@ -400,14 +385,14 @@ export async function submitBLDraft(allShipments: Shipment[], shipmentId: string
     }
     
     updatedShipment.blDraftHistory = history;
-    updatedShipment.milestones.push(newTask);
+    updatedShipment.milestones = [...(updatedShipment.milestones || []), newTask];
     
     // Sort milestones to ensure correct order
     updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
 
-    allShipments[shipmentIndex] = updatedShipment;
+    updatedShipments[shipmentIndex] = updatedShipment;
 
-    return { success: true, data: allShipments };
+    return { success: true, data: updatedShipments };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);
     return { success: false, error: error.message || "Failed to submit BL Draft" };

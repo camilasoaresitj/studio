@@ -57,6 +57,7 @@ type BLDraftFormData = z.infer<typeof blDraftSchema>;
 
 interface BLDraftFormProps {
   shipment: Shipment;
+  setShipment: (shipment: Shipment) => void;
   isSheet?: boolean; // To differentiate between sheet and page context
   onUpdate?: (updatedShipment: Shipment) => void;
 }
@@ -109,7 +110,7 @@ const DraftHistory = ({ history }: { history: BLDraftHistory | undefined }) => {
 };
 
 
-export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftFormProps) {
+export function BLDraftForm({ shipment, setShipment, isSheet = false, onUpdate }: BLDraftFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { toast } = useToast();
@@ -192,6 +193,10 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
         const response = await submitBLDraft(allShipments, shipment.id, draftDataToSave, isLateSubmission);
         if (response.success && response.data) {
           saveShipments(response.data);
+          const updatedShipmentFromServer = response.data.find(s => s.id === shipment.id);
+          if (updatedShipmentFromServer) {
+              setShipment(updatedShipmentFromServer);
+          }
           toast({
             title: 'Draft de BL Enviado!',
             description: 'Seu draft foi enviado para nossa equipe. Obrigado!',

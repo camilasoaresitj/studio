@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import type { Shipment, Partner, BLDraftHistory } from '@/lib/shipment';
+import type { Shipment, Partner, BLDraftHistory, BLDraftData } from '@/lib/shipment';
 import { submitBLDraft } from '@/app/actions';
 import { Loader2, Send, FileText, AlertTriangle, CheckCircle, Ship, Trash2, PlusCircle, History } from 'lucide-react';
 import { Textarea } from './ui/textarea';
@@ -164,7 +164,7 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
   async function onSubmit(values: BLDraftFormData) {
     setIsLoading(true);
 
-    const draftDataToSave = {
+    const draftDataToSave: BLDraftData = {
         ...values,
         ncms: values.ncms.map(n => n.value)
     };
@@ -176,7 +176,7 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
         toast({ title: 'Draft Salvo!', description: 'As informações do draft foram salvas no processo.' });
     } else {
         // Submit from the customer portal
-        const response = await submitBLDraft(shipment, draftDataToSave, isLateSubmission);
+        const response = await submitBLDraft(shipment.id, draftDataToSave, isLateSubmission);
         if (response.success) {
           toast({
             title: 'Draft de BL Enviado!',

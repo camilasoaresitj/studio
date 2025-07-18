@@ -4,8 +4,6 @@
  * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
  *
  * extractInvoiceItems - Parses a file and returns a list of items.
- * ExtractInvoiceItemsInput - The input type for the function.
- * InvoiceItem - The schema for a single extracted item.
  */
 
 import { ai } from '@/ai/genkit';

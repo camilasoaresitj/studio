@@ -1,5 +1,4 @@
 
-
 'use server';
 /**
  * @fileOverview Fetches freight rates from the CargoFive API.

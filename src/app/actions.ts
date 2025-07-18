@@ -38,6 +38,7 @@ import { registerDue } from '@/ai/flows/register-due';
 import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-spreadsheet';
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';
+import { generateSimulationPdfHtml } from '@/ai/flows/generate-simulation-pdf-html';
 
 
 export async function runGetFreightRates(input: any) {
@@ -538,5 +539,15 @@ export async function runGetNcmRates(ncm: string) {
     } catch (error: any) {
         console.error("Get NCM Rates Action Failed", error);
         return { success: false, error: error.message || "Failed to get NCM rates" };
+    }
+}
+
+export async function runGenerateSimulationPdf(input: any) {
+    try {
+        const data = await generateSimulationPdfHtml(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Generate Simulation PDF Action Failed", error);
+        return { success: false, error: error.message || "Failed to generate PDF HTML" };
     }
 }

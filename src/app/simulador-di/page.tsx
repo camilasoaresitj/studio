@@ -5,6 +5,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -13,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen } from 'lucide-react';
-import { runExtractInvoiceItems, runGetNcmRates } from '@/app/actions';
+import { runExtractInvoiceItems, runGetNcmRates, runGenerateSimulationPdf } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
 import { Label } from '@/components/ui/label';
@@ -34,7 +36,7 @@ const itemSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
   quantidade: z.coerce.number().min(0.01, 'Quantidade deve ser maior que zero.'),
   valorUnitarioUSD: z.coerce.number().min(0.01, 'Valor unitário deve ser maior que zero.'),
-  ncm: z.string().min(8, 'NCM deve ter 8 dígitos.'),
+  ncm: z.string().length(8, 'NCM deve ter 8 dígitos.'),
   pesoKg: z.coerce.number().min(0.01, 'Peso deve ser maior que zero.'),
   ii: z.coerce.number().min(0, 'Alíquota de II é obrigatória.').default(14),
   ipi: z.coerce.number().min(0, 'Alíquota de IPI é obrigatória.').default(10),
@@ -124,6 +126,7 @@ export default function SimuladorDIPage() {
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [standardFees, setStandardFees] = useState<Fee[]>([]);
@@ -170,7 +173,6 @@ export default function SimuladorDIPage() {
   const watchedLclCbm = useWatch({ control: form.control, name: 'lclCbm' });
   const watchedLclWeight = useWatch({ control: form.control, name: 'lclWeight' });
   const watchedAirWeight = useWatch({ control: form.control, name: 'airWeight' });
-  const watchedFreteUSD = useWatch({ control: form.control, name: 'despesasGerais.freteInternacionalUSD' });
   
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -202,7 +204,7 @@ export default function SimuladorDIPage() {
         const ptaxRate = exchangeRates[fee.currency] || 1;
         const valueInBRL = fee.currency === 'BRL' ? value : value * ptaxRate;
         
-        if (fee.type === 'Por Contêiner' && watchedChargeType === 'fcl' && watchedContainers) {
+        if (fee.unit.toLowerCase().includes('contêiner') && watchedChargeType === 'fcl' && watchedContainers) {
             const totalContainers = watchedContainers.reduce((sum, c) => sum + c.quantity, 0);
             value = valueInBRL * totalContainers;
         } else if (fee.type === 'Por CBM/Ton' && watchedChargeType === 'lcl') {
@@ -224,7 +226,7 @@ export default function SimuladorDIPage() {
 
   const calculateCosts = useCallback((data: SimulationFormData): SimulationResult | null => {
       try {
-        const { itens, taxasCambio, despesasGerais, despesasLocais, icmsGeral } = data;
+        const { itens, taxasCambio, despesasGerais, despesasLocais, icmsGeral, modal } = data;
         if (itens.length === 0) return null;
 
         const valorFOBTotalUSD = itens.reduce((sum, item) => sum + item.valorUnitarioUSD * item.quantidade, 0);
@@ -232,11 +234,11 @@ export default function SimuladorDIPage() {
 
         if (pesoTotal === 0) return null;
         
-        const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) + (despesasGerais.freteInternacionalUSD * taxasCambio.frete) + (despesasGerais.seguroUSD * taxasCambio.frete);
+        const valorAduaneiro = (valorFOBTotalUSD + despesasGerais.freteInternacionalUSD + despesasGerais.seguroUSD) * taxasCambio.di;
         
-        const freteBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
+        const freteBRL = despesasGerais.freteInternacionalUSD * taxasCambio.di;
         const calculatedStorage = Math.max(2500, valorAduaneiro * 0.01);
-        const calculatedAFRMM = data.modal === 'maritimo' ? freteBRL * 0.08 : 0;
+        const calculatedAFRMM = modal === 'maritimo' ? freteBRL * 0.08 : 0;
         
         let totalII = 0, totalIPI = 0, totalPIS = 0, totalCOFINS = 0;
 
@@ -369,6 +371,55 @@ export default function SimuladorDIPage() {
       });
       setIsSimulationsDialogOpen(false);
   };
+
+  const handleGeneratePdf = async () => {
+    if (!result) {
+        toast({ variant: 'destructive', title: 'Nenhum resultado para exportar.' });
+        return;
+    }
+    setIsGeneratingPdf(true);
+    try {
+        const formData = form.getValues();
+        const response = await runGenerateSimulationPdf({
+            simulationName: formData.simulationName,
+            customerName: formData.customerName,
+            createdAt: new Date().toLocaleDateString('pt-BR'),
+            formData,
+            resultData: result,
+        });
+
+        if (!response.success || !response.data.html) {
+            throw new Error(response.error || 'A geração do HTML da simulação falhou.');
+        }
+
+        const element = document.createElement("div");
+        element.style.position = 'absolute';
+        element.style.left = '-9999px';
+        element.style.top = '0';
+        element.style.width = '800px'; 
+        element.innerHTML = response.data.html;
+        document.body.appendChild(element);
+        
+        await new Promise(resolve => setTimeout(resolve, 500)); 
+
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`simulacao-${formData.simulationName || 'custos'}.pdf`);
+        toast({ title: 'PDF gerado com sucesso!', className: 'bg-success text-success-foreground' });
+
+        document.body.removeChild(element);
+
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Erro ao gerar PDF', description: e.message });
+    } finally {
+        setIsGeneratingPdf(false);
+    }
+  };
+
 
   return (
     <div className="p-4 md:p-8">
@@ -529,10 +580,10 @@ export default function SimuladorDIPage() {
                                                 </div>
                                             <FormMessage/></FormItem>
                                         )}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="14" {...field} /></FormControl></FormItem>)}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="10" {...field} /></FormControl></FormItem>)}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="2.1" {...field} /></FormControl></FormItem>)}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="9.65" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" placeholder="14" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" placeholder="10" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" placeholder="2.1" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" placeholder="9.65" {...field} /></FormControl></FormItem>)}/></div>
                                     </div>
                                 </div>
                             ))}
@@ -544,8 +595,8 @@ export default function SimuladorDIPage() {
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-4">
                             <h3 className="font-semibold">Câmbio e ICMS</h3>
-                            <FormField control={form.control} name="taxasCambio.di" render={({ field }) => (<FormItem><FormLabel>Câmbio DI (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                            <FormField control={form.control} name="taxasCambio.frete" render={({ field }) => (<FormItem><FormLabel>Câmbio Frete (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                            <FormField control={form.control} name="taxasCambio.di" render={({ field }) => (<FormItem><FormLabel>Câmbio DI (BRL)</FormLabel><FormControl><Input type="number" step="0.0001" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                            <FormField control={form.control} name="taxasCambio.frete" render={({ field }) => (<FormItem><FormLabel>Câmbio Frete (BRL)</FormLabel><FormControl><Input type="number" step="0.0001" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                             <FormField control={form.control} name="icmsGeral" render={({ field }) => (<FormItem><FormLabel>Alíquota Geral de ICMS (%)</FormLabel><FormControl><Input type="number" placeholder="17" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                         </div>
                          <div className="space-y-4">
@@ -592,7 +643,10 @@ export default function SimuladorDIPage() {
                                     <div className="flex justify-between text-muted-foreground"><span>- ICMS:</span><span className="font-mono">BRL {result.totalICMS.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                                 </div>
                                  <div className="flex justify-end pt-2">
-                                    <Button variant="outline"><FileDown className="mr-2 h-4 w-4"/> Exportar PDF</Button>
+                                    <Button variant="outline" onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
+                                        {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4"/>}
+                                        Exportar PDF
+                                    </Button>
                                  </div>
                             </div>
                         ) : (

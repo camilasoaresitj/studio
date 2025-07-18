@@ -24,7 +24,6 @@ const extractFromSpreadsheet = (dataUri: string): { textContent: string; media?:
     const worksheet = workbook.Sheets[sheetName];
     const csvContent = XLSX.utils.sheet_to_csv(worksheet);
     
-    // Simple check to see if we got meaningful content
     if (!csvContent || csvContent.trim().length < 5) {
         throw new Error('Spreadsheet seems to be empty or could not be read.');
     }

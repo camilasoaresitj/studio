@@ -92,6 +92,11 @@ export function ClientPortalPage({ id }: { id: string }) {
         return dateA - dateB;
     });
 
+    // Filter out operational-only milestones for the client view
+    const clientVisibleMilestones = sortedMilestones.filter(m => 
+        !m.name.toLowerCase().includes('enviar draft mbl ao armador')
+    );
+
     const documentsToShow = shipment.documents?.filter(doc => 
         ['Original HBL', 'Invoice', 'Packing List', 'Extrato DUE'].includes(doc.name) && (doc.status === 'uploaded' || doc.status === 'approved')
     ) || [];
@@ -160,7 +165,7 @@ export function ClientPortalPage({ id }: { id: string }) {
                                 <CardContent>
                                     <div className="relative pl-8">
                                         <div className="absolute left-[15px] top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
-                                        {sortedMilestones.map((milestone, index) => (
+                                        {clientVisibleMilestones.map((milestone, index) => (
                                             <div key={index} className="relative mb-8 flex items-start gap-4">
                                                 <div className={cn(
                                                     `absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full -translate-x-1/2`,

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -57,9 +58,8 @@ type BLDraftFormData = z.infer<typeof blDraftSchema>;
 
 interface BLDraftFormProps {
   shipment: Shipment;
-  setShipment: (shipment: Shipment) => void;
   isSheet?: boolean; // To differentiate between sheet and page context
-  onUpdate?: (updatedShipment: Shipment) => void;
+  onUpdate: (shipment: Shipment) => void;
 }
 
 const formatPartnerAddress = (partner: Partner | undefined) => {
@@ -110,7 +110,7 @@ const DraftHistory = ({ history }: { history: BLDraftHistory | undefined }) => {
 };
 
 
-export function BLDraftForm({ shipment, setShipment, isSheet = false, onUpdate }: BLDraftFormProps) {
+export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { toast } = useToast();
@@ -182,7 +182,7 @@ export function BLDraftForm({ shipment, setShipment, isSheet = false, onUpdate }
         ncms: values.ncms.map(n => n.value)
     };
     
-    if (isSheet && onUpdate) {
+    if (isSheet) {
         // Just update the data in the sheet context
         const updatedShipment = { ...shipment, blDraftData: draftDataToSave, blType: values.blType };
         onUpdate(updatedShipment);
@@ -195,7 +195,7 @@ export function BLDraftForm({ shipment, setShipment, isSheet = false, onUpdate }
           saveShipments(response.data);
           const updatedShipmentFromServer = response.data.find(s => s.id === shipment.id);
           if (updatedShipmentFromServer) {
-              setShipment(updatedShipmentFromServer);
+              onUpdate(updatedShipmentFromServer);
           }
           toast({
             title: 'Draft de BL Enviado!',

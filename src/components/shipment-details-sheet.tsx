@@ -22,7 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner, UploadedDocument } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner, UploadedDocument, ActivityLog, ApprovalLog } from '@/lib/shipment';
 import { cn } from '@/lib/utils';
 import { 
     Calendar as CalendarIcon, 
@@ -79,6 +79,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/t
 import { Label } from './ui/label';
 import { addFinancialEntries, getFinancialEntries } from '@/lib/financials-data';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import { CustomsClearanceTab } from './customs-clearance-tab';
 
 
 const containerDetailSchema = z.object({
@@ -784,12 +785,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                         </div>
                         <div className="pt-4">
                             <Form {...form}>
-                                <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
                                     <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
                                     <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
                                     <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
                                     <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
-                                </form>
+                                </div>
                             </Form>
                         </div>
                     </SheetHeader>
@@ -1252,7 +1253,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </TabsContent>
                             
                             <TabsContent value="desembaraco">
-                               <CustomsClearanceTab shipment={shipment} />
+                               <CustomsClearanceTab shipments={shipment ? [shipment] : []} />
                             </TabsContent>
                             
                             <TabsContent value="map">

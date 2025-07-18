@@ -247,11 +247,14 @@ export default function SimuladorDIPage() {
 
         if (pesoTotal === 0) return null;
         
+        // VALOR ADUANEIRO (BASE PARA IMPOSTOS) - USA TAXA DI PARA TUDO
         const valorAduaneiro = (valorFOBTotalUSD + despesasGerais.freteInternacionalUSD + despesasGerais.seguroUSD) * taxasCambio.di;
         
-        const freteBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
+        // CUSTO DO FRETE E SEGURO A PAGAR (CUSTO COMERCIAL) - USA TAXA FRETE
+        const freteSeguroComercialBRL = (despesasGerais.freteInternacionalUSD + despesasGerais.seguroUSD) * taxasCambio.frete;
+        
         const calculatedStorage = Math.max(2500, valorAduaneiro * 0.01);
-        const calculatedAFRMM = modal === 'maritimo' ? freteBRL * 0.08 : 0;
+        const calculatedAFRMM = modal === 'maritimo' ? (despesasGerais.freteInternacionalUSD * taxasCambio.frete * 0.08) : 0;
         
         let totalII = 0, totalIPI = 0, totalPIS = 0, totalCOFINS = 0;
 
@@ -259,7 +262,7 @@ export default function SimuladorDIPage() {
           const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
           const valorAduaneiroRateado = valorAduaneiro * proporcaoFOB;
           
-          const aliquotas = (ncmRates && ncmRates[item.ncm]) || { ii: 0, ipi: 0, pis: 0, cofins: 0 };
+          const aliquotas = (ncmRates && ncmRates[item.ncm]) ? ncmRates[item.ncm] : { ii: 0, ipi: 0, pis: 0, cofins: 0 };
 
           const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
           const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
@@ -281,13 +284,19 @@ export default function SimuladorDIPage() {
         
         const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + calculatedStorage + calculatedAFRMM;
         const totalImpostos = totalII + totalIPI + totalPIS + totalCOFINS + totalICMS;
-        const custoTotal = valorAduaneiro + totalImpostos + totalDespesasLocais;
+        
+        const valorMercadoriaBRL = valorFOBTotalUSD * taxasCambio.di;
+        const custoTotal = valorMercadoriaBRL + freteSeguroComercialBRL + totalImpostos + totalDespesasLocais;
         
         const itensResultadoFinal = itensResultado.map(item => {
             const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
             const impostosRateadosComIcms = item.impostosRateados + (totalICMS * proporcaoFOB);
-            const despesasLocaisRateadas = (totalDespesasLocais * proporcaoFOB);
-            const custoTotalItem = item.valorAduaneiroRateado + impostosRateadosComIcms + despesasLocaisRateadas;
+            const despesasLocaisRateadas = totalDespesasLocais * proporcaoFOB;
+            
+            const valorMercadoriaItemBRL = (item.valorUnitarioUSD * item.quantidade) * taxasCambio.di;
+            const freteSeguroItemBRL = (despesasGerais.freteInternacionalUSD + despesasGerais.seguroUSD) * taxasCambio.frete * proporcaoFOB;
+
+            const custoTotalItem = valorMercadoriaItemBRL + freteSeguroItemBRL + impostosRateadosComIcms + despesasLocaisRateadas;
             const custoUnitarioFinal = custoTotalItem / item.quantidade;
 
             return { ...item, impostosRateados: impostosRateadosComIcms, despesasLocaisRateadas, custoUnitarioFinal };

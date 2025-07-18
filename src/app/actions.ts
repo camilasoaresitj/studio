@@ -344,17 +344,17 @@ export async function submitBLDraft(allShipments: Shipment[], shipmentId: string
 
     // Update history, charge for late correction, and add milestone
     const history: BLDraftHistory = updatedShipment.blDraftHistory || { sentAt: null, revisions: [] };
-    let newTask: Milestone;
+    let newTasks: Milestone[] = [];
 
     if (!history.sentAt) {
         history.sentAt = now;
-        newTask = {
+        newTasks.push({
             name: "Enviar Draft MBL ao armador",
             status: 'pending',
             predictedDate: now,
             effectiveDate: null,
             details: `Draft inicial recebido do cliente ${updatedShipment.customer}.`
-        };
+        });
     } else {
         const newRevision: BLDraftRevision = { date: now };
         if (isLateSubmission) {
@@ -375,23 +375,23 @@ export async function submitBLDraft(allShipments: Shipment[], shipmentId: string
         }
         history.revisions.push(newRevision);
         
-        newTask = {
+        newTasks.push({
             name: "[REVISÃO] Enviar Draft MBL ao armador",
             status: 'pending',
             predictedDate: now,
             effectiveDate: null,
             details: `Revisão do draft recebida do cliente ${updatedShipment.customer}.`
-        };
+        });
     }
     
     updatedShipment.blDraftHistory = history;
-    updatedShipment.milestones = [...(updatedShipment.milestones || []), newTask];
+    updatedShipment.milestones = [...(updatedShipment.milestones || []), ...newTasks];
     
     // Sort milestones to ensure correct order
     updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
 
     updatedShipments[shipmentIndex] = updatedShipment;
-
+    saveShipments(updatedShipments);
     return { success: true, data: updatedShipments };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);

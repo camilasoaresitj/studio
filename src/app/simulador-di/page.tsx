@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -68,7 +68,7 @@ type SimulationResult = {
 export default function SimuladorDIPage() {
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const form = useForm<SimulationFormData>({
@@ -138,7 +138,7 @@ export default function SimuladorDIPage() {
       };
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     const subscription = form.watch(() => {
         const data = form.getValues();
         if(form.formState.isValid) {

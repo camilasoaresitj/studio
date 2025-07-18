@@ -1,13 +1,15 @@
 
 import { config } from 'dotenv';
+config({ path: `.env.local`, override: true });
 config();
 
-import {genkit} from 'genkit';
-import {googleAI} from '@gen-kit/googleai';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
-genkit({
+export default genkit({
   plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY || '' })],
-  model: 'googleai/gemini-2.0-flash',
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
 });
 
 import '@/ai/flows/create-crm-entry-from-email.ts';

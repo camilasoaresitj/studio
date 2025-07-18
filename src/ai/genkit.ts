@@ -1,9 +1,7 @@
 
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import { genkit } from 'genkit';
 
-// The AI object is configured in dev.ts to ensure env variables are loaded first.
-export const ai = genkit({
-  plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY || '' })],
-  model: 'googleai/gemini-2.0-flash',
-});
+// This file is imported by all flows.
+// It is safe to import in 'use server' files because it does not initialize any plugins.
+// The actual plugin initialization is done in `src/ai/dev.ts`, which is only used by the genkit CLI.
+export const ai = genkit();

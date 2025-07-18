@@ -17,7 +17,7 @@ import { runExtractInvoiceItems, runGetNcmRates } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getFees, Fee } from '@/lib/fees-data';
 
@@ -182,11 +182,15 @@ export default function SimuladorDIPage() {
         if (fee.type === 'Por KG' && watchedModal === 'aereo') {
             value = Math.max(fee.minValue || 0, value * (watchedAirWeight || 0));
         }
+        if (fee.type === 'Percentual' && fee.name.toUpperCase().includes('AFRMM')) {
+            const frete = form.getValues('despesasGerais.freteInternacionalUSD') || 0;
+            value = frete * (value / 100);
+        }
         return { description: fee.name, value };
     });
 
     replaceExpenses(newExpenses);
-  }, [watchedModal, watchedChargeType, watchedContainers, watchedLclCbm, watchedLclWeight, watchedAirWeight, standardFees, replaceExpenses]);
+  }, [watchedModal, watchedChargeType, watchedContainers, watchedLclCbm, watchedLclWeight, watchedAirWeight, standardFees, replaceExpenses, form]);
 
 
   const calculateCosts = useCallback((data: SimulationFormData): SimulationResult | null => {
@@ -199,7 +203,7 @@ export default function SimuladorDIPage() {
 
         if (pesoTotal === 0) return null;
 
-        const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) + (despesasGerais.freteInternacionalUSD * taxasCambio.frete) + (despesasGerais.seguroUSD * taxasCambio.frete);
+        const valorAduaneiro = (valorFOBTotalUSD + despesasGerais.freteInternacionalUSD + despesasGerais.seguroUSD) * taxasCambio.di;
         
         let totalII = 0, totalIPI = 0, totalPIS = 0, totalCOFINS = 0;
 
@@ -430,8 +434,8 @@ export default function SimuladorDIPage() {
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-4">
                             <h3 className="font-semibold">Câmbio e ICMS</h3>
-                            <FormField control={form.control} name="taxasCambio.di" render={({ field }) => (<FormItem><FormLabel>Câmbio DI (BRL)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                            <FormField control={form.control} name="taxasCambio.frete" render={({ field }) => (<FormItem><FormLabel>Câmbio Frete (BRL)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                            <FormField control={form.control} name="taxasCambio.di" render={({ field }) => (<FormItem><FormLabel>Câmbio DI (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                            <FormField control={form.control} name="taxasCambio.frete" render={({ field }) => (<FormItem><FormLabel>Câmbio Frete (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                             <FormField control={form.control} name="icmsGeral" render={({ field }) => (<FormItem><FormLabel>Alíquota Geral de ICMS (%)</FormLabel><FormControl><Input type="number" placeholder="17" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                         </div>
                          <div className="space-y-4">

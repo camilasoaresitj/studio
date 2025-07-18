@@ -29,8 +29,18 @@ export const InvoiceItemSchema = z.object({
 });
 export type InvoiceItem = z.infer<typeof InvoiceItemSchema>;
 
-const ExtractInvoiceItemsOutputSchema = z.array(InvoiceItemSchema);
+const ExtractInvoiceItemsOutputSchema = z.object({
+    success: z.boolean(),
+    data: z.array(InvoiceItemSchema),
+    error: z.string().optional(),
+});
 export type ExtractInvoiceItemsOutput = z.infer<typeof ExtractInvoiceItemsOutputSchema>;
+
+
+export async function extractInvoiceItems(input: ExtractInvoiceItemsInput): Promise<ExtractInvoiceItemsOutput> {
+  return extractInvoiceItemsFlow(input);
+}
+
 
 // Helper function to convert data URI to buffer
 const dataUriToBuffer = (dataUri: string) => {
@@ -44,6 +54,7 @@ const dataUriToBuffer = (dataUri: string) => {
 const extractFromSpreadsheet = (buffer: Buffer): string => {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
+    if (!sheetName) throw new Error('No sheets found in the workbook.');
     const worksheet = workbook.Sheets[sheetName];
     // Convert to CSV for a simple text representation for the AI
     return XLSX.utils.sheet_to_csv(worksheet);
@@ -57,7 +68,7 @@ const extractFromXml = (buffer: Buffer): string => {
 const extractInvoiceItemsPrompt = ai.definePrompt({
   name: 'extractInvoiceItemsPrompt',
   input: { schema: z.object({ textContent: z.string() }) },
-  output: { schema: ExtractInvoiceItemsOutputSchema },
+  output: { schema: z.array(InvoiceItemSchema) },
   prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided text, which could be from a CSV, XML, or plain text invoice.
 
 Analyze the text below and extract all product line items. For each item, you must find:
@@ -102,33 +113,40 @@ Now, analyze the following text content:
 `,
 });
 
-export async function extractInvoiceItems(input: ExtractInvoiceItemsInput): Promise<{ success: boolean; data: ExtractInvoiceItemsOutput; error?: string }> {
-  try {
-    const buffer = dataUriToBuffer(input.fileDataUri);
-    let textContent = '';
+const extractInvoiceItemsFlow = ai.defineFlow(
+  {
+    name: 'extractInvoiceItemsFlow',
+    inputSchema: ExtractInvoiceItemsInputSchema,
+    outputSchema: ExtractInvoiceItemsOutputSchema,
+  },
+  async (input) => {
+    try {
+        const buffer = dataUriToBuffer(input.fileDataUri);
+        let textContent = '';
 
-    if (input.fileName.endsWith('.xml')) {
-        textContent = extractFromXml(buffer);
-    } else if (input.fileName.endsWith('.xlsx') || input.fileName.endsWith('.xls') || input.fileName.endsWith('.csv')) {
-        textContent = extractFromSpreadsheet(buffer);
-    } else {
-        throw new Error('Unsupported file type. Please use .xlsx, .xls, .csv, or .xml');
+        if (input.fileName.endsWith('.xml')) {
+            textContent = extractFromXml(buffer);
+        } else if (input.fileName.endsWith('.xlsx') || input.fileName.endsWith('.xls') || input.fileName.endsWith('.csv')) {
+            textContent = extractFromSpreadsheet(buffer);
+        } else {
+            throw new Error('Unsupported file type. Please use .xlsx, .xls, .csv, or .xml');
+        }
+
+        if (!textContent.trim()) {
+            throw new Error('The file appears to be empty or could not be read.');
+        }
+
+        const { output } = await extractInvoiceItemsPrompt({ textContent });
+        
+        if (!output || output.length === 0) {
+        throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo e o formato.");
+        }
+        
+        return { success: true, data: output };
+
+    } catch (error: any) {
+        console.error('Error in extractInvoiceItems flow:', error);
+        return { success: false, data: [], error: error.message };
     }
-
-    if (!textContent.trim()) {
-        throw new Error('The file appears to be empty or could not be read.');
-    }
-
-    const { output } = await extractInvoiceItemsPrompt({ textContent });
-    
-    if (!output || output.length === 0) {
-      throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo e o formato.");
-    }
-    
-    return { success: true, data: output };
-
-  } catch (error: any) {
-    console.error('Error in extractInvoiceItems flow:', error);
-    return { success: false, data: [], error: error.message };
   }
-}
+);

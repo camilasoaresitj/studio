@@ -524,6 +524,10 @@ export async function runGenerateDiXmlFromSpreadsheet(input: any) {
 export async function runExtractInvoiceItems(input: { fileName: string, fileDataUri: string }) {
     try {
         const result = await extractInvoiceItems(input);
+        if (!result.success) {
+            // Rethrow the error from the flow to be caught by the component
+            throw new Error(result.error || 'Unknown error occurred during item extraction.');
+        }
         return result;
     } catch (error: any) {
         console.error("Extract Invoice Items Action Failed:", error);

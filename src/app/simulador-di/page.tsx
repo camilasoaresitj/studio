@@ -1,26 +1,22 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import * as XLSX from 'xlsx';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, Loader2, Upload, FileUp, Calculator, Wand2, FileText, BarChart2, PieChart, FileDown, Search } from 'lucide-react';
-import { runExtractInvoiceItems } from '@/app/actions';
+import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search } from 'lucide-react';
+import { runExtractInvoiceItems, runGetNcmRates } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { runGetNcmRates } from '@/app/actions';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
-
 
 const itemSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -28,6 +24,14 @@ const itemSchema = z.object({
   valorUnitarioUSD: z.coerce.number().min(0.01, 'Valor unitário deve ser maior que zero.'),
   ncm: z.string().min(8, 'NCM deve ter 8 dígitos.'),
   pesoKg: z.coerce.number().min(0.01, 'Peso deve ser maior que zero.'),
+});
+
+const aliquotaSchema = z.object({
+  ncm: z.string().min(8, 'NCM é obrigatório.'),
+  ii: z.coerce.number().min(0, 'Alíquota de II é obrigatória.'),
+  ipi: z.coerce.number().min(0, 'Alíquota de IPI é obrigatória.'),
+  pis: z.coerce.number().min(0, 'Alíquota de PIS é obrigatória.'),
+  cofins: z.coerce.number().min(0, 'Alíquota de COFINS é obrigatória.'),
 });
 
 const simulationSchema = z.object({
@@ -41,23 +45,18 @@ const simulationSchema = z.object({
     seguroUSD: z.coerce.number().min(0, 'Seguro é obrigatório.'),
     despesasLocaisBRL: z.coerce.number().min(0, 'Despesas locais são obrigatórias.'),
   }),
-  aliquotas: z.object({
-    ii: z.coerce.number().min(0, 'Alíquota de II é obrigatória.'),
-    ipi: z.coerce.number().min(0, 'Alíquota de IPI é obrigatória.'),
-    pis: z.coerce.number().min(0, 'Alíquota de PIS é obrigatória.'),
-    cofins: z.coerce.number().min(0, 'Alíquota de COFINS é obrigatória.'),
-    icms: z.coerce.number().min(0, 'Alíquota de ICMS é obrigatória.'),
-  }),
+  icmsGeral: z.coerce.number().min(0, 'Alíquota de ICMS é obrigatória.'),
+  aliquotas: z.array(aliquotaSchema).min(1, 'Adicione as alíquotas para cada NCM.'),
 });
 
 type SimulationFormData = z.infer<typeof simulationSchema>;
 type SimulationResult = {
   valorAduaneiro: number;
-  ii: number;
-  ipi: number;
-  pis: number;
-  cofins: number;
-  icms: number;
+  totalII: number;
+  totalIPI: number;
+  totalPIS: number;
+  totalCOFINS: number;
+  totalICMS: number;
   custoTotal: number;
   pesoTotal: number;
   quantidadeTotal: number;
@@ -109,86 +108,112 @@ export default function SimuladorDIPage() {
   const form = useForm<SimulationFormData>({
     resolver: zodResolver(simulationSchema),
     defaultValues: {
-      itens: [{ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0 }],
+      itens: [],
       taxasCambio: { di: 5.67, frete: 5.87 },
       despesas: { freteInternacionalUSD: 1400, seguroUSD: 100, despesasLocaisBRL: 5000 },
-      aliquotas: { ii: 0.14, ipi: 0.10, pis: 0.0186, cofins: 0.0854, icms: 0.17 },
+      icmsGeral: 0.17,
+      aliquotas: [],
     },
   });
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields: itemFields, append: appendItem, remove: removeItem, replace: replaceItems } = useFieldArray({
     control: form.control,
     name: "itens",
   });
   
-  const watchedForm = useWatch({ control: form.control });
+  const { fields: aliquotaFields, replace: replaceAliquotas } = useFieldArray({
+    control: form.control,
+    name: "aliquotas",
+  });
 
-  const calculateCosts = (data: SimulationFormData): SimulationResult => {
-      const { itens, taxasCambio, despesas, aliquotas } = data;
+  const calculateCosts = useCallback((data: SimulationFormData): SimulationResult | null => {
+      if (!form.formState.isValid) return null;
+      
+      const { itens, taxasCambio, despesas, aliquotas, icmsGeral } = data;
 
       const valorFOBTotalUSD = itens.reduce((sum, item) => sum + item.valorUnitarioUSD * item.quantidade, 0);
       const pesoTotal = itens.reduce((sum, item) => sum + item.pesoKg * item.quantidade, 0);
 
       const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) + (despesas.freteInternacionalUSD * taxasCambio.frete) + (despesas.seguroUSD * taxasCambio.frete);
       
-      const ii = valorAduaneiro * aliquotas.ii;
-      const ipi = (valorAduaneiro + ii) * aliquotas.ipi;
-      const pis = valorAduaneiro * aliquotas.pis;
-      const cofins = valorAduaneiro * aliquotas.cofins;
-
-      // Correção na fórmula do ICMS por dentro (base de cálculo)
-      const baseICMS = (valorAduaneiro + ii + ipi + pis + cofins) / (1 - aliquotas.icms);
-      const icms = baseICMS * aliquotas.icms;
-
-      const totalImpostos = ii + ipi + pis + cofins + icms;
-      const custoTotal = valorAduaneiro + totalImpostos + despesas.despesasLocaisBRL;
+      let totalII = 0, totalIPI = 0, totalPIS = 0, totalCOFINS = 0;
 
       const itensResultado = itens.map(item => {
         const proporcaoPeso = (item.pesoKg * item.quantidade) / pesoTotal;
         const valorAduaneiroRateado = valorAduaneiro * proporcaoPeso;
-        const impostosRateados = totalImpostos * proporcaoPeso;
-        const despesasLocaisRateadas = despesas.despesasLocaisBRL * proporcaoPeso;
-        const custoTotalItem = valorAduaneiroRateado + impostosRateados + despesasLocaisRateadas;
-        const custoUnitarioFinal = custoTotalItem / item.quantidade;
 
-        return {
-          ...item,
-          valorAduaneiroRateado,
-          impostosRateados,
-          despesasLocaisRateadas,
-          custoUnitarioFinal
-        };
+        const aliquotaNCM = aliquotas.find(a => a.ncm === item.ncm);
+        if (!aliquotaNCM) {
+            console.error(`Alíquotas para NCM ${item.ncm} não encontradas.`);
+            return { ...item, valorAduaneiroRateado, impostosRateados: 0, despesasLocaisRateadas: 0, custoUnitarioFinal: 0 };
+        }
+
+        const ii = valorAduaneiroRateado * aliquotaNCM.ii;
+        const ipi = (valorAduaneiroRateado + ii) * aliquotaNCM.ipi;
+        const pis = valorAduaneiroRateado * aliquotaNCM.pis;
+        const cofins = valorAduaneiroRateado * aliquotaNCM.cofins;
+        
+        totalII += ii;
+        totalIPI += ipi;
+        totalPIS += pis;
+        totalCOFINS += cofins;
+        
+        const impostosRateados = ii + ipi + pis + cofins;
+        
+        return { ...item, valorAduaneiroRateado, impostosRateados, despesasLocaisRateadas: 0, custoUnitarioFinal: 0 };
+      });
+
+      const baseICMS = valorAduaneiro + totalII + totalIPI + totalPIS + totalCOFINS;
+      const totalICMS = (baseICMS / (1 - icmsGeral)) * icmsGeral;
+      
+      const totalImpostos = totalII + totalIPI + totalPIS + totalCOFINS + totalICMS;
+      const custoTotal = valorAduaneiro + totalImpostos + despesas.despesasLocaisBRL;
+      
+      const itensResultadoFinal = itensResultado.map(item => {
+          const proporcaoPeso = (item.pesoKg * item.quantidade) / pesoTotal;
+          const impostosRateados = item.impostosRateados + (totalICMS * proporcaoPeso);
+          const despesasLocaisRateadas = despesas.despesasLocaisBRL * proporcaoPeso;
+          const custoTotalItem = item.valorAduaneiroRateado + impostosRateados + despesasLocaisRateadas;
+          const custoUnitarioFinal = custoTotalItem / item.quantidade;
+
+          return { ...item, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal };
       });
 
       return {
-        valorAduaneiro,
-        ii,
-        ipi,
-        pis,
-        cofins,
-        icms,
-        custoTotal,
-        pesoTotal,
+        valorAduaneiro, totalII, totalIPI, totalPIS, totalCOFINS, totalICMS,
+        custoTotal, pesoTotal,
         quantidadeTotal: itens.reduce((sum, i) => sum + i.quantidade, 0),
-        itens: itensResultado
+        itens: itensResultadoFinal
       };
-  };
+  }, [form.formState.isValid]);
 
   useEffect(() => {
     const subscription = form.watch(() => {
-        const data = form.getValues();
-        if(form.formState.isValid) {
-            setResult(calculateCosts(data));
-        } else {
-            setResult(null);
-        }
+      const data = form.getValues();
+      const newResult = calculateCosts(data);
+      setResult(newResult);
     });
-    // Trigger initial calculation
-     if(form.formState.isValid) {
-        setResult(calculateCosts(form.getValues()));
-     }
     return () => subscription.unsubscribe();
-  }, [form, form.formState.isValid]);
+  }, [form, calculateCosts]);
+  
+  const watchedItems = useWatch({ control: form.control, name: 'itens' });
+  
+  useEffect(() => {
+      if (watchedItems) {
+          const uniqueNcms = [...new Set(watchedItems.map(item => item.ncm).filter(ncm => ncm.length >= 8))];
+          const currentAliquotas = form.getValues('aliquotas');
+          
+          const newAliquotas = uniqueNcms.map(ncm => {
+              const existing = currentAliquotas.find(a => a.ncm === ncm);
+              return existing || { ncm, ii: 0.14, ipi: 0.10, pis: 0.0186, cofins: 0.0854 };
+          });
+          
+          if(JSON.stringify(newAliquotas) !== JSON.stringify(currentAliquotas)) {
+            replaceAliquotas(newAliquotas);
+          }
+      }
+  }, [watchedItems, form, replaceAliquotas]);
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -205,7 +230,7 @@ export default function SimuladorDIPage() {
                 fileName: file.name
             });
             if (response.success && response.data.length > 0) {
-                replace(response.data);
+                replaceItems(response.data);
                 toast({
                     title: 'Itens Importados!',
                     description: `${response.data.length} itens foram extraídos do arquivo.`,
@@ -224,11 +249,16 @@ export default function SimuladorDIPage() {
     reader.readAsDataURL(file);
   };
   
-  const handleRatesFound = (rates: GetNcmRatesOutput) => {
-      form.setValue('aliquotas.ii', rates.ii / 100);
-      form.setValue('aliquotas.ipi', rates.ipi / 100);
-      form.setValue('aliquotas.pis', rates.pis / 100);
-      form.setValue('aliquotas.cofins', rates.cofins / 100);
+  const handleRatesFound = (ncm: string, rates: GetNcmRatesOutput) => {
+      const aliquotas = form.getValues('aliquotas');
+      const index = aliquotas.findIndex(a => a.ncm === ncm);
+      if (index > -1) {
+          form.setValue(`aliquotas.${index}.ii`, rates.ii / 100);
+          form.setValue(`aliquotas.${index}.ipi`, rates.ipi / 100);
+          form.setValue(`aliquotas.${index}.pis`, rates.pis / 100);
+          form.setValue(`aliquotas.${index}.cofins`, rates.cofins / 100);
+          toast({ title: 'Alíquotas aplicadas!', description: `Alíquotas para o NCM ${ncm} foram carregadas.` });
+      }
   };
 
   return (
@@ -246,7 +276,7 @@ export default function SimuladorDIPage() {
             <div className="lg:col-span-2 space-y-6">
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><FileUp className="h-5 w-5"/> Importar Dados da Fatura</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5"/> Importar Dados da Fatura</CardTitle>
                         <CardDescription>Importe um arquivo (.xlsx, .csv, .xml) para que a IA preencha os itens automaticamente.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -270,20 +300,20 @@ export default function SimuladorDIPage() {
                             <CardTitle>Itens da Fatura</CardTitle>
                             <CardDescription>Liste os produtos da sua importação.</CardDescription>
                         </div>
-                        <Button type="button" size="sm" variant="outline" onClick={() => append({ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0 })}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => appendItem({ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0 })}>
                             <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
                         </Button>
                     </CardHeader>
                     <CardContent>
                          <div className="space-y-4">
-                            {fields.map((field, index) => (
+                            {itemFields.map((field, index) => (
                                 <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-2 border rounded-md relative">
                                     <div className="md:col-span-5"><FormField control={form.control} name={`itens.${index}.descricao`} render={({ field }) => (<FormItem><FormLabel>Descrição</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
                                     <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.quantidade`} render={({ field }) => (<FormItem><FormLabel>Qtde</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
                                     <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.valorUnitarioUSD`} render={({ field }) => (<FormItem><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
                                     <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.pesoKg`} render={({ field }) => (<FormItem><FormLabel>Peso (Kg)</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
                                     <div className="md:col-span-11"><FormField control={form.control} name={`itens.${index}.ncm`} render={({ field }) => (<FormItem><FormLabel>NCM</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
-                                    <Button type="button" variant="ghost" size="icon" className="text-destructive self-end" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button>
+                                    <Button type="button" variant="ghost" size="icon" className="text-destructive self-end" onClick={() => removeItem(index)}><Trash2 className="h-4 w-4"/></Button>
                                 </div>
                             ))}
                          </div>
@@ -306,36 +336,45 @@ export default function SimuladorDIPage() {
                         </div>
                     </CardContent>
                 </Card>
-
+                
                 <Card>
                     <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <CardTitle>Alíquotas de Impostos</CardTitle>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button type="button" variant="outline" size="sm">
-                                        <Search className="mr-2 h-4 w-4"/>
-                                        Buscar Alíquotas por NCM
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-md">
-                                    <DialogHeader>
-                                        <DialogTitle>Buscar Alíquotas (Simulação)</DialogTitle>
-                                        <DialogDescription>
-                                            Informe o NCM para consultar as alíquotas de impostos federais (II, IPI, PIS, COFINS).
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <NcmRateFinder onRatesFound={handleRatesFound} />
-                                </DialogContent>
-                            </Dialog>
-                        </div>
+                        <CardTitle>Alíquotas de Impostos</CardTitle>
+                        <CardDescription>As alíquotas serão agrupadas por NCM. Insira o ICMS abaixo.</CardDescription>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                         <FormField control={form.control} name="aliquotas.ii" render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" placeholder="0.14" {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                         <FormField control={form.control} name="aliquotas.ipi" render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" placeholder="0.10" {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                         <FormField control={form.control} name="aliquotas.pis" render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" placeholder="0.0186" {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                         <FormField control={form.control} name="aliquotas.cofins" render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" placeholder="0.0854" {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                         <FormField control={form.control} name="aliquotas.icms" render={({ field }) => (<FormItem><FormLabel>ICMS (%)</FormLabel><FormControl><Input type="number" placeholder="0.17" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                         {aliquotaFields.map((field, index) => (
+                           <Card key={field.id} className="p-4">
+                               <h4 className="font-semibold text-sm mb-2">NCM: {field.ncm}</h4>
+                               <div className="flex justify-between items-center mb-2">
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button type="button" variant="outline" size="sm" className="w-full">
+                                            <Search className="mr-2 h-4 w-4"/> Buscar
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-md">
+                                        <DialogHeader>
+                                            <DialogTitle>Buscar Alíquotas para NCM: {field.ncm}</DialogTitle>
+                                            <DialogDescription>
+                                                Informe o NCM para consultar as alíquotas de impostos federais (II, IPI, PIS, COFINS).
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <NcmRateFinder onRatesFound={(rates) => handleRatesFound(field.ncm, rates)} />
+                                    </DialogContent>
+                                </Dialog>
+                               </div>
+                               <div className="space-y-2">
+                                  <FormField control={form.control} name={`aliquotas.${index}.ii`} render={({ field }) => (<FormItem className="flex items-center gap-2"><FormLabel className="w-10">II</FormLabel><FormControl><Input type="number" placeholder="0.14" {...field} /></FormControl></FormItem>)}/>
+                                  <FormField control={form.control} name={`aliquotas.${index}.ipi`} render={({ field }) => (<FormItem className="flex items-center gap-2"><FormLabel className="w-10">IPI</FormLabel><FormControl><Input type="number" placeholder="0.10" {...field} /></FormControl></FormItem>)}/>
+                                  <FormField control={form.control} name={`aliquotas.${index}.pis`} render={({ field }) => (<FormItem className="flex items-center gap-2"><FormLabel className="w-10">PIS</FormLabel><FormControl><Input type="number" placeholder="0.0186" {...field} /></FormControl></FormItem>)}/>
+                                  <FormField control={form.control} name={`aliquotas.${index}.cofins`} render={({ field }) => (<FormItem className="flex items-center gap-2"><FormLabel className="w-10">COFINS</FormLabel><FormControl><Input type="number" placeholder="0.0854" {...field} /></FormControl></FormItem>)}/>
+                               </div>
+                           </Card>
+                         ))}
+                        </div>
+                        <FormField control={form.control} name="icmsGeral" render={({ field }) => (<FormItem className="max-w-xs mt-4"><FormLabel>Alíquota Geral de ICMS (%)</FormLabel><FormControl><Input type="number" placeholder="0.17" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                     </CardContent>
                 </Card>
             </div>
@@ -355,11 +394,11 @@ export default function SimuladorDIPage() {
                                 </div>
                                 <div className="space-y-1 text-sm">
                                     <div className="flex justify-between"><span>Valor Aduaneiro:</span><span className="font-mono">BRL {result.valorAduaneiro.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- II:</span><span className="font-mono">BRL {result.ii.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- IPI:</span><span className="font-mono">BRL {result.ipi.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- PIS:</span><span className="font-mono">BRL {result.pis.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- COFINS:</span><span className="font-mono">BRL {result.cofins.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
-                                    <div className="flex justify-between text-muted-foreground"><span>- ICMS:</span><span className="font-mono">BRL {result.icms.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- II:</span><span className="font-mono">BRL {result.totalII.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- IPI:</span><span className="font-mono">BRL {result.totalIPI.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- PIS:</span><span className="font-mono">BRL {result.totalPIS.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- COFINS:</span><span className="font-mono">BRL {result.totalCOFINS.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
+                                    <div className="flex justify-between text-muted-foreground"><span>- ICMS:</span><span className="font-mono">BRL {result.totalICMS.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
                                 </div>
                                  <div className="flex justify-end pt-2">
                                     <Button variant="outline"><FileDown className="mr-2 h-4 w-4"/> Exportar PDF</Button>

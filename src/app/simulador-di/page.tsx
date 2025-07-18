@@ -251,7 +251,7 @@ export default function SimuladorDIPage() {
         const valorFOBTotalUSD = itens.reduce((sum, item) => sum + item.valorUnitarioUSD * item.quantidade, 0);
         if (valorFOBTotalUSD === 0) return null;
         
-        // Valor Aduaneiro: Base para cálculo de impostos. Usa taxa da DI para tudo.
+        // Valor Aduaneiro: Base para cálculo de impostos.
         const valorAduaneiroTotal = (valorFOBTotalUSD * taxasCambio.di) 
                              + (despesasGerais.freteInternacionalUSD * taxasCambio.di) 
                              + (despesasGerais.seguroUSD * taxasCambio.di);
@@ -259,31 +259,35 @@ export default function SimuladorDIPage() {
         let totalII = 0, totalIPI = 0, totalPIS = 0, totalCOFINS = 0;
 
         const itensComImpostos = itens.map(item => {
-          const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
-          const valorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
-          
-          const aliquotas = (ncmRates && ncmRates[item.ncm]) 
-            ? ncmRates[item.ncm] 
-            : { ii: 0, ipi: 0, pis: 0, cofins: 0 };
-          
-          const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
-          const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
-          const pis = valorAduaneiroRateado * (aliquotas.pis / 100);
-          const cofins = valorAduaneiroRateado * (aliquotas.cofins / 100);
-          
-          totalII += ii;
-          totalIPI += ipi;
-          totalPIS += pis;
-          totalCOFINS += cofins;
-          
-          return { ...item, valorAduaneiroRateado, ii, ipi, pis, cofins };
+            const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
+            const valorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
+            
+            const aliquotas = (ncmRates && ncmRates[item.ncm])
+                ? ncmRates[item.ncm]
+                : { ii: 0, ipi: 0, pis: 0, cofins: 0 }; // Default to 0 if not found
+            
+            const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
+            const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
+            
+            // PIS/COFINS base de cálculo = Valor Aduaneiro
+            const pis = valorAduaneiroRateado * (aliquotas.pis / 100);
+            const cofins = valorAduaneiroRateado * (aliquotas.cofins / 100);
+            
+            totalII += ii;
+            totalIPI += ipi;
+            totalPIS += pis;
+            totalCOFINS += cofins;
+            
+            return { ...item, valorAduaneiroRateado, ii, ipi, pis, cofins };
         });
         
         const totalImpostosFederais = totalII + totalIPI + totalPIS + totalCOFINS;
-        const baseICMS = valorAduaneiroTotal + totalImpostosFederais;
-        const totalICMS = (baseICMS / (1 - (icmsGeral / 100))) - baseICMS;
         
-        // Despesas Locais
+        // ICMS "por dentro"
+        const baseICMS = (valorAduaneiroTotal + totalII + totalIPI + totalPIS + totalCOFINS) / (1 - (icmsGeral / 100));
+        const totalICMS = baseICMS * (icmsGeral / 100);
+
+        // Despesas Locais + Dinâmicas
         const calculatedStorage = Math.max(2500, valorAduaneiroTotal * 0.01);
         const freteComercialBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
         const calculatedAFRMM = modal === 'maritimo' ? (freteComercialBRL * 0.08) : 0;

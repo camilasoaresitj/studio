@@ -99,7 +99,7 @@ export type SimulationResult = {
   })[];
 };
 
-const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (ncm: string, GetNcmRatesOutput) => void }) => {
+const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (ncm: string, rates: GetNcmRatesOutput) => void }) => {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -262,9 +262,7 @@ export default function SimuladorDIPage() {
             const valorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
             
             const cleanNcm = item.ncm.replace(/\D/g, '');
-            const aliquotas = (ncmRates && ncmRates[cleanNcm])
-                ? ncmRates[cleanNcm]
-                : { ii: 0, ipi: 0, pis: 0, cofins: 0 };
+            const aliquotas = ncmRates?.[cleanNcm] ?? { ii: 0, ipi: 0, pis: 0, cofins: 0 };
             
             const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
             const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
@@ -289,11 +287,12 @@ export default function SimuladorDIPage() {
         
         // Automatic Costs
         const numeroDeAdicoes = uniqueNcms.length;
-        const taxaSiscomex = 115.67 + (numeroDeAdicoes * 38.56);
+        const taxaSiscomex = numeroDeAdicoes > 0 ? (115.67 + ((numeroDeAdicoes - 1) * 38.56)) : 0;
         const calculatedAFRMM = modal === 'maritimo' ? (freteComercialBRL * 0.08) : 0;
         const calculatedStorage = Math.max(2500, valorAduaneiroTotal * 0.01);
         
-        const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + taxaSiscomex + calculatedStorage + calculatedAFRMM;
+        const totalDespesasLocaisManuais = despesasLocais.reduce((sum, d) => sum + d.value, 0);
+        const totalDespesasLocais = totalDespesasLocaisManuais + taxaSiscomex + calculatedStorage + calculatedAFRMM;
 
         const valorMercadoriaComercialBRL = valorFOBTotalUSD * taxasCambio.di;
         const totalImpostos = totalImpostosFederais + totalICMS;

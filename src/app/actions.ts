@@ -335,25 +335,24 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
         throw new Error("Shipment not found");
     }
 
-    const updatedShipments = [...allShipments];
-    const updatedShipment = { ...updatedShipments[shipmentIndex] };
+    const updatedShipment = { ...allShipments[shipmentIndex] };
     const now = new Date();
     
     // Update main shipment fields with draft data
     updatedShipment.blDraftData = draftData;
     updatedShipment.blType = draftData.blType;
+    updatedShipment.milestones = updatedShipment.milestones || [];
+    updatedShipment.charges = updatedShipment.charges || [];
 
-    // Update history, charge for late correction, and add milestone
+    // Initialize history if it doesn't exist
     const history: BLDraftHistory = updatedShipment.blDraftHistory || { sentAt: null, revisions: [] };
-    let newTasks: Milestone[] = [];
-
     const hasSentDraftBefore = !!history.sentAt;
 
     if (!hasSentDraftBefore) {
         history.sentAt = now;
         const taskAlreadyExists = updatedShipment.milestones.some(m => m.name === 'Enviar Draft MBL ao armador');
         if (!taskAlreadyExists) {
-            newTasks.push({
+            updatedShipment.milestones.push({
                 name: "Enviar Draft MBL ao armador",
                 status: 'pending',
                 predictedDate: now,
@@ -376,14 +375,14 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
                 sacado: updatedShipment.customer,
                 approvalStatus: 'aprovada',
             };
-            updatedShipment.charges = [...(updatedShipment.charges || []), lateFeeCharge];
+            updatedShipment.charges.push(lateFeeCharge);
             newRevision.lateFee = { cost: 150, currency: 'USD' };
         }
         history.revisions.push(newRevision);
         
         const revisionTaskExists = updatedShipment.milestones.some(m => m.name === '[REVISÃO] Enviar Draft MBL ao armador');
         if (!revisionTaskExists) {
-            newTasks.push({
+            updatedShipment.milestones.push({
                 name: "[REVISÃO] Enviar Draft MBL ao armador",
                 status: 'pending',
                 predictedDate: now,
@@ -394,14 +393,13 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
     }
     
     updatedShipment.blDraftHistory = history;
-    updatedShipment.milestones = [...(updatedShipment.milestones || []), ...newTasks];
     
     // Sort milestones to ensure correct order
     updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
 
-    updatedShipments[shipmentIndex] = updatedShipment;
-    saveShipments(updatedShipments);
-    return { success: true, data: updatedShipments };
+    allShipments[shipmentIndex] = updatedShipment;
+    saveShipments(allShipments);
+    return { success: true, data: allShipments };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);
     return { success: false, error: error.message || "Failed to submit BL Draft" };

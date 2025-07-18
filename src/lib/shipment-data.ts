@@ -131,6 +131,11 @@ export type BLDraftData = {
         volumes: string;
         measurement: string;
     }[];
+    vgmDetails: {
+        responsibleParty: string;
+        authorizedPerson: string;
+        method: 'method1' | 'method2';
+    };
 };
 
 export type ChatMessage = {

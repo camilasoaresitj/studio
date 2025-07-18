@@ -32,6 +32,12 @@ const blDraftContainerSchema = z.object({
   measurement: z.string().min(1, "Obrigatório"),
 });
 
+const vgmDetailsSchema = z.object({
+    responsibleParty: z.string().min(1, "Parte responsável é obrigatória."),
+    authorizedPerson: z.string().min(1, "Pessoa autorizada é obrigatória."),
+    method: z.enum(['method1', 'method2'], { required_error: 'Selecione o método de pesagem.' }),
+});
+
 const blDraftSchema = z.object({
   shipper: z.string().min(1, 'Shipper é obrigatório'),
   consignee: z.string().min(1, 'Consignee é obrigatório'),
@@ -43,7 +49,8 @@ const blDraftSchema = z.object({
   ncms: z.array(z.object({ value: z.string().min(1, "Obrigatório") })).min(1, "Adicione pelo menos um NCM."),
   due: z.string().min(1, "DUE é obrigatório."),
   blType: z.enum(['original', 'express'], { required_error: 'Selecione o tipo de BL.' }),
-  containers: z.array(blDraftContainerSchema).min(1, "Adicione pelo menos um contêiner.")
+  containers: z.array(blDraftContainerSchema).min(1, "Adicione pelo menos um contêiner."),
+  vgmDetails: vgmDetailsSchema,
 });
 
 type BLDraftFormData = z.infer<typeof blDraftSchema>;
@@ -131,6 +138,11 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
           volumes: c.volumes || '',
           measurement: c.measurement || '',
        })) || [{ number: '', seal: '', tare: '', grossWeight: '', volumes: '', measurement: '' }],
+       vgmDetails: {
+           responsibleParty: shipment.shipper?.name || '',
+           authorizedPerson: '',
+           method: 'method1',
+       }
     },
   });
 
@@ -368,6 +380,34 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
                 <FormField name="measurement" control={form.control} render={({ field }) => (
                     <FormItem><FormLabel>Cubagem Total (CBM)</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
                 )}/>
+            </div>
+            
+            <Separator />
+
+            <div>
+                <h3 className="text-lg font-medium mb-4">Detalhes do VGM (Verified Gross Mass)</h3>
+                <div className="p-4 border rounded-md space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="vgmDetails.responsibleParty" render={({ field }) => (
+                            <FormItem><FormLabel>Parte Responsável</FormLabel><FormControl><Input placeholder="Nome da empresa ou pessoa" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="vgmDetails.authorizedPerson" render={({ field }) => (
+                            <FormItem><FormLabel>Pessoa Autorizada</FormLabel><FormControl><Input placeholder="Nome completo" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                    </div>
+                    <FormField control={form.control} name="vgmDetails.method" render={({ field }) => (
+                        <FormItem className="space-y-3">
+                            <FormLabel>Método de Pesagem</FormLabel>
+                            <FormControl>
+                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="method1" /></FormControl><FormLabel className="font-normal">Método 1: Pesagem do contêiner cheio e lacrado.</FormLabel></FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="method2" /></FormControl><FormLabel className="font-normal">Método 2: Pesagem de toda a carga e conteúdo + tara do contêiner.</FormLabel></FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                </div>
             </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

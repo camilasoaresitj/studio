@@ -262,8 +262,10 @@ export default function SimuladorDIPage() {
             const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
             const valorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
             
-            const aliquotas = (ncmRates && ncmRates[item.ncm])
-                ? ncmRates[item.ncm]
+            // CORRECTION: Ensure NCM is cleaned of any non-digit characters before lookup.
+            const cleanNcm = item.ncm.replace(/\D/g, '');
+            const aliquotas = (ncmRates && ncmRates[cleanNcm])
+                ? ncmRates[cleanNcm]
                 : { ii: 0, ipi: 0, pis: 0, cofins: 0 };
             
             const ii = valorAduaneiroRateado * (aliquotas.ii / 100);

@@ -14,8 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen, Mail, MessageSquare, FilePlus } from 'lucide-react';
-import { runExtractInvoiceItems, runGetNcmRates, runGenerateSimulationPdf, runShareSimulation, runSendWhatsapp } from '@/app/actions';
+import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen } from 'lucide-react';
+import { runExtractInvoiceItems, runGetNcmRates, runGenerateSimulationPdf } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
 import { Label } from '@/components/ui/label';
@@ -131,8 +131,6 @@ export default function SimuladorDIPage() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [standardFees, setStandardFees] = useState<Fee[]>([]);
@@ -259,22 +257,22 @@ export default function SimuladorDIPage() {
 
         const itensComImpostos = itens.map(item => {
             const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
-            const valorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
+            const itemValorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
             
             const cleanNcm = item.ncm.replace(/\D/g, '');
             const aliquotas = ncmRates?.[cleanNcm] ?? { ii: 0, ipi: 0, pis: 0, cofins: 0 };
             
-            const ii = valorAduaneiroRateado * ((aliquotas.ii || 0) / 100);
-            const ipi = (valorAduaneiroRateado + ii) * ((aliquotas.ipi || 0) / 100);
-            const pis = valorAduaneiroRateado * ((aliquotas.pis || 0) / 100);
-            const cofins = valorAduaneiroRateado * ((aliquotas.cofins || 0) / 100);
+            const ii = itemValorAduaneiroRateado * ((aliquotas.ii || 0) / 100);
+            const ipi = (itemValorAduaneiroRateado + ii) * ((aliquotas.ipi || 0) / 100);
+            const pis = itemValorAduaneiroRateado * ((aliquotas.pis || 0) / 100);
+            const cofins = itemValorAduaneiroRateado * ((aliquotas.cofins || 0) / 100);
             
             totalII += ii;
             totalIPI += ipi;
             totalPIS += pis;
             totalCOFINS += cofins;
             
-            return { ...item, valorAduaneiroRateado, ii, ipi, pis, cofins };
+            return { ...item, valorAduaneiroRateado: itemValorAduaneiroRateado, ii, ipi, pis, cofins };
         });
         
         const totalImpostosFederais = totalII + totalIPI + totalPIS + totalCOFINS;
@@ -285,7 +283,6 @@ export default function SimuladorDIPage() {
         const freteComercialBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
         const seguroComercialBRL = despesasGerais.seguroUSD * taxasCambio.frete;
         
-        // Automatic Costs
         const numeroDeAdicoes = uniqueNcms.length;
         const taxaSiscomex = numeroDeAdicoes > 0 ? (115.67 + ((numeroDeAdicoes - 1) * 38.56)) : 0;
         const calculatedAFRMM = modal === 'maritimo' ? (freteComercialBRL * 0.08) : 0;
@@ -310,7 +307,7 @@ export default function SimuladorDIPage() {
             const custoTotalItem = valorMercadoriaItemBRL + freteSeguroItemBRL + impostosRateados + despesasLocaisRateadas;
             const custoUnitarioFinal = custoTotalItem / item.quantidade;
 
-            return { ...item, valorAduaneiroRateado: item.valorAduaneiroRateado, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal };
+            return { ...item, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal };
         });
 
         return {
@@ -407,12 +404,6 @@ export default function SimuladorDIPage() {
       setIsSimulationsDialogOpen(false);
   };
 
-  const handleNewSimulation = () => {
-    form.reset(defaultFormValues);
-    setResult(null);
-    toast({ title: 'Nova Simulação', description: 'O formulário foi limpo.' });
-  };
-
   const handleGeneratePdf = async () => {
     if (!result) {
         toast({ variant: 'destructive', title: 'Nenhum resultado para exportar.' });
@@ -461,43 +452,6 @@ export default function SimuladorDIPage() {
     }
   };
 
-  const handleShare = async (channel: 'email' | 'whatsapp') => {
-      if (!result) return;
-      const formData = form.getValues();
-      const customer = partners.find(p => p.name === formData.customerName);
-      if (!customer) {
-          toast({ variant: 'destructive', title: 'Cliente não encontrado.' });
-          return;
-      }
-
-      setIsSharing(true);
-      const response = await runShareSimulation({
-          customerName: formData.customerName,
-          simulationName: formData.simulationName,
-          totalCostBRL: result.custoTotal,
-          simulationLink: window.location.href, // Simplified link for now
-      });
-
-      if (response.success && response.data) {
-          if (channel === 'email') {
-              console.log("Email a ser enviado:", response.data.emailBody);
-              toast({ title: 'E-mail de simulação enviado! (Simulação)' });
-          } else {
-              const phone = customer.contacts[0].phone.replace(/\D/g, '');
-              const whatsappResponse = await runSendWhatsapp(phone, response.data.whatsappMessage);
-              if (whatsappResponse.success) {
-                  toast({ title: 'Mensagem enviada por WhatsApp!', className: 'bg-success text-success-foreground' });
-              } else {
-                   toast({ variant: 'destructive', title: 'Erro ao enviar WhatsApp', description: whatsappResponse.error });
-              }
-          }
-          setIsShareDialogOpen(false);
-      } else {
-          toast({ variant: 'destructive', title: 'Erro ao compartilhar', description: response.error });
-      }
-      setIsSharing(false);
-  };
-
 
   return (
     <div className="p-4 md:p-8">
@@ -513,7 +467,7 @@ export default function SimuladorDIPage() {
             <div className="lg:col-span-2 space-y-6">
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><FileDown className="h-5 w-5"/> Salvar e Carregar Simulação</CardTitle>
+                        <CardTitle>Salvar e Carregar Simulação</CardTitle>
                         <CardDescription>Nomeie sua simulação para salvá-la ou carregue uma existente.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -555,16 +509,12 @@ export default function SimuladorDIPage() {
                                 <FolderOpen className="mr-2 h-4 w-4"/>
                                 Minhas Simulações
                             </Button>
-                             <Button type="button" variant="secondary" onClick={handleNewSimulation}>
-                                <FilePlus className="mr-2 h-4 w-4"/>
-                                Nova Simulação
-                            </Button>
                         </div>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5"/> Detalhes do Embarque</CardTitle>
+                        <CardTitle>Detalhes do Embarque</CardTitle>
                         <CardDescription>Informe os detalhes da carga para que o sistema sugira as despesas locais automaticamente.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -615,7 +565,7 @@ export default function SimuladorDIPage() {
                 </Card>
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5"/> Importar Dados da Fatura</CardTitle>
+                        <CardTitle>Importar Dados da Fatura</CardTitle>
                         <CardDescription>Importe um arquivo (.xlsx, .csv, .xml) para que a IA preencha os itens automaticamente.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -724,7 +674,7 @@ export default function SimuladorDIPage() {
             <div className="lg:col-span-1 space-y-6 sticky top-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5"/> Resultado da Simulação</CardTitle>
+                        <CardTitle>Resultado da Simulação</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {result ? (
@@ -741,13 +691,10 @@ export default function SimuladorDIPage() {
                                     <div className="flex justify-between text-muted-foreground"><span>- COFINS:</span><span className="font-mono">BRL {result.totalCOFINS.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                                     <div className="flex justify-between text-muted-foreground"><span>- ICMS:</span><span className="font-mono">BRL {result.totalICMS.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                                 </div>
-                                 <div className="flex justify-end pt-2 gap-2">
+                                 <div className="flex justify-end pt-2">
                                     <Button variant="outline" onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
                                         {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4"/>}
                                         Exportar PDF
-                                    </Button>
-                                    <Button variant="secondary" onClick={() => setIsShareDialogOpen(true)}>
-                                        <Mail className="mr-2 h-4 w-4"/> Compartilhar
                                     </Button>
                                  </div>
                             </div>
@@ -761,7 +708,7 @@ export default function SimuladorDIPage() {
                 {result && (
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><PieChart className="h-5 w-5"/> Rateio de Custos por Item</CardTitle>
+                            <CardTitle>Rateio de Custos por Item</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -809,24 +756,6 @@ export default function SimuladorDIPage() {
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Fechar</Button></DialogClose>
                 </DialogFooter>
-            </DialogContent>
-        </Dialog>
-        <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Compartilhar Simulação</DialogTitle>
-                    <DialogDescription>Selecione como deseja compartilhar a simulação com o cliente.</DialogDescription>
-                </DialogHeader>
-                <div className="py-4 flex flex-col gap-4">
-                     <Button onClick={() => handleShare('email')} disabled={isSharing}>
-                        {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4"/>}
-                        Enviar por E-mail
-                    </Button>
-                    <Button onClick={() => handleShare('whatsapp')} disabled={isSharing}>
-                         {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4"/>}
-                        Enviar por WhatsApp
-                    </Button>
-                </div>
             </DialogContent>
         </Dialog>
     </div>

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -48,7 +47,8 @@ import {
     Map as MapIcon,
     FileText,
     ChevronsUpDown,
-    Check
+    Check,
+    FileCode
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -387,12 +387,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
 
     const handleMasterSave = async () => {
         if (activeTab === 'bl_draft' && blDraftFormRef.current) {
-            // If the active tab is the BL draft, we trigger its specific submit handler
-            // which is now designed to call onUpdate.
             blDraftFormRef.current.submit();
         } else {
-            // For all other tabs, we use the main form's submit handler.
-            await form.handleSubmit(onMainFormSubmit)();
+            await onMainFormSubmit(form.getValues());
         }
     };
 
@@ -786,8 +783,8 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </div>
                         </div>
                         <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2 pt-4">
+                            <form className="pt-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
                                     <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
                                     <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
                                     <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
@@ -806,6 +803,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 <TabsTrigger value="financials">Financeiro</TabsTrigger>
                                 <TabsTrigger value="documents">Documentos</TabsTrigger>
                                 <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>
+                                <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                                 <TabsTrigger value="map">Mapa</TabsTrigger>
                             </TabsList>
                             </div>
@@ -813,7 +811,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             <div className="p-4">
                             <TabsContent value="timeline">
                                 <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
+                                <div className="space-y-4">
                                 <Card>
                                     <CardHeader>
                                         <div className="flex justify-between items-center">
@@ -876,14 +874,13 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel className="text-base font-semibold">Informações Adicionais (Visível ao Cliente)</FormLabel><FormControl><Textarea placeholder="Adicione aqui observações importantes sobre o processo que devem ser visíveis ao cliente no portal..." className="min-h-[100px]" {...field} /></FormControl></FormItem>)} />
                                     </CardContent>
                                 </Card>
-                                </form>
+                                </div>
                                 </Form>
                             </TabsContent>
                             
                             <TabsContent value="details">
                                 <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
-                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="text-lg">Informações do Processo</CardTitle>
@@ -1012,13 +1009,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </Card>
                                     </div>
                                 </div>
-                                </form>
                                 </Form>
                             </TabsContent>
 
                             <TabsContent value="financials">
                               <Form {...form}>
-                              <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
+                              <div className="space-y-4">
                               <Card>
                                     <CardHeader>
                                         <div className="flex justify-between items-center">
@@ -1130,13 +1126,12 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </div>
                                     </CardContent>
                                 </Card>
-                                </form>
+                                </div>
                                 </Form>
                             </TabsContent>
                             
                             <TabsContent value="documents">
                                 <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                     <Card>
                                         <CardHeader>
@@ -1249,12 +1244,30 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         </CardContent>
                                     </Card>
                                 </div>
-                                </form>
                                 </Form>
                             </TabsContent>
 
                             <TabsContent value="bl_draft">
                                 <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                            </TabsContent>
+
+                            <TabsContent value="desembaraco">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Desembaraço Aduaneiro</CardTitle>
+                                        <CardDescription>Importe a planilha do CargoWise para gerar o XML da DI.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4 text-center">
+                                        <div className="p-6 border-2 border-dashed rounded-lg">
+                                            <FileCode className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                                            <Button variant="outline">
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                Importar Planilha
+                                            </Button>
+                                            <p className="text-xs text-muted-foreground mt-2">Esta funcionalidade está em desenvolvimento.</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             </TabsContent>
                             
                             <TabsContent value="map">

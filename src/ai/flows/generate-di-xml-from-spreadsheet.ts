@@ -39,15 +39,16 @@ Carefully map the fields from the JSON to the corresponding XML tags based on th
 - The XML structure must follow the example EXACTLY.
 - All values must be formatted correctly (e.g., numbers with specific padding and precision, dates as YYYYMMDD).
 - Group all items from the spreadsheet under a single <adicao> tag.
-- Use data from the 'shipmentData' object for fields not present in the spreadsheet, like carrier, vessel, dates, HBL/MBL numbers, etc.
+- Use data from the 'shipmentData' object as the PRIMARY source for general fields not present in the spreadsheet items, like carrier, vessel, dates, HBL/MBL numbers, etc.
 - The <informacoesComplementares> tag should be a detailed summary of the shipment.
+- The spreadsheet data represents the list of <mercadoria> items within the <adicao>.
 
-**Spreadsheet Data (as JSON):**
+**Spreadsheet Data (as JSON - for <mercadoria> items):**
 \`\`\`json
 {{{json spreadsheetData}}}
 \`\`\`
 
-**Shipment Process Data:**
+**Shipment Process Data (for general declaration fields):**
 \`\`\`json
 {{{json shipmentData}}}
 \`\`\`

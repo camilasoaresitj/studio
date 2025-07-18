@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef } from 'react';
@@ -10,12 +11,11 @@ import { z } from 'zod';
 import { Button } from './ui/button';
 import { Form } from './ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { runRegisterDue } from '@/app/actions';
+import { runRegisterDue, runGenerateDiXmlFromSpreadsheet } from '@/app/actions';
 import { RegisterDueInputSchema } from '@/ai/flows/register-due';
 import { Loader2, FileCode, Upload } from 'lucide-react';
 import type { Shipment } from '@/lib/shipment';
 import { Textarea } from './ui/textarea';
-import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-spreadsheet';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 type DueFormData = z.infer<typeof RegisterDueInputSchema>;
@@ -72,20 +72,20 @@ export function CustomsClearanceTab({ shipment }: CustomsClearanceTabProps) {
           throw new Error('A planilha está vazia ou em um formato inválido.');
         }
 
-        const response = await generateDiXmlFromSpreadsheet({
+        const response = await runGenerateDiXmlFromSpreadsheet({
             spreadsheetData: jsonData,
             shipmentData: shipment,
         });
 
-        if (response.xml) {
-            setGeneratedXml(response.xml);
+        if (response.success && response.data?.xml) {
+            setGeneratedXml(response.data.xml);
             toast({
                 title: 'XML da DI Gerado!',
                 description: 'O XML foi gerado com sucesso a partir da planilha.',
                 className: 'bg-success text-success-foreground',
             });
         } else {
-            throw new Error('A IA não conseguiu gerar o XML. Verifique o formato da planilha.');
+            throw new Error(response.error || 'A IA não conseguiu gerar o XML. Verifique o formato da planilha.');
         }
 
       } catch (error: any) {

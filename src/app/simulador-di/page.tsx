@@ -93,7 +93,7 @@ type SimulationResult = {
   })[];
 };
 
-const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (rates: GetNcmRatesOutput) => void }) => {
+const NcmRateFinder = ({ itemIndex, ncm, onRatesFound }: { itemIndex: number, ncm: string, onRatesFound: (itemIndex: number, rates: GetNcmRatesOutput) => void }) => {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -105,7 +105,7 @@ const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (rate
         setIsLoading(true);
         const response = await runGetNcmRates(ncm);
         if (response.success && response.data) {
-            onRatesFound(response.data);
+            onRatesFound(itemIndex, response.data);
             toast({ title: 'Alíquotas encontradas!', description: `Alíquotas para o NCM ${ncm} foram carregadas.` });
         } else {
             toast({ variant: 'destructive', title: 'Erro ao buscar NCM', description: response.error });
@@ -199,7 +199,6 @@ export default function SimuladorDIPage() {
     const newExpenses: { description: string, value: number }[] = relevantFees.map(fee => {
         let value = parseFloat(fee.value) || 0;
         
-        // Handle currency conversion
         const ptaxRate = exchangeRates[fee.currency] || 1;
         const valueInBRL = fee.currency === 'BRL' ? value : value * ptaxRate;
         
@@ -213,13 +212,6 @@ export default function SimuladorDIPage() {
         } else if (fee.type === 'Por KG' && watchedModal === 'aereo') {
             const calculatedValue = valueInBRL * (watchedAirWeight || 0);
             value = fee.minValue && calculatedValue < fee.minValue ? fee.minValue : calculatedValue;
-        } else if (fee.type === 'Percentual' && fee.name.toUpperCase().includes('AFRMM')) {
-            if (watchedModal === 'maritimo') {
-                 const freteBRL = (watchedFreteUSD || 0) * (exchangeRates['USD'] || 1);
-                 value = freteBRL * (parseFloat(fee.value) / 100);
-            } else {
-                value = 0; // AFRMM is only for maritime
-            }
         } else {
             value = valueInBRL; // Fixed fees already converted
         }
@@ -227,7 +219,7 @@ export default function SimuladorDIPage() {
     });
 
     replaceExpenses(newExpenses);
-  }, [watchedModal, watchedChargeType, watchedContainers, watchedLclCbm, watchedLclWeight, watchedAirWeight, standardFees, replaceExpenses, form, exchangeRates, watchedFreteUSD]);
+  }, [watchedModal, watchedChargeType, watchedContainers, watchedLclCbm, watchedLclWeight, watchedAirWeight, standardFees, replaceExpenses, form, exchangeRates]);
 
 
   const calculateCosts = useCallback((data: SimulationFormData): SimulationResult | null => {
@@ -239,17 +231,18 @@ export default function SimuladorDIPage() {
         const pesoTotal = itens.reduce((sum, item) => sum + item.pesoKg * item.quantidade, 0);
 
         if (pesoTotal === 0) return null;
-
-        const valorAduaneiro = (valorFOBTotalUSD + despesasGerais.freteInternacionalUSD + despesasGerais.seguroUSD) * taxasCambio.di;
         
-        // Dynamic storage calculation
+        const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) + (despesasGerais.freteInternacionalUSD * taxasCambio.frete) + (despesasGerais.seguroUSD * taxasCambio.frete);
+        
+        const freteBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
         const calculatedStorage = Math.max(2500, valorAduaneiro * 0.01);
+        const calculatedAFRMM = data.modal === 'maritimo' ? freteBRL * 0.08 : 0;
         
         let totalII = 0, totalIPI = 0, totalPIS = 0, totalCOFINS = 0;
 
         const itensResultado = itens.map(item => {
-          const proporcaoPeso = (item.pesoKg * item.quantidade) / pesoTotal;
-          const valorAduaneiroRateado = valorAduaneiro * proporcaoPeso;
+          const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
+          const valorAduaneiroRateado = valorAduaneiro * proporcaoFOB;
 
           const ii = valorAduaneiroRateado * (item.ii / 100);
           const ipi = (valorAduaneiroRateado + ii) * (item.ipi / 100);
@@ -269,14 +262,14 @@ export default function SimuladorDIPage() {
         const baseICMS = valorAduaneiro + totalII + totalIPI + totalPIS + totalCOFINS;
         const totalICMS = (baseICMS / (1 - (icmsGeral / 100))) * (icmsGeral / 100);
         
-        const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + calculatedStorage;
+        const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + calculatedStorage + calculatedAFRMM;
         const totalImpostos = totalII + totalIPI + totalPIS + totalCOFINS + totalICMS;
         const custoTotal = valorAduaneiro + totalImpostos + totalDespesasLocais;
         
         const itensResultadoFinal = itensResultado.map(item => {
-            const proporcaoPeso = (item.pesoKg * item.quantidade) / pesoTotal;
-            const impostosRateadosComIcms = item.impostosRateados + (totalICMS * proporcaoPeso);
-            const despesasLocaisRateadas = (totalDespesasLocais * proporcaoPeso);
+            const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
+            const impostosRateadosComIcms = item.impostosRateados + (totalICMS * proporcaoFOB);
+            const despesasLocaisRateadas = (totalDespesasLocais * proporcaoFOB);
             const custoTotalItem = item.valorAduaneiroRateado + impostosRateadosComIcms + despesasLocaisRateadas;
             const custoUnitarioFinal = custoTotalItem / item.quantidade;
 
@@ -509,7 +502,7 @@ export default function SimuladorDIPage() {
                 <Card>
                     <CardHeader className="flex flex-row justify-between items-center">
                         <div>
-                            <CardTitle>Itens e Alíquotas</CardTitle>
+                            <CardTitle>Itens da Fatura</CardTitle>
                             <CardDescription>Liste os produtos e suas respectivas alíquotas de impostos.</CardDescription>
                         </div>
                         <Button type="button" size="sm" variant="outline" onClick={() => appendItem({ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0, ii: 14, ipi: 10, pis: 2.1, cofins: 9.65 })}>
@@ -532,7 +525,7 @@ export default function SimuladorDIPage() {
                                             <FormItem><FormLabel>NCM</FormLabel>
                                                 <div className="flex items-center gap-1">
                                                     <FormControl><Input {...ncmField}/></FormControl>
-                                                    <NcmRateFinder ncm={ncmField.value} onRatesFound={(rates) => handleRatesFound(index, rates)} />
+                                                    <NcmRateFinder itemIndex={index} ncm={ncmField.value} onRatesFound={handleRatesFound} />
                                                 </div>
                                             <FormMessage/></FormItem>
                                         )}/></div>

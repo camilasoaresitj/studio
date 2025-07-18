@@ -23,19 +23,15 @@ import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
 import { sendDemurrageInvoice } from "@/ai/flows/send-demurrage-invoice";
 import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
-import { getFinancialEntries, addFinancialEntry, findEntryById, updateFinancialEntry } from "@/lib/financials-data";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import type { Partner } from "@/lib/partners-data";
 import type { Quote } from "@/components/customer-quotes-list";
 import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
-import { sendDraftApprovalRequest } from "@/ai/flows/send-draft-approval-request";
-import { format } from 'date-fns';
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getShipmentById, type Shipment, type BLDraftData, type Milestone, type QuoteCharge, type ChatMessage } from '@/lib/shipment';
-import { getShipmentsForServer, saveShipmentsForServer } from "@/lib/shipment-server";
-
+import { getShipments, saveShipments } from "@/lib/shipment";
+import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage } from '@/lib/shipment';
 
 export async function runGetFreightRates(input: any) {
     try {
@@ -331,9 +327,8 @@ export async function createEmailCampaign(instruction: string, partners: Partner
     }
 }
 
-export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean) {
+export async function submitBLDraft(allShipments: Shipment[], shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean) {
   try {
-    const allShipments = await getShipmentsForServer();
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
     if (shipmentIndex === -1) {
         throw new Error("Shipment not found");
@@ -412,80 +407,12 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
     updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
 
     allShipments[shipmentIndex] = updatedShipment;
-    await saveShipmentsForServer(allShipments);
 
-    return { success: true, data: updatedShipment };
+    return { success: true, data: allShipments };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);
     return { success: false, error: error.message || "Failed to submit BL Draft" };
   }
-}
-
-export async function fetchShipmentForDraft(shipmentId: string) {
-    try {
-        const shipments = await getShipmentsForServer();
-        const shipment = shipments.find(s => s.id === shipmentId);
-        if (!shipment) {
-            throw new Error('Embarque não encontrado ou ID inválido.');
-        }
-        return { success: true, data: shipment };
-    } catch(e: any) {
-        return { success: false, error: e.message };
-    }
-}
-
-export async function sendChatMessage(shipmentId: string, message: ChatMessage) {
-  try {
-    const allShipments = getShipments();
-    const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
-    
-    if (shipmentIndex === -1) {
-      throw new Error('Embarque não encontrado.');
-    }
-    
-    const updatedShipment = {
-        ...allShipments[shipmentIndex],
-        chatMessages: [...(allShipments[shipmentIndex].chatMessages || []), message],
-    };
-
-    allShipments[shipmentIndex] = updatedShipment;
-    saveShipments(allShipments);
-
-    return { success: true, data: updatedShipment };
-  } catch (error: any) {
-    console.error("Send Chat Message Action Failed", error);
-    return { success: false, error: error.message || "Failed to send chat message" };
-  }
-}
-
-export async function markMessagesAsRead(shipmentId: string, userId: string) {
-    try {
-        const shipment = getShipmentById(shipmentId);
-        if (!shipment) {
-            throw new Error('Embarque não encontrado.');
-        }
-        
-        const updatedShipment = { ...shipment };
-        updatedShipment.chatMessages = (updatedShipment.chatMessages || []).map(msg => {
-            if (msg.sender === 'Cliente' && !(msg.readBy || []).includes(userId)) {
-                return { ...msg, readBy: [...(msg.readBy || []), userId] };
-            }
-            return msg;
-        });
-        
-        const allShipments = getShipments();
-        const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
-        if (shipmentIndex !== -1) {
-            allShipments[shipmentIndex] = updatedShipment;
-            saveShipments(allShipments);
-        }
-
-        return { success: true, data: updatedShipment };
-
-    } catch(error: any) {
-        console.error("Mark Messages As Read Action Failed", error);
-        return { success: false, error: error.message || "Failed to mark messages as read" };
-    }
 }
 
 export async function addManualMilestone(shipmentId: string, milestone: Omit<Milestone, 'status' | 'effectiveDate'>) {

@@ -1,10 +1,12 @@
 
+
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { Shipment } from './shipment-data';
 
 // This file is intended to be used ONLY on the server side.
 // It interacts directly with the filesystem to read/write shipment data.
+// NOTE: This approach is deprecated in favor of client-side localStorage for this project.
 
 const shipmentsFilePath = path.join(process.cwd(), 'src', 'lib', 'shipments.json');
 

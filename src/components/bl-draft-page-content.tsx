@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { BLDraftForm } from '@/components/bl-draft-form';
-import { fetchShipmentForDraft } from '@/app/actions';
+import { getShipmentById } from '@/lib/shipment';
 import type { Shipment } from '@/lib/shipment';
 import { Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,11 +16,11 @@ export function BLDraftPageContent({ id }: { id: string }) {
   useEffect(() => {
     const loadShipment = async () => {
       setIsLoading(true);
-      const response = await fetchShipmentForDraft(id);
-      if (response.success && response.data) {
-        setShipment(response.data);
+      const data = getShipmentById(id);
+      if (data) {
+        setShipment(data);
       } else {
-        setError(response.error || 'Não foi possível carregar os dados do embarque.');
+        setError('Embarque não encontrado ou ID inválido.');
       }
       setIsLoading(false);
     };

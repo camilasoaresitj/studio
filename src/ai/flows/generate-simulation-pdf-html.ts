@@ -10,6 +10,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import type { SimulationResult, SimulationFormData } from '@/app/simulador-di/page';
+
 
 const GenerateSimulationPdfHtmlInputSchema = z.object({
   simulationName: z.string(),
@@ -39,7 +41,6 @@ const generateSimulationPdfHtmlFlow = ai.defineFlow(
     // Helper function to replace Handlebars logic for better control
     function applyTemplate(data: GenerateSimulationPdfHtmlInput): string {
       const { simulationName, customerName, createdAt, formData, resultData } = data;
-      const { itens, despesasGerais, taxasCambio, icmsGeral, despesasLocais } = formData;
       
       const formatCurrency = (value: number, currency = 'BRL') => 
         `${currency} ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -55,6 +56,8 @@ const generateSimulationPdfHtmlFlow = ai.defineFlow(
           <td style="text-align: right; font-weight: bold;">${formatCurrency(item.custoUnitarioFinal)}</td>
         </tr>
       `).join('');
+      
+       const totalImpostos = resultData.totalII + resultData.totalIPI + resultData.totalPIS + resultData.totalCOFINS + resultData.totalICMS;
 
       return `
       <!DOCTYPE html>
@@ -99,7 +102,7 @@ const generateSimulationPdfHtmlFlow = ai.defineFlow(
             </div>
             <div class="summary-card">
               <p class="label">Impostos Totais (II, IPI, PIS, COFINS, ICMS)</p>
-              <p class="value">${formatCurrency(resultData.totalII + resultData.totalIPI + resultData.totalPIS + resultData.totalCOFINS + resultData.totalICMS)}</p>
+              <p class="value">${formatCurrency(totalImpostos)}</p>
             </div>
           </div>
 
@@ -128,7 +131,7 @@ const generateSimulationPdfHtmlFlow = ai.defineFlow(
             <tr><td>PIS</td><td style="text-align: right;">${formatCurrency(resultData.totalPIS)}</td></tr>
             <tr><td>COFINS</td><td style="text-align: right;">${formatCurrency(resultData.totalCOFINS)}</td></tr>
             <tr><td>ICMS</td><td style="text-align: right;">${formatCurrency(resultData.totalICMS)}</td></tr>
-            <tr style="font-weight: bold;"><td>TOTAL DE IMPOSTOS</td><td style="text-align: right;">${formatCurrency(resultData.totalII + resultData.totalIPI + resultData.totalPIS + resultData.totalCOFINS + resultData.totalICMS)}</td></tr>
+            <tr style="font-weight: bold;"><td>TOTAL DE IMPOSTOS</td><td style="text-align: right;">${formatCurrency(totalImpostos)}</td></tr>
           </table>
           
         </div>

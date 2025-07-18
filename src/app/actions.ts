@@ -39,6 +39,7 @@ import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-sp
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';
 import { generateSimulationPdfHtml } from '@/ai/flows/generate-simulation-pdf-html';
+import { shareSimulation } from '@/ai/flows/share-simulation';
 
 
 export async function runGetFreightRates(input: any) {
@@ -549,5 +550,15 @@ export async function runGenerateSimulationPdf(input: any) {
     } catch (error: any) {
         console.error("Generate Simulation PDF Action Failed", error);
         return { success: false, error: error.message || "Failed to generate PDF HTML" };
+    }
+}
+
+export async function runShareSimulation(input: any) {
+    try {
+        const data = await shareSimulation(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Share Simulation Action Failed", error);
+        return { success: false, error: error.message || "Failed to share simulation" };
     }
 }

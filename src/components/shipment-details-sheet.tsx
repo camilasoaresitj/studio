@@ -782,16 +782,16 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 </Button>
                             </div>
                         </div>
-                        <Form {...form}>
-                            <form className="pt-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
+                        <div className="pt-4">
+                            <Form {...form}>
+                                <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
                                     <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
                                     <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
                                     <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
                                     <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
-                                </div>
-                            </form>
-                        </Form>
+                                </form>
+                            </Form>
+                        </div>
                     </SheetHeader>
                     
                     <div className="flex-grow overflow-y-auto">
@@ -949,7 +949,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <CardHeader>
                                                 <div className="flex justify-between items-center">
                                                     <CardTitle className="text-lg">Detalhes dos Contêineres</CardTitle>
-                                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '', freeTime: shipment.details.freeTime })}>
+                                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '', freeTime: shipment.details.freeTime, type: '' })}>
                                                         <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
                                                     </Button>
                                                 </div>
@@ -1021,7 +1021,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <CardTitle>Planilha de Custos e Vendas</CardTitle>
                                              <div className="flex items-center gap-2">
                                                 <Button type="button" variant="secondary" size="sm" onClick={handleFaturarProcesso}>Faturar Processo</Button>
-                                                <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `custom-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'pendente' })}>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `custom-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'pendente', financialEntryId: null })}>
                                                     <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
                                                 </Button>
                                             </div>
@@ -1250,24 +1250,9 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             <TabsContent value="bl_draft">
                                 <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                             </TabsContent>
-
+                            
                             <TabsContent value="desembaraco">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Desembaraço Aduaneiro</CardTitle>
-                                        <CardDescription>Importe a planilha do CargoWise para gerar o XML da DI.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4 text-center">
-                                        <div className="p-6 border-2 border-dashed rounded-lg">
-                                            <FileCode className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                                            <Button variant="outline">
-                                                <Upload className="mr-2 h-4 w-4" />
-                                                Importar Planilha
-                                            </Button>
-                                            <p className="text-xs text-muted-foreground mt-2">Esta funcionalidade está em desenvolvimento.</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                               <CustomsClearanceTab shipment={shipment} />
                             </TabsContent>
                             
                             <TabsContent value="map">

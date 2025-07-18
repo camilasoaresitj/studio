@@ -327,8 +327,9 @@ export async function createEmailCampaign(instruction: string, partners: Partner
     }
 }
 
-export async function submitBLDraft(allShipments: Shipment[], shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
+export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
   try {
+    const allShipments = getShipments();
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
     if (shipmentIndex === -1) {
         throw new Error("Shipment not found");
@@ -346,15 +347,20 @@ export async function submitBLDraft(allShipments: Shipment[], shipmentId: string
     const history: BLDraftHistory = updatedShipment.blDraftHistory || { sentAt: null, revisions: [] };
     let newTasks: Milestone[] = [];
 
-    if (!history.sentAt) {
+    const hasSentDraftBefore = !!history.sentAt;
+
+    if (!hasSentDraftBefore) {
         history.sentAt = now;
-        newTasks.push({
-            name: "Enviar Draft MBL ao armador",
-            status: 'pending',
-            predictedDate: now,
-            effectiveDate: null,
-            details: `Draft inicial recebido do cliente ${updatedShipment.customer}.`
-        });
+        const taskAlreadyExists = updatedShipment.milestones.some(m => m.name === 'Enviar Draft MBL ao armador');
+        if (!taskAlreadyExists) {
+            newTasks.push({
+                name: "Enviar Draft MBL ao armador",
+                status: 'pending',
+                predictedDate: now,
+                effectiveDate: null,
+                details: `Draft inicial recebido do cliente ${updatedShipment.customer}.`
+            });
+        }
     } else {
         const newRevision: BLDraftRevision = { date: now };
         if (isLateSubmission) {
@@ -375,13 +381,16 @@ export async function submitBLDraft(allShipments: Shipment[], shipmentId: string
         }
         history.revisions.push(newRevision);
         
-        newTasks.push({
-            name: "[REVISÃO] Enviar Draft MBL ao armador",
-            status: 'pending',
-            predictedDate: now,
-            effectiveDate: null,
-            details: `Revisão do draft recebida do cliente ${updatedShipment.customer}.`
-        });
+        const revisionTaskExists = updatedShipment.milestones.some(m => m.name === '[REVISÃO] Enviar Draft MBL ao armador');
+        if (!revisionTaskExists) {
+            newTasks.push({
+                name: "[REVISÃO] Enviar Draft MBL ao armador",
+                status: 'pending',
+                predictedDate: now,
+                effectiveDate: null,
+                details: `Revisão do draft recebida do cliente ${updatedShipment.customer}.`
+            });
+        }
     }
     
     updatedShipment.blDraftHistory = history;

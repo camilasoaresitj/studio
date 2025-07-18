@@ -35,6 +35,7 @@ import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraf
 import { isPast } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import { registerDue } from '@/ai/flows/register-due';
+import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-spreadsheet';
 
 export async function runGetFreightRates(input: any) {
     try {
@@ -382,7 +383,6 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData):
                 approvalStatus: 'aprovada',
             };
             
-            // Check if fee already exists before adding
             if (!updatedShipment.charges.some(c => c.name === "TAXA DE CORREÇÃO DE BL")) {
                  updatedShipment.charges.push(lateFeeCharge);
             }
@@ -466,5 +466,15 @@ export async function runRegisterDue(input: any) {
     } catch (error: any) {
         console.error("Register DUE Action Failed", error);
         return { success: false, error: error.message || "Failed to register DUE" };
+    }
+}
+
+export async function runGenerateDiXmlFromSpreadsheet(input: any) {
+    try {
+        const data = await generateDiXmlFromSpreadsheet(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Generate DI XML From Spreadsheet Action Failed", error);
+        return { success: false, error: error.message || "Failed to generate DI XML" };
     }
 }

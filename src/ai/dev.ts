@@ -42,3 +42,4 @@ import '@/ai/flows/update-shipment-in-tracking.ts';
 import '@/ai/flows/get-route-map.ts';
 import '@/ai/flows/generate-di-xml.ts';
 import '@/ai/flows/register-due.ts';
+import '@/ai/flows/generate-di-xml-from-spreadsheet.ts';

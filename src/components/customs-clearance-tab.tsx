@@ -1,99 +1,45 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from './ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Form } from './ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { runGenerateDiXml, runRegisterDue } from '@/app/actions';
-import { GenerateDiXmlInputSchema } from '@/ai/flows/generate-di-xml';
+import { runRegisterDue } from '@/app/actions';
 import { RegisterDueInputSchema } from '@/ai/flows/register-due';
-import { PlusCircle, Trash2, Loader2, FileCode } from 'lucide-react';
+import { Loader2, FileCode, Upload } from 'lucide-react';
 import type { Shipment } from '@/lib/shipment';
-import { Separator } from './ui/separator';
+import { Textarea } from './ui/textarea';
+import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-spreadsheet';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
-type DiFormData = z.infer<typeof GenerateDiXmlInputSchema>;
 type DueFormData = z.infer<typeof RegisterDueInputSchema>;
 
 interface CustomsClearanceTabProps {
-  shipments: Shipment[];
+  shipment: Shipment;
 }
 
-export function CustomsClearanceTab({ shipments }: CustomsClearanceTabProps) {
+export function CustomsClearanceTab({ shipment }: CustomsClearanceTabProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedXml, setGeneratedXml] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-
-  const importShipments = shipments.filter(s => s.destination.toUpperCase().includes('BR'));
-  const exportShipments = shipments.filter(s => s.origin.toUpperCase().includes('BR'));
-
-  const diForm = useForm<DiFormData>({
-    resolver: zodResolver(GenerateDiXmlInputSchema),
-    defaultValues: {
-      additions: [{ ncm: '', description: '', quantity: 1, unit: 'UN', value: 0 }],
-    },
-  });
 
   const dueForm = useForm<DueFormData>({
     resolver: zodResolver(RegisterDueInputSchema),
     defaultValues: {
-      items: [{ ncm: '', description: '', quantity: 1, unit: 'UN', valueUSD: 0 }],
-    },
-  });
-
-  const { fields: diFields, append: appendDi, remove: removeDi } = useFieldArray({
-    control: diForm.control, name: "additions"
-  });
-  const { fields: dueFields, append: appendDue, remove: removeDue } = useFieldArray({
-    control: dueForm.control, name: "items"
-  });
-
-  const handleDiShipmentSelect = (shipmentId: string) => {
-    const shipment = importShipments.find(s => s.id === shipmentId);
-    if (!shipment) return;
-    diForm.reset({
-      ...diForm.getValues(),
-      importerCnpj: shipment.consignee?.cnpj?.replace(/\D/g, '') || '',
-      hblNumber: shipment.houseBillNumber || '',
-      mblNumber: shipment.masterBillNumber || '',
-      totalFreightUSD: shipment.charges.find(c => c.name.toLowerCase().includes('frete'))?.cost || 0,
-      additions: shipment.ncms?.map(ncm => ({ ncm, description: shipment.commodityDescription || '', quantity: 1, unit: 'UN', value: 0 })) || [{ ncm: '', description: '', quantity: 1, unit: 'UN', value: 0 }],
-    });
-  };
-
-  const handleDueShipmentSelect = (shipmentId: string) => {
-    const shipment = exportShipments.find(s => s.id === shipmentId);
-    if (!shipment) return;
-    dueForm.reset({
-      ...dueForm.getValues(),
       exporterCnpj: shipment.shipper?.cnpj?.replace(/\D/g, '') || '',
       invoiceNumber: shipment.invoiceNumber || '',
       hblNumber: shipment.houseBillNumber || '',
-      totalValueUSD: shipment.charges.reduce((acc, c) => acc + c.sale, 0),
+      totalValueUSD: shipment.charges.reduce((acc, c) => acc + (c.saleCurrency === 'USD' ? c.sale : 0), 0),
       items: shipment.ncms?.map(ncm => ({ ncm, description: shipment.commodityDescription || '', quantity: 1, unit: 'KG', valueUSD: 0 })) || [{ ncm: '', description: '', quantity: 1, unit: 'KG', valueUSD: 0 }],
-    });
-  };
-
-  const onDiSubmit = async (data: DiFormData) => {
-    setIsLoading(true);
-    setGeneratedXml(null);
-    const response = await runGenerateDiXml(data);
-    if (response.success) {
-      setGeneratedXml(response.data.xml);
-      toast({ title: 'XML da DI gerado com sucesso!', description: 'Copie o conteúdo abaixo.' });
-    } else {
-      toast({ variant: 'destructive', title: 'Erro ao gerar XML', description: response.error });
-    }
-    setIsLoading(false);
-  };
+    },
+  });
 
   const onDueSubmit = async (data: DueFormData) => {
     setIsLoading(true);
@@ -105,6 +51,56 @@ export function CustomsClearanceTab({ shipments }: CustomsClearanceTabProps) {
     }
     setIsLoading(false);
   };
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    setGeneratedXml(null);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
+
+        if (jsonData.length === 0) {
+          throw new Error('A planilha está vazia ou em um formato inválido.');
+        }
+
+        const response = await generateDiXmlFromSpreadsheet({
+            spreadsheetData: jsonData,
+            shipmentData: shipment,
+        });
+
+        if (response.xml) {
+            setGeneratedXml(response.xml);
+            toast({
+                title: 'XML da DI Gerado!',
+                description: 'O XML foi gerado com sucesso a partir da planilha.',
+                className: 'bg-success text-success-foreground',
+            });
+        } else {
+            throw new Error('A IA não conseguiu gerar o XML. Verifique o formato da planilha.');
+        }
+
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao Processar Planilha',
+          description: error.message,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
 
   return (
     <Card>
@@ -119,33 +115,32 @@ export function CustomsClearanceTab({ shipments }: CustomsClearanceTabProps) {
             <TabsTrigger value="exportacao">Exportação (DUE)</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="importacao" className="mt-4">
-            <Form {...diForm}>
-              <form onSubmit={diForm.handleSubmit(onDiSubmit)} className="space-y-4">
-                <Select onValueChange={handleDiShipmentSelect}>
-                  <SelectTrigger><SelectValue placeholder="Selecione um processo de importação para preencher os dados..." /></SelectTrigger>
-                  <SelectContent>
-                    {importShipments.map(s => <SelectItem key={s.id} value={s.id}>{s.id} - {s.customer}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Separator />
-                {diFields.map((field, index) => (
-                  <div key={field.id} className="flex items-end gap-2 p-2 border rounded">
-                    <FormField control={diForm.control} name={`additions.${index}.ncm`} render={({ field }) => (<FormItem className="flex-1"><FormLabel>NCM</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                    <FormField control={diForm.control} name={`additions.${index}.value`} render={({ field }) => (<FormItem className="w-32"><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeDi(index)} disabled={diFields.length <= 1}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendDi({ ncm: '', description: '', quantity: 1, unit: 'UN', value: 0 })}><PlusCircle className="mr-2 h-4 w-4" />Adicionar Item</Button>
-                <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileCode className="mr-2 h-4 w-4" />} Gerar XML da DI
-                </Button>
-              </form>
-            </Form>
+          <TabsContent value="importacao" className="mt-4 space-y-4">
+             <Alert>
+                <FileCode className="h-4 w-4" />
+                <AlertTitle>Geração de XML da DI</AlertTitle>
+                <AlertDescription>
+                    Importe a planilha do CargoWise para que a IA gere automaticamente o XML da Declaração de Importação.
+                </AlertDescription>
+            </Alert>
+
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".xlsx, .xls, .csv"
+            />
+
+            <Button onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                Importar Planilha e Gerar XML
+            </Button>
+            
             {generatedXml && (
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 space-y-2 animate-in fade-in-50 duration-500">
                     <h3 className="font-semibold">XML Gerado:</h3>
-                    <Textarea value={generatedXml} readOnly className="min-h-[200px] font-mono text-xs"/>
+                    <Textarea value={generatedXml} readOnly className="min-h-[300px] font-mono text-xs"/>
                 </div>
             )}
           </TabsContent>
@@ -153,14 +148,14 @@ export function CustomsClearanceTab({ shipments }: CustomsClearanceTabProps) {
           <TabsContent value="exportacao" className="mt-4">
             <Form {...dueForm}>
               <form onSubmit={dueForm.handleSubmit(onDueSubmit)} className="space-y-4">
-                 <Select onValueChange={handleDueShipmentSelect}>
-                  <SelectTrigger><SelectValue placeholder="Selecione um processo de exportação para preencher os dados..." /></SelectTrigger>
-                  <SelectContent>
-                    {exportShipments.map(s => <SelectItem key={s.id} value={s.id}>{s.id} - {s.customer}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Separator />
-                <FormField control={dueForm.control} name="invoiceNumber" render={({ field }) => (<FormItem><FormLabel>Nº da Fatura Comercial</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                {/* Due form fields can be added here if needed, for now we use data from shipment */}
+                <Alert>
+                  <FileCode className="h-4 w-4" />
+                  <AlertTitle>Registro da DUE</AlertTitle>
+                  <AlertDescription>
+                      Os dados abaixo foram preenchidos a partir do processo. Clique para registrar a DUE no Portal Único (Simulação).
+                  </AlertDescription>
+                </Alert>
                 <Button type="submit" disabled={isLoading} className="w-full">
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileCode className="mr-2 h-4 w-4" />} Registrar DUE (Simulação)
                 </Button>

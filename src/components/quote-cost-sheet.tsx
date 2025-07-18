@@ -44,6 +44,7 @@ const quoteChargeSchema = z.object({
     supplier: z.string().min(1, 'Obrigatório'),
     sacado: z.string().optional(),
     approvalStatus: z.enum(['aprovada', 'pendente', 'rejeitada']),
+    justification: z.string().optional(),
     financialEntryId: z.string().nullable().optional(),
   })),
   details: z.object({
@@ -161,7 +162,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
             saleCurrency: fee.currency,
             supplier: 'CargaInteligente',
             sacado: quote.customer,
-            approvalStatus: 'aprovada',
+            approvalStatus: 'pendente', // New charges require approval
             financialEntryId: null,
         }));
         
@@ -221,7 +222,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
         costCurrency: fee.currency,
         sale: parseFloat(fee.value) || 0,
         saleCurrency: fee.currency,
-        approvalStatus: 'aprovada',
+        approvalStatus: 'pendente',
       });
     }
   };
@@ -439,8 +440,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                     </Card>
                     <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
                         <CardHeader className="p-2"><CardTitle className="text-base">Resultado (Lucro)</CardTitle></CardHeader>
-                        <CardContent className="p-2 pt-0 text-sm">
-                            <div className={cn("flex justify-between font-semibold", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
+                        <CardContent className={cn("p-2 pt-0 text-sm font-semibold text-base", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
+                            <div className="flex justify-between">
                                 <span>BRL:</span>
                                 <span className="font-mono">{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>

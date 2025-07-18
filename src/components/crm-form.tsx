@@ -13,13 +13,15 @@ import { useToast } from '@/hooks/use-toast';
 import { runCreateCrmEntry, runCreateEmailCampaign } from '@/app/actions';
 import { CreateCrmEntryFromEmailOutput } from '@/ai/flows/create-crm-entry-from-email';
 import { CreateEmailCampaignOutput } from '@/ai/flows/create-email-campaign';
-import { Loader2, User, Building, Mail, ChevronsRight, FileText, AlertTriangle, Wand2, Users, Send, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, User, Building, Mail, ChevronsRight, FileText, AlertTriangle, Wand2, Users, Send, CheckCircle, XCircle, UserPlus, UserCheck } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { getPartners } from '@/lib/partners-data';
+import { getPartners, Partner } from '@/lib/partners-data';
 import { getInitialQuotes } from '@/lib/initial-data';
 import type { Quote } from './customer-quotes-list';
 import { ScrollArea } from './ui/scroll-area';
+import { getShipments } from '@/lib/shipment';
+import { subDays } from 'date-fns';
 
 const crmFormSchema = z.object({
   emailContent: z.string().min(20, {
@@ -40,21 +42,35 @@ export function CrmForm() {
   const [campaignResult, setCampaignResult] = useState<CreateEmailCampaignOutput | null>(null);
   const { toast } = useToast();
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [partners, setPartners] = useState<any[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [shipments, setShipments] = useState<any[]>([]);
 
   useEffect(() => {
     // This runs only on the client, after hydration
     setQuotes(getInitialQuotes());
     setPartners(getPartners());
+    setShipments(getShipments());
   }, []);
 
   const kpiData = useMemo(() => {
-    const totalClients = partners.filter(p => p.roles.cliente).length;
+    const clientPartners = partners.filter(p => p.roles.cliente);
+    const totalClients = clientPartners.length;
     const wonDeals = quotes.filter(q => q.status === 'Aprovada').length;
     const lostDeals = quotes.filter(q => q.status === 'Perdida').length;
 
-    return { totalClients, wonDeals, lostDeals };
-  }, [partners, quotes]);
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    const newClients = clientPartners.filter(p => p.createdAt && new Date(p.createdAt) > thirtyDaysAgo).length;
+    
+    const ninetyDaysAgo = subDays(new Date(), 90);
+    const activeClientNames = new Set(
+        shipments
+            .filter(s => s.etd && new Date(s.etd) > ninetyDaysAgo)
+            .map(s => s.customer)
+    );
+    const activeClients = activeClientNames.size;
+
+    return { totalClients, wonDeals, lostDeals, newClients, activeClients };
+  }, [partners, quotes, shipments]);
 
   const crmForm = useForm<z.infer<typeof crmFormSchema>>({
     resolver: zodResolver(crmFormSchema),
@@ -111,7 +127,7 @@ export function CrmForm() {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
@@ -120,6 +136,26 @@ export function CrmForm() {
           <CardContent>
             <div className="text-2xl font-bold">{kpiData.totalClients}</div>
             <p className="text-xs text-muted-foreground">Clientes ativos na base.</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Clientes Novos</CardTitle>
+            <UserPlus className="h-5 w-5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpiData.newClients}</div>
+            <p className="text-xs text-muted-foreground">nos últimos 30 dias.</p>
+          </CardContent>
+        </Card>
+         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Clientes Ativos</CardTitle>
+            <UserCheck className="h-5 w-5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpiData.activeClients}</div>
+            <p className="text-xs text-muted-foreground">com embarques nos últimos 90 dias.</p>
           </CardContent>
         </Card>
         <Card className="cursor-pointer hover:ring-2 hover:ring-success/50 transition-all">

@@ -6,6 +6,7 @@ export const partnerSchema = z.object({
   id: z.number().optional(), // Optional for new partners
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
   nomeFantasia: z.string().optional(),
+  createdAt: z.date().optional(),
   roles: z.object({
     cliente: z.boolean().default(false),
     fornecedor: z.boolean().default(false),
@@ -106,6 +107,7 @@ function getInitialPartners(): Partner[] {
             id: 1,
             name: "Nexus Imports",
             nomeFantasia: "Nexus",
+            createdAt: new Date('2023-05-10'),
             roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
             tipoCliente: { importacao: true, exportacao: true, empresaNoExterior: false },
             cnpj: "12.345.678/0001-90",
@@ -139,6 +141,7 @@ function getInitialPartners(): Partner[] {
             id: 2,
             name: "Ocean Express Logistics",
             nomeFantasia: "OEL",
+            createdAt: new Date('2022-11-20'),
             roles: { cliente: false, fornecedor: false, agente: true, comissionado: false },
             tipoAgente: { fcl: true, air: true, projects: true, lcl: false },
             cnpj: "98.765.432/0001-09",
@@ -171,6 +174,7 @@ function getInitialPartners(): Partner[] {
             id: 3,
             name: "Maersk Line",
             nomeFantasia: "Maersk",
+            createdAt: new Date('2022-01-15'),
             roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
             tipoFornecedor: { ciaMaritima: true, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
             cnpj: "54.321.876/0001-21",
@@ -198,6 +202,7 @@ function getInitialPartners(): Partner[] {
             id: 4,
             name: "Advocacia Marítima XYZ",
             nomeFantasia: "Advocacia XYZ",
+            createdAt: new Date('2023-02-01'),
             roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
             tipoFornecedor: { ciaAerea: false, ciaMaritima: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: true },
             cnpj: "11.223.344/0001-55",
@@ -269,7 +274,12 @@ export function getPartners(): Partner[] {
         savePartners(initialData);
         return initialData;
     };
-    return JSON.parse(storedPartners);
+    const parsed = JSON.parse(storedPartners);
+    // Rehydrate dates
+    return parsed.map((p: any) => ({
+        ...p,
+        createdAt: p.createdAt ? new Date(p.createdAt) : undefined,
+    }));
   } catch (error) {
     console.error("Failed to parse partners from localStorage", error);
     return [];

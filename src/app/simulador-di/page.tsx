@@ -27,10 +27,10 @@ const itemSchema = z.object({
   valorUnitarioUSD: z.coerce.number().min(0.01, 'Valor unitário deve ser maior que zero.'),
   ncm: z.string().min(8, 'NCM deve ter 8 dígitos.'),
   pesoKg: z.coerce.number().min(0.01, 'Peso deve ser maior que zero.'),
-  ii: z.coerce.number().min(0, 'Alíquota de II é obrigatória.').default(0.14),
-  ipi: z.coerce.number().min(0, 'Alíquota de IPI é obrigatória.').default(0.10),
-  pis: z.coerce.number().min(0, 'Alíquota de PIS é obrigatória.').default(0.021),
-  cofins: z.coerce.number().min(0, 'Alíquota de COFINS é obrigatória.').default(0.0965),
+  ii: z.coerce.number().min(0, 'Alíquota de II é obrigatória.').default(14),
+  ipi: z.coerce.number().min(0, 'Alíquota de IPI é obrigatória.').default(10),
+  pis: z.coerce.number().min(0, 'Alíquota de PIS é obrigatória.').default(2.1),
+  cofins: z.coerce.number().min(0, 'Alíquota de COFINS é obrigatória.').default(9.65),
 });
 
 const localExpenseSchema = z.object({
@@ -126,7 +126,7 @@ export default function SimuladorDIPage() {
       taxasCambio: { di: 5.67, frete: 5.87 },
       despesasGerais: { freteInternacionalUSD: 1400, seguroUSD: 100 },
       despesasLocais: [],
-      icmsGeral: 0.17,
+      icmsGeral: 17,
     },
   });
 
@@ -207,10 +207,10 @@ export default function SimuladorDIPage() {
           const proporcaoPeso = (item.pesoKg * item.quantidade) / pesoTotal;
           const valorAduaneiroRateado = valorAduaneiro * proporcaoPeso;
 
-          const ii = valorAduaneiroRateado * item.ii;
-          const ipi = (valorAduaneiroRateado + ii) * item.ipi;
-          const pis = valorAduaneiroRateado * item.pis;
-          const cofins = valorAduaneiroRateado * item.cofins;
+          const ii = valorAduaneiroRateado * (item.ii / 100);
+          const ipi = (valorAduaneiroRateado + ii) * (item.ipi / 100);
+          const pis = valorAduaneiroRateado * (item.pis / 100);
+          const cofins = valorAduaneiroRateado * (item.cofins / 100);
           
           totalII += ii;
           totalIPI += ipi;
@@ -223,7 +223,7 @@ export default function SimuladorDIPage() {
         });
 
         const baseICMS = valorAduaneiro + totalII + totalIPI + totalPIS + totalCOFINS;
-        const totalICMS = (baseICMS / (1 - icmsGeral)) * icmsGeral;
+        const totalICMS = (baseICMS / (1 - (icmsGeral / 100))) * (icmsGeral / 100);
         
         const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0);
         const totalImpostos = totalII + totalIPI + totalPIS + totalCOFINS + totalICMS;
@@ -275,7 +275,7 @@ export default function SimuladorDIPage() {
                 fileName: file.name
             });
             if (response.success && response.data.length > 0) {
-                const itemsWithTaxes = response.data.map(item => ({...item, ii: 0.14, ipi: 0.10, pis: 0.021, cofins: 0.0965 }))
+                const itemsWithTaxes = response.data.map(item => ({...item, ii: 14, ipi: 10, pis: 2.1, cofins: 9.65 }))
                 replaceItems(itemsWithTaxes);
                 toast({
                     title: 'Itens Importados!',
@@ -296,10 +296,10 @@ export default function SimuladorDIPage() {
   };
   
   const handleRatesFound = (itemIndex: number, rates: GetNcmRatesOutput) => {
-      form.setValue(`itens.${itemIndex}.ii`, rates.ii / 100);
-      form.setValue(`itens.${itemIndex}.ipi`, rates.ipi / 100);
-      form.setValue(`itens.${itemIndex}.pis`, rates.pis / 100);
-      form.setValue(`itens.${itemIndex}.cofins`, rates.cofins / 100);
+      form.setValue(`itens.${itemIndex}.ii`, rates.ii);
+      form.setValue(`itens.${itemIndex}.ipi`, rates.ipi);
+      form.setValue(`itens.${itemIndex}.pis`, rates.pis);
+      form.setValue(`itens.${itemIndex}.cofins`, rates.cofins);
       toast({ title: 'Alíquotas aplicadas!', description: `Alíquotas para o NCM ${rates.ncm} foram carregadas no item.` });
   };
 
@@ -317,7 +317,7 @@ export default function SimuladorDIPage() {
             <div className="lg:col-span-2 space-y-6">
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5"/> Detalhes do Embarque</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><Ship className="h-5 w-5"/> Detalhes do Embarque</CardTitle>
                         <CardDescription>Informe os detalhes da carga para que o sistema sugira as despesas locais automaticamente.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -391,7 +391,7 @@ export default function SimuladorDIPage() {
                             <CardTitle>Itens e Alíquotas</CardTitle>
                             <CardDescription>Liste os produtos e suas respectivas alíquotas de impostos.</CardDescription>
                         </div>
-                        <Button type="button" size="sm" variant="outline" onClick={() => appendItem({ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0, ii: 0.14, ipi: 0.10, pis: 0.021, cofins: 0.0965 })}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => appendItem({ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0, ii: 14, ipi: 10, pis: 2.1, cofins: 9.65 })}>
                             <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
                         </Button>
                     </CardHeader>
@@ -415,10 +415,10 @@ export default function SimuladorDIPage() {
                                                 </div>
                                             <FormMessage/></FormItem>
                                         )}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" step="0.0001" placeholder="0.14" {...field} /></FormControl></FormItem>)}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" step="0.0001" placeholder="0.10" {...field} /></FormControl></FormItem>)}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" step="0.0001" placeholder="0.021" {...field} /></FormControl></FormItem>)}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" step="0.0001" placeholder="0.0965" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="14" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="10" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="2.1" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="9.65" {...field} /></FormControl></FormItem>)}/></div>
                                     </div>
                                 </div>
                             ))}
@@ -432,7 +432,7 @@ export default function SimuladorDIPage() {
                             <h3 className="font-semibold">Câmbio e ICMS</h3>
                             <FormField control={form.control} name="taxasCambio.di" render={({ field }) => (<FormItem><FormLabel>Câmbio DI (BRL)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                             <FormField control={form.control} name="taxasCambio.frete" render={({ field }) => (<FormItem><FormLabel>Câmbio Frete (BRL)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                            <FormField control={form.control} name="icmsGeral" render={({ field }) => (<FormItem><FormLabel>Alíquota Geral de ICMS (%)</FormLabel><FormControl><Input type="number" placeholder="0.17" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                            <FormField control={form.control} name="icmsGeral" render={({ field }) => (<FormItem><FormLabel>Alíquota Geral de ICMS (%)</FormLabel><FormControl><Input type="number" placeholder="17" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                         </div>
                          <div className="space-y-4">
                             <h3 className="font-semibold">Despesas Gerais</h3>

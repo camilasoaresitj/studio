@@ -11,7 +11,7 @@ import { z } from 'zod';
 import * as XLSX from 'xlsx';
 import { ExtractInvoiceItemsInputSchema, InvoiceItemSchema, ExtractInvoiceItemsOutputSchema, type ExtractInvoiceItemsInput, type ExtractInvoiceItemsOutput } from '@/lib/schemas/invoice';
 
-export async function extractInvoiceItems(input: ExtractInvoiceItemsInput): Promise<ExtractInvoiceItemsOutput> {
+async function extractInvoiceItems(input: ExtractInvoiceItemsInput): Promise<ExtractInvoiceItemsOutput> {
   return extractInvoiceItemsFlow(input);
 }
 
@@ -24,14 +24,27 @@ const extractFromSpreadsheet = (dataUri: string): { textContent: string; media?:
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) throw new Error('No sheets found in the workbook.');
     const worksheet = workbook.Sheets[sheetName];
-    return { textContent: XLSX.utils.sheet_to_csv(worksheet) };
+    const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+    
+    // Simple check to see if we got meaningful content
+    if (!csvContent || csvContent.trim().length < 5) {
+        throw new Error('Spreadsheet seems to be empty or could not be read.');
+    }
+    
+    return { textContent: csvContent };
 };
 
 const extractFromXml = (dataUri: string): { textContent: string; media?: never } => {
     const base64 = dataUri.split(',')[1];
     if (!base64) throw new Error('Invalid Data URI format.');
     const buffer = Buffer.from(base64, 'base64');
-    return { textContent: buffer.toString('utf-8') };
+    const textContent = buffer.toString('utf-8');
+
+    if (!textContent || textContent.trim().length < 5) {
+        throw new Error('XML file seems to be empty or could not be read.');
+    }
+
+    return { textContent };
 };
 
 const extractFromMedia = (dataUri: string): { media: { url: string }; textContent?: never } => {
@@ -57,6 +70,7 @@ Analyze the content below and extract all product line items. For each item, you
 2.  If the content provides a TOTAL weight and a quantity, you MUST calculate the \`pesoKg\` (weight per unit) by dividing the total weight by the quantity.
 3.  Do not invent information. If a required field is missing for an item (like description, quantity, value, or NCM), omit the entire item from the result.
 4.  You MUST return the final result inside a JSON object with a single key "data" which contains the array of items.
+5.  NCM codes must be extracted as a string of numbers only, without dots or slashes.
 
 **Example Input (from an image of an invoice):**
 [Image content showing a table with "Product A", "10 units", "$100 total", "NCM 1234.56.78", "50kg total"]
@@ -114,8 +128,8 @@ const extractInvoiceItemsFlow = ai.defineFlow(
 
         const { output } = await extractInvoiceItemsPrompt(promptInput);
         
-        if (!output || !output.data) {
-            throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo e o formato.");
+        if (!output || !output.data || output.data.length === 0) {
+            throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo, o formato e se as colunas necessárias (descrição, quantidade, valor, ncm) estão presentes.");
         }
         
         return { success: true, data: output.data };

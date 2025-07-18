@@ -37,6 +37,7 @@ import { registerDue } from '@/ai/flows/register-due';
 import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-spreadsheet';
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';
+import type { ExtractInvoiceItemsOutput } from '@/lib/schemas/invoice';
 
 
 export async function runGetFreightRates(input: any) {
@@ -520,7 +521,7 @@ export async function runGenerateDiXmlFromSpreadsheet(input: any) {
     }
 }
 
-export async function runExtractInvoiceItems(input: { fileName: string, fileDataUri: string }) {
+export async function runExtractInvoiceItems(input: { fileName: string, fileDataUri: string }): Promise<ExtractInvoiceItemsOutput> {
     try {
         const result = await extractInvoiceItems(input);
         if (!result.success) {

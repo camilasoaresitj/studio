@@ -30,7 +30,6 @@ import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getShipments, saveShipments, updateShipment as updateShipmentClient } from "@/lib/shipment";
-import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision } from "@/lib/shipment-data";
 import { isPast } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import { registerDue } from '@/ai/flows/register-due';
@@ -38,6 +37,7 @@ import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-sp
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';
 import type { ExtractInvoiceItemsOutput, ExtractInvoiceItemsInput } from '@/lib/schemas/invoice';
+import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision } from "@/lib/shipment-data";
 
 
 export async function runGetFreightRates(input: any) {

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -1253,7 +1254,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                             </TabsContent>
                             
                             <TabsContent value="desembaraco">
-                               <CustomsClearanceTab shipments={shipment ? [shipment] : []} />
+                               <CustomsClearanceTab shipment={shipment} />
                             </TabsContent>
                             
                             <TabsContent value="map">

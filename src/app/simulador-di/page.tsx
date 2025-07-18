@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen, Mail, MessageSquare } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen, Mail, MessageSquare, FilePlus } from 'lucide-react';
 import { runExtractInvoiceItems, runGetNcmRates, runGenerateSimulationPdf, runShareSimulation, runSendWhatsapp } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
@@ -142,9 +142,7 @@ export default function SimuladorDIPage() {
   const [isPartnerPopoverOpen, setIsPartnerPopoverOpen] = useState(false);
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
 
-  const form = useForm<SimulationFormData>({
-    resolver: zodResolver(simulationSchema),
-    defaultValues: {
+  const defaultFormValues: SimulationFormData = {
       simulationName: '',
       customerName: '',
       modal: 'maritimo',
@@ -156,7 +154,11 @@ export default function SimuladorDIPage() {
       despesasGerais: { freteInternacionalUSD: 1400, seguroUSD: 100 },
       despesasLocais: [],
       icmsGeral: 17,
-    },
+  };
+
+  const form = useForm<SimulationFormData>({
+    resolver: zodResolver(simulationSchema),
+    defaultValues: defaultFormValues,
   });
 
   const { fields: itemFields, append: appendItem, remove: removeItem, replace: replaceItems } = useFieldArray({
@@ -362,7 +364,6 @@ export default function SimuladorDIPage() {
       form.setValue(`ncmRates.${ncm}.ipi`, rates.ipi);
       form.setValue(`ncmRates.${ncm}.pis`, rates.pis);
       form.setValue(`ncmRates.${ncm}.cofins`, rates.cofins);
-      toast({ title: 'Alíquotas aplicadas!', description: `Alíquotas para o NCM ${ncm} foram carregadas.` });
   };
   
   const handleSaveSimulation = form.handleSubmit(async (data) => {
@@ -393,6 +394,12 @@ export default function SimuladorDIPage() {
           description: 'Os dados foram preenchidos no formulário.'
       });
       setIsSimulationsDialogOpen(false);
+  };
+
+  const handleNewSimulation = () => {
+    form.reset(defaultFormValues);
+    setResult(null);
+    toast({ title: 'Nova Simulação', description: 'O formulário foi limpo.' });
   };
 
   const handleGeneratePdf = async () => {
@@ -528,7 +535,7 @@ export default function SimuladorDIPage() {
                                 </FormItem>
                             )}/>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                              <Button type="button" onClick={handleSaveSimulation} disabled={isSaving}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                                 Salvar Simulação
@@ -536,6 +543,10 @@ export default function SimuladorDIPage() {
                             <Button type="button" variant="outline" onClick={() => setIsSimulationsDialogOpen(true)}>
                                 <FolderOpen className="mr-2 h-4 w-4"/>
                                 Minhas Simulações
+                            </Button>
+                             <Button type="button" variant="secondary" onClick={handleNewSimulation}>
+                                <FilePlus className="mr-2 h-4 w-4"/>
+                                Nova Simulação
                             </Button>
                         </div>
                     </CardContent>

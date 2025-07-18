@@ -264,10 +264,10 @@ export default function SimuladorDIPage() {
             const cleanNcm = item.ncm.replace(/\D/g, '');
             const aliquotas = ncmRates?.[cleanNcm] ?? { ii: 0, ipi: 0, pis: 0, cofins: 0 };
             
-            const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
-            const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
-            const pis = valorAduaneiroRateado * (aliquotas.pis / 100);
-            const cofins = valorAduaneiroRateado * (aliquotas.cofins / 100);
+            const ii = valorAduaneiroRateado * ((aliquotas.ii || 0) / 100);
+            const ipi = (valorAduaneiroRateado + ii) * ((aliquotas.ipi || 0) / 100);
+            const pis = valorAduaneiroRateado * ((aliquotas.pis || 0) / 100);
+            const cofins = valorAduaneiroRateado * ((aliquotas.cofins || 0) / 100);
             
             totalII += ii;
             totalIPI += ipi;
@@ -279,8 +279,8 @@ export default function SimuladorDIPage() {
         
         const totalImpostosFederais = totalII + totalIPI + totalPIS + totalCOFINS;
         
-        const baseICMS = (valorAduaneiroTotal + totalII + totalIPI + totalPIS + totalCOFINS) / (1 - (icmsGeral / 100));
-        const totalICMS = baseICMS * (icmsGeral / 100);
+        const baseICMS = (valorAduaneiroTotal + totalII + totalIPI + totalPIS + totalCOFINS) / (1 - ((icmsGeral || 0) / 100));
+        const totalICMS = baseICMS * ((icmsGeral || 0) / 100);
 
         const freteComercialBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
         const seguroComercialBRL = despesasGerais.seguroUSD * taxasCambio.frete;

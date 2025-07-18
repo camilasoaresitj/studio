@@ -27,7 +27,7 @@ import { getSimulations, saveSimulations, Simulation } from '@/lib/simulations-d
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { exchangeRateService } from '@/services/exchange-rate-service';
@@ -99,7 +99,7 @@ export type SimulationResult = {
   })[];
 };
 
-const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (ncm: string, GetNcmRatesOutput) => void }) => {
+const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (ncm: string, rates: GetNcmRatesOutput) => void }) => {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -200,7 +200,7 @@ export default function SimuladorDIPage() {
     fetchInitialData();
   }, []);
 
-  useEffect(() => {
+ useEffect(() => {
     const relevantFees = standardFees.filter(fee => {
         const directionMatch = fee.direction === 'Importação' || fee.direction === 'Ambos';
         let modalMatch = false;
@@ -210,6 +210,10 @@ export default function SimuladorDIPage() {
         if (watchedModal === 'aereo' && (fee.modal === 'Aéreo' || fee.modal === 'Ambos')) {
             modalMatch = !fee.chargeType || fee.chargeType === 'Aéreo' || fee.chargeType === 'NONE';
         }
+        
+        // Ensure despacho is always considered if selected
+        if (fee.name.toUpperCase().includes('DESPACHO')) return directionMatch && modalMatch;
+
         return directionMatch && modalMatch && fee.type !== 'Opcional';
     });
 
@@ -246,8 +250,9 @@ export default function SimuladorDIPage() {
 
         const valorFOBTotalUSD = itens.reduce((sum, item) => sum + item.valorUnitarioUSD * item.quantidade, 0);
         if (valorFOBTotalUSD === 0) return null;
-
-        const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) 
+        
+        // Valor Aduaneiro: Base para cálculo de impostos. Usa taxa da DI para tudo.
+        const valorAduaneiroTotal = (valorFOBTotalUSD * taxasCambio.di) 
                              + (despesasGerais.freteInternacionalUSD * taxasCambio.di) 
                              + (despesasGerais.seguroUSD * taxasCambio.di);
         
@@ -255,9 +260,11 @@ export default function SimuladorDIPage() {
 
         const itensComImpostos = itens.map(item => {
           const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
-          const valorAduaneiroRateado = valorAduaneiro * proporcaoFOB;
+          const valorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
           
-          const aliquotas = (ncmRates && ncmRates[item.ncm]) ? ncmRates[item.ncm] : { ii: 0, ipi: 0, pis: 0, cofins: 0 };
+          const aliquotas = (ncmRates && ncmRates[item.ncm]) 
+            ? ncmRates[item.ncm] 
+            : { ii: 0, ipi: 0, pis: 0, cofins: 0 };
           
           const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
           const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
@@ -272,18 +279,20 @@ export default function SimuladorDIPage() {
           return { ...item, valorAduaneiroRateado, ii, ipi, pis, cofins };
         });
         
-        const baseICMS = valorAduaneiro + totalII + totalIPI + totalPIS + totalCOFINS;
+        const totalImpostosFederais = totalII + totalIPI + totalPIS + totalCOFINS;
+        const baseICMS = valorAduaneiroTotal + totalImpostosFederais;
         const totalICMS = (baseICMS / (1 - (icmsGeral / 100))) - baseICMS;
         
-        const calculatedStorage = Math.max(2500, valorAduaneiro * 0.01);
+        // Despesas Locais
+        const calculatedStorage = Math.max(2500, valorAduaneiroTotal * 0.01);
         const freteComercialBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
         const calculatedAFRMM = modal === 'maritimo' ? (freteComercialBRL * 0.08) : 0;
-        
         const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + calculatedStorage + calculatedAFRMM;
-        
+
+        // Custo Final
         const valorMercadoriaComercialBRL = valorFOBTotalUSD * taxasCambio.di;
         const seguroComercialBRL = despesasGerais.seguroUSD * taxasCambio.frete;
-        const totalImpostos = totalII + totalIPI + totalPIS + totalCOFINS + totalICMS;
+        const totalImpostos = totalImpostosFederais + totalICMS;
         
         const custoTotal = valorMercadoriaComercialBRL + freteComercialBRL + seguroComercialBRL + totalImpostos + totalDespesasLocais;
         
@@ -302,7 +311,7 @@ export default function SimuladorDIPage() {
         });
 
         return {
-          valorAduaneiro, totalII, totalIPI, totalPIS, totalCOFINS, totalICMS,
+          valorAduaneiro: valorAduaneiroTotal, totalII, totalIPI, totalPIS, totalCOFINS, totalICMS,
           custoTotal, 
           pesoTotal: itens.reduce((sum, item) => sum + item.pesoKg * item.quantidade, 0),
           quantidadeTotal: itens.reduce((sum, i) => sum + i.quantidade, 0),

@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen } from 'lucide-react';
-import { runExtractInvoiceItems, runGetNcmRates, runGenerateSimulationPdf } from '@/app/actions';
+import { runExtractInvoiceItems, runGetNcmRates } from '@/app/actions';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import type { InvoiceItem } from '@/lib/schemas/invoice';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
+import { generateSimulationPdfHtml } from '@/ai/flows/generate-simulation-pdf-html';
 
 const itemSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -412,7 +413,7 @@ export default function SimuladorDIPage() {
     setIsGeneratingPdf(true);
     try {
         const formData = form.getValues();
-        const response = await runGenerateSimulationPdf({
+        const response = await generateSimulationPdfHtml({
             simulationName: formData.simulationName,
             customerName: formData.customerName,
             createdAt: new Date().toLocaleDateString('pt-BR'),
@@ -420,8 +421,8 @@ export default function SimuladorDIPage() {
             resultData: result,
         });
 
-        if (!response.success || !response.data.html) {
-            throw new Error(response.error || 'A geração do HTML da simulação falhou.');
+        if (!response.html) {
+            throw new Error('A geração do HTML da simulação falhou.');
         }
 
         const element = document.createElement("div");
@@ -429,7 +430,7 @@ export default function SimuladorDIPage() {
         element.style.left = '-9999px';
         element.style.top = '0';
         element.style.width = '800px'; 
-        element.innerHTML = response.data.html;
+        element.innerHTML = response.html;
         document.body.appendChild(element);
         
         await new Promise(resolve => setTimeout(resolve, 500)); 
@@ -566,7 +567,7 @@ export default function SimuladorDIPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Importar Dados da Fatura</CardTitle>
-                        <CardDescription>Importe um arquivo (.xlsx, .csv, .xml) para que a IA preencha os itens automaticamente.</CardDescription>
+                        <CardDescription>Importe um arquivo (.xlsx, .pdf, .jpg) para que a IA preencha os itens automaticamente.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <input
@@ -574,7 +575,7 @@ export default function SimuladorDIPage() {
                             ref={fileInputRef}
                             onChange={handleFileChange}
                             className="hidden"
-                            accept=".xlsx,.xls,.csv,.xml"
+                            accept=".xlsx,.xls,.csv,.xml,.pdf,.jpg,.jpeg,.png"
                         />
                         <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isAiLoading}>
                             {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}

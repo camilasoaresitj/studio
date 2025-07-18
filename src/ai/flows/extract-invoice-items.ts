@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML).
+ * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
  *
  * extractInvoiceItems - Parses a file and returns a list of items.
  * ExtractInvoiceItemsInput - The input type for the function.
@@ -17,54 +17,51 @@ export async function extractInvoiceItems(input: ExtractInvoiceItemsInput): Prom
   return extractInvoiceItemsFlow(input);
 }
 
-
-// Helper function to convert data URI to buffer
-const dataUriToBuffer = (dataUri: string) => {
-  const base64 = dataUri.split(',')[1];
-  if (!base64) {
-    throw new Error('Invalid Data URI format.');
-  }
-  return Buffer.from(base64, 'base64');
-};
-
-const extractFromSpreadsheet = (buffer: Buffer): string => {
+const extractFromSpreadsheet = (dataUri: string): { textContent: string; media?: never } => {
+    const base64 = dataUri.split(',')[1];
+    if (!base64) throw new Error('Invalid Data URI format.');
+    const buffer = Buffer.from(base64, 'base64');
+    
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) throw new Error('No sheets found in the workbook.');
     const worksheet = workbook.Sheets[sheetName];
-    // Convert to CSV for a simple text representation for the AI
-    return XLSX.utils.sheet_to_csv(worksheet);
+    return { textContent: XLSX.utils.sheet_to_csv(worksheet) };
 };
 
-const extractFromXml = (buffer: Buffer): string => {
-    // Simply return the XML content as a string for the AI to parse.
-    return buffer.toString('utf-8');
+const extractFromXml = (dataUri: string): { textContent: string; media?: never } => {
+    const base64 = dataUri.split(',')[1];
+    if (!base64) throw new Error('Invalid Data URI format.');
+    const buffer = Buffer.from(base64, 'base64');
+    return { textContent: buffer.toString('utf-8') };
 };
+
+const extractFromMedia = (dataUri: string): { media: { url: string }; textContent?: never } => {
+    return { media: { url: dataUri } };
+};
+
 
 const extractInvoiceItemsPrompt = ai.definePrompt({
   name: 'extractInvoiceItemsPrompt',
-  input: { schema: z.object({ textContent: z.string() }) },
-  // Ensure the prompt output matches the main output schema structure
-  output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) }, 
-  prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided text, which could be from a CSV, XML, or plain text invoice.
+  input: { schema: z.object({ textContent: z.string().optional(), media: z.any().optional() }) },
+  output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) },
+  prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided content, which could be from a CSV, XML, plain text, an image, or a PDF file.
 
-Analyze the text below and extract all product line items. For each item, you must find:
+Analyze the content below and extract all product line items. For each item, you must find:
 - **descricao**: The full description of the product.
 - **quantidade**: The quantity of units for that item.
-- **valorUnitarioUSD**: The price PER UNIT in USD.
+- **valorUnitarioUSD**: The price PER UNIT in USD. If only a total price is available, you must calculate the unit price.
 - **ncm**: The NCM code.
-- **pesoKg**: The weight PER UNIT in kilograms.
+- **pesoKg**: The weight PER UNIT in kilograms. If only a total weight is available, you must calculate the unit weight.
 
 **CRITICAL RULES:**
-1.  If the text provides a TOTAL price and a quantity, you MUST calculate the \`valorUnitarioUSD\` by dividing the total price by the quantity.
-2.  If the text provides a TOTAL weight and a quantity, you MUST calculate the \`pesoKg\` (weight per unit) by dividing the total weight by the quantity.
-3.  Do not invent information. If a field is missing for an item, omit the entire item from the result.
+1.  If the content provides a TOTAL price and a quantity, you MUST calculate the \`valorUnitarioUSD\` by dividing the total price by the quantity.
+2.  If the content provides a TOTAL weight and a quantity, you MUST calculate the \`pesoKg\` (weight per unit) by dividing the total weight by the quantity.
+3.  Do not invent information. If a required field is missing for an item (like description, quantity, value, or NCM), omit the entire item from the result.
 4.  You MUST return the final result inside a JSON object with a single key "data" which contains the array of items.
 
-**Example Input (from a CSV):**
-"Description,Quantity,Total Price USD,NCM,Total Weight KG
-Product A,10,100.00,12345678,50.0
-Product B,5,250.00,87654321,100.0"
+**Example Input (from an image of an invoice):**
+[Image content showing a table with "Product A", "10 units", "$100 total", "NCM 1234.56.78", "50kg total"]
 
 **Expected Example JSON Output:**
 \`\`\`json
@@ -76,20 +73,18 @@ Product B,5,250.00,87654321,100.0"
       "valorUnitarioUSD": 10.00,
       "ncm": "12345678",
       "pesoKg": 5.0
-    },
-    {
-      "descricao": "Product B",
-      "quantidade": 5,
-      "valorUnitarioUSD": 50.00,
-      "ncm": "87654321",
-      "pesoKg": 20.0
     }
   ]
 }
 \`\`\`
-
+{{#if textContent}}
 Now, analyze the following text content and return the JSON object:
 {{{textContent}}}
+{{/if}}
+{{#if media}}
+Now, analyze the following media content and return the JSON object:
+{{media url=media.url}}
+{{/if}}
 `,
 });
 
@@ -101,24 +96,27 @@ const extractInvoiceItemsFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-        const buffer = dataUriToBuffer(input.fileDataUri);
-        let textContent = '';
+        let promptInput: { textContent?: string; media?: { url: string } };
 
-        if (input.fileName.endsWith('.xml')) {
-            textContent = extractFromXml(buffer);
-        } else if (input.fileName.endsWith('.xlsx') || input.fileName.endsWith('.xls') || input.fileName.endsWith('.csv')) {
-            textContent = extractFromSpreadsheet(buffer);
+        const lowerFileName = input.fileName.toLowerCase();
+
+        if (lowerFileName.endsWith('.xml')) {
+            promptInput = extractFromXml(input.fileDataUri);
+        } else if (lowerFileName.endsWith('.xlsx') || lowerFileName.endsWith('.xls') || lowerFileName.endsWith('.csv')) {
+            promptInput = extractFromSpreadsheet(input.fileDataUri);
+        } else if (lowerFileName.endsWith('.jpg') || lowerFileName.endsWith('.jpeg') || lowerFileName.endsWith('.png') || lowerFileName.endsWith('.pdf')) {
+            promptInput = extractFromMedia(input.fileDataUri);
         } else {
-            throw new Error('Unsupported file type. Please use .xlsx, .xls, .csv, or .xml');
+            throw new Error('Unsupported file type. Please use .xlsx, .xls, .csv, .xml, .jpg, .png, or .pdf');
         }
 
-        if (!textContent.trim()) {
+        if (!promptInput.textContent?.trim() && !promptInput.media) {
             throw new Error('The file appears to be empty or could not be read.');
         }
 
-        const { output } = await extractInvoiceItemsPrompt({ textContent });
+        const { output } = await extractInvoiceItemsPrompt(promptInput);
         
-        if (!output || !output.data || output.data.length === 0) {
+        if (!output || !output.data) {
             throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo e o formato.");
         }
         

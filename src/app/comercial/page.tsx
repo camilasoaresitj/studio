@@ -20,6 +20,7 @@ import { RateImporter } from '@/components/rate-importer';
 import { PartnersRegistry } from '@/components/partners-registry';
 import { FeesRegistry } from '@/components/fees-registry';
 import { CrmForm } from '@/components/crm-form';
+import { ProfitSettings } from '@/components/profit-settings';
 
 
 export default function ComercialPage() {
@@ -161,6 +162,7 @@ export default function ComercialPage() {
             />
         </TabsContent>
         <TabsContent value="gestao_tarifas" className="mt-6 space-y-6">
+            <ProfitSettings />
             <Card>
                 <CardHeader>
                     <CardTitle>Importador de Tarifas</CardTitle>

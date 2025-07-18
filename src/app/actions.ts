@@ -30,8 +30,9 @@ import type { Quote } from "@/components/customer-quotes-list";
 import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getShipments, saveShipments } from "@/lib/shipment";
+import { getShipments, saveShipments, updateShipment as updateShipmentClient } from "@/lib/shipment";
 import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision } from '@/lib/shipment';
+import { isPast } from "date-fns";
 
 export async function runGetFreightRates(input: any) {
     try {
@@ -327,7 +328,7 @@ export async function createEmailCampaign(instruction: string, partners: Partner
     }
 }
 
-export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
+export async function submitBLDraft(shipmentId: string, draftData: BLDraftData): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
   try {
     const allShipments = getShipments();
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
@@ -338,22 +339,25 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
     const updatedShipment = { ...allShipments[shipmentIndex] };
     const now = new Date();
     
-    // Update main shipment fields with draft data
     updatedShipment.blDraftData = draftData;
     updatedShipment.blType = draftData.blType;
     updatedShipment.milestones = updatedShipment.milestones || [];
     updatedShipment.charges = updatedShipment.charges || [];
 
-    // Initialize history if it doesn't exist
     const history: BLDraftHistory = updatedShipment.blDraftHistory || { sentAt: null, revisions: [] };
     const hasSentDraftBefore = !!history.sentAt;
+    
+    const docsCutoffMilestone = updatedShipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
+    const docsCutoffDate = docsCutoffMilestone?.predictedDate ? new Date(docsCutoffMilestone.predictedDate) : null;
+    const isLateSubmission = docsCutoffDate ? isPast(docsCutoffDate) : false;
 
     if (!hasSentDraftBefore) {
         history.sentAt = now;
-        const taskAlreadyExists = updatedShipment.milestones.some(m => m.name === 'Enviar Draft MBL ao armador');
+        const taskName = 'Enviar Draft MBL ao armador';
+        const taskAlreadyExists = updatedShipment.milestones.some(m => m.name === taskName);
         if (!taskAlreadyExists) {
             updatedShipment.milestones.push({
-                name: "Enviar Draft MBL ao armador",
+                name: taskName,
                 status: 'pending',
                 predictedDate: now,
                 effectiveDate: null,
@@ -375,15 +379,21 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
                 sacado: updatedShipment.customer,
                 approvalStatus: 'aprovada',
             };
-            updatedShipment.charges.push(lateFeeCharge);
+            
+            // Check if fee already exists before adding
+            if (!updatedShipment.charges.some(c => c.name === "TAXA DE CORREÇÃO DE BL")) {
+                 updatedShipment.charges.push(lateFeeCharge);
+            }
+           
             newRevision.lateFee = { cost: 150, currency: 'USD' };
         }
         history.revisions.push(newRevision);
         
-        const revisionTaskExists = updatedShipment.milestones.some(m => m.name === '[REVISÃO] Enviar Draft MBL ao armador');
+        const revisionTaskName = '[REVISÃO] Enviar Draft MBL ao armador';
+        const revisionTaskExists = updatedShipment.milestones.some(m => m.name === revisionTaskName);
         if (!revisionTaskExists) {
-            updatedShipment.milestones.push({
-                name: "[REVISÃO] Enviar Draft MBL ao armador",
+             updatedShipment.milestones.push({
+                name: revisionTaskName,
                 status: 'pending',
                 predictedDate: now,
                 effectiveDate: null,
@@ -394,7 +404,6 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
     
     updatedShipment.blDraftHistory = history;
     
-    // Sort milestones to ensure correct order
     updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
 
     allShipments[shipmentIndex] = updatedShipment;

@@ -56,7 +56,6 @@ export function ClientPortalPage({ id }: { id: string }) {
     
     const handleUpdate = (updatedShipment: Shipment) => {
         setShipment(updatedShipment);
-        // You might want to save the updated shipment data back to your storage here.
     }
     
     if (isLoading) {

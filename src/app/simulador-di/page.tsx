@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import jsPDF from 'jspdf';
@@ -14,8 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen } from 'lucide-react';
-import { runExtractInvoiceItems, runGetNcmRates, runGenerateSimulationPdf } from '@/app/actions';
+import { PlusCircle, Trash2, Loader2, Upload, Wand2, FileDown, BarChart2, PieChart, Search, Ship, Plane, Save, FolderOpen, Mail, MessageSquare } from 'lucide-react';
+import { runExtractInvoiceItems, runGetNcmRates, runGenerateSimulationPdf, runShareSimulation, runSendWhatsapp } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
 import { Label } from '@/components/ui/label';
@@ -38,10 +38,6 @@ const itemSchema = z.object({
   valorUnitarioUSD: z.coerce.number().min(0.01, 'Valor unitário deve ser maior que zero.'),
   ncm: z.string().length(8, 'NCM deve ter 8 dígitos.'),
   pesoKg: z.coerce.number().min(0.01, 'Peso deve ser maior que zero.'),
-  ii: z.coerce.number().min(0, 'Alíquota de II é obrigatória.').default(14),
-  ipi: z.coerce.number().min(0, 'Alíquota de IPI é obrigatória.').default(10),
-  pis: z.coerce.number().min(0, 'Alíquota de PIS é obrigatória.').default(2.1),
-  cofins: z.coerce.number().min(0, 'Alíquota de COFINS é obrigatória.').default(9.65),
 });
 
 const localExpenseSchema = z.object({
@@ -54,6 +50,13 @@ const containerSchema = z.object({
   quantity: z.coerce.number().min(1, 'Qtde. é obrigatória'),
 });
 
+const ncmRateSchema = z.object({
+  ii: z.coerce.number().min(0, 'Alíquota de II é obrigatória.').default(14),
+  ipi: z.coerce.number().min(0, 'Alíquota de IPI é obrigatória.').default(10),
+  pis: z.coerce.number().min(0, 'Alíquota de PIS é obrigatória.').default(2.1),
+  cofins: z.coerce.number().min(0, 'Alíquota de COFINS é obrigatória.').default(9.65),
+});
+
 const simulationSchema = z.object({
   simulationName: z.string().min(1, 'Nome da simulação é obrigatório.'),
   customerName: z.string().min(1, 'Nome do cliente é obrigatório.'),
@@ -64,6 +67,7 @@ const simulationSchema = z.object({
   lclWeight: z.coerce.number().optional(),
   airWeight: z.coerce.number().optional(),
   itens: z.array(itemSchema).min(1, 'Adicione pelo menos um item.'),
+  ncmRates: z.record(z.string().length(8), ncmRateSchema),
   taxasCambio: z.object({
     di: z.coerce.number().min(0.01, 'Taxa de câmbio da DI é obrigatória.'),
     frete: z.coerce.number().min(0.01, 'Taxa de câmbio do frete é obrigatória.'),
@@ -95,7 +99,7 @@ type SimulationResult = {
   })[];
 };
 
-const NcmRateFinder = ({ itemIndex, ncm, onRatesFound }: { itemIndex: number, ncm: string, onRatesFound: (itemIndex: number, rates: GetNcmRatesOutput) => void }) => {
+const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (ncm: string, rates: GetNcmRatesOutput) => void }) => {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -107,7 +111,7 @@ const NcmRateFinder = ({ itemIndex, ncm, onRatesFound }: { itemIndex: number, nc
         setIsLoading(true);
         const response = await runGetNcmRates(ncm);
         if (response.success && response.data) {
-            onRatesFound(itemIndex, response.data);
+            onRatesFound(ncm, response.data);
             toast({ title: 'Alíquotas encontradas!', description: `Alíquotas para o NCM ${ncm} foram carregadas.` });
         } else {
             toast({ variant: 'destructive', title: 'Erro ao buscar NCM', description: response.error });
@@ -127,6 +131,8 @@ export default function SimuladorDIPage() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [standardFees, setStandardFees] = useState<Fee[]>([]);
@@ -145,6 +151,7 @@ export default function SimuladorDIPage() {
       chargeType: 'fcl',
       containers: [{ type: '20\'GP', quantity: 1 }],
       itens: [],
+      ncmRates: {},
       taxasCambio: { di: 5.67, frete: 5.87 },
       despesasGerais: { freteInternacionalUSD: 1400, seguroUSD: 100 },
       despesasLocais: [],
@@ -173,6 +180,12 @@ export default function SimuladorDIPage() {
   const watchedLclCbm = useWatch({ control: form.control, name: 'lclCbm' });
   const watchedLclWeight = useWatch({ control: form.control, name: 'lclWeight' });
   const watchedAirWeight = useWatch({ control: form.control, name: 'airWeight' });
+  const watchedItems = useWatch({ control: form.control, name: 'itens' });
+
+  const uniqueNcms = useMemo(() => {
+    const ncmSet = new Set(watchedItems.map(item => item.ncm).filter(ncm => ncm && ncm.length === 8));
+    return Array.from(ncmSet);
+  }, [watchedItems]);
   
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -226,7 +239,7 @@ export default function SimuladorDIPage() {
 
   const calculateCosts = useCallback((data: SimulationFormData): SimulationResult | null => {
       try {
-        const { itens, taxasCambio, despesasGerais, despesasLocais, icmsGeral, modal } = data;
+        const { itens, ncmRates, taxasCambio, despesasGerais, despesasLocais, icmsGeral, modal } = data;
         if (itens.length === 0) return null;
 
         const valorFOBTotalUSD = itens.reduce((sum, item) => sum + item.valorUnitarioUSD * item.quantidade, 0);
@@ -245,11 +258,13 @@ export default function SimuladorDIPage() {
         const itensResultado = itens.map(item => {
           const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
           const valorAduaneiroRateado = valorAduaneiro * proporcaoFOB;
+          
+          const aliquotas = ncmRates[item.ncm] || { ii: 0, ipi: 0, pis: 0, cofins: 0 };
 
-          const ii = valorAduaneiroRateado * (item.ii / 100);
-          const ipi = (valorAduaneiroRateado + ii) * (item.ipi / 100);
-          const pis = valorAduaneiroRateado * (item.pis / 100);
-          const cofins = valorAduaneiroRateado * (item.cofins / 100);
+          const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
+          const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
+          const pis = valorAduaneiroRateado * (aliquotas.pis / 100);
+          const cofins = valorAduaneiroRateado * (aliquotas.cofins / 100);
           
           totalII += ii;
           totalIPI += ipi;
@@ -314,8 +329,7 @@ export default function SimuladorDIPage() {
                 fileName: file.name
             });
             if (response.success && response.data.length > 0) {
-                const itemsWithTaxes = response.data.map(item => ({...item, ii: 14, ipi: 10, pis: 2.1, cofins: 9.65 }))
-                replaceItems(itemsWithTaxes);
+                replaceItems(response.data);
                 toast({
                     title: 'Itens Importados!',
                     description: `${response.data.length} itens foram extraídos do arquivo.`,
@@ -334,12 +348,12 @@ export default function SimuladorDIPage() {
     reader.readAsDataURL(file);
   };
   
-  const handleRatesFound = (itemIndex: number, rates: GetNcmRatesOutput) => {
-      form.setValue(`itens.${itemIndex}.ii`, rates.ii);
-      form.setValue(`itens.${itemIndex}.ipi`, rates.ipi);
-      form.setValue(`itens.${itemIndex}.pis`, rates.pis);
-      form.setValue(`itens.${itemIndex}.cofins`, rates.cofins);
-      toast({ title: 'Alíquotas aplicadas!', description: `Alíquotas para o NCM ${rates.ncm} foram carregadas no item.` });
+  const handleRatesFound = (ncm: string, rates: GetNcmRatesOutput) => {
+      form.setValue(`ncmRates.${ncm}.ii`, rates.ii);
+      form.setValue(`ncmRates.${ncm}.ipi`, rates.ipi);
+      form.setValue(`ncmRates.${ncm}.pis`, rates.pis);
+      form.setValue(`ncmRates.${ncm}.cofins`, rates.cofins);
+      toast({ title: 'Alíquotas aplicadas!', description: `Alíquotas para o NCM ${ncm} foram carregadas.` });
   };
   
   const handleSaveSimulation = form.handleSubmit(async (data) => {
@@ -418,6 +432,43 @@ export default function SimuladorDIPage() {
     } finally {
         setIsGeneratingPdf(false);
     }
+  };
+
+  const handleShare = async (channel: 'email' | 'whatsapp') => {
+      if (!result) return;
+      const formData = form.getValues();
+      const customer = partners.find(p => p.name === formData.customerName);
+      if (!customer) {
+          toast({ variant: 'destructive', title: 'Cliente não encontrado.' });
+          return;
+      }
+
+      setIsSharing(true);
+      const response = await runShareSimulation({
+          customerName: formData.customerName,
+          simulationName: formData.simulationName,
+          totalCostBRL: result.custoTotal,
+          simulationLink: window.location.href, // Simplified link for now
+      });
+
+      if (response.success && response.data) {
+          if (channel === 'email') {
+              console.log("Email a ser enviado:", response.data.emailBody);
+              toast({ title: 'E-mail de simulação enviado! (Simulação)' });
+          } else {
+              const phone = customer.contacts[0].phone.replace(/\D/g, '');
+              const whatsappResponse = await runSendWhatsapp(phone, response.data.whatsappMessage);
+              if (whatsappResponse.success) {
+                  toast({ title: 'Mensagem enviada por WhatsApp!', className: 'bg-success text-success-foreground' });
+              } else {
+                   toast({ variant: 'destructive', title: 'Erro ao enviar WhatsApp', description: whatsappResponse.error });
+              }
+          }
+          setIsShareDialogOpen(false);
+      } else {
+          toast({ variant: 'destructive', title: 'Erro ao compartilhar', description: response.error });
+      }
+      setIsSharing(false);
   };
 
 
@@ -556,7 +607,7 @@ export default function SimuladorDIPage() {
                             <CardTitle>Itens da Fatura</CardTitle>
                             <CardDescription>Liste os produtos e suas respectivas alíquotas de impostos.</CardDescription>
                         </div>
-                        <Button type="button" size="sm" variant="outline" onClick={() => appendItem({ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0, ii: 14, ipi: 10, pis: 2.1, cofins: 9.65 })}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => appendItem({ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0 })}>
                             <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
                         </Button>
                     </CardHeader>
@@ -565,29 +616,42 @@ export default function SimuladorDIPage() {
                             {itemFields.map((field, index) => (
                                 <div key={field.id} className="p-3 border rounded-md relative">
                                     <Button type="button" variant="ghost" size="icon" className="text-destructive absolute top-1 right-1" onClick={() => removeItem(index)}><Trash2 className="h-4 w-4"/></Button>
-                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                                         <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.descricao`} render={({ field }) => (<FormItem><FormLabel>Descrição</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
                                         <div><FormField control={form.control} name={`itens.${index}.quantidade`} render={({ field }) => (<FormItem><FormLabel>Qtde</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
                                         <div><FormField control={form.control} name={`itens.${index}.valorUnitarioUSD`} render={({ field }) => (<FormItem><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
                                         <div><FormField control={form.control} name={`itens.${index}.pesoKg`} render={({ field }) => (<FormItem><FormLabel>Peso (Kg)</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
                                     </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
-                                        <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.ncm`} render={({ field: ncmField }) => (
-                                            <FormItem><FormLabel>NCM</FormLabel>
-                                                <div className="flex items-center gap-1">
-                                                    <FormControl><Input {...ncmField}/></FormControl>
-                                                    <NcmRateFinder itemIndex={index} ncm={ncmField.value} onRatesFound={handleRatesFound} />
-                                                </div>
-                                            <FormMessage/></FormItem>
-                                        )}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" placeholder="14" {...field} /></FormControl></FormItem>)}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" placeholder="10" {...field} /></FormControl></FormItem>)}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" placeholder="2.1" {...field} /></FormControl></FormItem>)}/></div>
-                                        <div><FormField control={form.control} name={`itens.${index}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" placeholder="9.65" {...field} /></FormControl></FormItem>)}/></div>
+                                    <div className="grid grid-cols-1 mt-2">
+                                        <FormField control={form.control} name={`itens.${index}.ncm`} render={({ field }) => (<FormItem><FormLabel>NCM</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>)}/>
                                     </div>
                                 </div>
                             ))}
                          </div>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Alíquotas de Impostos por NCM</CardTitle>
+                        <CardDescription>Defina as alíquotas para cada NCM único listado nos itens da fatura.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {uniqueNcms.length > 0 ? uniqueNcms.map(ncm => (
+                            <div key={ncm} className="p-3 border rounded-md">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="font-semibold">NCM: {ncm}</h4>
+                                    <NcmRateFinder ncm={ncm} onRatesFound={handleRatesFound} />
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                    <FormField control={form.control} name={`ncmRates.${ncm}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" placeholder="14" {...field} /></FormControl></FormItem>)}/>
+                                    <FormField control={form.control} name={`ncmRates.${ncm}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" placeholder="10" {...field} /></FormControl></FormItem>)}/>
+                                    <FormField control={form.control} name={`ncmRates.${ncm}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" placeholder="2.1" {...field} /></FormControl></FormItem>)}/>
+                                    <FormField control={form.control} name={`ncmRates.${ncm}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" placeholder="9.65" {...field} /></FormControl></FormItem>)}/>
+                                </div>
+                            </div>
+                        )) : (
+                            <p className="text-sm text-muted-foreground">Adicione itens com NCMs válidos para definir as alíquotas.</p>
+                        )}
                     </CardContent>
                 </Card>
                 <Card>
@@ -642,10 +706,13 @@ export default function SimuladorDIPage() {
                                     <div className="flex justify-between text-muted-foreground"><span>- COFINS:</span><span className="font-mono">BRL {result.totalCOFINS.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                                     <div className="flex justify-between text-muted-foreground"><span>- ICMS:</span><span className="font-mono">BRL {result.totalICMS.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                                 </div>
-                                 <div className="flex justify-end pt-2">
+                                 <div className="flex justify-end pt-2 gap-2">
                                     <Button variant="outline" onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
                                         {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4"/>}
                                         Exportar PDF
+                                    </Button>
+                                    <Button variant="secondary" onClick={() => setIsShareDialogOpen(true)}>
+                                        <Mail className="mr-2 h-4 w-4"/> Compartilhar
                                     </Button>
                                  </div>
                             </div>
@@ -707,6 +774,24 @@ export default function SimuladorDIPage() {
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Fechar</Button></DialogClose>
                 </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Compartilhar Simulação</DialogTitle>
+                    <DialogDescription>Selecione como deseja compartilhar a simulação com o cliente.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 flex flex-col gap-4">
+                     <Button onClick={() => handleShare('email')} disabled={isSharing}>
+                        {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4"/>}
+                        Enviar por E-mail
+                    </Button>
+                    <Button onClick={() => handleShare('whatsapp')} disabled={isSharing}>
+                         {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4"/>}
+                        Enviar por WhatsApp
+                    </Button>
+                </div>
             </DialogContent>
         </Dialog>
     </div>

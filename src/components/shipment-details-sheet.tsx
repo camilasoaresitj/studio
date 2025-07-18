@@ -739,7 +739,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     </div>
                                     <div>
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
-                                         <SheetDescription className="text-xs md:text-sm flex items-center gap-2">
+                                        <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
                                             <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
                                                 <div className="flex items-center gap-1"><Label htmlFor="po-header">Ref. Cliente:</Label><Input id="po-header" {...field} className="h-6 text-xs w-24"/></div>
                                             )}/>
@@ -747,7 +747,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                             <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
                                                 <div className="flex items-center gap-1"><Label htmlFor="inv-header">Invoice:</Label><Input id="inv-header" {...field} className="h-6 text-xs w-24"/></div>
                                             )}/>
-                                        </SheetDescription>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">

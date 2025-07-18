@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -146,12 +147,12 @@ export default function CustomerPortalPage() {
         const firstPendingName = firstPending.name.toLowerCase();
         
         const departureCompleted = shipment.milestones.some(m => 
-          (m.name.toLowerCase().includes('departure') || m.name.toLowerCase().includes('vessel departure') || m.name.toLowerCase().includes('embarque')) 
+          (m.name.toLowerCase().includes('embarque')) 
           && m.status === 'completed'
         );
       
         if (departureCompleted) {
-            if (firstPendingName.includes('chegada') || firstPendingName.includes('arrival') || firstPendingName.includes('discharged')) {
+            if (firstPendingName.includes('chegada') || firstPendingName.includes('desembarque')) {
                 return { text: 'Chegada no Destino', variant: 'default' };
             }
             return { text: 'Em Trânsito', variant: 'default' };
@@ -412,3 +413,5 @@ export default function CustomerPortalPage() {
         </>
     );
 }
+
+    

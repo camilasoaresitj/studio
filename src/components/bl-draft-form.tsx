@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -110,7 +110,7 @@ const DraftHistory = ({ history }: { history: BLDraftHistory | undefined }) => {
 };
 
 
-export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftFormProps) {
+export const BLDraftForm = forwardRef<{ submit: () => void }, BLDraftFormProps>(({ shipment, isSheet = false, onUpdate }, ref) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { toast } = useToast();
@@ -146,6 +146,12 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
        }
     },
   });
+
+  useImperativeHandle(ref, () => ({
+    submit: () => {
+      form.handleSubmit(onSubmit)();
+    }
+  }));
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -520,4 +526,6 @@ export function BLDraftForm({ shipment, isSheet = false, onUpdate }: BLDraftForm
       </CardContent>
     </Card>
   );
-}
+});
+
+BLDraftForm.displayName = 'BLDraftForm';

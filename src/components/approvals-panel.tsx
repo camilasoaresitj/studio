@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -145,7 +146,9 @@ export function ApprovalsPanel() {
 
         if (viewingItem.type === 'operations') {
             const { charge, shipment } = viewingItem.item;
-            const originalCharge = getShipments().find(s => s.id === shipment.id)?.charges.find(c => c.id === charge.id);
+            // Safe check for the original shipment and charge
+            const originalShipment = getShipments().find(s => s.id === shipment.id);
+            const originalCharge = originalShipment?.charges.find(c => c.id === charge.id);
 
             return (
                  <DialogHeader>
@@ -167,11 +170,11 @@ export function ApprovalsPanel() {
                             <span className="font-semibold">Novo Valor</span>
                             
                             <span className="text-muted-foreground">Custo:</span>
-                            <span className="text-muted-foreground">{originalCharge?.costCurrency} {originalCharge?.cost.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                            <span className="text-muted-foreground">{originalCharge?.costCurrency} {originalCharge?.cost.toLocaleString('pt-BR', {minimumFractionDigits: 2}) ?? 'N/A'}</span>
                             <span className="font-bold flex items-center">{charge.costCurrency} {charge.cost.toLocaleString('pt-BR', {minimumFractionDigits: 2})} <ArrowRight className="h-4 w-4 ml-1 text-primary"/></span>
 
                             <span className="text-muted-foreground">Venda:</span>
-                            <span className="text-muted-foreground">{originalCharge?.saleCurrency} {originalCharge?.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                            <span className="text-muted-foreground">{originalCharge?.saleCurrency} {originalCharge?.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2}) ?? 'N/A'}</span>
                             <span className="font-bold flex items-center">{charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})} <ArrowRight className="h-4 w-4 ml-1 text-primary"/></span>
                         </div>
                         <p className="text-xs text-muted-foreground">Solicitado por: {shipment.responsibleUser || 'Não definido'}</p>

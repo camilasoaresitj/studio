@@ -723,7 +723,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 costCurrency: fee.currency,
                 sale: parseFloat(fee.value) || 0,
                 saleCurrency: fee.currency,
-                approvalStatus: 'pendente', // New charges are pending approval
+                approvalStatus: 'pendente',
             });
         }
     };

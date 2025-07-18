@@ -732,7 +732,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             <SheetContent className="sm:max-w-7xl w-full p-0">
                 <Form {...form}>
                     <form onSubmit={handleUpdate} className="flex flex-col h-full">
-                        <SheetHeader className="p-4 border-b space-y-4">
+                        <SheetHeader className="p-4 border-b">
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-4">
                                     <div className="bg-primary/10 p-3 rounded-full">
@@ -740,19 +740,21 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                     </div>
                                     <div>
                                         <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
-                                         <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
-                                            <div className="flex items-center gap-1"><Label htmlFor="po-header">Ref. Cliente:</Label>
+                                        <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
+                                            <div className="flex items-center gap-1">
+                                                <Label htmlFor="po-header">Ref. Cliente:</Label>
                                                 <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
                                                     <Input id="po-header" {...field} className="h-6 text-xs w-24"/>
                                                 )}/>
                                             </div>
-                                             <Separator orientation="vertical" className="h-4"/>
-                                            <div className="flex items-center gap-1"><Label htmlFor="inv-header">Invoice:</Label>
-                                                 <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                            <Separator orientation="vertical" className="h-4"/>
+                                            <div className="flex items-center gap-1">
+                                                <Label htmlFor="inv-header">Invoice:</Label>
+                                                <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
                                                     <Input id="inv-header" {...field} className="h-6 text-xs w-24"/>
                                                 )}/>
                                             </div>
-                                         </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -772,12 +774,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                         Salvar Alterações
                                     </Button>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
-                                <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
-                                <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
-                                <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
-                                <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
                             </div>
                         </SheetHeader>
                         
@@ -1222,7 +1218,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                 </TabsContent>
 
                                 <TabsContent value="bl_draft">
-                                    <BLDraftForm shipment={shipment} onUpdate={onUpdate} isSheet />
+                                    <BLDraftForm shipment={shipment} onUpdate={onUpdate} setShipment={onUpdate} isSheet />
                                 </TabsContent>
                                 
                                 <TabsContent value="map">

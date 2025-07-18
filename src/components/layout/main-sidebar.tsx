@@ -24,6 +24,7 @@ import {
   Settings,
   User,
   MessageSquare,
+  Calculator,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import type { Shipment } from '@/lib/shipment';
@@ -37,6 +38,7 @@ const menuItems = [
   { href: '/financeiro', label: 'Financeiro', icon: Landmark },
   { href: '/demurrage', label: 'Demurrage', icon: Clock },
   { href: '/schedules', label: 'Schedules', icon: CalendarClock },
+  { href: '/simulador-di', label: 'Simulador DI', icon: Calculator },
   { href: '/portal', label: 'Portal Cliente', icon: User },
   { href: '/configuracoes', label: 'Configurações', icon: Settings },
 ];

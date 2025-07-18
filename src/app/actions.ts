@@ -30,12 +30,14 @@ import type { Quote } from "@/components/customer-quotes-list";
 import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getShipments, saveShipments, updateShipment as updateShipmentClient } from "@/lib/shipment";
-import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision } from '@/lib/shipment';
+import { getShipments, saveShipments, updateShipment as updateShipmentClient, Shipment } from "@/lib/shipment";
+import type { BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision } from '@/lib/shipment';
 import { isPast } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import { registerDue } from '@/ai/flows/register-due';
 import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-spreadsheet';
+import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
+
 
 export async function runGetFreightRates(input: any) {
     try {
@@ -321,7 +323,7 @@ export async function runSendToLegal(input: any) {
     }
 }
 
-export async function createEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {
+export async function runCreateEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {
     try {
         const data = await createEmailCampaign({ instruction, partners, quotes });
         return { success: true, data };
@@ -339,7 +341,7 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData):
         throw new Error("Shipment not found");
     }
 
-    const updatedShipment = { ...allShipments[shipmentIndex] };
+    let updatedShipment = { ...allShipments[shipmentIndex] };
     const now = new Date();
     
     updatedShipment.blDraftData = draftData;
@@ -417,6 +419,45 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData):
   }
 }
 
+export async function updateShipmentFromAgent(shipmentId: string, agentData: any): Promise<{ success: boolean, error?: string }> {
+    try {
+        const shipments = getShipments();
+        const shipmentIndex = shipments.findIndex(s => s.id === shipmentId);
+
+        if (shipmentIndex === -1) {
+            throw new Error("Embarque não encontrado.");
+        }
+        
+        const shipment = shipments[shipmentIndex];
+
+        const updatedShipment = {
+            ...shipment,
+            bookingNumber: agentData.bookingNumber,
+            vesselName: agentData.vesselVoyage.split('/')[0]?.trim(),
+            voyageNumber: agentData.vesselVoyage.split('/')[1]?.trim(),
+            etd: agentData.etd,
+            eta: agentData.eta,
+            milestones: shipment.milestones.map(m => {
+                const mName = m.name.toLowerCase();
+                if (mName.includes('booking confirmado')) return { ...m, status: 'completed' as const, effectiveDate: new Date() };
+                if (mName.includes('embarque')) return { ...m, predictedDate: agentData.etd };
+                if (mName.includes('chegada')) return { ...m, predictedDate: agentData.eta };
+                if (mName.includes('cut off documental')) return { ...m, predictedDate: agentData.docsCutoff || m.predictedDate };
+                return m;
+            }),
+        };
+
+        shipments[shipmentIndex] = updatedShipment;
+        saveShipments(shipments);
+        
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Update from Agent failed", error);
+        return { success: false, error: error.message || "Falha ao atualizar embarque." };
+    }
+}
+
 export async function addManualMilestone(shipmentId: string, milestone: Omit<Milestone, 'status' | 'effectiveDate'>) {
     try {
         const allShipments = getShipments();
@@ -476,5 +517,14 @@ export async function runGenerateDiXmlFromSpreadsheet(input: any) {
     } catch (error: any) {
         console.error("Generate DI XML From Spreadsheet Action Failed", error);
         return { success: false, error: error.message || "Failed to generate DI XML" };
+    }
+}
+
+export async function runExtractInvoiceItems(input: { fileName: string, fileDataUri: string }) {
+    try {
+        return await extractInvoiceItems(input);
+    } catch (error: any) {
+        console.error("Extract Invoice Items Action Failed:", error);
+        return { success: false, data: [], error: error.message || "Failed to extract items" };
     }
 }

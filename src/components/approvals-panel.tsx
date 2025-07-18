@@ -145,8 +145,6 @@ export function ApprovalsPanel() {
 
         if (viewingItem.type === 'operations') {
             const { charge, shipment } = viewingItem.item;
-            // We need to find the original state of the charge before the pending change.
-            // This is a simplified approach; a real app might store a temporary 'original' value.
             const originalCharge = getShipments().find(s => s.id === shipment.id)?.charges.find(c => c.id === charge.id);
 
             return (
@@ -200,7 +198,7 @@ export function ApprovalsPanel() {
                 <ScrollArea className="h-[260px] pr-3">
                     <div className="space-y-4">
                         {pendingItems.length > 0 ? pendingItems.map((approvalItem, index) => (
-                            <div key={`${approvalItem.type}-${index}`} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
+                            <div key={`${approvalItem.type}-${'item' in approvalItem.item ? approvalItem.item.id : approvalItem.item.charge.id}-${index}`} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
                                  <div className="pt-1">
                                     {approvalItem.type === 'finance' ? <DollarSign className="h-5 w-5 text-blue-500" /> : <Settings className="h-5 w-5 text-orange-500" />}
                                 </div>

@@ -23,8 +23,8 @@ export type QuoteCharge = {
   supplier: string;
   sacado?: string;
   approvalStatus: 'aprovada' | 'pendente' | 'rejeitada';
-  justification?: string; 
-  financialEntryId?: string | null; 
+  justification?: string;
+  financialEntryId?: string | null;
 };
 
 export type QuoteDetails = {

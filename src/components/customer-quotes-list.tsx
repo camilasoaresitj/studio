@@ -18,7 +18,7 @@ import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, Check
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { QuoteCostSheet } from './quote-cost-sheet';
-import { runSendQuote, runGenerateClientInvoicePdf, runSendWhatsapp } from '@/app/actions';
+import { runSendQuote, runGenerateQuotePdfHtml, runSendWhatsapp } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
@@ -37,6 +37,7 @@ export type QuoteCharge = {
   supplier: string;
   sacado?: string;
   approvalStatus: 'aprovada' | 'pendente' | 'rejeitada';
+  justification?: string;
   financialEntryId?: string | null;
 };
 
@@ -196,7 +197,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 return sum + charge.sale * rateToUse;
             }, 0);
             
-            const response = await runGenerateClientInvoicePdf({
+            const response = await runGenerateQuotePdfHtml({
                 quoteNumber: quote.id.replace('-DRAFT', ''),
                 customerName: quote.customer,
                 date: new Date().toLocaleDateString('pt-br'),

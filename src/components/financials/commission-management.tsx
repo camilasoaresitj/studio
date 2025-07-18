@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -68,7 +68,7 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
         
         // Check if a payment has been made for this commission
         // This is a simulation. A real app would check financial entries.
-        const isPaid = (localStorage.getItem(`commission_paid_${shipment.id}`) === 'true');
+        const isPaid = (typeof window !== 'undefined' && localStorage.getItem(`commission_paid_${shipment.id}`) === 'true');
 
         return {
           shipment,
@@ -245,5 +245,3 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
     </>
   );
 }
-
-    

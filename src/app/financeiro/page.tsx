@@ -1,5 +1,7 @@
 
-import FinancialPage from '@/components/financials/financial-page';
+'use client';
+
+import { FinancialPageClient } from '@/components/financials/financial-page-client';
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -10,7 +12,7 @@ export default function FinanceiroPage() {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     }>
-        <FinancialPage />
+        <FinancialPageClient />
     </Suspense>
   );
 }

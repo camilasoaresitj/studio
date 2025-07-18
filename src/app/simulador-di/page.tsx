@@ -99,7 +99,7 @@ export type SimulationResult = {
   })[];
 };
 
-const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (ncm: string, rates: GetNcmRatesOutput) => void }) => {
+const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (ncm: string, GetNcmRatesOutput) => void }) => {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -251,7 +251,6 @@ export default function SimuladorDIPage() {
         const valorFOBTotalUSD = itens.reduce((sum, item) => sum + item.valorUnitarioUSD * item.quantidade, 0);
         if (valorFOBTotalUSD === 0) return null;
         
-        // Valor Aduaneiro: Base para cálculo de impostos.
         const valorAduaneiroTotal = (valorFOBTotalUSD * taxasCambio.di) 
                              + (despesasGerais.freteInternacionalUSD * taxasCambio.di) 
                              + (despesasGerais.seguroUSD * taxasCambio.di);
@@ -262,7 +261,6 @@ export default function SimuladorDIPage() {
             const proporcaoFOB = (item.valorUnitarioUSD * item.quantidade) / valorFOBTotalUSD;
             const valorAduaneiroRateado = valorAduaneiroTotal * proporcaoFOB;
             
-            // CORRECTION: Ensure NCM is cleaned of any non-digit characters before lookup.
             const cleanNcm = item.ncm.replace(/\D/g, '');
             const aliquotas = (ncmRates && ncmRates[cleanNcm])
                 ? ncmRates[cleanNcm]
@@ -270,7 +268,6 @@ export default function SimuladorDIPage() {
             
             const ii = valorAduaneiroRateado * (aliquotas.ii / 100);
             const ipi = (valorAduaneiroRateado + ii) * (aliquotas.ipi / 100);
-            
             const pis = valorAduaneiroRateado * (aliquotas.pis / 100);
             const cofins = valorAduaneiroRateado * (aliquotas.cofins / 100);
             
@@ -288,12 +285,17 @@ export default function SimuladorDIPage() {
         const totalICMS = baseICMS * (icmsGeral / 100);
 
         const freteComercialBRL = despesasGerais.freteInternacionalUSD * taxasCambio.frete;
+        const seguroComercialBRL = despesasGerais.seguroUSD * taxasCambio.frete;
+        
+        // Automatic Costs
+        const numeroDeAdicoes = uniqueNcms.length;
+        const taxaSiscomex = 115.67 + (numeroDeAdicoes * 38.56);
         const calculatedAFRMM = modal === 'maritimo' ? (freteComercialBRL * 0.08) : 0;
         const calculatedStorage = Math.max(2500, valorAduaneiroTotal * 0.01);
-        const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + calculatedStorage + calculatedAFRMM;
+        
+        const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0) + taxaSiscomex + calculatedStorage + calculatedAFRMM;
 
         const valorMercadoriaComercialBRL = valorFOBTotalUSD * taxasCambio.di;
-        const seguroComercialBRL = despesasGerais.seguroUSD * taxasCambio.frete;
         const totalImpostos = totalImpostosFederais + totalICMS;
         
         const custoTotal = valorMercadoriaComercialBRL + freteComercialBRL + seguroComercialBRL + totalImpostos + totalDespesasLocais;
@@ -323,7 +325,7 @@ export default function SimuladorDIPage() {
           console.error("Calculation error:", e);
           return null;
       }
-  }, []);
+  }, [uniqueNcms]);
 
   useEffect(() => {
     const subscription = form.watch(() => {
@@ -369,10 +371,11 @@ export default function SimuladorDIPage() {
   };
   
   const handleRatesFound = (ncm: string, rates: GetNcmRatesOutput) => {
-      form.setValue(`ncmRates.${ncm}.ii`, rates.ii);
-      form.setValue(`ncmRates.${ncm}.ipi`, rates.ipi);
-      form.setValue(`ncmRates.${ncm}.pis`, rates.pis);
-      form.setValue(`ncmRates.${ncm}.cofins`, rates.cofins);
+      const cleanNcm = ncm.replace(/\D/g, '');
+      form.setValue(`ncmRates.${cleanNcm}.ii`, rates.ii);
+      form.setValue(`ncmRates.${cleanNcm}.ipi`, rates.ipi);
+      form.setValue(`ncmRates.${cleanNcm}.pis`, rates.pis);
+      form.setValue(`ncmRates.${cleanNcm}.cofins`, rates.cofins);
   };
   
   const handleSaveSimulation = form.handleSubmit(async (data) => {
@@ -665,20 +668,23 @@ export default function SimuladorDIPage() {
                         <CardDescription>Defina as alíquotas para cada NCM único listado nos itens da fatura.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {uniqueNcms.map(ncm => (
-                            <div key={ncm} className="p-3 border rounded-md">
-                                <div className="flex justify-between items-center mb-3">
-                                    <h4 className="font-semibold">NCM: {ncm}</h4>
-                                    <NcmRateFinder ncm={ncm} onRatesFound={handleRatesFound} />
+                        {uniqueNcms.map(ncm => {
+                            const cleanNcm = ncm.replace(/\D/g, '');
+                            return (
+                                <div key={ncm} className="p-3 border rounded-md">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h4 className="font-semibold">NCM: {ncm}</h4>
+                                        <NcmRateFinder ncm={cleanNcm} onRatesFound={handleRatesFound} />
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                        <FormField control={form.control} name={`ncmRates.${cleanNcm}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" placeholder="14" {...field} /></FormControl></FormItem>)}/>
+                                        <FormField control={form.control} name={`ncmRates.${cleanNcm}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" placeholder="10" {...field} /></FormControl></FormItem>)}/>
+                                        <FormField control={form.control} name={`ncmRates.${cleanNcm}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" placeholder="2.1" {...field} /></FormControl></FormItem>)}/>
+                                        <FormField control={form.control} name={`ncmRates.${cleanNcm}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" placeholder="9.65" {...field} /></FormControl></FormItem>)}/>
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                    <FormField control={form.control} name={`ncmRates.${ncm}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" placeholder="14" {...field} /></FormControl></FormItem>)}/>
-                                    <FormField control={form.control} name={`ncmRates.${ncm}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" placeholder="10" {...field} /></FormControl></FormItem>)}/>
-                                    <FormField control={form.control} name={`ncmRates.${ncm}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" placeholder="2.1" {...field} /></FormControl></FormItem>)}/>
-                                    <FormField control={form.control} name={`ncmRates.${ncm}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" placeholder="9.65" {...field} /></FormControl></FormItem>)}/>
-                                </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                         {uniqueNcms.length === 0 && (
                             <p className="text-sm text-muted-foreground">Adicione itens com NCMs válidos para definir as alíquotas.</p>
                         )}

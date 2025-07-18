@@ -33,7 +33,8 @@ import { sendDraftApprovalRequest } from "@/ai/flows/send-draft-approval-request
 import { format } from 'date-fns';
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { saveShipments, getShipments, getShipmentById, type Shipment, type BLDraftData, type Milestone, type QuoteCharge, type ChatMessage } from '@/lib/shipment';
+import { getShipmentById, type Shipment, type BLDraftData, type Milestone, type QuoteCharge, type ChatMessage } from '@/lib/shipment';
+import { getShipmentsForServer, saveShipmentsForServer } from "@/lib/shipment-server";
 
 
 export async function runGetFreightRates(input: any) {
@@ -332,7 +333,7 @@ export async function createEmailCampaign(instruction: string, partners: Partner
 
 export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean) {
   try {
-    const allShipments = getShipments();
+    const allShipments = await getShipmentsForServer();
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
     if (shipmentIndex === -1) {
         throw new Error("Shipment not found");
@@ -411,7 +412,7 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
     updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
 
     allShipments[shipmentIndex] = updatedShipment;
-    saveShipments(allShipments);
+    await saveShipmentsForServer(allShipments);
 
     return { success: true, data: updatedShipment };
   } catch (error: any) {
@@ -422,7 +423,8 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData, 
 
 export async function fetchShipmentForDraft(shipmentId: string) {
     try {
-        const shipment = getShipmentById(shipmentId);
+        const shipments = await getShipmentsForServer();
+        const shipment = shipments.find(s => s.id === shipmentId);
         if (!shipment) {
             throw new Error('Embarque não encontrado ou ID inválido.');
         }

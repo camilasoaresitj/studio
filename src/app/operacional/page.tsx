@@ -312,8 +312,8 @@ export default function OperacionalPage() {
 
   return (
     <>
-    <div className="p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div className="lg:col-span-2 space-y-8">
+    <div className="p-4 md:p-8">
+      <div className="space-y-8">
           <header className="mb-0">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground">Dashboard Operacional</h1>
             <p className="text-muted-foreground mt-2 text-lg">
@@ -464,26 +464,6 @@ export default function OperacionalPage() {
             </CardContent>
         </Card>
       </div>
-       <div className="lg:col-span-1 space-y-8">
-            <Alert variant="default" className="border-primary/50">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Avisos Recentes</AlertTitle>
-                <AlertDescription>
-                   {lastUnreadMessage ? (
-                        <div className="space-y-2 mt-2">
-                            <p><strong>Nova Mensagem de Cliente!</strong></p>
-                            <p><strong>Processo:</strong> {lastUnreadMessage.shipment.id}</p>
-                            <p><strong>Cliente:</strong> {lastUnreadMessage.shipment.customer}</p>
-                            <p className="p-2 bg-background/50 rounded-md">"{lastUnreadMessage.message}"</p>
-                            <Button size="sm" className="w-full mt-2" onClick={() => setSelectedShipment(lastUnreadMessage.shipment)}>
-                                <MessageSquare className="mr-2 h-4 w-4" />
-                                Abrir Chat e Responder
-                            </Button>
-                        </div>
-                   ) : "Nenhuma mensagem nova."}
-                </AlertDescription>
-            </Alert>
-        </div>
     </div>
     <ShipmentDetailsSheet 
         shipment={selectedShipment}

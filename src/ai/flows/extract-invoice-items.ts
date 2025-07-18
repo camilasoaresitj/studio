@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
@@ -7,11 +6,9 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import * as XLSX from 'xlsx';
-import { ExtractInvoiceItemsInputSchema, InvoiceItemSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
+import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
+import type { ExtractInvoiceItemsInput, ExtractInvoiceItemsOutput } from '@/lib/schemas/invoice';
 
-export async function extractInvoiceItems(input: import('@/lib/schemas/invoice').ExtractInvoiceItemsInput): Promise<import('@/lib/schemas/invoice').ExtractInvoiceItemsOutput> {
-  return extractInvoiceItemsFlow(input);
-}
 
 const extractFromSpreadsheet = (dataUri: string): { textContent: string; media?: never } => {
     const base64 = dataUri.split(',')[1];
@@ -137,3 +134,7 @@ const extractInvoiceItemsFlow = ai.defineFlow(
     }
   }
 );
+
+export async function extractInvoiceItems(input: ExtractInvoiceItemsInput): Promise<ExtractInvoiceItemsOutput> {
+  return extractInvoiceItemsFlow(input);
+}

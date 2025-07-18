@@ -40,6 +40,7 @@ import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';
 import { generateSimulationPdfHtml } from '@/ai/flows/generate-simulation-pdf-html';
 import { shareSimulation } from '@/ai/flows/share-simulation';
+import { syncDFAgents } from '@/ai/flows/sync-df-alliance-agents';
 
 
 export async function runGetFreightRates(input: any) {
@@ -560,5 +561,15 @@ export async function runShareSimulation(input: any) {
     } catch (error: any) {
         console.error("Share Simulation Action Failed", error);
         return { success: false, error: error.message || "Failed to share simulation" };
+    }
+}
+
+export async function runSyncDFAgents() {
+    try {
+        const data = await syncDFAgents();
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Sync DF Alliance Agents Action Failed", error);
+        return { success: false, error: error.message || "Failed to sync agents" };
     }
 }

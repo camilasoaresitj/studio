@@ -4,7 +4,7 @@ import { config } from 'dotenv';
 config();
 
 import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import {googleAI} from '@gen-kit/googleai';
 
 genkit({
   plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY || '' })],
@@ -47,3 +47,4 @@ import '@/ai/flows/extract-invoice-items.ts';
 import '@/ai/flows/get-ncm-rates.ts';
 import '@/ai/flows/generate-simulation-pdf-html.ts';
 import '@/ai/flows/share-simulation.ts';
+import '@/ai/flows/sync-df-alliance-agents.ts';

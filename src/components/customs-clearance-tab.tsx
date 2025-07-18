@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useRef } from 'react';
@@ -7,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { runGenerateDiXml, runRegisterDue } from '@/app/actions';
+import { runGenerateDiXml, runRegisterDue, runGenerateDiXmlFromSpreadsheet } from '@/app/actions';
 import { Loader2, FileCode, Upload, Send } from 'lucide-react';
 import type { Shipment } from '@/lib/shipment';
 import { Textarea } from './ui/textarea';
@@ -44,6 +43,7 @@ type DiFormData = z.infer<typeof diFormSchema>;
 const DiForm = ({ shipment, onXmlGenerated }: { shipment: Shipment, onXmlGenerated: (xml: string) => void }) => {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm<DiFormData>({
         resolver: zodResolver(diFormSchema),
@@ -65,6 +65,43 @@ const DiForm = ({ shipment, onXmlGenerated }: { shipment: Shipment, onXmlGenerat
         name: 'additions'
     });
 
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsLoading(true);
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
+
+                const response = await runGenerateDiXmlFromSpreadsheet({
+                    spreadsheetData: jsonData,
+                    shipmentData: shipment,
+                });
+
+                if (response.success && response.data?.xml) {
+                    onXmlGenerated(response.data.xml);
+                    toast({ title: 'XML da DI Gerado a partir da Planilha!', className: 'bg-success text-success-foreground' });
+                } else {
+                    throw new Error(response.error || "A IA não conseguiu processar a planilha.");
+                }
+
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Erro ao Processar Planilha', description: error.message });
+            } finally {
+                setIsLoading(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+
     const onSubmit = async (data: DiFormData) => {
         setIsLoading(true);
         const response = await runGenerateDiXml(data);
@@ -78,6 +115,12 @@ const DiForm = ({ shipment, onXmlGenerated }: { shipment: Shipment, onXmlGenerat
     };
 
     return (
+        <>
+        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".xlsx, .xls" />
+        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isLoading} className="mb-4">
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+            Importar Itens de Planilha (CargoWise)
+        </Button>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -108,6 +151,7 @@ const DiForm = ({ shipment, onXmlGenerated }: { shipment: Shipment, onXmlGenerat
                 </Button>
             </form>
         </Form>
+        </>
     );
 };
 
@@ -195,7 +239,7 @@ export function CustomsClearanceTab({ shipment }: CustomsClearanceTabProps) {
         {isImport ? (
             <div className="space-y-4 p-4 border rounded-lg">
                 <Alert><FileCode className="h-4 w-4" /><AlertTitle>Importação (DUIMP)</AlertTitle>
-                <AlertDescription>Preencha os dados abaixo para gerar o XML da Declaração de Importação.</AlertDescription></Alert>
+                <AlertDescription>Preencha os dados abaixo ou importe de uma planilha para gerar o XML da Declaração de Importação.</AlertDescription></Alert>
                 <DiForm shipment={shipment} onXmlGenerated={setGeneratedXml} />
                 {generatedXml && (
                     <div className="mt-4 space-y-2 animate-in fade-in-50 duration-500">

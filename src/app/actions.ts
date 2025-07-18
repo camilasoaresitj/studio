@@ -522,14 +522,10 @@ export async function runGenerateDiXmlFromSpreadsheet(input: any) {
 }
 
 export async function runExtractInvoiceItems(input: ExtractInvoiceItemsInput): Promise<ExtractInvoiceItemsOutput> {
-  try {
-    const result = await extractInvoiceItems(input);
-    return result;
-  } catch (error: any) {
-    console.error("Extract Invoice Items Action Failed:", error);
-    return { success: false, data: [], error: error.message || "Failed to extract items" };
-  }
+  // This function is now just a wrapper around the real server action.
+  return extractInvoiceItems(input);
 }
+
 
 export async function runGetNcmRates(ncm: string) {
     try {

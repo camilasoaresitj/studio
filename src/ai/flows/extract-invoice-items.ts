@@ -121,6 +121,7 @@ const extractInvoiceItemsFlow = ai.defineFlow(
   }
 );
 
+// This is the exported server action that the client will call.
 export async function extractInvoiceItems(input: ExtractInvoiceItemsInput): Promise<ExtractInvoiceItemsOutput> {
   return extractInvoiceItemsFlow(input);
 }

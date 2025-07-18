@@ -200,16 +200,21 @@ export function ApprovalsPanel() {
             <CardContent>
                 <ScrollArea className="h-[260px] pr-3">
                     <div className="space-y-4">
-                        {pendingItems.length > 0 ? pendingItems.map((approvalItem, index) => (
-                            <div key={`${approvalItem.type}-${'item' in approvalItem.item ? approvalItem.item.id : approvalItem.item.charge.id}-${index}`} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
-                                 <div className="pt-1">
-                                    {approvalItem.type === 'finance' ? <DollarSign className="h-5 w-5 text-blue-500" /> : <Settings className="h-5 w-5 text-orange-500" />}
+                        {pendingItems.length > 0 ? pendingItems.map((approvalItem, index) => {
+                            const key = approvalItem.type === 'finance'
+                                ? approvalItem.item.id
+                                : approvalItem.item.charge.id;
+                            return (
+                                <div key={`${approvalItem.type}-${key}-${index}`} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
+                                     <div className="pt-1">
+                                        {approvalItem.type === 'finance' ? <DollarSign className="h-5 w-5 text-blue-500" /> : <Settings className="h-5 w-5 text-orange-500" />}
+                                    </div>
+                                    {approvalItem.type === 'finance' 
+                                        ? renderFinanceItem(approvalItem.item as FinancialEntry) 
+                                        : renderOperationsItem(approvalItem.item as { charge: QuoteCharge; shipment: Shipment })}
                                 </div>
-                                {approvalItem.type === 'finance' 
-                                    ? renderFinanceItem(approvalItem.item as FinancialEntry) 
-                                    : renderOperationsItem(approvalItem.item as { charge: QuoteCharge; shipment: Shipment })}
-                            </div>
-                        )) : (
+                            );
+                        }) : (
                             <div className="text-center text-muted-foreground py-10">
                                 <CheckCircle className="mx-auto h-12 w-12 text-success mb-2" />
                                 <p>Nenhuma pendência de aprovação.</p>

@@ -17,6 +17,7 @@ import { runExtractInvoiceItems, runGetNcmRates } from '@/app/actions';
 import type { InvoiceItem } from '@/ai/flows/extract-invoice-items';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { GetNcmRatesOutput } from '@/ai/flows/get-ncm-rates';
+import { Label } from '@/components/ui/label';
 
 const itemSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória.'),
@@ -24,14 +25,15 @@ const itemSchema = z.object({
   valorUnitarioUSD: z.coerce.number().min(0.01, 'Valor unitário deve ser maior que zero.'),
   ncm: z.string().min(8, 'NCM deve ter 8 dígitos.'),
   pesoKg: z.coerce.number().min(0.01, 'Peso deve ser maior que zero.'),
+  ii: z.coerce.number().min(0, 'Alíquota de II é obrigatória.').default(0.14),
+  ipi: z.coerce.number().min(0, 'Alíquota de IPI é obrigatória.').default(0.10),
+  pis: z.coerce.number().min(0, 'Alíquota de PIS é obrigatória.').default(0.021),
+  cofins: z.coerce.number().min(0, 'Alíquota de COFINS é obrigatória.').default(0.0965),
 });
 
-const aliquotaSchema = z.object({
-  ncm: z.string().min(8, 'NCM é obrigatório.'),
-  ii: z.coerce.number().min(0, 'Alíquota de II é obrigatória.'),
-  ipi: z.coerce.number().min(0, 'Alíquota de IPI é obrigatória.'),
-  pis: z.coerce.number().min(0, 'Alíquota de PIS é obrigatória.'),
-  cofins: z.coerce.number().min(0, 'Alíquota de COFINS é obrigatória.'),
+const localExpenseSchema = z.object({
+  description: z.string().min(1, 'Descrição é obrigatória.'),
+  value: z.coerce.number().min(0, 'Valor deve ser maior ou igual a zero.'),
 });
 
 const simulationSchema = z.object({
@@ -40,13 +42,12 @@ const simulationSchema = z.object({
     di: z.coerce.number().min(0.01, 'Taxa de câmbio da DI é obrigatória.'),
     frete: z.coerce.number().min(0.01, 'Taxa de câmbio do frete é obrigatória.'),
   }),
-  despesas: z.object({
+  despesasGerais: z.object({
     freteInternacionalUSD: z.coerce.number().min(0, 'Frete internacional é obrigatório.'),
     seguroUSD: z.coerce.number().min(0, 'Seguro é obrigatório.'),
-    despesasLocaisBRL: z.coerce.number().min(0, 'Despesas locais são obrigatórias.'),
   }),
+  despesasLocais: z.array(localExpenseSchema),
   icmsGeral: z.coerce.number().min(0, 'Alíquota de ICMS é obrigatória.'),
-  aliquotas: z.array(aliquotaSchema).min(1, 'Adicione as alíquotas para cada NCM.'),
 });
 
 type SimulationFormData = z.infer<typeof simulationSchema>;
@@ -60,7 +61,7 @@ type SimulationResult = {
   custoTotal: number;
   pesoTotal: number;
   quantidadeTotal: number;
-  itens: (InvoiceItem & {
+  itens: (z.infer<typeof itemSchema> & {
     valorAduaneiroRateado: number;
     impostosRateados: number;
     despesasLocaisRateadas: number;
@@ -68,8 +69,7 @@ type SimulationResult = {
   })[];
 };
 
-const NcmRateFinder = ({ onRatesFound }: { onRatesFound: (rates: GetNcmRatesOutput) => void }) => {
-    const [ncm, setNcm] = useState('');
+const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (rates: GetNcmRatesOutput) => void }) => {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -90,12 +90,9 @@ const NcmRateFinder = ({ onRatesFound }: { onRatesFound: (rates: GetNcmRatesOutp
     };
 
     return (
-        <div className="flex items-center gap-2">
-            <Input value={ncm} onChange={(e) => setNcm(e.target.value)} placeholder="Digite o NCM..."/>
-            <Button type="button" onClick={handleSearch} disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}
-            </Button>
-        </div>
+        <Button type="button" onClick={handleSearch} disabled={isLoading} size="sm" variant="outline">
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}
+        </Button>
     );
 };
 
@@ -110,9 +107,13 @@ export default function SimuladorDIPage() {
     defaultValues: {
       itens: [],
       taxasCambio: { di: 5.67, frete: 5.87 },
-      despesas: { freteInternacionalUSD: 1400, seguroUSD: 100, despesasLocaisBRL: 5000 },
+      despesasGerais: { freteInternacionalUSD: 1400, seguroUSD: 100 },
+      despesasLocais: [
+        { description: 'Armazenagem', value: 2500 },
+        { description: 'Despachante Aduaneiro', value: 2000 },
+        { description: 'Transporte Rodoviário', value: 1500 },
+      ],
       icmsGeral: 0.17,
-      aliquotas: [],
     },
   });
 
@@ -120,72 +121,73 @@ export default function SimuladorDIPage() {
     control: form.control,
     name: "itens",
   });
-  
-  const { fields: aliquotaFields, replace: replaceAliquotas } = useFieldArray({
+
+   const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({
     control: form.control,
-    name: "aliquotas",
+    name: "despesasLocais",
   });
-
+  
   const calculateCosts = useCallback((data: SimulationFormData): SimulationResult | null => {
-      if (!form.formState.isValid) return null;
-      
-      const { itens, taxasCambio, despesas, aliquotas, icmsGeral } = data;
+      try {
+        const { itens, taxasCambio, despesasGerais, despesasLocais, icmsGeral } = data;
+        if (itens.length === 0) return null;
 
-      const valorFOBTotalUSD = itens.reduce((sum, item) => sum + item.valorUnitarioUSD * item.quantidade, 0);
-      const pesoTotal = itens.reduce((sum, item) => sum + item.pesoKg * item.quantidade, 0);
+        const valorFOBTotalUSD = itens.reduce((sum, item) => sum + item.valorUnitarioUSD * item.quantidade, 0);
+        const pesoTotal = itens.reduce((sum, item) => sum + item.pesoKg * item.quantidade, 0);
 
-      const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) + (despesas.freteInternacionalUSD * taxasCambio.frete) + (despesas.seguroUSD * taxasCambio.frete);
-      
-      let totalII = 0, totalIPI = 0, totalPIS = 0, totalCOFINS = 0;
+        if (pesoTotal === 0) return null;
 
-      const itensResultado = itens.map(item => {
-        const proporcaoPeso = (item.pesoKg * item.quantidade) / pesoTotal;
-        const valorAduaneiroRateado = valorAduaneiro * proporcaoPeso;
-
-        const aliquotaNCM = aliquotas.find(a => a.ncm === item.ncm);
-        if (!aliquotaNCM) {
-            console.error(`Alíquotas para NCM ${item.ncm} não encontradas.`);
-            return { ...item, valorAduaneiroRateado, impostosRateados: 0, despesasLocaisRateadas: 0, custoUnitarioFinal: 0 };
-        }
-
-        const ii = valorAduaneiroRateado * aliquotaNCM.ii;
-        const ipi = (valorAduaneiroRateado + ii) * aliquotaNCM.ipi;
-        const pis = valorAduaneiroRateado * aliquotaNCM.pis;
-        const cofins = valorAduaneiroRateado * aliquotaNCM.cofins;
+        const valorAduaneiro = (valorFOBTotalUSD * taxasCambio.di) + (despesasGerais.freteInternacionalUSD * taxasCambio.frete) + (despesasGerais.seguroUSD * taxasCambio.frete);
         
-        totalII += ii;
-        totalIPI += ipi;
-        totalPIS += pis;
-        totalCOFINS += cofins;
-        
-        const impostosRateados = ii + ipi + pis + cofins;
-        
-        return { ...item, valorAduaneiroRateado, impostosRateados, despesasLocaisRateadas: 0, custoUnitarioFinal: 0 };
-      });
+        let totalII = 0, totalIPI = 0, totalPIS = 0, totalCOFINS = 0;
 
-      const baseICMS = valorAduaneiro + totalII + totalIPI + totalPIS + totalCOFINS;
-      const totalICMS = (baseICMS / (1 - icmsGeral)) * icmsGeral;
-      
-      const totalImpostos = totalII + totalIPI + totalPIS + totalCOFINS + totalICMS;
-      const custoTotal = valorAduaneiro + totalImpostos + despesas.despesasLocaisBRL;
-      
-      const itensResultadoFinal = itensResultado.map(item => {
+        const itensResultado = itens.map(item => {
           const proporcaoPeso = (item.pesoKg * item.quantidade) / pesoTotal;
-          const impostosRateados = item.impostosRateados + (totalICMS * proporcaoPeso);
-          const despesasLocaisRateadas = despesas.despesasLocaisBRL * proporcaoPeso;
-          const custoTotalItem = item.valorAduaneiroRateado + impostosRateados + despesasLocaisRateadas;
-          const custoUnitarioFinal = custoTotalItem / item.quantidade;
+          const valorAduaneiroRateado = valorAduaneiro * proporcaoPeso;
 
-          return { ...item, impostosRateados, despesasLocaisRateadas, custoUnitarioFinal };
-      });
+          const ii = valorAduaneiroRateado * item.ii;
+          const ipi = (valorAduaneiroRateado + ii) * item.ipi;
+          const pis = valorAduaneiroRateado * item.pis;
+          const cofins = valorAduaneiroRateado * item.cofins;
+          
+          totalII += ii;
+          totalIPI += ipi;
+          totalPIS += pis;
+          totalCOFINS += cofins;
+          
+          const impostosRateados = ii + ipi + pis + cofins;
+          
+          return { ...item, valorAduaneiroRateado, impostosRateados, despesasLocaisRateadas: 0, custoUnitarioFinal: 0 };
+        });
 
-      return {
-        valorAduaneiro, totalII, totalIPI, totalPIS, totalCOFINS, totalICMS,
-        custoTotal, pesoTotal,
-        quantidadeTotal: itens.reduce((sum, i) => sum + i.quantidade, 0),
-        itens: itensResultadoFinal
-      };
-  }, [form.formState.isValid]);
+        const baseICMS = valorAduaneiro + totalII + totalIPI + totalPIS + totalCOFINS;
+        const totalICMS = (baseICMS / (1 - icmsGeral)) * icmsGeral;
+        
+        const totalDespesasLocais = despesasLocais.reduce((sum, d) => sum + d.value, 0);
+        const totalImpostos = totalII + totalIPI + totalPIS + totalCOFINS + totalICMS;
+        const custoTotal = valorAduaneiro + totalImpostos + totalDespesasLocais;
+        
+        const itensResultadoFinal = itensResultado.map(item => {
+            const proporcaoPeso = (item.pesoKg * item.quantidade) / pesoTotal;
+            const impostosRateadosComIcms = item.impostosRateados + (totalICMS * proporcaoPeso);
+            const despesasLocaisRateadas = totalDespesasLocais * proporcaoPeso;
+            const custoTotalItem = item.valorAduaneiroRateado + impostosRateadosComIcms + despesasLocaisRateadas;
+            const custoUnitarioFinal = custoTotalItem / item.quantidade;
+
+            return { ...item, impostosRateados: impostosRateadosComIcms, despesasLocaisRateadas, custoUnitarioFinal };
+        });
+
+        return {
+          valorAduaneiro, totalII, totalIPI, totalPIS, totalCOFINS, totalICMS,
+          custoTotal, pesoTotal,
+          quantidadeTotal: itens.reduce((sum, i) => sum + i.quantidade, 0),
+          itens: itensResultadoFinal
+        };
+      } catch (e) {
+          console.error("Calculation error:", e);
+          return null;
+      }
+  }, []);
 
   useEffect(() => {
     const subscription = form.watch(() => {
@@ -196,25 +198,6 @@ export default function SimuladorDIPage() {
     return () => subscription.unsubscribe();
   }, [form, calculateCosts]);
   
-  const watchedItems = useWatch({ control: form.control, name: 'itens' });
-  
-  useEffect(() => {
-      if (watchedItems) {
-          const uniqueNcms = [...new Set(watchedItems.map(item => item.ncm).filter(ncm => ncm.length >= 8))];
-          const currentAliquotas = form.getValues('aliquotas');
-          
-          const newAliquotas = uniqueNcms.map(ncm => {
-              const existing = currentAliquotas.find(a => a.ncm === ncm);
-              return existing || { ncm, ii: 0.14, ipi: 0.10, pis: 0.0186, cofins: 0.0854 };
-          });
-          
-          if(JSON.stringify(newAliquotas) !== JSON.stringify(currentAliquotas)) {
-            replaceAliquotas(newAliquotas);
-          }
-      }
-  }, [watchedItems, form, replaceAliquotas]);
-
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -230,7 +213,9 @@ export default function SimuladorDIPage() {
                 fileName: file.name
             });
             if (response.success && response.data.length > 0) {
-                replaceItems(response.data);
+                // Add default tax rates to the imported items
+                const itemsWithTaxes = response.data.map(item => ({...item, ii: 0.14, ipi: 0.10, pis: 0.021, cofins: 0.0965 }))
+                replaceItems(itemsWithTaxes);
                 toast({
                     title: 'Itens Importados!',
                     description: `${response.data.length} itens foram extraídos do arquivo.`,
@@ -249,16 +234,12 @@ export default function SimuladorDIPage() {
     reader.readAsDataURL(file);
   };
   
-  const handleRatesFound = (ncm: string, rates: GetNcmRatesOutput) => {
-      const aliquotas = form.getValues('aliquotas');
-      const index = aliquotas.findIndex(a => a.ncm === ncm);
-      if (index > -1) {
-          form.setValue(`aliquotas.${index}.ii`, rates.ii / 100);
-          form.setValue(`aliquotas.${index}.ipi`, rates.ipi / 100);
-          form.setValue(`aliquotas.${index}.pis`, rates.pis / 100);
-          form.setValue(`aliquotas.${index}.cofins`, rates.cofins / 100);
-          toast({ title: 'Alíquotas aplicadas!', description: `Alíquotas para o NCM ${ncm} foram carregadas.` });
-      }
+  const handleRatesFound = (itemIndex: number, rates: GetNcmRatesOutput) => {
+      form.setValue(`itens.${itemIndex}.ii`, rates.ii / 100);
+      form.setValue(`itens.${itemIndex}.ipi`, rates.ipi / 100);
+      form.setValue(`itens.${itemIndex}.pis`, rates.pis / 100);
+      form.setValue(`itens.${itemIndex}.cofins`, rates.cofins / 100);
+      toast({ title: 'Alíquotas aplicadas!', description: `Alíquotas para o NCM ${rates.ncm} foram carregadas no item.` });
   };
 
   return (
@@ -272,7 +253,6 @@ export default function SimuladorDIPage() {
       
       <Form {...form}>
         <form className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Coluna de Entradas */}
             <div className="lg:col-span-2 space-y-6">
                  <Card>
                     <CardHeader>
@@ -297,23 +277,38 @@ export default function SimuladorDIPage() {
                 <Card>
                     <CardHeader className="flex flex-row justify-between items-center">
                         <div>
-                            <CardTitle>Itens da Fatura</CardTitle>
-                            <CardDescription>Liste os produtos da sua importação.</CardDescription>
+                            <CardTitle>Itens e Alíquotas</CardTitle>
+                            <CardDescription>Liste os produtos e suas respectivas alíquotas de impostos.</CardDescription>
                         </div>
-                        <Button type="button" size="sm" variant="outline" onClick={() => appendItem({ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0 })}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => appendItem({ descricao: '', quantidade: 1, valorUnitarioUSD: 0, ncm: '', pesoKg: 0, ii: 0.14, ipi: 0.10, pis: 0.021, cofins: 0.0965 })}>
                             <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
                         </Button>
                     </CardHeader>
                     <CardContent>
                          <div className="space-y-4">
                             {itemFields.map((field, index) => (
-                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-2 border rounded-md relative">
-                                    <div className="md:col-span-5"><FormField control={form.control} name={`itens.${index}.descricao`} render={({ field }) => (<FormItem><FormLabel>Descrição</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
-                                    <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.quantidade`} render={({ field }) => (<FormItem><FormLabel>Qtde</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
-                                    <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.valorUnitarioUSD`} render={({ field }) => (<FormItem><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
-                                    <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.pesoKg`} render={({ field }) => (<FormItem><FormLabel>Peso (Kg)</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
-                                    <div className="md:col-span-11"><FormField control={form.control} name={`itens.${index}.ncm`} render={({ field }) => (<FormItem><FormLabel>NCM</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
-                                    <Button type="button" variant="ghost" size="icon" className="text-destructive self-end" onClick={() => removeItem(index)}><Trash2 className="h-4 w-4"/></Button>
+                                <div key={field.id} className="p-3 border rounded-md relative">
+                                    <Button type="button" variant="ghost" size="icon" className="text-destructive absolute top-1 right-1" onClick={() => removeItem(index)}><Trash2 className="h-4 w-4"/></Button>
+                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-3">
+                                        <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.descricao`} render={({ field }) => (<FormItem><FormLabel>Descrição</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.quantidade`} render={({ field }) => (<FormItem><FormLabel>Qtde</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.valorUnitarioUSD`} render={({ field }) => (<FormItem><FormLabel>Valor (USD)</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.pesoKg`} render={({ field }) => (<FormItem><FormLabel>Peso (Kg)</FormLabel><FormControl><Input type="number" {...field}/></FormControl><FormMessage/></FormItem>)}/></div>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
+                                        <div className="md:col-span-2"><FormField control={form.control} name={`itens.${index}.ncm`} render={({ field: ncmField }) => (
+                                            <FormItem><FormLabel>NCM</FormLabel>
+                                                <div className="flex items-center gap-1">
+                                                    <FormControl><Input {...ncmField}/></FormControl>
+                                                    <NcmRateFinder ncm={ncmField.value} onRatesFound={(rates) => handleRatesFound(index, rates)} />
+                                                </div>
+                                            <FormMessage/></FormItem>
+                                        )}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" step="0.0001" placeholder="0.14" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" step="0.0001" placeholder="0.10" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" step="0.0001" placeholder="0.021" {...field} /></FormControl></FormItem>)}/></div>
+                                        <div><FormField control={form.control} name={`itens.${index}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" step="0.0001" placeholder="0.0965" {...field} /></FormControl></FormItem>)}/></div>
+                                    </div>
                                 </div>
                             ))}
                          </div>
@@ -322,62 +317,37 @@ export default function SimuladorDIPage() {
                 
                 <Card>
                     <CardHeader><CardTitle>Parâmetros e Despesas</CardTitle></CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-4">
-                            <h3 className="font-semibold">Taxas de Câmbio</h3>
+                            <h3 className="font-semibold">Câmbio e ICMS</h3>
                             <FormField control={form.control} name="taxasCambio.di" render={({ field }) => (<FormItem><FormLabel>Câmbio DI (BRL)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                             <FormField control={form.control} name="taxasCambio.frete" render={({ field }) => (<FormItem><FormLabel>Câmbio Frete (BRL)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                            <FormField control={form.control} name="icmsGeral" render={({ field }) => (<FormItem><FormLabel>Alíquota Geral de ICMS (%)</FormLabel><FormControl><Input type="number" placeholder="0.17" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                         </div>
                          <div className="space-y-4">
-                            <h3 className="font-semibold">Despesas</h3>
-                            <FormField control={form.control} name="despesas.freteInternacionalUSD" render={({ field }) => (<FormItem><FormLabel>Frete Internacional (USD)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                            <FormField control={form.control} name="despesas.seguroUSD" render={({ field }) => (<FormItem><FormLabel>Seguro (USD)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
-                            <FormField control={form.control} name="despesas.despesasLocaisBRL" render={({ field }) => (<FormItem><FormLabel>Despesas Locais (BRL)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                            <h3 className="font-semibold">Despesas Gerais</h3>
+                            <FormField control={form.control} name="despesasGerais.freteInternacionalUSD" render={({ field }) => (<FormItem><FormLabel>Frete Internacional (USD)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
+                            <FormField control={form.control} name="despesasGerais.seguroUSD" render={({ field }) => (<FormItem><FormLabel>Seguro (USD)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                         </div>
-                    </CardContent>
-                </Card>
-                
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Alíquotas de Impostos</CardTitle>
-                        <CardDescription>As alíquotas serão agrupadas por NCM. Insira o ICMS abaixo.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex flex-wrap gap-4">
-                            {aliquotaFields.map((field, index) => (
-                                <Card key={field.id} className="p-4 w-full sm:w-auto sm:min-w-[240px] flex-1">
-                                    <h4 className="font-semibold text-sm mb-2">NCM: {field.ncm}</h4>
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <Button type="button" variant="outline" size="sm" className="w-full mb-3">
-                                                <Search className="mr-2 h-4 w-4"/> Buscar Alíquotas
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-md">
-                                            <DialogHeader>
-                                                <DialogTitle>Buscar Alíquotas para NCM: {field.ncm}</DialogTitle>
-                                                <DialogDescription>
-                                                    A IA irá consultar as alíquotas de impostos federais (II, IPI, PIS, COFINS).
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <NcmRateFinder onRatesFound={(rates) => handleRatesFound(field.ncm, rates)} />
-                                        </DialogContent>
-                                    </Dialog>
-                                    <div className="space-y-2">
-                                        <FormField control={form.control} name={`aliquotas.${index}.ii`} render={({ field }) => (<FormItem><FormLabel>II (%)</FormLabel><FormControl><Input type="number" placeholder="0.14" {...field} /></FormControl></FormItem>)}/>
-                                        <FormField control={form.control} name={`aliquotas.${index}.ipi`} render={({ field }) => (<FormItem><FormLabel>IPI (%)</FormLabel><FormControl><Input type="number" placeholder="0.10" {...field} /></FormControl></FormItem>)}/>
-                                        <FormField control={form.control} name={`aliquotas.${index}.pis`} render={({ field }) => (<FormItem><FormLabel>PIS (%)</FormLabel><FormControl><Input type="number" placeholder="0.0186" {...field} /></FormControl></FormItem>)}/>
-                                        <FormField control={form.control} name={`aliquotas.${index}.cofins`} render={({ field }) => (<FormItem><FormLabel>COFINS (%)</FormLabel><FormControl><Input type="number" placeholder="0.0854" {...field} /></FormControl></FormItem>)}/>
-                                    </div>
-                                </Card>
+                         <div className="md:col-span-2 space-y-4">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-semibold">Despesas Locais (BRL)</h3>
+                                <Button type="button" size="sm" variant="outline" onClick={() => appendExpense({ description: '', value: 0 })}>
+                                    <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Despesa
+                                </Button>
+                            </div>
+                             {expenseFields.map((field, index) => (
+                                <div key={field.id} className="flex items-end gap-2">
+                                    <div className="flex-grow"><FormField control={form.control} name={`despesasLocais.${index}.description`} render={({ field }) => (<FormItem><FormLabel>Descrição</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)}/></div>
+                                    <div className="w-40"><FormField control={form.control} name={`despesasLocais.${index}.value`} render={({ field }) => (<FormItem><FormLabel>Valor (BRL)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/></div>
+                                    <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => removeExpense(index)}><Trash2 className="h-4 w-4"/></Button>
+                                </div>
                             ))}
                         </div>
-                        <FormField control={form.control} name="icmsGeral" render={({ field }) => (<FormItem className="max-w-xs mt-4"><FormLabel>Alíquota Geral de ICMS (%)</FormLabel><FormControl><Input type="number" placeholder="0.17" {...field} /></FormControl><FormMessage/></FormItem>)}/>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Coluna de Resultados */}
             <div className="lg:col-span-1 space-y-6 sticky top-8">
                 <Card>
                     <CardHeader>

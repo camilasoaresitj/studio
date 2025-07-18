@@ -42,8 +42,8 @@ You must return the standard, most common ad valorem rates for II, IPI, PIS, and
 **Important Rules:**
 -   Provide the rates as percentages (e.g., for 14%, return the number 14).
 -   Do not consider any special regimes, ex-tarifários, or state-level ICMS variations. Return only the standard federal rates.
--   PIS rate is generally 2.10%.
--   COFINS rate is generally 9.65%.
+-   The standard PIS rate for imports is 2.10%.
+-   The standard COFINS rate for imports is 9.65%.
 -   Provide a short, one-sentence description for the NCM category.
 
 **Example for NCM 8517.12.31 (Smartphones):**

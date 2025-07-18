@@ -327,7 +327,7 @@ export async function createEmailCampaign(instruction: string, partners: Partner
     }
 }
 
-export async function submitBLDraft(allShipments: Shipment[], shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean) {
+export async function submitBLDraft(allShipments: Shipment[], shipmentId: string, draftData: BLDraftData, isLateSubmission: boolean): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
   try {
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
     if (shipmentIndex === -1) {

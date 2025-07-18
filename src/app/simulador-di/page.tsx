@@ -99,7 +99,7 @@ export type SimulationResult = {
   })[];
 };
 
-const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (ncm: string, rates: GetNcmRatesOutput) => void }) => {
+const NcmRateFinder = ({ ncm, onRatesFound }: { ncm: string, onRatesFound: (ncm: string, GetNcmRatesOutput) => void }) => {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 

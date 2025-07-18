@@ -10,7 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Shipment } from '@/lib/shipment';
+import type { Shipment } from '@/lib/shipment-data';
 
 const GenerateDiXmlFromSpreadsheetInputSchema = z.object({
   spreadsheetData: z.array(z.any()).describe("Data extracted from the CargoWise spreadsheet."),

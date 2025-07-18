@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { Partner } from '@/lib/partners-data';
@@ -144,6 +143,22 @@ export type ChatMessage = {
     timestamp: string; // ISO String
     department: 'Operacional' | 'Financeiro' | 'Sistema';
     readBy?: string[]; 
+};
+
+export type ActivityLog = {
+    timestamp: Date;
+    user: string;
+    action: string;
+};
+
+export type ApprovalLog = {
+    timestamp: Date;
+    user: string;
+    chargeName: string;
+    originalValue: string;
+    newValue: string;
+    justification: string;
+    status: 'approved' | 'rejected';
 };
 
 export type Shipment = {
@@ -365,11 +380,6 @@ export function getShipments(): Shipment[] {
   }
 }
 
-export function getShipmentById(id: string): Shipment | null {
-  const shipments = getShipments();
-  return shipments.find(s => s.id === id) || null;
-}
-
 export function saveShipments(shipments: Shipment[]): void {
   if (typeof window === 'undefined') {
     return;
@@ -380,6 +390,11 @@ export function saveShipments(shipments: Shipment[]): void {
   } catch (error) {
     console.error("Failed to save shipments to localStorage", error);
   }
+}
+
+export function getShipmentById(id: string): Shipment | null {
+  const shipments = getShipments();
+  return shipments.find(s => s.id === id) || null;
 }
 
 export async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
@@ -501,21 +516,6 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   shipments.unshift(newShipment);
   saveShipments(shipments);
   return newShipment;
-}
-
-export function updateShipment(updatedShipment: Shipment): Shipment[] {
-  const shipments = getShipments();
-  const shipmentIndex = shipments.findIndex(s => s.id === updatedShipment.id);
-
-  if (shipmentIndex === -1) {
-    const newShipments = [updatedShipment, ...shipments];
-    saveShipments(newShipments);
-    return newShipments;
-  }
-
-  shipments[shipmentIndex] = updatedShipment;
-  saveShipments(shipments);
-  return shipments;
 }
 
 export function rebuildMilestones(shipment: Shipment): Milestone[] {

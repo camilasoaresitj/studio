@@ -44,7 +44,7 @@ export async function GET(_: Request, { params }: { params: { booking: string } 
 
     // 3. Buscar shipment
     const res = await fetch(
-      `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}`,
+      `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=50`,
       {
         headers: {
           'X-DPW-ApiKey': API_KEY,

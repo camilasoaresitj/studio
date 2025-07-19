@@ -51,7 +51,12 @@ export async function GET(_: Request, { params }: { params: { booking: string } 
         });
 
         if (!createRes.ok) {
-            const errorBody = await createRes.json();
+            let errorBody;
+            try {
+                errorBody = await createRes.json();
+            } catch {
+                errorBody = await createRes.text(); // se for HTML ou texto plano
+            }
             return NextResponse.json({ error: 'Erro ao registrar o embarque na Cargo-flows.', detail: errorBody }, { status: createRes.status });
         }
         

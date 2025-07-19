@@ -5,11 +5,28 @@ const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 
-type Evento = {
-  eventName: string;
-  location: string;
-  actualTime: string;
-};
+// Novo endpoint para listar carriers publicamente
+export async function OPTIONS() {
+  if (!API_KEY || !ORG_TOKEN) {
+    return NextResponse.json({
+      error: 'Credenciais ausentes',
+      detail: 'Configure CARGOFLOWS_API_KEY e CARGOFLOWS_ORG_TOKEN.'
+    }, { status: 500 });
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}/carrierList`, {
+      headers: {
+        'X-DPW-ApiKey': API_KEY,
+        'X-DPW-Org-Token': ORG_TOKEN
+      }
+    });
+    const list = await res.json();
+    return NextResponse.json({ carriers: list });
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Erro ao buscar lista de carriers', detail: err.message }, { status: 500 });
+  }
+}
 
 export async function GET(req: Request, { params }: { params: { booking: string } }) {
   const bookingNumber = params.booking;
@@ -44,7 +61,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
           }
         });
         const carrierList = await carrierListRes.json();
-        const carrier = carrierList.find((c: any) => c.carrierName.toLowerCase() === carrierName!.toLowerCase());
+        const carrier = carrierList.find((c: any) => c.carrierName.toLowerCase() === carrierName.toLowerCase());
 
         if (!carrier) {
           return NextResponse.json({
@@ -53,8 +70,16 @@ export async function GET(req: Request, { params }: { params: { booking: string 
           }, { status: 400 });
         }
 
+        if (!carrier.supportsTrackByBookingNumber) {
+          return NextResponse.json({
+            error: 'Este armador não suporta rastreamento por Booking Number.',
+            detail: `carrierName: ${carrier.carrierName}, utilize MBL.`
+          }, { status: 400 });
+        }
+
         carrierCode = carrier.carrierScac;
         carrierName = carrier.carrierName;
+        console.log('Carrier resolved from carrierList:', carrier);
       }
 
       if (!carrierCode || !carrierName) {
@@ -81,6 +106,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
           }]
         })
       });
+
+      console.log('Create shipment status:', createRes.status);
 
       if (!createRes.ok) {
         const errorRaw = await createRes.text();

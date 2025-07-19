@@ -210,11 +210,8 @@ const getTrackingInfoFlow = ai.defineFlow(
         });
 
         if (!trackingResponse.ok) {
-            let errorMessage = `Cargo-flows GET error (${trackingResponse.status})`;
-            try {
-                const errorBody = await trackingResponse.json();
-                errorMessage = errorBody.error?.message || JSON.stringify(errorBody);
-            } catch (e) { /* ignore json parse error */ }
+            let errorBodyText = await trackingResponse.text();
+            let errorMessage = `Cargo-flows GET error (${trackingResponse.status}): ${errorBodyText}`;
             throw new Error(errorMessage);
         }
 
@@ -260,11 +257,8 @@ const getTrackingInfoFlow = ai.defineFlow(
 
 
         if (!regResponse.ok) {
-          let errorMessage = `Cargo-flows createShipment Error (${regResponse.status})`;
-          try {
-              errorMessage = createdJson.error?.message || JSON.stringify(createdJson);
-              console.error("Cargo-flows createShipment Error Body:", createdJson);
-          } catch(e) { /* ignore error */ }
+          let errorBodyText = JSON.stringify(createdJson);
+          let errorMessage = `Cargo-flows createShipment Error (${regResponse.status}): ${errorBodyText}`;
           throw new Error(errorMessage);
         }
 
@@ -279,11 +273,14 @@ const getTrackingInfoFlow = ai.defineFlow(
             headers: { 'accept': 'application/json', 'X-DPW-ApiKey': cargoFlowsApiKey, 'X-DPW-Org-Token': cargoFlowsOrgToken },
         });
 
-        if (!finalTrackingResponse.ok) throw new Error(`Failed to fetch after creation (${finalTrackingResponse.status})`);
-        
         const finalDataJson = await finalTrackingResponse.json();
         console.log('📦 Resultado do shipment GET após criação:', finalDataJson);
 
+        if (!finalTrackingResponse.ok) {
+            let errorBodyText = JSON.stringify(finalDataJson);
+            throw new Error(`Failed to fetch after creation (${finalTrackingResponse.status}): ${errorBodyText}`);
+        }
+        
         const finalTrackingDataArray = Array.isArray(finalDataJson) ? finalDataJson : finalDataJson?.data;
 
         if (finalTrackingDataArray && finalTrackingDataArray.length > 0) {
@@ -331,6 +328,3 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
-
-    
-    

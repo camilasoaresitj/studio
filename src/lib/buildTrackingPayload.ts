@@ -1,53 +1,64 @@
 // src/lib/buildTrackingPayload.ts
 
-interface TrackingInput {
-  bookingNumber?: string;
+type TrackingPayloadInput = {
+  bookingNumber: string;
   containerNumber?: string;
   mblNumber?: string;
-  oceanLine?: string; // Optional, but useful if known
-}
+  oceanLine: string;
+  carrierCode: string;
+  product?: {
+    productNumber: string;
+    productDescription: string;
+    productQuantity: number;
+    unitPrice: number;
+    priceCurrency: string;
+  };
+};
 
-export function buildTrackingPayload(input: TrackingInput) {
-  const { bookingNumber, containerNumber, mblNumber, oceanLine } = input;
-
-  if (containerNumber) {
-    return {
-      uploadType: 'FORM_BY_CONTAINER_NUMBER',
-      formData: [
-        {
-          uploadType: 'FORM_BY_CONTAINER_NUMBER',
-          containerNumber,
-          bookingNumber,
-          mblNumber,
-          oceanLine,
-        },
-      ],
-    };
+export function buildCargoFlowsPayload(input: TrackingPayloadInput) {
+  if (!input.bookingNumber || !input.oceanLine || !input.carrierCode) {
+    throw new Error("Campos obrigatórios ausentes: bookingNumber, oceanLine, carrierCode.");
   }
 
-  if (mblNumber) {
-    return {
-      uploadType: 'FORM_BY_MBL_NUMBER',
-      formData: [
-        {
-          uploadType: 'FORM_BY_MBL_NUMBER',
-          mblNumber,
-        },
-      ],
-    };
+  const formEntry: any = {
+    bookingNumber: input.bookingNumber,
+    oceanLine: input.oceanLine,
+    carrierCode: input.carrierCode,
+  };
+
+  if (input.containerNumber) {
+    formEntry.containerNumber = input.containerNumber;
   }
 
-  if (bookingNumber) {
-    return {
-      uploadType: 'FORM_BY_BOOKING_NUMBER',
-      formData: [
-        {
-          uploadType: 'FORM_BY_BOOKING_NUMBER',
-          bookingNumber,
-        },
-      ],
-    };
+  if (input.mblNumber) {
+    formEntry.mblNumber = input.mblNumber;
   }
 
-  throw new Error('É necessário informar pelo menos um identificador: container, booking ou MBL.');
+  if (input.product) {
+    const { productNumber, productDescription, productQuantity, unitPrice, priceCurrency } = input.product;
+
+    if (!productNumber) {
+      throw new Error("productNumber é obrigatório ao enviar dados de produto.");
+    }
+
+    Object.assign(formEntry, {
+      productNumber,
+      productDescription,
+      productQuantity,
+      unitPrice,
+      priceCurrency,
+    });
+  }
+
+  let uploadType: string = "FORM_BY_BOOKING_NUMBER";
+  if (input.containerNumber) {
+    uploadType = "FORM_BY_CONTAINER_NUMBER";
+  } else if (input.mblNumber) {
+    uploadType = "FORM_BY_MBL_NUMBER";
+  }
+
+  return {
+    formData: [formEntry],
+    uploadType,
+  };
 }

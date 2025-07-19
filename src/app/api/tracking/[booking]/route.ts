@@ -23,30 +23,22 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   }
 
   try {
-    const getShipmentUrl = `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=50`;
-    
-    // 1. Tentar buscar o shipment
-    let res = await fetch(getShipmentUrl, {
+    // 1. Buscar shipment diretamente
+    let res = await fetch(
+      `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=1`,
+      {
         headers: {
           'X-DPW-ApiKey': API_KEY,
           'X-DPW-Org-Token': ORG_TOKEN
         }
-    });
+      }
+    );
 
-    let data;
-    let initialErrorText = null;
+    let data = await res.json();
 
-    if (res.ok) {
-        data = await res.json();
-    } else {
-        initialErrorText = await res.text(); // Lê o corpo do erro apenas uma vez
-    }
-
-    const notFound = !res.ok || (Array.isArray(data) && data.length === 0);
-    
-    // 2. Se não encontrado e permitido criar, tenta registrar
-    if (notFound && !skipCreate) {
-      console.log(`Shipment ${bookingNumber} not found, attempting to create...`);
+    // 2. Se não encontrado, tentar criar (se não for skipCreate)
+    if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
+      console.log(`Shipment ${bookingNumber} not found. Creating...`);
 
       const createRes = await fetch('https://connect.cargoes.com/flow/api/public_tracking/v1/createShipments', {
         method: 'POST',
@@ -64,47 +56,48 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         })
       });
 
-      // Leitura segura do body (evita erro "Body is unusable")
+      // ✅ Evita "Body is unusable"
       if (!createRes.ok) {
-        const errorRaw = await createRes.text(); // consome o corpo como texto
+        const errorRaw = await createRes.text();
         let errorBody;
         try {
-            errorBody = JSON.parse(errorRaw); // tenta interpretar como JSON
+          errorBody = JSON.parse(errorRaw);
         } catch {
-            errorBody = errorRaw; // se não for JSON, usa como string mesmo
+          errorBody = errorRaw;
         }
 
         return NextResponse.json({
-            error: 'Erro ao registrar o embarque na Cargo-flows.',
-            detail: errorBody
+          error: 'Erro ao registrar o embarque na Cargo-flows.',
+          detail: errorBody
         }, { status: createRes.status });
       }
 
-      // Aguardar processamento
+      // 3. Aguardar processamento
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      // 3. Rebuscar
-      res = await fetch(getShipmentUrl, { 
-          headers: { 'X-DPW-ApiKey': API_KEY, 'X-DPW-Org-Token': ORG_TOKEN } 
-      });
+      // 4. Buscar novamente
+      res = await fetch(
+        `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=1`,
+        {
+          headers: {
+            'X-DPW-ApiKey': API_KEY,
+            'X-DPW-Org-Token': ORG_TOKEN
+          }
+        }
+      );
 
-      if (res.ok) {
-        data = await res.json();
-      } else {
+      if (!res.ok) {
         const errorText = await res.text();
         return NextResponse.json({
           error: 'Erro ao buscar shipment após a criação.',
           detail: errorText
         }, { status: res.status });
       }
-    } else if (notFound && skipCreate) {
-        return NextResponse.json({
-            error: 'Erro ao buscar shipment na Cargo-flows.',
-            detail: initialErrorText // Usa o texto de erro lido anteriormente
-        }, { status: res.status });
+
+      data = await res.json();
     }
-    
-    // 4. Processar o resultado final
+
+    // 5. Se ainda não houver dados
     if (res.status === 204 || (Array.isArray(data) && data.length === 0)) {
       return NextResponse.json({
         status: 'processing',
@@ -117,17 +110,21 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }, { status: 202 });
     }
 
-    const eventos: Evento[] = (data || []).flatMap((shipment: any) =>
+    // 6. Extrair eventos
+    const eventos = data.flatMap((shipment: any) =>
       (shipment.shipmentEvents || []).map((ev: any) => ({
         eventName: ev.name,
         location: ev.location,
         actualTime: ev.actualTime || ev.estimateTime
       }))
     );
-    
+
     return NextResponse.json({ status: 'ready', eventos });
 
   } catch (err: any) {
-    return NextResponse.json({ error: 'Erro inesperado no servidor.', detail: err.message }, { status: 500 });
+    return NextResponse.json({
+      error: 'Erro inesperado no servidor.',
+      detail: err.message
+    }, { status: 500 });
   }
 }

@@ -21,7 +21,7 @@ export default function MapaRastreamento() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'processing' | 'error'>('idle');
   const [mensagem, setMensagem] = useState<string>('');
   const [diagnostico, setDiagnostico] = useState<string>('');
-  const [bookingNumber, setBookingNumber] = useState<string>('255372222');
+  const [bookingNumber, setBookingNumber] = useState<string>('254285462');
 
   const carregarRastreamento = async () => {
     if (!bookingNumber.trim()) {
@@ -43,13 +43,15 @@ export default function MapaRastreamento() {
       
       const carrierName = carrierResponse.data.carrier;
       const carrierInfo = findCarrierByName(carrierName);
+      
+      // Etapa 2: Validar se encontramos as informações do armador
       if (!carrierInfo || !carrierInfo.scac) {
-          throw new Error(`Código do armador não encontrado para "${carrierName}".`);
+          throw new Error(`Informações internas não encontradas para o armador "${carrierName}". Não foi possível obter o código SCAC.`);
       }
       
       console.log(`Carrier detected: ${carrierName}, SCAC: ${carrierInfo.scac}`);
 
-      // Etapa 2: Chamar a API de rastreamento com o código e nome do armador
+      // Etapa 3: Chamar a API de rastreamento com o código e nome do armador validados
       const res = await fetch(`/api/tracking/${bookingNumber}?carrierCode=${carrierInfo.scac}&carrierName=${encodeURIComponent(carrierName)}`);
       const data: ResponseStatus = await res.json();
 

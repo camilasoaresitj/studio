@@ -97,13 +97,29 @@ export function ClientPortalPage({ id }: { id: string }) {
     );
 
     const documentsToShow = shipment.documents?.filter(doc => 
-        ['Original HBL', 'Invoice', 'Packing List', 'Extrato DUE'].includes(doc.name) && (doc.status === 'uploaded' || doc.status === 'approved')
+        ['Draft HBL', 'Original HBL', 'Invoice', 'Packing List', 'Extrato DUE'].includes(doc.name) && (doc.status === 'uploaded' || doc.status === 'approved')
     ) || [];
 
     const docCutoff = sortedMilestones.find(m => m.name.toLowerCase().includes('documental'));
     const cargoCutoff = sortedMilestones.find(m => m.name.toLowerCase().includes('gate in') || m.name.toLowerCase().includes('entrega'));
     
     const needsDraft = !shipment.blDraftData;
+
+    const handleDownloadDocument = (doc: DocumentStatus) => {
+        if (!doc.content) {
+            alert('Conteúdo do documento não encontrado para download.');
+            return;
+        }
+
+        const newWindow = window.open();
+        if (newWindow) {
+            newWindow.document.write(doc.content);
+            newWindow.document.close();
+        } else {
+            alert('Por favor, desative o bloqueador de pop-ups para visualizar o documento.');
+        }
+    };
+
 
     return (
         <div className="p-4 md:p-8 space-y-6">
@@ -280,7 +296,7 @@ export function ClientPortalPage({ id }: { id: string }) {
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {documentsToShow.length > 0 ? documentsToShow.map(doc => (
-                                <Button key={doc.name} variant="outline" className="w-full justify-start">
+                                <Button key={doc.name} variant="outline" className="w-full justify-start" onClick={() => handleDownloadDocument(doc)}>
                                     <Download className="mr-2 h-4 w-4" /> {doc.name} ({doc.fileName})
                                 </Button>
                             )) : (

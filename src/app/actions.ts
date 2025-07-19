@@ -1,4 +1,5 @@
 
+
 'use server'
 
 import { detectCarrierFromBooking } from "@/ai/flows/detect-carrier-from-booking";
@@ -31,7 +32,7 @@ import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getShipments, saveShipments, updateShipment as updateShipmentClient } from "@/lib/shipment";
-import { isPast } from "date-fns";
+import { isPast, format } from "date-fns";
 import { generateDiXmlFlow } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
 import { registerDueFlow } from "@/ai/flows/register-due";
@@ -352,6 +353,7 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData):
     updatedShipment.blType = draftData.blType;
     updatedShipment.milestones = updatedShipment.milestones || [];
     updatedShipment.charges = updatedShipment.charges || [];
+    updatedShipment.documents = updatedShipment.documents || [];
 
     const history: BLDraftHistory = updatedShipment.blDraftHistory || { sentAt: null, revisions: [] };
     const hasSentDraftBefore = !!history.sentAt;
@@ -359,6 +361,53 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData):
     const docsCutoffMilestone = updatedShipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
     const docsCutoffDate = docsCutoffMilestone?.predictedDate ? new Date(docsCutoffMilestone.predictedDate) : null;
     const isLateSubmission = docsCutoffDate ? isPast(docsCutoffDate) : false;
+    
+    // --- START: PDF Generation and Document Update ---
+    const hblHtmlResponse = await runGenerateHblPdf({
+        isOriginal: false, // Always generate draft with watermark
+        blNumber: updatedShipment.houseBillNumber || `DRAFT-${updatedShipment.id}`,
+        shipper: draftData.shipper,
+        consignee: draftData.consignee,
+        notifyParty: draftData.notify,
+        vesselAndVoyage: `${updatedShipment.vesselName || ''} / ${updatedShipment.voyageNumber || ''}`,
+        portOfLoading: updatedShipment.origin,
+        portOfDischarge: updatedShipment.destination,
+        finalDestination: updatedShipment.destination,
+        marksAndNumbers: draftData.marksAndNumbers,
+        packageDescription: `${draftData.containers.reduce((sum, c) => sum + parseInt(c.volumes || '0'), 0)} packages, ${draftData.descriptionOfGoods}`,
+        grossWeight: draftData.grossWeight,
+        measurement: draftData.measurement,
+        containerAndSeal: draftData.containers.map(c => `${c.number} / ${c.seal}`).join('\n'),
+        freightPayableAt: 'Destino',
+        numberOfOriginals: '0 (ZERO)',
+        issueDate: format(new Date(), 'dd-MMM-yyyy'),
+        shippedOnBoardDate: updatedShipment.etd ? format(updatedShipment.etd, 'dd-MMM-yyyy') : 'N/A',
+    });
+
+    if (!hblHtmlResponse.success || !hblHtmlResponse.data.html) {
+        throw new Error('Falha ao gerar o PDF do Draft HBL.');
+    }
+
+    const draftDocIndex = updatedShipment.documents.findIndex(doc => doc.name === 'Draft HBL');
+    if (draftDocIndex > -1) {
+        updatedShipment.documents[draftDocIndex] = {
+            ...updatedShipment.documents[draftDocIndex],
+            status: 'uploaded',
+            fileName: `HBL_Draft_${updatedShipment.houseBillNumber}.pdf`,
+            uploadedAt: now,
+            content: hblHtmlResponse.data.html,
+        };
+    } else {
+        updatedShipment.documents.push({
+            name: 'Draft HBL',
+            status: 'uploaded',
+            fileName: `HBL_Draft_${updatedShipment.houseBillNumber}.pdf`,
+            uploadedAt: now,
+            content: hblHtmlResponse.data.html,
+        });
+    }
+    // --- END: PDF Generation and Document Update ---
+
 
     if (!hasSentDraftBefore) {
         history.sentAt = now;

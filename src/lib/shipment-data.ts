@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Partner } from '@/lib/partners-data';
@@ -95,6 +96,7 @@ export type DocumentStatus = {
     status: 'pending' | 'uploaded' | 'approved';
     fileName?: string;
     uploadedAt?: Date;
+    content?: string; // Can store HTML for PDF generation
 };
 
 export type BLDraftRevision = {
@@ -300,7 +302,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         milestones.push({
             name: 'Prazo de Entrega (Gate In)',
             status: 'pending',
-            predictedDate: deadLineCargaDate ? subDays(deadLineCargaDate, 2) : gateInDueDate,
+            predictedDate: deadLineCargaDate ? addDays(deadLineCargaDate, -2) : gateInDueDate,
             effectiveDate: null,
             details: `Prazo final para evitar detention.`
         });

@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;

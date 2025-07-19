@@ -98,7 +98,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         console.log('Carrier resolved from carrierList:', carrier);
       }
 
-      if (!bookingNumber || !carrierCode || !carrierName) {
+      if (!carrierCode || !carrierName || !bookingNumber) {
         return NextResponse.json({
           error: 'Payload incompleto',
           detail: 'Certifique-se de que bookingNumber, carrierCode e oceanLine foram preenchidos corretamente.'
@@ -128,6 +128,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       });
 
       console.log('Create shipment status:', createRes.status);
+      console.log('Request headers:', createRes.headers);
 
       if (!createRes.ok) {
         const errorRaw = await createRes.text();

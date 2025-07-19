@@ -32,7 +32,6 @@ const extractFromMedia = (dataUri: string): { media: { url: string }; textConten
 
 const extractInvoiceItemsPrompt = ai.definePrompt({
   name: 'extractInvoiceItemsPrompt',
-  model: googleAI.model('gemini-1.5-pro'),
   input: { schema: z.object({ textContent: z.string().optional(), media: z.any().optional() }) },
   output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) },
   prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided content, which could be from a CSV, XML, plain text, an image, or a PDF file.

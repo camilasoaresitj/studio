@@ -495,7 +495,7 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
 
 export async function runGenerateDiXml(input: GenerateDiXmlInput): Promise<{ success: boolean, data?: GenerateDiXmlOutput, error?: string }> {
     try {
-        const data = await generateDiXmlFlow.run(input);
+        const data = await generateDiXmlFlow(input);
         return { success: true, data };
     } catch (error: any) {
         console.error("Generate DI XML Action Failed", error);

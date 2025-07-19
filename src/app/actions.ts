@@ -32,8 +32,8 @@ import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking
 import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getShipments, saveShipments, updateShipment as updateShipmentClient } from "@/lib/shipment";
 import { isPast } from "date-fns";
-import { generateDiXmlFlow, GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
-import { registerDue } from '@/ai/flows/register-due';
+import { generateDiXmlFlow, type GenerateDiXmlInput, type GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
+import { registerDue } from "@/ai/flows/register-due";
 import { generateDiXmlFromSpreadsheet } from "@/ai/flows/generate-di-xml-from-spreadsheet";
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';

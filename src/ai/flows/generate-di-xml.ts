@@ -1,11 +1,10 @@
 
-'use server';
 /**
  * @fileOverview A Genkit flow to generate a simplified XML for a DI (Declaração de Importação).
  *
- * generateDiXml - A function that creates the XML string for a DI.
- * GenerateDiXmlInput - The input type for the function.
- * GenerateDiXmlOutput - The return type for the function.
+ * generateDiXmlFlow - The Genkit flow that creates the XML string for a DI.
+ * GenerateDiXmlInputSchema - The input Zod schema for the flow.
+ * GenerateDiXmlOutputSchema - The output Zod schema for the flow.
  */
 
 import { ai } from '@/ai/genkit';

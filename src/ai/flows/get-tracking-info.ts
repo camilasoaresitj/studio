@@ -230,9 +230,8 @@ const getTrackingInfoFlow = ai.defineFlow(
         
         const registrationPayload = {
           formData: [{
-            uploadType: "FORM_BY_BOOKING_NUMBER",
-            shipmentType: "INTERMODAL_SHIPMENT",
             bookingNumber: input.trackingNumber,
+            shipmentType: "INTERMODAL_SHIPMENT",
           }]
         };
 
@@ -325,3 +324,5 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
+
+    

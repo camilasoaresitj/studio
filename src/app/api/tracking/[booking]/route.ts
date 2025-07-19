@@ -1,4 +1,4 @@
-
+// src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
@@ -12,7 +12,7 @@ export async function GET(_: Request, { params }: { params: { booking: string } 
   }
 
   try {
-    // 1. Criar o shipment corretamente via formData[]
+    // 1. Criar o shipment com formData[]
     const create = await fetch('https://connect.cargoes.com/flow/api/public_tracking/v1/createShipments', {
       method: 'POST',
       headers: {
@@ -34,14 +34,15 @@ export async function GET(_: Request, { params }: { params: { booking: string } 
     const created = await create.json();
     console.log('🚢 Resultado do createShipment:', created);
 
+
     if (!create.ok) {
       return NextResponse.json({ error: 'Erro ao criar shipment', detail: created }, { status: create.status });
     }
 
-    // 2. Esperar alguns segundos
+    // 2. Aguardar tempo de processamento
     await new Promise(resolve => setTimeout(resolve, 5000));
 
-    // 3. Consultar o shipment
+    // 3. Buscar shipment
     const res = await fetch(
       `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}`,
       {
@@ -52,14 +53,28 @@ export async function GET(_: Request, { params }: { params: { booking: string } 
       }
     );
 
+    // Caso esteja em processamento ainda
+    if (res.status === 204) {
+      return NextResponse.json({
+        status: 'processing',
+        message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis. Isso é comum nos primeiros minutos após a criação.',
+        eventos: [{
+          eventName: 'Rastreamento em processamento',
+          location: 'Aguardando confirmação do armador',
+          actualTime: new Date().toISOString()
+        }]
+      }, { status: 202 });
+    }
+
     const data = await res.json();
     console.log('📦 Resultado do shipment GET:', data);
+
 
     if (!res.ok) {
       return NextResponse.json({ error: 'Erro ao buscar shipment', detail: data }, { status: res.status });
     }
 
-    // 4. Extrair eventos relevantes
+    // Extrair eventos
     const eventos = data.flatMap((shipment: any) =>
       (shipment.shipmentEvents || []).map((ev: any) => ({
         eventName: ev.name,
@@ -67,8 +82,20 @@ export async function GET(_: Request, { params }: { params: { booking: string } 
         actualTime: ev.actualTime || ev.estimateTime
       }))
     );
+    
+    if (eventos.length === 0) {
+        return NextResponse.json({
+            status: 'processing',
+            message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis. Isso é comum nos primeiros minutos após a criação.',
+            eventos: [{
+            eventName: 'Rastreamento em processamento',
+            location: 'Aguardando confirmação do armador',
+            actualTime: new Date().toISOString()
+            }]
+        }, { status: 202 });
+    }
 
-    return NextResponse.json(eventos);
+    return NextResponse.json({ status: 'ready', eventos });
   } catch (err: any) {
     console.error('Erro inesperado na API de rastreamento:', err);
     return NextResponse.json({ error: 'Erro inesperado', detail: err.message }, { status: 500 });

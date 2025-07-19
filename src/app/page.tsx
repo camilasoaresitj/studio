@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
@@ -11,6 +10,12 @@ type Evento = {
   location: string;
   actualTime: string;
 };
+
+type ApiResponse = {
+    status: 'ready' | 'processing';
+    eventos: Evento[];
+    message?: string;
+}
 
 export default function MapaRastreamento() {
   const [eventos, setEventos] = useState<Evento[]>([]);
@@ -23,22 +28,15 @@ export default function MapaRastreamento() {
         setIsLoading(true);
         setError(null);
         try {
-            const carrierRes = await runDetectCarrier(bookingNumber);
-            if (!carrierRes.success || !carrierRes.data?.carrier || carrierRes.data.carrier === 'Unknown') {
-                throw new Error('Could not identify the carrier for the provided tracking number.');
-            }
-            const trackingRes = await runGetTrackingInfo({ trackingNumber: bookingNumber, carrier: carrierRes.data.carrier });
+            const res = await fetch(`/api/tracking/${bookingNumber}`);
+            const data: ApiResponse = await res.json();
 
-            if (trackingRes.success && trackingRes.data.events.length > 0) {
-                const mappedEvents = trackingRes.data.events.map(ev => ({
-                    eventName: ev.status,
-                    location: ev.location,
-                    actualTime: ev.date,
-                }));
-                setEventos(mappedEvents);
+            if (res.ok) {
+                setEventos(data.eventos);
             } else {
-                 throw new Error(trackingRes.error || 'No tracking events found.');
+                 throw new Error((data as any).error || 'Falha ao buscar dados de rastreamento');
             }
+            
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred.');
         } finally {
@@ -81,7 +79,7 @@ export default function MapaRastreamento() {
     });
 
     for (const ev of eventos) {
-      if (!ev.location || ev.location.toLowerCase() === 'n/a') continue;
+      if (!ev.location || ev.location.toLowerCase() === 'n/a' || ev.location.toLowerCase().includes('aguardando')) continue;
 
       try {
         const geoRes = await fetch(

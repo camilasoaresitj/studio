@@ -1,6 +1,25 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp, getApps } from "firebase/app";
+import { getAuth } from "firebase/auth";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// This file is intentionally left blank for the Firebase Studio environment.
-// The firebase-admin SDK is not compatible with the browser-based prototyper.
-// A real Firebase Admin implementation would be added here for production deployment.
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyApGpULRisWS_wr226ZKakcleZxBwIT0mQ", // Inferred from your provided JSON
+  authDomain: "cargainteligente-lxhac.firebaseapp.com",
+  projectId: "cargainteligente-lxhac",
+  storageBucket: "cargainteligente-lxhac.appspot.com",
+  messagingSenderId: "901391150489",
+  appId: "1:901391150489:web:your_app_id" // Placeholder, should be replaced with actual value from Firebase console
+};
 
-export const db = null;
+// Initialize Firebase
+let app;
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApps()[0];
+}
+
+export const auth = getAuth(app);

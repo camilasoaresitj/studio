@@ -125,23 +125,17 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         },
         body: JSON.stringify(payload)
       });
-
+      
       console.log('📥 Resposta Cargo-flows status:', createRes.status);
-      console.log('📥 Headers:', JSON.stringify(Object.fromEntries(createRes.headers.entries())));
-      const raw = await createRes.text();
-      console.log('📥 Body (raw):', raw);
-
 
       if (!createRes.ok) {
-        let errorBody;
-        try { errorBody = JSON.parse(raw); } catch { errorBody = raw; }
+        const raw = await createRes.text();
+        console.log('📥 Body (raw):', raw);
 
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
-          detail: typeof errorBody === 'string' && errorBody.includes('<html>')
-            ? 'Resposta HTML inválida recebida do servidor CargoFlows. O payload pode estar incompleto ou mal formatado.'
-            : errorBody,
-          raw: raw // Explicitly add the raw response for the frontend
+          detail: raw,
+          payload: payload,
         }, { status: createRes.status });
       }
 
@@ -159,7 +153,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         return NextResponse.json({
           error: 'Erro ao buscar shipment após a criação.',
           detail: errorText,
-          raw: errorText
         }, { status: res.status });
       }
 
@@ -191,7 +184,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     return NextResponse.json({
       error: 'Erro inesperado no servidor.',
       detail: err.message,
-      raw: err.stack
     }, { status: 500 });
   }
 }

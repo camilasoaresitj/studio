@@ -11,10 +11,17 @@ type Evento = {
   actualTime: string;
 };
 
+type ErrorResponse = {
+    error: string;
+    detail?: any;
+    payload?: any;
+}
+
 type ResponseStatus =
   | { status: 'ready'; eventos: Evento[] }
   | { status: 'processing'; message: string; fallback: Evento }
-  | { error: string; detail?: any; statusCode?: number; raw?: string; suggestion?: string };
+  | ErrorResponse;
+
 
 export default function MapaRastreamento() {
   const [eventos, setEventos] = useState<Evento[]>([]);
@@ -55,11 +62,15 @@ export default function MapaRastreamento() {
       // Etapa 3: Chamar a API de rastreamento com o código e nome do armador validados
       const res = await fetch(`/api/tracking/${bookingNumber}?carrierCode=${carrierInfo.scac}&carrierName=${encodeURIComponent(carrierName)}`);
       const data: ResponseStatus = await res.json();
-
-      if (!res.ok) {
+      
+      if ('error' in data) {
         setStatus('error');
-        setMensagem(data.error || 'Ocorreu um erro na API.');
-        setDiagnostico(`Diagnóstico da API: ${data.error}. Detalhes: ${JSON.stringify(data.detail || data.raw)}`);
+        setMensagem(data.error);
+        let diagString = `Detalhes: ${JSON.stringify(data.detail, null, 2)}`;
+        if (data.payload) {
+            diagString += `\n\nPayload Enviado: ${JSON.stringify(data.payload, null, 2)}`;
+        }
+        setDiagnostico(diagString);
         return;
       }
       
@@ -70,10 +81,10 @@ export default function MapaRastreamento() {
         setEventos([data.fallback]);
         setStatus('processing');
         setMensagem(data.message);
-      } else { // Fallback for unexpected success responses
+      } else {
          setStatus('error');
-         setMensagem(data.error || 'Resposta inesperada da API.');
-         setDiagnostico(`Resposta inesperada: ${JSON.stringify(data)}`);
+         setMensagem('Resposta inesperada da API.');
+         setDiagnostico(`Resposta: ${JSON.stringify(data)}`);
       }
     } catch (err: any) {
       setStatus('error');
@@ -184,7 +195,7 @@ export default function MapaRastreamento() {
         <div className="p-4 text-red-800 bg-red-100 text-center">
           <h3 className="font-bold">❌ Erro ao Carregar Rastreamento</h3>
           <p>{mensagem}</p>
-          <pre className="mt-2 text-xs text-left bg-red-50 p-2 rounded">{diagnostico}</pre>
+          <pre className="mt-2 text-xs text-left bg-red-50 p-2 rounded max-h-60 overflow-auto">{diagnostico}</pre>
         </div>
       )}
 

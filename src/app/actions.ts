@@ -34,7 +34,8 @@ import { getShipments, saveShipments, updateShipment as updateShipmentClient } f
 import { isPast } from "date-fns";
 import { generateDiXmlFlow } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
-import { registerDue } from "@/ai/flows/register-due";
+import { registerDueFlow } from "@/ai/flows/register-due";
+import type { RegisterDueInput, RegisterDueOutput } from "@/ai/flows/register-due";
 import { generateDiXmlFromSpreadsheet } from "@/ai/flows/generate-di-xml-from-spreadsheet";
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';
@@ -503,14 +504,8 @@ export async function runGenerateDiXml(input: GenerateDiXmlInput): Promise<{ suc
     }
 }
 
-export async function runRegisterDue(input: any) {
-    try {
-        const data = await registerDue(input);
-        return { success: true, data };
-    } catch (error: any) {
-        console.error("Register DUE Action Failed", error);
-        return { success: false, error: error.message || "Failed to register DUE" };
-    }
+export async function runRegisterDue(input: RegisterDueInput): Promise<RegisterDueOutput> {
+  return registerDueFlow(input);
 }
 
 export async function runGenerateDiXmlFromSpreadsheet(input: any) {

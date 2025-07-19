@@ -1,11 +1,5 @@
-
-'use server';
 /**
  * @fileOverview A Genkit flow to simulate the registration of a DUE with Portal Único.
- *
- * registerDue - A function that simulates the DUE registration.
- * RegisterDueInput - The input type for the function.
- * RegisterDueOutput - The return type for the function.
  */
 
 import { ai } from '@/ai/genkit';
@@ -36,11 +30,7 @@ export const RegisterDueOutputSchema = z.object({
 });
 export type RegisterDueOutput = z.infer<typeof RegisterDueOutputSchema>;
 
-export async function registerDue(input: RegisterDueInput): Promise<RegisterDueOutput> {
-  return registerDueFlow(input);
-}
-
-const registerDueFlow = ai.defineFlow(
+export const registerDueFlow = ai.defineFlow(
   {
     name: 'registerDueFlow',
     inputSchema: RegisterDueInputSchema,

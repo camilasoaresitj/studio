@@ -12,45 +12,54 @@ type Evento = {
 type ResponseStatus =
   | { status: 'ready'; eventos: Evento[] }
   | { status: 'processing'; message: string; fallback: Evento }
-  | { error: string; detail?: any; suggestion?: string; raw?: string; statusCode?: number, contentType?: string };
+  | { error: string; detail?: string; suggestion?: string };
 
 export default function MapaRastreamento() {
   const [eventos, setEventos] = useState<Evento[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'processing' | 'error'>('loading');
+  const [status, setStatus] = useState<'ready' | 'processing' | 'error'>('ready');
   const [mensagem, setMensagem] = useState<string>('');
-  const [diagnostico, setDiagnostico] = useState<string>('');
-  const bookingNumber = '255372222';
+  const [bookingNumber, setBookingNumber] = useState<string>('255372222');
+  const [loading, setLoading] = useState<boolean>(false);
 
-  useEffect(() => {
-    fetch(`/api/tracking/${bookingNumber}`)
-      .then(res => res.json())
-      .then((data: ResponseStatus) => {
-        if ('status' in data && data.status === 'ready') {
-          setEventos(data.eventos);
-          setStatus('ready');
-        } else if ('status' in data && data.status === 'processing') {
-          setEventos([data.fallback]);
-          setStatus('processing');
-          setMensagem(data.message);
-        } else if ('error' in data) {
-          setStatus('error');
-          setMensagem(data.error);
-          const detail = data.detail ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : 'N/A';
-          const raw = data.raw ? `Raw: ${data.raw}` : '';
-          setDiagnostico(`Diagnóstico da API: ${data.error}. Detalhes: ${detail}. ${raw}`);
-        } else {
-          throw new Error('Resposta inesperada da API.');
-        }
-      })
-      .catch(err => {
+  const carregarRastreamento = async () => {
+    if (!bookingNumber.trim()) {
+        return;
+    }
+    setLoading(true);
+    setStatus('ready');
+    setEventos([]);
+    setMensagem('');
+
+    try {
+      const res = await fetch(`/api/tracking/${bookingNumber}`);
+      const data: ResponseStatus = await res.json();
+
+      if ('status' in data && data.status === 'ready') {
+        setEventos(data.eventos);
+        setStatus('ready');
+      } else if ('status' in data && data.status === 'processing') {
+        setEventos([data.fallback]);
+        setStatus('processing');
+        setMensagem(data.message);
+      } else {
         setStatus('error');
-        setMensagem('Erro inesperado ao buscar rastreamento.');
-        setDiagnostico(err.toString());
-      });
-  }, [bookingNumber]);
+        setMensagem(data.error + (data.suggestion ? ` - ${data.suggestion}` : ''));
+      }
+    } catch (err) {
+      setStatus('error');
+      setMensagem('Erro inesperado ao buscar rastreamento.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (typeof window === 'undefined' || eventos.length === 0 || (window as any).google) return;
+    carregarRastreamento();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (eventos.length === 0 || typeof window === 'undefined' || !(window as any).google) return;
 
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}&callback=initMap`;
@@ -109,16 +118,25 @@ export default function MapaRastreamento() {
     }
   };
 
-  if (status === 'loading') {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <p>Carregando...</p>
-      </div>
-    );
-  }
-  
   return (
-    <div className="w-full h-screen">
+    <div className="w-full h-screen flex flex-col">
+      <div className="p-4 bg-white shadow flex items-center gap-4">
+        <input
+          value={bookingNumber}
+          onChange={(e) => setBookingNumber(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && carregarRastreamento()}
+          placeholder="Digite o Booking Number"
+          className="border p-2 rounded w-64"
+        />
+        <button
+          onClick={carregarRastreamento}
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+          disabled={loading}
+        >
+          {loading ? 'Carregando...' : 'Atualizar Rastreamento'}
+        </button>
+      </div>
+
       {status === 'processing' && (
         <div className="p-4 text-yellow-800 bg-yellow-100 text-center">
           ⚠️ {mensagem}
@@ -126,12 +144,12 @@ export default function MapaRastreamento() {
       )}
       {status === 'error' && (
         <div className="p-4 text-red-800 bg-red-100 text-center">
-          <p className="font-bold">❌ Erro ao Carregar Rastreamento</p>
-          <p className="text-sm">Por favor, envie o diagnóstico abaixo para o suporte:</p>
-          <pre className="mt-2 text-xs text-left bg-red-50 p-2 rounded-md whitespace-pre-wrap">{diagnostico}</pre>
+          ❌ Erro ao Carregar Rastreamento<br />
+          {mensagem}
         </div>
       )}
-      <div id="map" className="w-full h-full" />
+
+      <div id="map" className="w-full flex-1" />
     </div>
   );
 }

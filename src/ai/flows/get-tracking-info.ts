@@ -227,15 +227,22 @@ const getTrackingInfoFlow = ai.defineFlow(
           }]
         };
 
+        console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(registrationPayload, null, 2));
+
         const regResponse = await fetch(`${baseUrl}/createShipments`, {
           method: 'POST',
           headers: { 'accept': 'application/json', 'Content-Type': 'application/json', 'X-DPW-ApiKey': cargoFlowsApiKey, 'X-DPW-Org-Token': cargoFlowsOrgToken },
           body: JSON.stringify(registrationPayload)
         });
+        
+        console.log('📥 Resposta Cargo-flows status:', regResponse.status);
+        console.log('📥 Headers:', JSON.stringify(Object.fromEntries(regResponse.headers.entries())));
+        const raw = await regResponse.text();
+        console.log('📥 Body (raw):', raw);
+
 
         if (!regResponse.ok) {
-          const errorBody = await regResponse.json();
-          throw new Error(`Cargo-flows createShipment Error (${regResponse.status}): ${JSON.stringify(errorBody)}`);
+          throw new Error(`Cargo-flows createShipment Error (${regResponse.status}): ${raw}`);
         }
         
         await new Promise(resolve => setTimeout(resolve, 5000));

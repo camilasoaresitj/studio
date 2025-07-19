@@ -15,6 +15,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const url = new URL(req.url);
   const skipCreate = url.searchParams.get('skipCreate') === 'true';
   const carrierCode = url.searchParams.get('carrierCode'); // Novo parâmetro
+  const carrierName = url.searchParams.get('carrierName'); // Novo parâmetro
 
   if (!API_KEY || !ORG_TOKEN) {
     return NextResponse.json({
@@ -41,10 +42,10 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
       console.log(`Shipment ${bookingNumber} not found. Creating...`);
 
-      if (!carrierCode) {
+      if (!carrierCode || !carrierName) {
         return NextResponse.json({
             error: 'Erro ao registrar o embarque.',
-            detail: 'O código do armador (carrierCode) é necessário para registrar um novo embarque para rastreio.'
+            detail: 'O código e o nome do armador (carrierCode, carrierName) são necessários para registrar um novo embarque para rastreio.'
         }, { status: 400 });
       }
 
@@ -61,6 +62,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
             bookingNumber,
             shipmentType: 'INTERMODAL_SHIPMENT',
             carrierCode: carrierCode, // Informação adicionada
+            oceanLine: carrierName, // Informação crucial adicionada
           }]
         })
       });

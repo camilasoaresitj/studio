@@ -36,7 +36,7 @@ export default function MapaRastreamento() {
 
     try {
       // Etapa 1: Detectar o armador
-      const carrierResponse = await runDetectCarrier(bookingNumber);
+      const carrierResponse = await runDetectCarrier({ bookingNumber: bookingNumber });
       if (!carrierResponse.success || carrierResponse.data.carrier === 'Unknown') {
           throw new Error(`Não foi possível identificar o armador para o tracking "${bookingNumber}".`);
       }
@@ -49,8 +49,8 @@ export default function MapaRastreamento() {
       
       console.log(`Carrier detected: ${carrierName}, SCAC: ${carrierInfo.scac}`);
 
-      // Etapa 2: Chamar a API de rastreamento com o código do armador
-      const res = await fetch(`/api/tracking/${bookingNumber}?carrierCode=${carrierInfo.scac}`);
+      // Etapa 2: Chamar a API de rastreamento com o código e nome do armador
+      const res = await fetch(`/api/tracking/${bookingNumber}?carrierCode=${carrierInfo.scac}&carrierName=${encodeURIComponent(carrierName)}`);
       const data: ResponseStatus = await res.json();
 
       if (!res.ok) {

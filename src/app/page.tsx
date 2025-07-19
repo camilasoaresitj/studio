@@ -36,8 +36,8 @@ export default function MapaRastreamento() {
 
     try {
       // Etapa 1: Detectar o armador
-      const carrierResponse = await runDetectCarrier({ bookingNumber: bookingNumber });
-      if (!carrierResponse.success || carrierResponse.data.carrier === 'Unknown') {
+      const carrierResponse = await runDetectCarrier(bookingNumber);
+      if (!carrierResponse.success || !carrierResponse.data || carrierResponse.data.carrier === 'Unknown') {
           throw new Error(`Não foi possível identificar o armador para o tracking "${bookingNumber}".`);
       }
       

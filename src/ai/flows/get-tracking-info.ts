@@ -217,6 +217,15 @@ const getTrackingInfoFlow = ai.defineFlow(
           throw new Error(`Carrier code not found for '${input.carrier}'. Unable to register shipment.`);
         }
         
+        // CRITICAL VALIDATION: Check if carrier supports tracking by booking number
+        const carrierDetailsResponse = await fetch(`${baseUrl}/carrierList`, { headers: { 'X-DPW-ApiKey': cargoFlowsApiKey, 'X-DPW-Org-Token': cargoFlowsOrgToken }});
+        const carriersList = await carrierDetailsResponse.json();
+        const carrierDetails = carriersList.find((c: any) => c.carrierScac === carrierInfo.scac);
+        
+        if (carrierDetails && !carrierDetails.supportsTrackByBookingNumber) {
+            throw new Error(`O armador ${input.carrier} não suporta rastreamento por Booking Number via esta API. Por favor, tente usar o número do Master BL.`);
+        }
+        
         const registrationPayload = {
           formData: [{
             uploadType: "FORM_BY_BOOKING_NUMBER",

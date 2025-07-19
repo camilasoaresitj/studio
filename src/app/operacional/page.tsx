@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getPartners, Partner } from '@/lib/partners-data';
 
 type Task = {
     milestone: Milestone;
@@ -27,6 +28,7 @@ type Task = {
 
 export default function OperacionalPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [taskFilter, setTaskFilter] = useState<'today' | '3days' | 'week' | 'all'>('today');
@@ -38,9 +40,11 @@ export default function OperacionalPage() {
     setIsClient(true);
     const initialShipments = getShipments();
     setShipments(initialShipments);
+    setPartners(getPartners());
 
     const handleStorageChange = () => {
         setShipments(getShipments());
+        setPartners(getPartners());
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -449,6 +453,7 @@ export default function OperacionalPage() {
     </div>
     <ShipmentDetailsSheet 
         shipment={selectedShipment}
+        partners={partners}
         open={!!selectedShipment}
         onOpenChange={(isOpen) => !isOpen && setSelectedShipment(null)}
         onUpdate={handleShipmentUpdate}
@@ -456,5 +461,3 @@ export default function OperacionalPage() {
     </>
   );
 }
-
-    

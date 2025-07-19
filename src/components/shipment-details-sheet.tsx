@@ -69,7 +69,6 @@ import { getFees } from '@/lib/fees-data';
 import type { Fee } from '@/lib/fees-data';
 import { ScrollArea } from './ui/scroll-area';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import { getPartners } from '@/lib/partners-data';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Textarea } from './ui/textarea';
 import { BLDraftForm } from './bl-draft-form';
@@ -177,6 +176,7 @@ type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
 
 interface ShipmentDetailsSheetProps {
     shipment: Shipment | null;
+    partners: Partner[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onUpdate: (updatedShipment: Shipment) => void;
@@ -306,13 +306,12 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
 };
 
 
-export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
+export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('timeline');
     const [isUpdating, setIsUpdating] = useState(false);
     const [isFetchingCourier, setIsFetchingCourier] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [partners, setPartners] = useState<Partner[]>([]);
     const [fees, setFees] = useState<Fee[]>([]);
     const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
     const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
@@ -331,6 +330,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     const watchedCharges = useWatch({ control: form.control, name: 'charges' });
 
     const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
+    const carrierPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && (p.tipoFornecedor?.ciaMaritima || p.tipoFornecedor?.ciaAerea) && p.scac), [partners]);
 
     const newMilestoneForm = useForm<NewMilestoneFormData>({
         resolver: zodResolver(newMilestoneSchema),
@@ -339,8 +339,6 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
     
     useEffect(() => {
         if (shipment) {
-            const allPartners = getPartners();
-            setPartners(allPartners);
             setFees(getFees());
             exchangeRateService.getRates().then(setExchangeRates);
             form.reset({
@@ -348,7 +346,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                 shipperId: shipment.shipper?.id,
                 consigneeId: shipment.consignee?.id,
                 agentId: shipment.agent?.id,
-                notifyId: allPartners.find(p => p.name === shipment.notifyName)?.id,
+                notifyId: partners.find(p => p.name === shipment.notifyName)?.id,
                 etd: shipment.etd ? new Date(shipment.etd) : undefined,
                 eta: shipment.eta ? new Date(shipment.eta) : undefined,
                 mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
@@ -363,7 +361,7 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
             setDocumentPreviews({});
             setFinancialEntries(getFinancialEntries());
         }
-    }, [shipment, form, open]);
+    }, [shipment, form, open, partners]);
     
     const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
         control: form.control,
@@ -912,7 +910,24 @@ export function ShipmentDetailsSheet({ shipment, open, onOpenChange, onUpdate }:
                                                     </FormItem>
                                                 )} />
                                             </div>
-                                            <FormField control={form.control} name="carrier" render={({ field }) => (<FormItem><FormLabel>Transportadora</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                            <FormField control={form.control} name="carrier" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Transportadora</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecione a transportadora..." />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {carrierPartners.map(p => (
+                                                                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
                                             <div className="grid grid-cols-2 gap-4">
                                                  <FormField control={form.control} name="vesselName" render={({ field }) => (<FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                  <FormField control={form.control} name="voyageNumber" render={({ field }) => (<FormItem><FormLabel>Viagem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />

@@ -135,7 +135,9 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
-          detail: errorBody
+          detail: typeof errorBody === 'string' && errorBody.includes('<html>')
+            ? 'Resposta HTML inválida recebida do servidor CargoFlows. O payload pode estar incompleto ou mal formatado.'
+            : errorBody
         }, { status: createRes.status });
       }
 

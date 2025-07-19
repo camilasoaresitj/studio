@@ -254,13 +254,16 @@ const getTrackingInfoFlow = ai.defineFlow(
           },
           body: JSON.stringify(registrationPayload)
         });
+        
+        const createdJson = await regResponse.json();
+        console.log('🚢 Resultado do createShipment:', createdJson);
+
 
         if (!regResponse.ok) {
           let errorMessage = `Cargo-flows createShipment Error (${regResponse.status})`;
           try {
-              const errorBody = await regResponse.json();
-              errorMessage = errorBody.error?.message || JSON.stringify(errorBody);
-              console.error("Cargo-flows createShipment Error Body:", errorBody);
+              errorMessage = createdJson.error?.message || JSON.stringify(createdJson);
+              console.error("Cargo-flows createShipment Error Body:", createdJson);
           } catch(e) { /* ignore error */ }
           throw new Error(errorMessage);
         }
@@ -268,7 +271,7 @@ const getTrackingInfoFlow = ai.defineFlow(
         console.log(`Cargo-flows: Shipment ${input.trackingNumber} successfully registered. Re-fetching data.`);
         
         // Give the API a moment to process the new shipment
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Step 3: Re-fetch the data after creation
         const finalTrackingResponse = await fetch(getShipmentUrl, {
@@ -279,6 +282,8 @@ const getTrackingInfoFlow = ai.defineFlow(
         if (!finalTrackingResponse.ok) throw new Error(`Failed to fetch after creation (${finalTrackingResponse.status})`);
         
         const finalDataJson = await finalTrackingResponse.json();
+        console.log('📦 Resultado do shipment GET após criação:', finalDataJson);
+
         const finalTrackingDataArray = Array.isArray(finalDataJson) ? finalDataJson : finalDataJson?.data;
 
         if (finalTrackingDataArray && finalTrackingDataArray.length > 0) {

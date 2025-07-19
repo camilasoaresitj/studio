@@ -1,17 +1,27 @@
 
+// src/app/api/tracking/route.ts
 import { NextResponse } from 'next/server';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 
-// Novo endpoint para listar carriers publicamente
+let cachedCarriers: any[] | null = null;
+let lastCacheTime = 0;
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24h
+
+// Endpoint para listar carriers com cache de 24h
 export async function OPTIONS() {
   if (!API_KEY || !ORG_TOKEN) {
     return NextResponse.json({
       error: 'Credenciais ausentes',
       detail: 'Configure CARGOFLOWS_API_KEY e CARGOFLOWS_ORG_TOKEN.'
     }, { status: 500 });
+  }
+
+  const now = Date.now();
+  if (cachedCarriers && now - lastCacheTime < CACHE_DURATION) {
+    return NextResponse.json({ carriers: cachedCarriers, cached: true });
   }
 
   try {
@@ -22,7 +32,9 @@ export async function OPTIONS() {
       }
     });
     const list = await res.json();
-    return NextResponse.json({ carriers: list });
+    cachedCarriers = list;
+    lastCacheTime = now;
+    return NextResponse.json({ carriers: list, cached: false });
   } catch (err: any) {
     return NextResponse.json({ error: 'Erro ao buscar lista de carriers', detail: err.message }, { status: 500 });
   }
@@ -54,14 +66,18 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
       if (!carrierCode && carrierName) {
-        const carrierListRes = await fetch(`${BASE_URL}/carrierList`, {
-          headers: {
-            'X-DPW-ApiKey': API_KEY,
-            'X-DPW-Org-Token': ORG_TOKEN
-          }
-        });
-        const carrierList = await carrierListRes.json();
-        const carrier = carrierList.find((c: any) => c.carrierName.toLowerCase() === carrierName.toLowerCase());
+        if (!cachedCarriers || Date.now() - lastCacheTime > CACHE_DURATION) {
+          const carrierListRes = await fetch(`${BASE_URL}/carrierList`, {
+            headers: {
+              'X-DPW-ApiKey': API_KEY,
+              'X-DPW-Org-Token': ORG_TOKEN
+            }
+          });
+          cachedCarriers = await carrierListRes.json();
+          lastCacheTime = Date.now();
+        }
+
+        const carrier = cachedCarriers.find((c: any) => c.carrierName.toLowerCase() === carrierName.toLowerCase());
 
         if (!carrier) {
           return NextResponse.json({

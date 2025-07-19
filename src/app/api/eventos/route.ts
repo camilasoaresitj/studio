@@ -9,7 +9,7 @@ export async function GET() {
   }
 
   try {
-    const res = await fetch('https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&status=ACTIVE', {
+    const res = await fetch('https://connect.cargoes.com/flow/api/public_tracking/v1/shipment?shipmentType=INTERMODAL_SHIPMENT&status=ACTIVE', {
       headers: {
         'X-DPW-ApiKey': apiKey,
         'X-DPW-Org-Token': orgToken,
@@ -20,7 +20,7 @@ export async function GET() {
     if (!res.ok) {
         const errorBody = await res.text();
         console.error("Cargoes Flow API Error:", errorBody);
-        return NextResponse.json({ error: `Failed to fetch from Cargoes Flow API: ${res.statusText}` }, { status: res.status });
+        return NextResponse.json({ error: `Failed to fetch from Cargoes Flow API: ${res.statusText}`, detail: errorBody }, { status: res.status });
     }
 
     const data = await res.json();

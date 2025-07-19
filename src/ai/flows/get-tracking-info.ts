@@ -219,6 +219,8 @@ const getTrackingInfoFlow = ai.defineFlow(
         
         // CRITICAL VALIDATION: Check if carrier supports tracking by booking number
         const carrierDetailsResponse = await fetch(`${baseUrl}/carrierList`, { headers: { 'X-DPW-ApiKey': cargoFlowsApiKey, 'X-DPW-Org-Token': cargoFlowsOrgToken }});
+        if(!carrierDetailsResponse.ok) throw new Error("Could not fetch carrier list from Cargo-flows.");
+        
         const carriersList = await carrierDetailsResponse.json();
         const carrierDetails = carriersList.find((c: any) => c.carrierScac === carrierInfo.scac);
         

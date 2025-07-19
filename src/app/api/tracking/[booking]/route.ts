@@ -1,5 +1,4 @@
-
-// src/app/api/tracking/route.ts
+// src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
@@ -104,6 +103,18 @@ export async function GET(req: Request, { params }: { params: { booking: string 
           detail: 'O código e o nome do armador são obrigatórios.'
         }, { status: 400 });
       }
+      
+      const payload = {
+        formData: [{
+          uploadType: 'FORM_BY_BOOKING_NUMBER',
+          bookingNumber,
+          shipmentType: 'INTERMODAL_SHIPMENT',
+          carrierCode,
+          oceanLine: carrierName
+        }]
+      };
+
+      console.log('Payload do POST createShipments:', JSON.stringify(payload, null, 2));
 
       const createRes = await fetch(`${BASE_URL}/createShipments`, {
         method: 'POST',
@@ -112,15 +123,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
           'X-DPW-ApiKey': API_KEY,
           'X-DPW-Org-Token': ORG_TOKEN
         },
-        body: JSON.stringify({
-          formData: [{
-            uploadType: 'FORM_BY_BOOKING_NUMBER',
-            bookingNumber,
-            shipmentType: 'INTERMODAL_SHIPMENT',
-            carrierCode,
-            oceanLine: carrierName
-          }]
-        })
+        body: JSON.stringify(payload)
       });
 
       console.log('Create shipment status:', createRes.status);

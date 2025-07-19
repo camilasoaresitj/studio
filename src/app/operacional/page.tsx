@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -19,6 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getPartners, Partner } from '@/lib/partners-data';
+import { findCarrierByName } from '@/lib/carrier-data';
 
 type Task = {
     milestone: Milestone;
@@ -128,52 +130,56 @@ export default function OperacionalPage() {
   
  const handleFetchNewBooking = async (bookingNumberToFetch: string) => {
       if (!bookingNumberToFetch.trim()) {
-          toast({
-              variant: 'destructive',
-              title: "Campo obrigatório",
-              description: "Por favor, insira um número de booking.",
-          });
+          toast({ variant: 'destructive', title: "Campo obrigatório", description: "Por favor, insira um número de booking." });
           return;
       }
       setIsFetchingBooking(true);
       
       try {
-        // Step 1: Detect Carrier
-        const carrierResponse = await runDetectCarrier(bookingNumberToFetch);
-        if (!carrierResponse.success || !carrierResponse.data?.carrier || carrierResponse.data.carrier === 'Unknown') {
-             throw new Error(carrierResponse.error || `Não foi possível identificar o armador para o tracking "${bookingNumberToFetch}".`);
+        let carrier: string | undefined;
+        let existingShipment: Shipment | undefined;
+
+        // Step 1: Check existing shipments first
+        const upperCaseBooking = bookingNumberToFetch.toUpperCase();
+        existingShipment = shipments.find(s => 
+            (s.bookingNumber && s.bookingNumber.toUpperCase() === upperCaseBooking) || 
+            (s.masterBillNumber && s.masterBillNumber.toUpperCase() === upperCaseBooking)
+        );
+
+        if (existingShipment && existingShipment.carrier) {
+            carrier = existingShipment.carrier;
+            toast({ title: "Embarque Encontrado!", description: `Usando armador já conhecido: ${carrier}. Sincronizando dados...` });
+        } else {
+            // Step 2: Fallback to AI detection if not found or carrier is missing
+            const carrierResponse = await runDetectCarrier(bookingNumberToFetch);
+            if (!carrierResponse.success || !carrierResponse.data?.carrier || carrierResponse.data.carrier === 'Unknown') {
+                 throw new Error(carrierResponse.error || `Não foi possível identificar o armador para o tracking "${bookingNumberToFetch}".`);
+            }
+            carrier = carrierResponse.data.carrier;
+            toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
         }
-        const carrier = carrierResponse.data.carrier;
-        toast({ title: "Armador Detectado!", description: `Identificamos o armador: ${carrier}. Buscando dados...` });
         
-        // Step 2: Get Tracking Info with the detected carrier
+        // Step 3: Get Tracking Info with the identified carrier
         const trackingResponse = await runGetTrackingInfo({ trackingNumber: bookingNumberToFetch, carrier });
 
         if (trackingResponse.success) {
             const fetchedData = trackingResponse.data;
             const shipmentDetails = fetchedData.shipmentDetails || {};
             
-            const existingShipmentIndex = shipments.findIndex(s => 
-                (s.bookingNumber && s.bookingNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) || 
-                (s.masterBillNumber && s.masterBillNumber.toUpperCase() === bookingNumberToFetch.toUpperCase()) ||
-                (s.id.toUpperCase() === `PROC-${bookingNumberToFetch.toUpperCase()}`)
-            );
-            
             let updatedShipment: Shipment;
 
-            if (existingShipmentIndex > -1) {
-                const existingShipment = shipments[existingShipmentIndex];
+            if (existingShipment) {
                 // Merge fetched data into existing shipment
                 updatedShipment = {
                     ...existingShipment,
                     ...shipmentDetails,
-                    id: existingShipment.id,
+                    id: existingShipment.id, // Ensure ID is preserved
+                    // Preserve critical existing data
                     customer: existingShipment.customer, 
                     overseasPartner: existingShipment.overseasPartner,
                     agent: existingShipment.agent,
                     charges: existingShipment.charges,
                     details: existingShipment.details,
-                    // Preserve existing container data but update with new data if available
                     containers: (existingShipment.containers || []).map(existingC => {
                         const newC = shipmentDetails.containers?.find((c: any) => c.number === existingC.number);
                         return newC ? { ...existingC, ...newC } : existingC;
@@ -460,3 +466,4 @@ export default function OperacionalPage() {
     </>
   );
 }
+

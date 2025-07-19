@@ -27,7 +27,14 @@ export async function GET(_: Request, { params }: { params: { booking: string } 
       }
     );
 
-    let data = await res.json();
+    // Se a busca inicial falhar, já tratamos o erro.
+    if (!res.ok) {
+        let errorBody;
+        try { errorBody = await res.json(); } catch { errorBody = await res.text(); }
+        console.error("Cargo-flows initial search failed:", errorBody);
+    }
+    
+    const data = res.status === 204 ? [] : await res.json();
     
     // Se a busca inicial retornar 204 ou um array vazio, significa que precisamos registrar o embarque
     if (res.status === 204 || (Array.isArray(data) && data.length === 0)) {
@@ -68,26 +75,34 @@ export async function GET(_: Request, { params }: { params: { booking: string } 
           `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=1`,
           { headers: { 'X-DPW-ApiKey': API_KEY, 'X-DPW-Org-Token': ORG_TOKEN } }
         );
-        data = await res.json();
+        const finalData = res.status === 204 ? [] : await res.json();
+        
+        // 5. Processar a resposta final
+        if (res.status === 204 || (Array.isArray(finalData) && finalData.length === 0)) {
+            return NextResponse.json({
+                status: 'processing',
+                message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis. Tente novamente em alguns minutos.',
+                fallback: {
+                eventName: 'Rastreamento em processamento',
+                location: 'Aguardando dados do armador',
+                actualTime: new Date().toISOString()
+                }
+            }, { status: 202 });
+        }
+        
+        const eventos = finalData.flatMap((shipment: any) =>
+          (shipment.shipmentEvents || []).map((ev: any) => ({
+            eventName: ev.name,
+            location: ev.location,
+            actualTime: ev.actualTime || ev.estimateTime
+          }))
+        );
+
+        return NextResponse.json({ status: 'ready', eventos });
+
     }
     
-    // 5. Processar a resposta final
-    if (res.status === 204 || (Array.isArray(data) && data.length === 0)) {
-      return NextResponse.json({
-        status: 'processing',
-        message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis. Tente novamente em alguns minutos.',
-        fallback: {
-          eventName: 'Rastreamento em processamento',
-          location: 'Aguardando dados do armador',
-          actualTime: new Date().toISOString()
-        }
-      }, { status: 202 });
-    }
-
-    if (!res.ok) {
-      return NextResponse.json({ error: 'Erro ao buscar shipment após a criação.', detail: data }, { status: res.status });
-    }
-
+    // Se a busca inicial teve sucesso e retornou dados
     const eventos = data.flatMap((shipment: any) =>
       (shipment.shipmentEvents || []).map((ev: any) => ({
         eventName: ev.name,

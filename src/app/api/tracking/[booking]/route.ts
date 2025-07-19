@@ -14,6 +14,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const bookingNumber = params.booking;
   const url = new URL(req.url);
   const skipCreate = url.searchParams.get('skipCreate') === 'true';
+  const carrierCode = url.searchParams.get('carrierCode'); // Novo parâmetro
 
   if (!API_KEY || !ORG_TOKEN) {
     return NextResponse.json({
@@ -40,6 +41,13 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
       console.log(`Shipment ${bookingNumber} not found. Creating...`);
 
+      if (!carrierCode) {
+        return NextResponse.json({
+            error: 'Erro ao registrar o embarque.',
+            detail: 'O código do armador (carrierCode) é necessário para registrar um novo embarque para rastreio.'
+        }, { status: 400 });
+      }
+
       const createRes = await fetch('https://connect.cargoes.com/flow/api/public_tracking/v1/createShipments', {
         method: 'POST',
         headers: {
@@ -51,7 +59,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
           formData: [{
             uploadType: 'FORM_BY_BOOKING_NUMBER',
             bookingNumber,
-            shipmentType: 'INTERMODAL_SHIPMENT'
+            shipmentType: 'INTERMODAL_SHIPMENT',
+            carrierCode: carrierCode, // Informação adicionada
           }]
         })
       });

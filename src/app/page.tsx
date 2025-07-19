@@ -1,6 +1,9 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
+import { runDetectCarrier } from '@/app/actions';
+import { findCarrierByName } from '@/lib/carrier-data';
 
 type Evento = {
   eventName: string;
@@ -32,7 +35,22 @@ export default function MapaRastreamento() {
     setDiagnostico('');
 
     try {
-      const res = await fetch(`/api/tracking/${bookingNumber}`);
+      // Etapa 1: Detectar o armador
+      const carrierResponse = await runDetectCarrier(bookingNumber);
+      if (!carrierResponse.success || carrierResponse.data.carrier === 'Unknown') {
+          throw new Error(`Não foi possível identificar o armador para o tracking "${bookingNumber}".`);
+      }
+      
+      const carrierName = carrierResponse.data.carrier;
+      const carrierInfo = findCarrierByName(carrierName);
+      if (!carrierInfo || !carrierInfo.scac) {
+          throw new Error(`Código do armador não encontrado para "${carrierName}".`);
+      }
+      
+      console.log(`Carrier detected: ${carrierName}, SCAC: ${carrierInfo.scac}`);
+
+      // Etapa 2: Chamar a API de rastreamento com o código do armador
+      const res = await fetch(`/api/tracking/${bookingNumber}?carrierCode=${carrierInfo.scac}`);
       const data: ResponseStatus = await res.json();
 
       if (!res.ok) {
@@ -54,9 +72,9 @@ export default function MapaRastreamento() {
          setMensagem(data.error || 'Resposta inesperada da API.');
          setDiagnostico(`Resposta inesperada: ${JSON.stringify(data)}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       setStatus('error');
-      setMensagem('Erro de conexão ao tentar buscar o rastreamento.');
+      setMensagem(err.message || 'Erro de conexão ao tentar buscar o rastreamento.');
       setDiagnostico('Verifique a conexão de rede ou o console do navegador para mais detalhes.');
     }
   };
@@ -162,8 +180,8 @@ export default function MapaRastreamento() {
       {status === 'error' && (
         <div className="p-4 text-red-800 bg-red-100 text-center">
           <h3 className="font-bold">❌ Erro ao Carregar Rastreamento</h3>
-          <p>Por favor, envie o diagnóstico abaixo para o suporte:</p>
-          <pre className="mt-2 text-xs text-left bg-red-50 p-2 rounded">{diagnostico || mensagem}</pre>
+          <p>{mensagem}</p>
+          <pre className="mt-2 text-xs text-left bg-red-50 p-2 rounded">{diagnostico}</pre>
         </div>
       )}
 

@@ -115,7 +115,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }]
       };
 
-      console.log('Payload do POST createShipments:', JSON.stringify(payload, null, 2));
+      console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
 
       const createRes = await fetch(`${BASE_URL}/createShipments`, {
         method: 'POST',
@@ -127,13 +127,15 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         body: JSON.stringify(payload)
       });
 
-      console.log('Create shipment status:', createRes.status);
-      console.log('Request headers:', createRes.headers);
+      console.log('📥 Resposta Cargo-flows status:', createRes.status);
+      console.log('📥 Headers:', JSON.stringify(Object.fromEntries(createRes.headers.entries())));
+      const raw = await createRes.text();
+      console.log('📥 Body (raw):', raw);
+
 
       if (!createRes.ok) {
-        const errorRaw = await createRes.text();
         let errorBody;
-        try { errorBody = JSON.parse(errorRaw); } catch { errorBody = errorRaw; }
+        try { errorBody = JSON.parse(raw); } catch { errorBody = raw; }
 
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',

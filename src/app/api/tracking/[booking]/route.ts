@@ -127,14 +127,20 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       });
       
       console.log('📥 Resposta Cargo-flows status:', createRes.status);
+      console.log('📥 Headers:', JSON.stringify(Object.fromEntries(createRes.headers.entries())));
+      const raw = await createRes.text();
+      console.log('📥 Body (raw):', raw);
+
 
       if (!createRes.ok) {
-        const raw = await createRes.text();
-        console.log('📥 Body (raw):', raw);
-
+        let errorBody;
+        try { errorBody = JSON.parse(raw); } catch { errorBody = raw; }
+        
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
-          detail: raw,
+          detail: typeof errorBody === 'string' && errorBody.includes('<html>')
+            ? 'Resposta HTML inválida recebida do servidor CargoFlows. O payload pode estar incompleto ou mal formatado.'
+            : errorBody,
           payload: payload,
         }, { status: createRes.status });
       }

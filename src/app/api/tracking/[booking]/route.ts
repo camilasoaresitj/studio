@@ -1,4 +1,3 @@
-
 // src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
 
@@ -34,6 +33,7 @@ export async function GET(_: Request, { params }: { params: { booking: string } 
         console.error("Cargo-flows initial search failed:", errorBody);
     }
     
+    // Status 204 significa "No Content", então o corpo estará vazio.
     const data = res.status === 204 ? [] : await res.json();
     
     // Se a busca inicial retornar 204 ou um array vazio, significa que precisamos registrar o embarque

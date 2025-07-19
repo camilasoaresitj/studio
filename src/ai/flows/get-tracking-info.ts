@@ -231,6 +231,7 @@ const getTrackingInfoFlow = ai.defineFlow(
         const registrationPayload = {
           formData: [{
             bookingNumber: input.trackingNumber,
+            shipmentType: 'INTERMODAL_SHIPMENT',
           }]
         };
 

@@ -232,8 +232,6 @@ const getTrackingInfoFlow = ai.defineFlow(
           formData: [{
             uploadType: "FORM_BY_BOOKING_NUMBER",
             bookingNumber: input.trackingNumber,
-            carrierCode: carrierInfo.scac,
-            oceanLine: carrierInfo.name,
           }]
         };
 

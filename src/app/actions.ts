@@ -1,3 +1,4 @@
+
 'use server'
 
 import { detectCarrierFromBooking } from "@/ai/flows/detect-carrier-from-booking";
@@ -31,9 +32,9 @@ import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking
 import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getShipments, saveShipments, updateShipment as updateShipmentClient } from "@/lib/shipment";
 import { isPast } from "date-fns";
-import { generateDiXml } from '@/ai/flows/generate-di-xml';
+import { generateDiXmlFlow, GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
 import { registerDue } from '@/ai/flows/register-due';
-import { generateDiXmlFromSpreadsheet } from '@/ai/flows/generate-di-xml-from-spreadsheet';
+import { generateDiXmlFromSpreadsheet } from "@/ai/flows/generate-di-xml-from-spreadsheet";
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';
 import type { ExtractInvoiceItemsOutput, ExtractInvoiceItemsInput } from '@/lib/schemas/invoice';
@@ -491,9 +492,9 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
     }
 }
 
-export async function runGenerateDiXml(input: any) {
+export async function runGenerateDiXml(input: GenerateDiXmlInput): Promise<{ success: boolean, data?: GenerateDiXmlOutput, error?: string }> {
     try {
-        const data = await generateDiXml(input);
+        const data = await generateDiXmlFlow(input);
         return { success: true, data };
     } catch (error: any) {
         console.error("Generate DI XML Action Failed", error);

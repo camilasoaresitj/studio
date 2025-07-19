@@ -38,11 +38,7 @@ export const GenerateDiXmlOutputSchema = z.object({
 });
 export type GenerateDiXmlOutput = z.infer<typeof GenerateDiXmlOutputSchema>;
 
-export async function generateDiXml(input: GenerateDiXmlInput): Promise<GenerateDiXmlOutput> {
-  return generateDiXmlFlow(input);
-}
-
-const generateDiXmlFlow = ai.defineFlow(
+export const generateDiXmlFlow = ai.defineFlow(
   {
     name: 'generateDiXmlFlow',
     inputSchema: GenerateDiXmlInputSchema,

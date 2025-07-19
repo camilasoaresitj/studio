@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
 import type { ExtractInvoiceItemsInput, ExtractInvoiceItemsOutput } from '@/lib/schemas/invoice';
+import { googleAI } from '@genkit-ai/googleai';
 
 
 const extractFromXml = (dataUri: string): { textContent: string; media?: never } => {
@@ -30,6 +31,7 @@ const extractFromMedia = (dataUri: string): { media: { url: string }; textConten
 
 const extractInvoiceItemsPrompt = ai.definePrompt({
   name: 'extractInvoiceItemsPrompt',
+  model: googleAI.model('gemini-1.5-flash'),
   input: { schema: z.object({ textContent: z.string().optional(), media: z.any().optional() }) },
   output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) },
   prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided content, which could be from a CSV, XML, plain text, an image, or a PDF file.

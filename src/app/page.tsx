@@ -1,9 +1,12 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
 
 type Evento = {
   eventName: string;
@@ -23,6 +26,7 @@ export default function MapaRastreamento() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
   const bookingNumber = '255372222'; // pode tornar dinâmico depois
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export default function MapaRastreamento() {
         }
     };
     fetchTracking();
-  }, [bookingNumber]);
+  }, [bookingNumber, toast]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || eventos.length === 0 || (window as any).google) return;

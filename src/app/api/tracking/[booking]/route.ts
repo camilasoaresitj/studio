@@ -98,13 +98,13 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         console.log('Carrier resolved from carrierList:', carrier);
       }
 
-      if (!carrierCode || !carrierName) {
+      if (!bookingNumber || !carrierCode || !carrierName) {
         return NextResponse.json({
-          error: 'Erro ao registrar o embarque.',
-          detail: 'O código e o nome do armador são obrigatórios.'
+          error: 'Payload incompleto',
+          detail: 'Certifique-se de que bookingNumber, carrierCode e oceanLine foram preenchidos corretamente.'
         }, { status: 400 });
       }
-      
+
       const payload = {
         formData: [{
           uploadType: 'FORM_BY_BOOKING_NUMBER',

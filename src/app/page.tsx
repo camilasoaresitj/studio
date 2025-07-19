@@ -2,53 +2,52 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
-import type { TrackingEvent } from '@/ai/flows/get-tracking-info';
 
-type ApiResponse = {
-    status: 'ready' | 'processing';
-    eventos: TrackingEvent[];
-    message?: string;
-    error?: string;
-    detail?: any;
-}
+type Evento = {
+  eventName: string;
+  location: string;
+  actualTime: string;
+};
+
+type ResponseStatus =
+  | { status: 'ready'; eventos: Evento[] }
+  | { status: 'processing'; message: string; fallback: Evento }
+  | { error: string; detail?: any; suggestion?: string; raw?: string; statusCode?: number, contentType?: string };
 
 export default function MapaRastreamento() {
-  const [eventos, setEventos] = useState<TrackingEvent[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
-  const bookingNumber = '255372222'; // pode tornar dinâmico depois
+  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'processing' | 'error'>('loading');
+  const [mensagem, setMensagem] = useState<string>('');
+  const [diagnostico, setDiagnostico] = useState<string>('');
+  const bookingNumber = '255372222';
 
   useEffect(() => {
-    const fetchTracking = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            // Step 1: Detect Carrier (Simulated for this page)
-            const carrier = 'Maersk'; // Em um app real, isso seria detectado
-            
-            // Step 2: Get Tracking Info
-            const res = await runGetTrackingInfo({ trackingNumber: bookingNumber, carrier });
-            
-            if (res.success && res.data?.events) {
-                setEventos(res.data.events);
-            } else {
-                 throw new Error(`Diagnóstico: ${res.error || 'Falha ao buscar dados'}.`);
-            }
-            
-        } catch (err: any) {
-            setError(err.message || 'An unexpected error occurred.');
-        } finally {
-            setIsLoading(false);
+    fetch(`/api/tracking/${bookingNumber}`)
+      .then(res => res.json())
+      .then((data: ResponseStatus) => {
+        if ('status' in data && data.status === 'ready') {
+          setEventos(data.eventos);
+          setStatus('ready');
+        } else if ('status' in data && data.status === 'processing') {
+          setEventos([data.fallback]);
+          setStatus('processing');
+          setMensagem(data.message);
+        } else if ('error' in data) {
+          setStatus('error');
+          setMensagem(data.error);
+          const detail = data.detail ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : 'N/A';
+          const raw = data.raw ? `Raw: ${data.raw}` : '';
+          setDiagnostico(`Diagnóstico da API: ${data.error}. Detalhes: ${detail}. ${raw}`);
+        } else {
+          throw new Error('Resposta inesperada da API.');
         }
-    };
-    fetchTracking();
-  }, [bookingNumber, toast]);
+      })
+      .catch(err => {
+        setStatus('error');
+        setMensagem('Erro inesperado ao buscar rastreamento.');
+        setDiagnostico(err.toString());
+      });
+  }, [bookingNumber]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || eventos.length === 0 || (window as any).google) return;
@@ -74,7 +73,7 @@ export default function MapaRastreamento() {
     };
   }, [eventos]);
 
-  const initMap = async (eventos: TrackingEvent[]) => {
+  const initMap = async (eventos: Evento[]) => {
     if (typeof window === 'undefined' || !(window as any).google) return;
     
     const map = new (window as any).google.maps.Map(document.getElementById('map')!, {
@@ -96,11 +95,11 @@ export default function MapaRastreamento() {
         const marker = new (window as any).google.maps.Marker({
           map,
           position: coords,
-          title: ev.status
+          title: ev.eventName
         });
 
         const popup = new (window as any).google.maps.InfoWindow({
-          content: `<strong>${ev.status}</strong><br>${ev.location}<br><small>${new Date(ev.date).toLocaleString()}</small>`
+          content: `<strong>${ev.eventName}</strong><br>${ev.location}<br><small>${new Date(ev.actualTime).toLocaleString()}</small>`
         });
 
         marker.addListener('click', () => popup.open(map, marker));
@@ -109,31 +108,30 @@ export default function MapaRastreamento() {
       }
     }
   };
-  
-  if (isLoading) {
+
+  if (status === 'loading') {
     return (
-        <div className="flex h-screen w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+      <div className="flex h-screen w-full items-center justify-center">
+        <p>Carregando...</p>
+      </div>
     );
   }
-
-  if (error) {
-     return (
-        <div className="flex h-screen w-full items-center justify-center p-4">
-             <Alert variant="destructive" className="max-w-xl break-words">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Erro ao Carregar Rastreamento</AlertTitle>
-                <AlertDescription>
-                    <p className="font-semibold">Por favor, envie o diagnóstico abaixo para o suporte:</p>
-                    <pre className="mt-2 w-full whitespace-pre-wrap rounded-md bg-secondary p-2 font-mono text-xs">
-                        {error}
-                    </pre>
-                </AlertDescription>
-            </Alert>
+  
+  return (
+    <div className="w-full h-screen">
+      {status === 'processing' && (
+        <div className="p-4 text-yellow-800 bg-yellow-100 text-center">
+          ⚠️ {mensagem}
         </div>
-    );
-  }
-
-  return <div id="map" className="w-full h-screen" />;
+      )}
+      {status === 'error' && (
+        <div className="p-4 text-red-800 bg-red-100 text-center">
+          <p className="font-bold">❌ Erro ao Carregar Rastreamento</p>
+          <p className="text-sm">Por favor, envie o diagnóstico abaixo para o suporte:</p>
+          <pre className="mt-2 text-xs text-left bg-red-50 p-2 rounded-md whitespace-pre-wrap">{diagnostico}</pre>
+        </div>
+      )}
+      <div id="map" className="w-full h-full" />
+    </div>
+  );
 }

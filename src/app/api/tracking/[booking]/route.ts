@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
+const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 
 type Evento = {
   eventName: string;
@@ -14,8 +15,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const bookingNumber = params.booking;
   const url = new URL(req.url);
   const skipCreate = url.searchParams.get('skipCreate') === 'true';
-  const carrierCode = url.searchParams.get('carrierCode');
-  const carrierName = url.searchParams.get('carrierName');
+  let carrierCode = url.searchParams.get('carrierCode');
+  let carrierName = url.searchParams.get('carrierName');
 
   if (!API_KEY || !ORG_TOKEN) {
     return NextResponse.json({
@@ -25,31 +26,45 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   }
 
   try {
-    // 1. Buscar shipment diretamente
-    let res = await fetch(
-      `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=1`,
-      {
-        headers: {
-          'X-DPW-ApiKey': API_KEY,
-          'X-DPW-Org-Token': ORG_TOKEN
-        }
+    let res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=1`, {
+      headers: {
+        'X-DPW-ApiKey': API_KEY,
+        'X-DPW-Org-Token': ORG_TOKEN
       }
-    );
+    });
 
     let data = await res.json();
 
-    // 2. Se não encontrado, tentar criar (se não for skipCreate)
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
-      console.log(`Shipment ${bookingNumber} not found. Creating...`);
-      
+      if (!carrierCode && carrierName) {
+        const carrierListRes = await fetch(`${BASE_URL}/carrierList`, {
+          headers: {
+            'X-DPW-ApiKey': API_KEY,
+            'X-DPW-Org-Token': ORG_TOKEN
+          }
+        });
+        const carrierList = await carrierListRes.json();
+        const carrier = carrierList.find((c: any) => c.carrierName.toLowerCase() === carrierName!.toLowerCase());
+
+        if (!carrier) {
+          return NextResponse.json({
+            error: 'Carrier não encontrado.',
+            detail: `Nenhum armador com nome ${carrierName} foi localizado.`
+          }, { status: 400 });
+        }
+
+        carrierCode = carrier.carrierScac;
+        carrierName = carrier.carrierName;
+      }
+
       if (!carrierCode || !carrierName) {
         return NextResponse.json({
-            error: 'Erro ao registrar o embarque.',
-            detail: 'O código e o nome do armador (carrierCode, carrierName) são necessários para registrar um novo embarque para rastreio.'
+          error: 'Erro ao registrar o embarque.',
+          detail: 'O código e o nome do armador são obrigatórios.'
         }, { status: 400 });
       }
 
-      const createRes = await fetch('https://connect.cargoes.com/flow/api/public_tracking/v1/createShipments', {
+      const createRes = await fetch(`${BASE_URL}/createShipments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,21 +76,16 @@ export async function GET(req: Request, { params }: { params: { booking: string 
             uploadType: 'FORM_BY_BOOKING_NUMBER',
             bookingNumber,
             shipmentType: 'INTERMODAL_SHIPMENT',
-            carrierCode: carrierCode, // Informação crucial adicionada
-            oceanLine: carrierName, // Informação crucial adicionada
+            carrierCode,
+            oceanLine: carrierName
           }]
         })
       });
 
-      // ✅ Evita "Body is unusable"
       if (!createRes.ok) {
         const errorRaw = await createRes.text();
         let errorBody;
-        try {
-          errorBody = JSON.parse(errorRaw);
-        } catch {
-          errorBody = errorRaw;
-        }
+        try { errorBody = JSON.parse(errorRaw); } catch { errorBody = errorRaw; }
 
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
@@ -83,19 +93,14 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: createRes.status });
       }
 
-      // 3. Aguardar processamento
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      // 4. Buscar novamente
-      res = await fetch(
-        `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=1`,
-        {
-          headers: {
-            'X-DPW-ApiKey': API_KEY,
-            'X-DPW-Org-Token': ORG_TOKEN
-          }
+      res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=1`, {
+        headers: {
+          'X-DPW-ApiKey': API_KEY,
+          'X-DPW-Org-Token': ORG_TOKEN
         }
-      );
+      });
 
       if (!res.ok) {
         const errorText = await res.text();
@@ -108,11 +113,10 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       data = await res.json();
     }
 
-    // 5. Se ainda não houver dados
     if (res.status === 204 || (Array.isArray(data) && data.length === 0)) {
       return NextResponse.json({
         status: 'processing',
-        message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis. Tente novamente em alguns minutos.',
+        message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
         fallback: {
           eventName: 'Rastreamento em processamento',
           location: 'Aguardando dados do armador',
@@ -121,7 +125,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }, { status: 202 });
     }
 
-    // 6. Extrair eventos
     const eventos = data.flatMap((shipment: any) =>
       (shipment.shipmentEvents || []).map((ev: any) => ({
         eventName: ev.name,
@@ -131,7 +134,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     );
 
     return NextResponse.json({ status: 'ready', eventos });
-
   } catch (err: any) {
     return NextResponse.json({
       error: 'Erro inesperado no servidor.',

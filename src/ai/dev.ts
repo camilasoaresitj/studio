@@ -12,6 +12,7 @@ import { googleAI } from '@genkit-ai/googleai';
 
 export default genkit({
   plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY || '' })],
+  model: 'gemini-1.5-pro',
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });

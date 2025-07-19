@@ -11,7 +11,13 @@ import { googleAI } from '@genkit-ai/googleai';
 // directive does not allow, causing the "invalid-use-server-value" error.
 
 export default genkit({
-  plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY || '' })],
+  plugins: [
+    googleAI({
+      apiKey: process.env.GEMINI_API_KEY || '',
+      project: 'cargainteligente-lxhac',
+      location: 'global',
+    }),
+  ],
   model: 'gemini-1.5-flash', // Definindo o modelo padrão globalmente
   logLevel: 'debug',
   enableTracingAndMetrics: true,

@@ -46,7 +46,8 @@ export default function MapaRastreamento() {
       
       // Etapa 2: Validar se encontramos as informações do armador
       if (!carrierInfo || !carrierInfo.scac) {
-          throw new Error(`Informações internas não encontradas para o armador "${carrierName}". Não foi possível obter o código SCAC.`);
+          const detailedError = `Armador detectado: "${carrierName}", mas não encontramos um código SCAC correspondente em nossa base interna. Verifique se o armador está cadastrado corretamente em /src/lib/carrier-data.ts.`;
+          throw new Error(detailedError);
       }
       
       console.log(`Carrier detected: ${carrierName}, SCAC: ${carrierInfo.scac}`);

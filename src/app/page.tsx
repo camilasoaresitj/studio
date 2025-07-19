@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
+import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 type Evento = {
   eventName: string;
@@ -10,12 +14,38 @@ type Evento = {
 
 export default function MapaRastreamento() {
   const [eventos, setEventos] = useState<Evento[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const bookingNumber = '255372222'; // pode tornar dinâmico depois
 
   useEffect(() => {
-    fetch(`/api/tracking/${bookingNumber}`)
-      .then(res => res.json())
-      .then(setEventos);
+    const fetchTracking = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const carrierRes = await runDetectCarrier(bookingNumber);
+            if (!carrierRes.success || !carrierRes.data?.carrier || carrierRes.data.carrier === 'Unknown') {
+                throw new Error('Could not identify the carrier for the provided tracking number.');
+            }
+            const trackingRes = await runGetTrackingInfo({ trackingNumber: bookingNumber, carrier: carrierRes.data.carrier });
+
+            if (trackingRes.success && trackingRes.data.events.length > 0) {
+                const mappedEvents = trackingRes.data.events.map(ev => ({
+                    eventName: ev.status,
+                    location: ev.location,
+                    actualTime: ev.date,
+                }));
+                setEventos(mappedEvents);
+            } else {
+                 throw new Error(trackingRes.error || 'No tracking events found.');
+            }
+        } catch (err: any) {
+            setError(err.message || 'An unexpected error occurred.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchTracking();
   }, [bookingNumber]);
 
   useEffect(() => {
@@ -51,7 +81,7 @@ export default function MapaRastreamento() {
     });
 
     for (const ev of eventos) {
-      if (!ev.location) continue;
+      if (!ev.location || ev.location.toLowerCase() === 'n/a') continue;
 
       try {
         const geoRes = await fetch(
@@ -77,6 +107,26 @@ export default function MapaRastreamento() {
       }
     }
   };
+  
+  if (isLoading) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+    );
+  }
+
+  if (error) {
+     return (
+        <div className="flex h-screen w-full items-center justify-center p-4">
+             <Alert variant="destructive" className="max-w-md">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Erro ao Carregar Rastreamento</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+            </Alert>
+        </div>
+    );
+  }
 
   return <div id="map" className="w-full h-screen" />;
 }

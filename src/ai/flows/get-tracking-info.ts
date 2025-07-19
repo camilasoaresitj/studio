@@ -233,8 +233,8 @@ const getTrackingInfoFlow = ai.defineFlow(
         }
         
         const registrationPayload = {
-          uploadType: "FORM_BY_BOOKING_NUMBER",
-          formData: [{ // formData is an array containing the shipment object
+          formData: [{
+            uploadType: "FORM_BY_BOOKING_NUMBER",
             shipmentType: "INTERMODAL_SHIPMENT",
             bookingNumber: input.trackingNumber,
             carrierCode: carrierInfo.scac,

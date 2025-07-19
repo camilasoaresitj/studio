@@ -44,6 +44,7 @@ export const partnerSchema = z.object({
   }).optional(),
   cnpj: z.string().optional(),
   vat: z.string().optional(),
+  scac: z.string().optional(), // SCAC Code field
   paymentTerm: z.coerce.number().optional(),
   exchangeRateAgio: z.coerce.number().optional().default(0),
   profitAgreement: z.object({
@@ -99,7 +100,7 @@ export const partnerSchema = z.object({
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v8';
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v9'; // Incremented version
 
 function getInitialPartners(): Partner[] {
     return [
@@ -178,6 +179,7 @@ function getInitialPartners(): Partner[] {
             roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
             tipoFornecedor: { ciaMaritima: true, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
             cnpj: "54.321.876/0001-21",
+            scac: "MAEU",
             paymentTerm: 60,
             exchangeRateAgio: 0,
             address: {
@@ -222,7 +224,7 @@ function getInitialPartners(): Partner[] {
             }],
             observations: "Especializado em cobrança de demurrage. Enviar e-mail com fatura e HBL em anexo.",
         },
-        // Terminais
+        // Terminals
         { id: 101, name: 'PORTO DE FORTALEZA - CE', nomeFantasia: 'BRFOR001', roles: { fornecedor: true, cliente: false, agente: false, comissionado: false }, tipoFornecedor: { terminal: true }, contacts: [], address: { city: 'Fortaleza', state: 'CE', country: 'Brasil' } },
         { id: 102, name: 'CAIS TECOM - IMBITUBA-SC', nomeFantasia: 'BRIBB002', roles: { fornecedor: true, cliente: false, agente: false, comissionado: false }, tipoFornecedor: { terminal: true }, contacts: [], address: { city: 'Imbituba', state: 'SC', country: 'Brasil' } },
         { id: 103, name: 'TECON SEPETIBA - RJ', nomeFantasia: 'BRIGI001', roles: { fornecedor: true, cliente: false, agente: false, comissionado: false }, tipoFornecedor: { terminal: true }, contacts: [], address: { city: 'Itaguaí', state: 'RJ', country: 'Brasil' } },

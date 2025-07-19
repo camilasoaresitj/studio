@@ -89,6 +89,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       nomeFantasia: '',
       cnpj: '',
       vat: '',
+      scac: '',
       roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
       contacts: [{ name: '', email: '', phone: '', departments: [] }],
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
@@ -122,6 +123,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const watchedCnpj = form.watch('cnpj');
   const watchedRoles = form.watch('roles');
+  const watchedFornecedor = form.watch('tipoFornecedor');
   const isEmpresaNoExterior = form.watch('tipoCliente.empresaNoExterior');
   const isTerminal = form.watch('tipoFornecedor.terminal');
   const documentType = isEmpresaNoExterior ? 'vat' : 'cnpj';
@@ -137,6 +139,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         nomeFantasia: '',
         cnpj: '',
         vat: '',
+        scac: '',
         roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
         contacts: [{ name: '', email: '', phone: '', departments: [] }],
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
@@ -404,21 +407,32 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome / Razão Social</FormLabel><FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="nomeFantasia" render={({ field }) => ( <FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input placeholder="Nome fantasia" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     </div>
-                     <FormField control={form.control} name={documentType} render={({ field }) => ( 
-                        <FormItem>
-                            <FormLabel>{documentLabel}</FormLabel>
-                            <div className="flex items-center gap-2">
-                                <FormControl><Input placeholder={isEmpresaNoExterior ? 'Ex: IE1234567T' : '00.000.000/0001-00'} {...field} /></FormControl>
-                                {!isEmpresaNoExterior && (
-                                <Button type="button" onClick={handleFetchCnpjData} disabled={isFetchingCnpj || (watchedCnpj || '').replace(/\D/g, '').length !== 14}>
-                                    {isFetchingCnpj ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}
-                                    Buscar
-                                </Button>
-                                )}
-                            </div>
-                            <FormMessage />
-                        </FormItem> 
-                     )} />
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name={documentType} render={({ field }) => ( 
+                            <FormItem>
+                                <FormLabel>{documentLabel}</FormLabel>
+                                <div className="flex items-center gap-2">
+                                    <FormControl><Input placeholder={isEmpresaNoExterior ? 'Ex: IE1234567T' : '00.000.000/0001-00'} {...field} /></FormControl>
+                                    {!isEmpresaNoExterior && (
+                                    <Button type="button" onClick={handleFetchCnpjData} disabled={isFetchingCnpj || (watchedCnpj || '').replace(/\D/g, '').length !== 14}>
+                                        {isFetchingCnpj ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}
+                                        Buscar
+                                    </Button>
+                                    )}
+                                </div>
+                                <FormMessage />
+                            </FormItem> 
+                        )} />
+                        {(watchedFornecedor?.ciaMaritima || watchedFornecedor?.ciaAerea) && (
+                             <FormField control={form.control} name="scac" render={({ field }) => ( 
+                                <FormItem>
+                                    <FormLabel>SCAC Code</FormLabel>
+                                    <FormControl><Input placeholder="Ex: MAEU" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem> 
+                            )} />
+                        )}
+                    </div>
 
                     <FormItem>
                         <FormLabel>Funções do Parceiro</FormLabel>

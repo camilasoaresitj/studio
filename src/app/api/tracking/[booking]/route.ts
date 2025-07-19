@@ -1,4 +1,3 @@
-
 // src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
 
@@ -141,7 +140,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
           error: 'Erro ao registrar o embarque na Cargo-flows.',
           detail: typeof errorBody === 'string' && errorBody.includes('<html>')
             ? 'Resposta HTML inválida recebida do servidor CargoFlows. O payload pode estar incompleto ou mal formatado.'
-            : errorBody
+            : errorBody,
+          raw: raw // Explicitly add the raw response for the frontend
         }, { status: createRes.status });
       }
 
@@ -158,7 +158,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         const errorText = await res.text();
         return NextResponse.json({
           error: 'Erro ao buscar shipment após a criação.',
-          detail: errorText
+          detail: errorText,
+          raw: errorText
         }, { status: res.status });
       }
 
@@ -189,7 +190,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   } catch (err: any) {
     return NextResponse.json({
       error: 'Erro inesperado no servidor.',
-      detail: err.message
+      detail: err.message,
+      raw: err.stack
     }, { status: 500 });
   }
 }

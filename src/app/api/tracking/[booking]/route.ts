@@ -18,29 +18,24 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
   try {
     // 1. Tentar buscar o shipment diretamente
-    let res = await fetch(
-      `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=50`,
-      {
+    const getShipmentUrl = `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=50`;
+    let res = await fetch(getShipmentUrl, {
         headers: {
           'X-DPW-ApiKey': API_KEY,
           'X-DPW-Org-Token': ORG_TOKEN
         }
-      }
-    );
+    });
     
     let data;
     if (res.ok) {
         data = await res.json();
     } else {
-        const errorText = await res.text();
-         return NextResponse.json({
-          error: 'Erro ao buscar shipment na Cargo-flows.',
-          detail: errorText
-        }, { status: res.status });
+        // Se a primeira busca falhar, não consumimos o corpo ainda, apenas verificamos o status.
+        // O corpo será consumido abaixo apenas se necessário.
     }
-
+    
     // Se não encontrado e permitido criar, tenta registrar
-    if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
+    if (!skipCreate && (!res.ok || (Array.isArray(data) && data.length === 0))) {
       console.log(`Shipment ${bookingNumber} not found, attempting to create...`);
 
       const createRes = await fetch('https://connect.cargoes.com/flow/api/public_tracking/v1/createShipments', {
@@ -62,9 +57,10 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       if (!createRes.ok) {
         let errorBody;
         try {
+          // AQUI lemos o corpo da resposta de ERRO da criação.
           errorBody = await createRes.json();
         } catch {
-          errorBody = await createRes.text(); // se for HTML ou texto plano
+          errorBody = await createRes.text();
         }
         return NextResponse.json({ error: 'Erro ao registrar o embarque na Cargo-flows.', detail: errorBody }, { status: createRes.status });
       }
@@ -73,22 +69,30 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Rebuscar
-      res = await fetch(
-        `https://connect.cargoes.com/flow/api/public_tracking/v1/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=50`,
-        { headers: { 'X-DPW-ApiKey': API_KEY, 'X-DPW-Org-Token': ORG_TOKEN } }
-      );
+      res = await fetch(getShipmentUrl, { 
+          headers: { 'X-DPW-ApiKey': API_KEY, 'X-DPW-Org-Token': ORG_TOKEN } 
+      });
 
-      if (!res.ok) {
-        const errorText = await res.text();
+      if (res.ok) {
+        data = await res.json(); // Lemos o corpo da SEGUNDA busca bem-sucedida.
+      } else {
+        const errorText = await res.text(); // Lemos o corpo da SEGUNDA busca com erro.
         return NextResponse.json({
           error: 'Erro ao buscar shipment após a criação.',
           detail: errorText
         }, { status: res.status });
       }
-
-      data = await res.json();
     }
 
+    if (!res.ok) {
+      // Se chegamos aqui, a primeira busca falhou e não tentamos criar.
+      const errorText = await res.text();
+      return NextResponse.json({
+        error: 'Erro ao buscar shipment na Cargo-flows.',
+        detail: errorText
+      }, { status: res.status });
+    }
+    
     if (res.status === 204 || (Array.isArray(data) && data.length === 0)) {
       return NextResponse.json({
         status: 'processing',

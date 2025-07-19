@@ -46,6 +46,11 @@ Analyze the following number and determine the carrier.
 - **HMM (Hyundai Merchant Marine):** Starts with "HDMU".
 - **OOCL:** Starts with "OOLU".
 
+**Additional Rules and Examples:**
+- A purely numeric booking number with 9 digits, like "255372222", is from **Maersk**.
+- A purely numeric booking number with 10 digits is from **Hapag-Lloyd**.
+- Pay close attention to the length of numeric booking numbers to differentiate between carriers.
+
 Based on these patterns and your knowledge, identify the single most likely carrier. If the carrier is not identifiable from this list or your knowledge, return "Unknown".
 
 Booking/BL Number: {{{bookingNumber}}}

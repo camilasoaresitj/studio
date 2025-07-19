@@ -237,11 +237,11 @@ const getTrackingInfoFlow = ai.defineFlow(
         
         const registrationPayload = {
           uploadType: "FORM_BY_BOOKING_NUMBER",
-          formData: [{
+          formData: {
             bookingNumber: input.trackingNumber,
             carrierCode: carrierInfo.scac,
             oceanLine: carrierInfo.name,
-          }]
+          }
         };
 
         const regResponse = await fetch(`${baseUrl}/createShipments`, {
@@ -326,3 +326,5 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
+
+    

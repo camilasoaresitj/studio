@@ -15,6 +15,8 @@ type ApiResponse = {
     status: 'ready' | 'processing';
     eventos: Evento[];
     message?: string;
+    error?: string;
+    detail?: any;
 }
 
 export default function MapaRastreamento() {
@@ -33,8 +35,15 @@ export default function MapaRastreamento() {
 
             if (res.ok) {
                 setEventos(data.eventos);
+                 if (data.status === 'processing' && data.message) {
+                    toast({
+                        title: 'Rastreamento em Processamento',
+                        description: data.message,
+                    });
+                }
             } else {
-                 throw new Error((data as any).error || 'Falha ao buscar dados de rastreamento');
+                 const errorDetail = typeof data.detail === 'object' ? JSON.stringify(data.detail) : data.detail;
+                 throw new Error(`Diagnóstico da API: ${data.error || 'Falha ao buscar dados'}. Detalhes: ${errorDetail}`);
             }
             
         } catch (err: any) {
@@ -117,10 +126,15 @@ export default function MapaRastreamento() {
   if (error) {
      return (
         <div className="flex h-screen w-full items-center justify-center p-4">
-             <Alert variant="destructive" className="max-w-md">
+             <Alert variant="destructive" className="max-w-xl break-words">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Erro ao Carregar Rastreamento</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>
+                    <p className="font-semibold">Por favor, envie o diagnóstico abaixo para o suporte:</p>
+                    <pre className="mt-2 w-full whitespace-pre-wrap rounded-md bg-secondary p-2 font-mono text-xs">
+                        {error}
+                    </pre>
+                </AlertDescription>
             </Alert>
         </div>
     );

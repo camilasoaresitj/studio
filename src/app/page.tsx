@@ -6,24 +6,19 @@ import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-
-type Evento = {
-  eventName: string;
-  location: string;
-  actualTime: string;
-};
+import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
+import type { TrackingEvent } from '@/ai/flows/get-tracking-info';
 
 type ApiResponse = {
     status: 'ready' | 'processing';
-    eventos: Evento[];
+    eventos: TrackingEvent[];
     message?: string;
     error?: string;
     detail?: any;
 }
 
 export default function MapaRastreamento() {
-  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [eventos, setEventos] = useState<TrackingEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -34,20 +29,16 @@ export default function MapaRastreamento() {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/tracking/${bookingNumber}`);
-            const data: ApiResponse = await res.json();
-
-            if (res.ok) {
-                setEventos(data.eventos);
-                 if (data.status === 'processing' && data.message) {
-                    toast({
-                        title: 'Rastreamento em Processamento',
-                        description: data.message,
-                    });
-                }
+            // Step 1: Detect Carrier (Simulated for this page)
+            const carrier = 'Maersk'; // Em um app real, isso seria detectado
+            
+            // Step 2: Get Tracking Info
+            const res = await runGetTrackingInfo({ trackingNumber: bookingNumber, carrier });
+            
+            if (res.success && res.data?.events) {
+                setEventos(res.data.events);
             } else {
-                 const errorDetail = typeof data.detail === 'object' ? JSON.stringify(data.detail) : data.detail;
-                 throw new Error(`Diagnóstico da API: ${data.error || 'Falha ao buscar dados'}. Detalhes: ${errorDetail}`);
+                 throw new Error(`Diagnóstico: ${res.error || 'Falha ao buscar dados'}.`);
             }
             
         } catch (err: any) {
@@ -83,7 +74,7 @@ export default function MapaRastreamento() {
     };
   }, [eventos]);
 
-  const initMap = async (eventos: Evento[]) => {
+  const initMap = async (eventos: TrackingEvent[]) => {
     if (typeof window === 'undefined' || !(window as any).google) return;
     
     const map = new (window as any).google.maps.Map(document.getElementById('map')!, {
@@ -105,11 +96,11 @@ export default function MapaRastreamento() {
         const marker = new (window as any).google.maps.Marker({
           map,
           position: coords,
-          title: ev.eventName
+          title: ev.status
         });
 
         const popup = new (window as any).google.maps.InfoWindow({
-          content: `<strong>${ev.eventName}</strong><br>${ev.location}<br><small>${new Date(ev.actualTime).toLocaleString()}</small>`
+          content: `<strong>${ev.status}</strong><br>${ev.location}<br><small>${new Date(ev.date).toLocaleString()}</small>`
         });
 
         marker.addListener('click', () => popup.open(map, marker));

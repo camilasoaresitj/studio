@@ -4,6 +4,12 @@ import { NextResponse } from 'next/server';
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 
+type Evento = {
+  eventName: string;
+  location: string;
+  actualTime: string;
+};
+
 export async function GET(req: Request, { params }: { params: { booking: string } }) {
   const bookingNumber = params.booking;
   const url = new URL(req.url);
@@ -33,7 +39,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     if (res.ok) {
         data = await res.json();
     } else {
-        initialErrorText = await res.text(); // Read the error body only once
+        initialErrorText = await res.text(); // Lê o corpo do erro apenas uma vez
     }
 
     const notFound = !res.ok || (Array.isArray(data) && data.length === 0);
@@ -58,14 +64,20 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         })
       });
 
+      // Leitura segura do body (evita erro "Body is unusable")
       if (!createRes.ok) {
+        const errorRaw = await createRes.text(); // consome o corpo como texto
         let errorBody;
         try {
-          errorBody = await createRes.json();
+            errorBody = JSON.parse(errorRaw); // tenta interpretar como JSON
         } catch {
-          errorBody = await createRes.text();
+            errorBody = errorRaw; // se não for JSON, usa como string mesmo
         }
-        return NextResponse.json({ error: 'Erro ao registrar o embarque na Cargo-flows.', detail: errorBody }, { status: createRes.status });
+
+        return NextResponse.json({
+            error: 'Erro ao registrar o embarque na Cargo-flows.',
+            detail: errorBody
+        }, { status: createRes.status });
       }
 
       // Aguardar processamento
@@ -88,7 +100,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     } else if (notFound && skipCreate) {
         return NextResponse.json({
             error: 'Erro ao buscar shipment na Cargo-flows.',
-            detail: initialErrorText // Use the error text read earlier
+            detail: initialErrorText // Usa o texto de erro lido anteriormente
         }, { status: res.status });
     }
     
@@ -105,7 +117,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }, { status: 202 });
     }
 
-    const eventos = data.flatMap((shipment: any) =>
+    const eventos: Evento[] = (data || []).flatMap((shipment: any) =>
       (shipment.shipmentEvents || []).map((ev: any) => ({
         eventName: ev.name,
         location: ev.location,

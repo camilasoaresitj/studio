@@ -34,6 +34,7 @@ export default function MapaRastreamento() {
   const mapInstance = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const [mapError, setMapError] = useState<string | null>(null);
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   const carregarRastreamento = async () => {
     if (!bookingNumber.trim()) {
@@ -98,58 +99,47 @@ export default function MapaRastreamento() {
     }
   };
   
-  useEffect(() => {
-    const initMap = async () => {
+  const initMap = async () => {
+      if (!mapRef.current) return;
       try {
-        if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-          throw new Error('A chave da API de Mapas não está configurada no ambiente frontend. Verifique o arquivo .env.local');
-        }
-        
-        if (window.google?.maps) {
-          // Map is already loaded
-        } else {
-            const scriptId = 'google-maps-script';
-            if (!document.getElementById(scriptId)) {
-                const script = document.createElement('script');
-                script.id = scriptId;
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=marker`;
-                script.async = true;
-                script.defer = true;
-                document.head.appendChild(script);
-                await new Promise<void>((resolve, reject) => {
-                    script.onload = () => resolve();
-                    script.onerror = (e) => reject(new Error('Falha ao carregar o script do Google Maps'));
-                });
-            }
-        }
-
-        const mapElement = mapRef.current;
-        if (!mapElement) {
-          throw new Error('Elemento do mapa não encontrado no DOM');
-        }
-        if (mapInstance.current) return;
-
-        const { Map } = await window.google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-
-        mapInstance.current = new Map(mapElement, {
+        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+        mapInstance.current = new Map(mapRef.current, {
           center: { lat: 0, lng: -30 },
           zoom: 2,
           mapId: 'CARGA_INTELIGENTE_MAP',
         });
-
-      } catch (error) {
-        console.error('Erro no mapa:', error);
-        setMapError(error instanceof Error ? error.message : 'Erro desconhecido ao carregar o mapa');
+      } catch (e) {
+        console.error("Error initializing map:", e);
+        setMapError("Falha ao carregar o mapa.");
       }
-    };
-
-    initMap();
-
-  }, []);
+  };
+  
+  // Effect to load the Google Maps script
+  useEffect(() => {
+    const scriptId = 'google-maps-script';
+    if (document.getElementById(scriptId) || window.google?.maps) {
+        initMap();
+        return;
+    }
+    
+    if (!googleMapsApiKey) {
+        setMapError("A chave da API de Mapas não está configurada.");
+        console.error("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set in the environment variables.");
+        return;
+    }
+    
+    const script = document.createElement('script');
+    script.id = scriptId;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=maps,marker&v=beta`;
+    script.async = true;
+    script.onload = initMap;
+    script.onerror = () => setMapError("Falha ao carregar o script do Google Maps.");
+    document.body.appendChild(script);
+  }, [googleMapsApiKey]);
   
    // Effect to update markers when 'eventos' change
    useEffect(() => {
-    if (!mapInstance.current || eventos.length === 0 || typeof window.google?.maps?.importLibrary !== 'function') return;
+    if (!mapInstance.current || eventos.length === 0 || !googleMapsApiKey || !window.google?.maps?.importLibrary) return;
 
     // Clear existing markers
     markersRef.current.forEach(marker => marker.map = null);
@@ -159,15 +149,14 @@ export default function MapaRastreamento() {
     let markersCreated = 0;
 
     const addMarkers = async () => {
-      const { AdvancedMarkerElement } = await window.google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
-      const { InfoWindow } = await window.google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+      const { AdvancedMarkerElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
+      const { InfoWindow } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
 
       for (const ev of eventos) {
         if (!ev.location || ev.location.toLowerCase() === 'n/a' || ev.location.toLowerCase().includes('aguardando')) continue;
         
         try {
-          // Geocoding is expensive, in a real app, cache results or get lat/lng from backend
-          const geoRes = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(ev.location)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`);
+          const geoRes = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(ev.location)}&key=${googleMapsApiKey}`);
           const geo = await geoRes.json();
           const coords = geo.results?.[0]?.geometry?.location;
           
@@ -204,7 +193,7 @@ export default function MapaRastreamento() {
     };
     
     addMarkers();
-   }, [eventos]);
+   }, [eventos, googleMapsApiKey]);
 
 
   return (
@@ -226,7 +215,7 @@ export default function MapaRastreamento() {
             {status === 'loading' ? 'Carregando...' : 'Atualizar Rastreamento'}
           </button>
         </div>
-        <Link href="/gerencial" passHref>
+        <Link href="/comercial" passHref>
           <button className="bg-gray-200 text-gray-800 px-4 py-2 rounded">
             Acessar Sistema
           </button>

@@ -12,6 +12,8 @@ import { getFees, saveFees, type Fee } from '@/lib/fees-data';
 import { Button } from '@/components/ui/button';
 import { List } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { MainHeader } from '@/components/layout/main-header';
+import { MainSidebar, SidebarProvider } from '@/components/layout/main-sidebar';
 
 export default function ComercialPage() {
     const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -84,60 +86,66 @@ export default function ComercialPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-8">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center">
-                <div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-foreground">Módulo Comercial</h1>
-                    <p className="text-muted-foreground mt-2 text-lg">
-                       {view === 'form' ? 'Crie, busque e gerencie cotações de frete.' : 'Gerencie e acompanhe o status de todas as suas propostas.'}
-                    </p>
-                </div>
-                <Button variant="outline" onClick={() => setView(view === 'form' ? 'list' : 'form')}>
-                    <List className="mr-2 h-4 w-4" />
-                    {view === 'form' ? 'Ver Lista de Cotações' : 'Voltar para Cotação'}
-                </Button>
-            </header>
+        <SidebarProvider>
+            <MainSidebar />
+            <div className="flex flex-col flex-1">
+                <MainHeader />
+                <main className="flex-1 p-4 md:p-8 space-y-8">
+                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center">
+                        <div>
+                            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Módulo Comercial</h1>
+                            <p className="text-muted-foreground mt-2 text-lg">
+                               {view === 'form' ? 'Crie, busque e gerencie cotações de frete.' : 'Gerencie e acompanhe o status de todas as suas propostas.'}
+                            </p>
+                        </div>
+                        <Button variant="outline" onClick={() => setView(view === 'form' ? 'list' : 'form')}>
+                            <List className="mr-2 h-4 w-4" />
+                            {view === 'form' ? 'Ver Lista de Cotações' : 'Voltar para Cotação'}
+                        </Button>
+                    </header>
 
-            {view === 'form' ? (
-                 <Tabs defaultValue="quote">
-                    <TabsList>
-                        <TabsTrigger value="quote">Cotação</TabsTrigger>
-                        <TabsTrigger value="rates">Tabela de Tarifas</TabsTrigger>
-                        <TabsTrigger value="import">Importador de Tarifas</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="quote" className="mt-6">
-                        <FreightQuoteForm 
-                            onQuoteCreated={handleQuoteCreated} 
+                    {view === 'form' ? (
+                         <Tabs defaultValue="quote">
+                            <TabsList>
+                                <TabsTrigger value="quote">Cotação</TabsTrigger>
+                                <TabsTrigger value="rates">Tabela de Tarifas</TabsTrigger>
+                                <TabsTrigger value="import">Importador de Tarifas</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="quote" className="mt-6">
+                                <FreightQuoteForm 
+                                    onQuoteCreated={handleQuoteCreated} 
+                                    partners={partners}
+                                    onRegisterCustomer={() => {}}
+                                    rates={rates}
+                                    fees={fees}
+                                    initialData={quoteToEdit || quoteToClone}
+                                    onQuoteUpdate={handleQuoteUpdate}
+                                />
+                            </TabsContent>
+                            <TabsContent value="rates" className="mt-6">
+                                <RatesTable rates={rates} onRatesChange={handleRatesChange} onSelectRate={() => {}} />
+                            </TabsContent>
+                            <TabsContent value="import" className="mt-6">
+                                <RateImporter onRatesImported={(newRates) => setRates(prev => [...prev, ...newRates])} />
+                            </TabsContent>
+                        </Tabs>
+                    ) : (
+                        <CustomerQuotesList 
+                            quotes={quotes}
                             partners={partners}
-                            onRegisterCustomer={() => {}}
-                            rates={rates}
-                            fees={fees}
-                            initialData={quoteToEdit || quoteToClone}
+                            onPartnerSaved={handlePartnerSaved}
                             onQuoteUpdate={handleQuoteUpdate}
+                            onClose={() => setView('form')}
+                            onEditQuote={(quote) => {
+                                setQuoteToDetail(quote);
+                            }}
+                            onCloneQuote={setQuoteToClone}
+                            quoteToDetail={quoteToDetail}
+                            setQuoteToDetail={setQuoteToDetail}
                         />
-                    </TabsContent>
-                    <TabsContent value="rates" className="mt-6">
-                        <RatesTable rates={rates} onRatesChange={handleRatesChange} onSelectRate={() => {}} />
-                    </TabsContent>
-                    <TabsContent value="import" className="mt-6">
-                        <RateImporter onRatesImported={(newRates) => setRates(prev => [...prev, ...newRates])} />
-                    </TabsContent>
-                </Tabs>
-            ) : (
-                <CustomerQuotesList 
-                    quotes={quotes}
-                    partners={partners}
-                    onPartnerSaved={handlePartnerSaved}
-                    onQuoteUpdate={handleQuoteUpdate}
-                    onClose={() => setView('form')}
-                    onEditQuote={(quote) => {
-                        setQuoteToDetail(quote);
-                    }}
-                    onCloneQuote={setQuoteToClone}
-                    quoteToDetail={quoteToDetail}
-                    setQuoteToDetail={setQuoteToDetail}
-                />
-            )}
-        </div>
+                    )}
+                </main>
+            </div>
+        </SidebarProvider>
     );
 }

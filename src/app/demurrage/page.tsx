@@ -20,6 +20,8 @@ import { DemurrageTariff, getDemurrageTariffs } from '@/lib/demurrage-tariffs-da
 import { LtiTariff, getLtiTariffs } from '@/lib/lti-tariffs-data';
 import { differenceInDays, addDays, isPast } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { MainHeader } from '@/components/layout/main-header';
+import { MainSidebar, SidebarProvider } from '@/components/layout/main-sidebar';
 
 
 export interface DemurrageItem {
@@ -184,56 +186,62 @@ export default function DemurragePage() {
 
 
     return (
-        <div className="p-4 md:p-8 space-y-8">
-            <header>
-                <h1 className="text-3xl md:text-4xl font-bold text-foreground">Controle de Demurrage & Detention</h1>
-                <p className="text-muted-foreground mt-2 text-lg">
-                    Monitore os prazos de devolução de contêineres e gerencie cobranças.
-                </p>
-            </header>
+        <SidebarProvider>
+            <MainSidebar />
+            <div className="flex flex-col flex-1">
+                <MainHeader />
+                <main className="flex-1 p-4 md:p-8 space-y-8">
+                    <header>
+                        <h1 className="text-3xl md:text-4xl font-bold text-foreground">Controle de Demurrage & Detention</h1>
+                        <p className="text-muted-foreground mt-2 text-lg">
+                            Monitore os prazos de devolução de contêineres e gerencie cobranças.
+                        </p>
+                    </header>
 
-            <Tabs defaultValue="overdue" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="overdue">
-                        <AlertTriangle className="mr-2 h-4 w-4"/>
-                        Vencidos ({overdueItems.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="at_risk">
-                        <CalendarCheck2 className="mr-2 h-4 w-4"/>
-                        Em Risco ({atRiskItems.length})
-                    </TabsTrigger>
-                </TabsList>
-                <TabsContent value="overdue" className="mt-6">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Contêineres Vencidos</CardTitle>
-                            <CardDescription>Estes contêineres já excederam o prazo de free time e estão gerando custos.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {renderItemsTable(overdueItems)}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-                <TabsContent value="at_risk" className="mt-6">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Contêineres em Risco</CardTitle>
-                            <CardDescription>Estes contêineres estão próximos do vencimento do free time. Acompanhe de perto.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {renderItemsTable(atRiskItems)}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-            
-            <DemurrageDetailsDialog 
-                isOpen={!!selectedItem}
-                onClose={() => setSelectedItem(null)}
-                item={selectedItem}
-                costTariffs={costTariffs}
-                saleTariffs={saleTariffs}
-            />
-        </div>
+                    <Tabs defaultValue="overdue" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="overdue">
+                                <AlertTriangle className="mr-2 h-4 w-4"/>
+                                Vencidos ({overdueItems.length})
+                            </TabsTrigger>
+                            <TabsTrigger value="at_risk">
+                                <CalendarCheck2 className="mr-2 h-4 w-4"/>
+                                Em Risco ({atRiskItems.length})
+                            </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="overdue" className="mt-6">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Contêineres Vencidos</CardTitle>
+                                    <CardDescription>Estes contêineres já excederam o prazo de free time e estão gerando custos.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {renderItemsTable(overdueItems)}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                        <TabsContent value="at_risk" className="mt-6">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Contêineres em Risco</CardTitle>
+                                    <CardDescription>Estes contêineres estão próximos do vencimento do free time. Acompanhe de perto.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {renderItemsTable(atRiskItems)}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
+                    
+                    <DemurrageDetailsDialog 
+                        isOpen={!!selectedItem}
+                        onClose={() => setSelectedItem(null)}
+                        item={selectedItem}
+                        costTariffs={costTariffs}
+                        saleTariffs={saleTariffs}
+                    />
+                </main>
+            </div>
+        </SidebarProvider>
     );
 }

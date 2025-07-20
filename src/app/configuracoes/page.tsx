@@ -16,6 +16,8 @@ import { ProfitSettings } from '@/components/profit-settings';
 import { ShipRegistry } from '@/components/settings/ship-registry';
 import { getFees, saveFees, type Fee } from '@/lib/fees-data';
 import { getPartners, savePartners, type Partner } from '@/lib/partners-data';
+import { MainHeader } from '@/components/layout/main-header';
+import { MainSidebar, SidebarProvider } from '@/components/layout/main-sidebar';
 
 export default function ConfiguracoesPage() {
     const [fees, setFees] = useState<Fee[]>(getFees);
@@ -48,97 +50,103 @@ export default function ConfiguracoesPage() {
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-8">
-            <header>
-                <h1 className="text-3xl md:text-4xl font-bold text-foreground">Configurações do Sistema</h1>
-                <p className="text-muted-foreground mt-2 text-lg">
-                    Gerencie os dados e parâmetros do sistema.
-                </p>
-            </header>
+        <SidebarProvider>
+            <MainSidebar />
+            <div className="flex flex-col flex-1">
+                <MainHeader />
+                <main className="flex-1 p-4 md:p-8 space-y-8">
+                    <header>
+                        <h1 className="text-3xl md:text-4xl font-bold text-foreground">Configurações do Sistema</h1>
+                        <p className="text-muted-foreground mt-2 text-lg">
+                            Gerencie os dados e parâmetros do sistema.
+                        </p>
+                    </header>
 
-            <Tabs defaultValue="empresa" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 lg:grid-cols-7">
-                    <TabsTrigger value="empresa">Empresa</TabsTrigger>
-                    <TabsTrigger value="parceiros">Parceiros</TabsTrigger>
-                    <TabsTrigger value="taxas">Taxas Padrão</TabsTrigger>
-                    <TabsTrigger value="demurrage">Demurrage</TabsTrigger>
-                    <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-                    <TabsTrigger value="integracoes">Integrações</TabsTrigger>
-                    <TabsTrigger value="certificados">Certificados</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="empresa" className="mt-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Dados da Empresa</CardTitle>
-                            <CardDescription>
-                                Configure as informações da sua empresa que aparecerão nos documentos.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <CompanySettingsForm />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                    <Tabs defaultValue="empresa" className="w-full">
+                        <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 lg:grid-cols-7">
+                            <TabsTrigger value="empresa">Empresa</TabsTrigger>
+                            <TabsTrigger value="parceiros">Parceiros</TabsTrigger>
+                            <TabsTrigger value="taxas">Taxas Padrão</TabsTrigger>
+                            <TabsTrigger value="demurrage">Demurrage</TabsTrigger>
+                            <TabsTrigger value="usuarios">Usuários</TabsTrigger>
+                            <TabsTrigger value="integracoes">Integrações</TabsTrigger>
+                            <TabsTrigger value="certificados">Certificados</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="empresa" className="mt-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Dados da Empresa</CardTitle>
+                                    <CardDescription>
+                                        Configure as informações da sua empresa que aparecerão nos documentos.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <CompanySettingsForm />
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
 
-                <TabsContent value="parceiros" className="mt-6">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Cadastro de Parceiros</CardTitle>
-                            <CardDescription>
-                                Gerencie seus clientes, fornecedores, agentes e comissionados.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <PartnersRegistry partners={partners} onPartnerSaved={handlePartnerSaved} />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                        <TabsContent value="parceiros" className="mt-6">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Cadastro de Parceiros</CardTitle>
+                                    <CardDescription>
+                                        Gerencie seus clientes, fornecedores, agentes e comissionados.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <PartnersRegistry partners={partners} onPartnerSaved={handlePartnerSaved} />
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
 
-                <TabsContent value="taxas" className="mt-6 space-y-6">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Taxas e Configurações de Lucro</CardTitle>
-                             <CardDescription>
-                                Defina taxas padrão para cotações e a margem de lucro para o portal do cliente.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <FeesRegistry fees={fees} onSave={handleFeeSave} />
-                            <div className="mt-8">
-                                <ProfitSettings />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                        <TabsContent value="taxas" className="mt-6 space-y-6">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Taxas e Configurações de Lucro</CardTitle>
+                                     <CardDescription>
+                                        Defina taxas padrão para cotações e a margem de lucro para o portal do cliente.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <FeesRegistry fees={fees} onSave={handleFeeSave} />
+                                    <div className="mt-8">
+                                        <ProfitSettings />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
 
-                <TabsContent value="demurrage" className="mt-6 space-y-6">
-                    <DemurrageTariffRegistry />
-                    <LtiTariffRegistry />
-                </TabsContent>
-                
-                <TabsContent value="usuarios" className="mt-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Gerenciamento de Usuários</CardTitle>
-                            <CardDescription>
-                                Adicione, edite e gerencie as permissões dos usuários do sistema.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <UserManagementTable />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                        <TabsContent value="demurrage" className="mt-6 space-y-6">
+                            <DemurrageTariffRegistry />
+                            <LtiTariffRegistry />
+                        </TabsContent>
+                        
+                        <TabsContent value="usuarios" className="mt-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Gerenciamento de Usuários</CardTitle>
+                                    <CardDescription>
+                                        Adicione, edite e gerencie as permissões dos usuários do sistema.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <UserManagementTable />
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
 
-                <TabsContent value="integracoes" className="mt-6">
-                    <IntegrationsSettings />
-                </TabsContent>
-                
-                <TabsContent value="certificados" className="mt-6">
-                    <CertificateSettings />
-                </TabsContent>
-            </Tabs>
-        </div>
+                        <TabsContent value="integracoes" className="mt-6">
+                            <IntegrationsSettings />
+                        </TabsContent>
+                        
+                        <TabsContent value="certificados" className="mt-6">
+                            <CertificateSettings />
+                        </TabsContent>
+                    </Tabs>
+                </main>
+            </div>
+        </SidebarProvider>
     );
 }

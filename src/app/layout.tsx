@@ -1,5 +1,14 @@
-
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+import { Toaster } from '@/components/ui/toaster'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'CargaInteligente',
+  description: 'Sistema de Gestão para Comércio Exterior',
+}
 
 export default function RootLayout({
   children,
@@ -8,10 +17,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body>
-        <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
-          {children}
-        </div>
+      <body className={inter.className}>
+        {children}
+        <Toaster />
       </body>
     </html>
   )

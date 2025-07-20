@@ -1,13 +1,16 @@
+
 'use client';
 
 import { ShipmentsChart } from '@/components/shipments-chart';
 import { ImportantTasks } from '@/components/important-tasks';
 import { RecentShipments } from '@/components/recent-shipments';
 import { ApprovalsPanel } from '@/components/approvals-panel';
+import AppLayout from '@/app/gerencial/layout';
 
 export function GerencialPage() {
 
   return (
+      <AppLayout>
         <div className="space-y-8">
             <header>
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground">Dashboard Gerencial</h1>
@@ -26,5 +29,6 @@ export function GerencialPage() {
                 </div>
             </div>
         </div>
+      </AppLayout>
   );
 }

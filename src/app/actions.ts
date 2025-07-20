@@ -195,16 +195,6 @@ export async function runDetectCarrier(trackingNumber: string) {
     }
 }
 
-export async function runGetCourierStatus(input: any) {
-    try {
-        const data = await getCourierStatus(input);
-        return { success: true, data };
-    } catch (error: any) {
-        console.error("Courier Status Fetch Failed", error);
-        return { success: false, error: error.message || "Failed to fetch courier status" };
-    }
-}
-
 export async function runExtractPartnerInfo(textInput: string) {
   try {
     const data = await extractPartnerInfo({ textInput });

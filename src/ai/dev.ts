@@ -13,12 +13,11 @@ import { googleAI } from '@genkit-ai/googleai';
 export default genkit({
   plugins: [
     googleAI({
-      apiKey: process.env.GEMINI_API_KEY || '',
       project: 'cargainteligente-lxhac',
-      location: 'us-central1', // Correct location
+      location: 'us-central1',
     }),
   ],
-  model: 'gemini-2.0-flash-001', // Correct model
+  model: 'gemini-2.0-flash-001',
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });

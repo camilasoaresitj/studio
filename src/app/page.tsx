@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { runDetectCarrier } from '@/app/actions';
 import { findCarrierByName } from '@/lib/carrier-data';
 
@@ -29,6 +29,9 @@ export default function MapaRastreamento() {
   const [mensagem, setMensagem] = useState<string>('');
   const [diagnostico, setDiagnostico] = useState<string>('');
   const [bookingNumber, setBookingNumber] = useState<string>('254285462');
+  const mapRef = useRef<HTMLElement | null>(null);
+  const mapInstance = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
 
   const carregarRastreamento = async () => {
     if (!bookingNumber.trim()) {
@@ -92,80 +95,97 @@ export default function MapaRastreamento() {
       setDiagnostico('Verifique a conexão de rede ou o console do navegador para mais detalhes.');
     }
   };
-
+  
+  const initMap = async () => {
+      if (!mapRef.current) return;
+      try {
+        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+        mapInstance.current = new Map(mapRef.current, {
+          center: { lat: 0, lng: -30 },
+          zoom: 2,
+          mapId: 'CARGA_INTELIGENTE_MAP',
+        });
+      } catch (e) {
+        console.error("Error initializing map:", e);
+        setStatus('error');
+        setMensagem("Falha ao carregar o mapa.");
+      }
+  };
+  
+  // Effect to load the Google Maps script
   useEffect(() => {
-    if (eventos.length === 0 || typeof window === 'undefined' || !(window as any).google) return;
-
     const scriptId = 'google-maps-script';
-    // Remove existing script if it's there to avoid conflicts
-    const existingScript = document.getElementById(scriptId);
-    if (existingScript) {
-      existingScript.remove();
+    if (document.getElementById(scriptId)) {
+        initMap();
+        return;
     }
     
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}&callback=initMap`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=maps,marker&v=beta`;
     script.async = true;
-    
-    (window as any).initMap = () => initMap(eventos);
-    
+    script.onload = initMap;
     document.head.appendChild(script);
+  }, []);
+  
+   // Effect to update markers when 'eventos' change
+   useEffect(() => {
+    if (!mapInstance.current || eventos.length === 0) return;
 
-    return () => {
-      const scriptElement = document.getElementById(scriptId);
-      if (scriptElement) {
-        scriptElement.remove();
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.map = null);
+    markersRef.current = [];
+    
+    const bounds = new google.maps.LatLngBounds();
+    let markersCreated = 0;
+
+    const addMarkers = async () => {
+      const { AdvancedMarkerElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
+      const { InfoWindow } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+
+      for (const ev of eventos) {
+        if (!ev.location || ev.location.toLowerCase() === 'n/a' || ev.location.toLowerCase().includes('aguardando')) continue;
+        
+        try {
+          const geoRes = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(ev.location)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`);
+          const geo = await geoRes.json();
+          const coords = geo.results?.[0]?.geometry?.location;
+          
+          if (coords) {
+            markersCreated++;
+            bounds.extend(coords);
+
+            const marker = new AdvancedMarkerElement({
+              map: mapInstance.current,
+              position: coords,
+              title: ev.eventName,
+            });
+            markersRef.current.push(marker);
+            
+            const infoWindow = new InfoWindow({
+                content: `<strong>${ev.eventName}</strong><br>${ev.location}<br><small>${new Date(ev.actualTime).toLocaleString()}</small>`
+            });
+            
+            marker.addListener('gmp-click', () => infoWindow.open({map: mapInstance.current, anchor: marker}));
+          }
+        } catch (err) {
+          console.error("Geocoding or marker creation failed for", ev, err);
+        }
       }
-      if ((window as any).initMap) {
-        delete (window as any).initMap;
+
+      if (mapInstance.current && markersCreated > 0) {
+        if (markersCreated === 1) {
+            mapInstance.current.setCenter(bounds.getCenter());
+            mapInstance.current.setZoom(5);
+        } else {
+            mapInstance.current.fitBounds(bounds);
+        }
       }
     };
-  }, [eventos]);
-
-  const initMap = async (eventos: Evento[]) => {
-    if (typeof window === 'undefined' || !(window as any).google || !document.getElementById('map')) return;
     
-    try {
-        const { Map } = await (window as any).google.maps.importLibrary("maps");
-        const { AdvancedMarkerElement } = await (window as any).google.maps.importLibrary("marker");
+    addMarkers();
+   }, [eventos]);
 
-        const map = new Map(document.getElementById('map')!, {
-            zoom: 2,
-            center: { lat: 0, lng: -30 },
-            mapId: 'CARGA_INTELIGENTE_MAP'
-        });
-
-        for (const ev of eventos) {
-            if (!ev.location || ev.location.toLowerCase() === 'n/a' || ev.location.toLowerCase().includes('aguardando')) continue;
-
-            try {
-                const geoRes = await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(ev.location)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}`
-                );
-                const geo = await geoRes.json();
-                const coords = geo.results?.[0]?.geometry?.location;
-                if (!coords) continue;
-
-                const marker = new AdvancedMarkerElement({
-                    map,
-                    position: coords,
-                    title: ev.eventName
-                });
-
-                const popup = new (window as any).google.maps.InfoWindow({
-                    content: `<strong>${ev.eventName}</strong><br>${ev.location}<br><small>${new Date(ev.actualTime).toLocaleString()}</small>`
-                });
-
-                marker.addListener('gmp-click', () => popup.open(map, marker));
-            } catch (err) {
-                console.error("Geocoding or marker creation failed for", ev, err);
-            }
-        }
-    } catch (e) {
-        console.error("Error loading Google Maps libraries:", e);
-    }
-  };
 
   return (
     <div className="w-full h-screen flex flex-col">
@@ -199,7 +219,7 @@ export default function MapaRastreamento() {
         </div>
       )}
 
-      <div id="map" className="w-full flex-1 bg-gray-200" />
+      <div id="map" ref={mapRef} className="w-full flex-1 bg-gray-200" />
     </div>
   );
 }

@@ -17,7 +17,7 @@ import {
   Mail
 } from 'lucide-react';
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import {
   Sidebar,
   SidebarContent,
@@ -26,7 +26,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
-  SidebarTrigger,
   SidebarProvider as ActualSidebarProvider,
 } from '@/components/ui/sidebar';
 import { GlobalChat } from '../global-chat';

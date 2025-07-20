@@ -88,9 +88,11 @@ const statusTranslations: { [key: string]: string } = {
     "booking accepted": "Booking Aceito",
     "container assigned": "Contêiner Designado",
     "pickup from shipper": "Coleta no Exportador",
+    "empty container gate out": "Retirada do Vazio (Gate Out)",
     "gate in": "Gate In (Entrada no Porto)",
     "container gated in": "Container Entregue no Porto (Gate In)",
     "loaded on vessel": "Embarcado no Navio",
+    "load on vessel": "Embarcado no Navio",
     "vessel departure": "Partida do Navio",
     "vessel arrival": "Chegada do Navio",
     "discharged": "Descarregado no Destino",
@@ -99,7 +101,6 @@ const statusTranslations: { [key: string]: string } = {
     "delivered": "Entregue",
     "empty container returned": "Devolução do Vazio",
     "transshipment": "Transbordo",
-    // Add other common statuses as needed
 };
 
 const translateStatus = (status: string): string => {
@@ -123,14 +124,14 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
 
   // Use the first shipment as the base for overall details
   const primaryShipment = shipments[0];
-  const allEvents: TrackingEvent[] = [];
-  const allContainers: ContainerDetail[] = [];
+  const allEventsMap = new Map<string, TrackingEvent>();
+  const allContainers = new Map<string, ContainerDetail>();
   const allTransshipments = new Map<string, TransshipmentDetail>();
 
   shipments.forEach(shipment => {
-    // Collect all containers
-    if (shipment.containerNumber) {
-      allContainers.push({
+    // Collect all containers, avoiding duplicates
+    if (shipment.containerNumber && !allContainers.has(shipment.containerNumber)) {
+      allContainers.set(shipment.containerNumber, {
         id: shipment.containerNumber,
         number: shipment.containerNumber,
         seal: shipment.containerSealNumber || 'N/A',
@@ -140,13 +141,16 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
       });
     }
 
-    // Collect all events, avoiding duplicates
+    // Collect all events, avoiding duplicates with a more robust key
     (shipment.shipmentEvents || []).forEach((event: any) => {
-      const eventKey = `${event.name}-${event.location}-${event.actualTime || event.estimateTime}`;
-      if (!allEvents.some(e => `${e.status}-${e.location}-${e.date}` === eventKey)) {
-        allEvents.push({
-          status: translateStatus(event.name || 'N/A'),
-          date: event.actualTime || event.estimateTime,
+      const translatedStatus = translateStatus(event.name || 'N/A');
+      const eventDate = event.actualTime || event.estimateTime;
+      const eventKey = `${translatedStatus}-${event.location}-${eventDate}`;
+      
+      if (!allEventsMap.has(eventKey)) {
+        allEventsMap.set(eventKey, {
+          status: translatedStatus,
+          date: eventDate,
           location: event.location || 'N/A',
           completed: !!event.actualTime,
           carrier: carrierName,
@@ -176,6 +180,7 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
     }
   });
 
+  const allEvents = Array.from(allEventsMap.values());
   // Sort events chronologically
   allEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -195,7 +200,7 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
       eta: mainLeg.dischargePortEta || mainLeg.ata ? new Date(mainLeg.dischargePortEta || mainLeg.ata) : undefined,
       masterBillNumber: primaryShipment.mblNumber,
       bookingNumber: primaryShipment.bookingNumber,
-      containers: allContainers,
+      containers: Array.from(allContainers.values()),
       transshipments: Array.from(allTransshipments.values()),
       milestones: allEvents.map((event: TrackingEvent): Milestone => ({
           name: event.status,
@@ -210,7 +215,7 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
   return {
     status: lastCompletedEvent?.status || 'Pendente',
     events: allEvents,
-    containers: allContainers,
+    containers: Array.from(allContainers.values()),
     shipmentDetails: shipmentDetails,
   };
 };

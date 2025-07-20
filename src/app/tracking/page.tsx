@@ -1,10 +1,12 @@
-import MapComponent from '@/components/MapComponent';
-
+// src/app/tracking/page.tsx
 export default function TrackingPage() {
   return (
-    <main className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Rastreamento de Carga</h1>
-      <MapComponent />
-    </main>
-  );
+    <div className="p-4">
+      <h1 className="text-2xl font-bold">Rastreamento</h1>
+      <p className="mt-2">Página de rastreamento básica</p>
+      <a href="/" className="text-blue-600 mt-4 inline-block">
+        Voltar para início
+      </a>
+    </div>
+  )
 }

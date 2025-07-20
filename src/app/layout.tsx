@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { MainSidebar, SidebarProvider } from '@/components/layout/main-sidebar';
+import { MainHeader } from '@/components/layout/main-header';
 
 export const metadata: Metadata = {
   title: 'CargaInteligente',
@@ -24,9 +25,12 @@ export default function RootLayout({
         <div className="flex h-screen bg-gray-50 dark:bg-zinc-900">
             <SidebarProvider>
                 <MainSidebar />
-                <main className="flex-1 flex flex-col overflow-hidden">
-                    {children}
-                </main>
+                <div className="flex flex-col flex-1 overflow-hidden">
+                    <MainHeader />
+                    <main className="flex-1 overflow-y-auto p-4 md:p-8">
+                      {children}
+                    </main>
+                </div>
             </SidebarProvider>
         </div>
         <Toaster />

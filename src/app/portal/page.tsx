@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -162,7 +161,7 @@ export default function CustomerPortalPage() {
 
     return (
         <>
-        <div className="p-4 md:p-8 space-y-8">
+        <div className="space-y-8">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center">
                 <div>
                     <h1 className="text-3xl md:text-4xl font-bold text-foreground">Portal do Cliente</h1>

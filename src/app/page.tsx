@@ -1,4 +1,4 @@
-import { GerencialPage } from '@/components/gerencial-page';
+import GerencialPage from '@/app/gerencial/page';
 
 export default function Home() {
   return <GerencialPage />;

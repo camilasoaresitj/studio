@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -20,8 +19,6 @@ import { Shipment, getShipments, saveShipments } from '@/lib/shipment';
 import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
-import { MainHeader } from '@/components/layout/main-header';
-import { MainSidebar, SidebarProvider } from '@/components/layout/main-sidebar';
 
 export default function OperacionalPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -89,91 +86,85 @@ export default function OperacionalPage() {
   );
 
   return (
-    <SidebarProvider>
-      <MainSidebar />
-      <div className="flex flex-col flex-1">
-        <MainHeader />
-        <main className="flex-1 p-4 md:p-8 space-y-8">
-          <header>
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Módulo Operacional</h1>
-            <p className="text-muted-foreground mt-2 text-lg">
-              Gerencie todos os processos de embarque ativos.
-            </p>
-          </header>
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Processos de Embarque</CardTitle>
-                  <CardDescription>Visualize e gerencie todos os processos de importação e exportação.</CardDescription>
+    <div className="space-y-8">
+      <header>
+        <h1 className="text-3xl md:text-4xl font-bold text-foreground">Módulo Operacional</h1>
+        <p className="text-muted-foreground mt-2 text-lg">
+          Gerencie todos os processos de embarque ativos.
+        </p>
+      </header>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Processos de Embarque</CardTitle>
+              <CardDescription>Visualize e gerencie todos os processos de importação e exportação.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Buscar processo..." className="pl-8" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="relative">
-                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Buscar processo..." className="pl-8" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                    </div>
-                    <Button disabled>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Novo Processo
-                    </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Processo</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Modal</TableHead>
-                      <TableHead>Rota</TableHead>
-                      <TableHead>Master / AWB</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredShipments.map((shipment) => (
-                      <TableRow key={shipment.id} onClick={() => handleOpenSheet(shipment)} className="cursor-pointer">
-                        <TableCell className="font-medium text-primary">{shipment.id}</TableCell>
-                        <TableCell>{shipment.customer}</TableCell>
-                        <TableCell>{shipment.details.cargo.includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
-                        <TableCell>{shipment.origin} &rarr; {shipment.destination}</TableCell>
-                        <TableCell>{shipment.masterBillNumber}</TableCell>
-                        <TableCell>
-                          <Badge variant={getShipmentStatus(shipment).variant}>{getShipmentStatus(shipment).text}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                           <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleOpenSheet(shipment)}>
-                                  Ver/Editar Detalhes
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-           <ShipmentDetailsSheet 
-            shipment={selectedShipment}
-            partners={partners}
-            open={isSheetOpen}
-            onOpenChange={setIsSheetOpen}
-            onUpdate={handleUpdateShipment}
-          />
-        </main>
-      </div>
-    </SidebarProvider>
+                <Button disabled>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Novo Processo
+                </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Processo</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Modal</TableHead>
+                  <TableHead>Rota</TableHead>
+                  <TableHead>Master / AWB</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredShipments.map((shipment) => (
+                  <TableRow key={shipment.id} onClick={() => handleOpenSheet(shipment)} className="cursor-pointer">
+                    <TableCell className="font-medium text-primary">{shipment.id}</TableCell>
+                    <TableCell>{shipment.customer}</TableCell>
+                    <TableCell>{shipment.details.cargo.includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
+                    <TableCell>{shipment.origin} &rarr; {shipment.destination}</TableCell>
+                    <TableCell>{shipment.masterBillNumber}</TableCell>
+                    <TableCell>
+                      <Badge variant={getShipmentStatus(shipment).variant}>{getShipmentStatus(shipment).text}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleOpenSheet(shipment)}>
+                              Ver/Editar Detalhes
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+       <ShipmentDetailsSheet 
+        shipment={selectedShipment}
+        partners={partners}
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        onUpdate={handleUpdateShipment}
+      />
+    </div>
   );
 }

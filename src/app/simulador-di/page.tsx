@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
@@ -18,9 +17,6 @@ import { getPartners, Partner } from '@/lib/partners-data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { MainHeader } from '@/components/layout/main-header';
-import { MainSidebar, SidebarProvider } from '@/components/layout/main-sidebar';
-
 
 const ncmRateSchema = z.object({
   ncm: z.string(),
@@ -237,161 +233,155 @@ export default function SimuladorDIPage() {
     };
 
     return (
-        <SidebarProvider>
-            <MainSidebar />
-            <div className="flex flex-col flex-1">
-                <MainHeader />
-                <main className="flex-1 p-4 md:p-8 space-y-8">
-                    <header>
-                        <h1 className="text-3xl md:text-4xl font-bold text-foreground">Simulador de Custos de Importação (DI)</h1>
-                        <p className="text-muted-foreground mt-2 text-lg">
-                            Calcule os custos estimados de uma DI, incluindo impostos e despesas.
-                        </p>
-                    </header>
+        <div className="space-y-8">
+            <header>
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground">Simulador de Custos de Importação (DI)</h1>
+                <p className="text-muted-foreground mt-2 text-lg">
+                    Calcule os custos estimados de uma DI, incluindo impostos e despesas.
+                </p>
+            </header>
 
-                    <div className="grid lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2">
-                            <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                                    <Card>
-                                        <CardHeader><CardTitle>Informações Gerais</CardTitle></CardHeader>
-                                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                             <FormField control={form.control} name="simulationName" render={({ field }) => (<FormItem><FormLabel>Nome da Simulação</FormLabel><FormControl><Input placeholder="Simulação Eletrônicos" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                             <FormField control={form.control} name="customerName" render={({ field }) => (<FormItem><FormLabel>Cliente</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)}/>
-                                        </CardContent>
-                                    </Card>
-                                    <Card>
-                                        <CardHeader className="flex flex-row justify-between items-center">
-                                            <div>
-                                                <CardTitle>Itens da Fatura</CardTitle>
-                                                <CardDescription>Adicione os itens da sua fatura comercial.</CardDescription>
-                                            </div>
-                                            <Button type="button" variant="outline" onClick={() => (document.querySelector('#invoice-upload') as HTMLInputElement).click()}><FileUp className="mr-2 h-4 w-4" /> Importar de Fatura</Button>
-                                            <input type="file" id="invoice-upload" className="hidden" accept=".xlsx, .xls, .csv, .xml, .pdf, .jpg, .png" onChange={handleFileUpload} />
-                                        </CardHeader>
-                                        <CardContent className="space-y-2">
-                                            {fields.map((field, index) => (
-                                                <div key={field.id} className="grid grid-cols-12 gap-2 items-start p-2 border rounded-md">
-                                                    <FormField control={form.control} name={`itens.${index}.descricao`} render={({ field }) => (<FormItem className="col-span-12 md:col-span-3"><FormLabel>Descrição</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                                    <FormField control={form.control} name={`itens.${index}.ncm`} render={({ field }) => (<FormItem className="col-span-6 md:col-span-2"><FormLabel>NCM</FormLabel><div className="flex gap-1"><FormControl><Input maxLength={8} {...field} /></FormControl><Button type="button" size="icon" className="h-10 w-10" onClick={() => handleFetchNcmRates(index)} disabled={isLoading}><Calculator className="h-4 w-4"/></Button></div><FormMessage /></FormItem>)}/>
-                                                    <FormField control={form.control} name={`itens.${index}.quantidade`} render={({ field }) => (<FormItem className="col-span-6 md:col-span-1"><FormLabel>Qtde</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                                    <FormField control={form.control} name={`itens.${index}.valorUnitarioUSD`} render={({ field }) => (<FormItem className="col-span-6 md:col-span-2"><FormLabel>Valor Unit. (USD)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                                    <FormField control={form.control} name={`itens.${index}.pesoKg`} render={({ field }) => (<FormItem className="col-span-6 md:col-span-2"><FormLabel>Peso Unit. (Kg)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                                    <div className="col-span-12 md:col-span-1 flex items-end h-full">
-                                                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                                    </div>
-                                                    {watchedItens[index]?.taxRates && (
-                                                        <div className="col-span-12 mt-2 p-2 bg-secondary rounded-md text-xs space-x-4">
-                                                            <span><strong>II:</strong> {watchedItens[index].taxRates?.ii}%</span>
-                                                            <span><strong>IPI:</strong> {watchedItens[index].taxRates?.ipi}%</span>
-                                                            <span><strong>PIS:</strong> {watchedItens[index].taxRates?.pis}%</span>
-                                                            <span><strong>COFINS:</strong> {watchedItens[index].taxRates?.cofins}%</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            <Button type="button" variant="outline" size="sm" onClick={() => append({ descricao: '', ncm: '', quantidade: 1, valorUnitarioUSD: 0, pesoKg: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item</Button>
-                                        </CardContent>
-                                    </Card>
-                                     <Card>
-                                        <CardHeader><CardTitle>Custos e Despesas</CardTitle></CardHeader>
-                                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                             <FormField control={form.control} name="freightCostUSD" render={({ field }) => (<FormItem><FormLabel>Frete Internacional (USD)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                             <FormField control={form.control} name="insuranceCostUSD" render={({ field }) => (<FormItem><FormLabel>Seguro Internacional (USD)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                             <FormField control={form.control} name="exchangeRate" render={({ field }) => (<FormItem><FormLabel>Taxa de Câmbio (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                             <FormField control={form.control} name="thcValueBRL" render={({ field }) => (<FormItem><FormLabel>THC (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                             <FormField control={form.control} name="icmsRate" render={({ field }) => (<FormItem><FormLabel>Alíquota de ICMS (%)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                             <FormField control={form.control} name="otherExpensesBRL" render={({ field }) => (<FormItem><FormLabel>Outras Despesas (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                                        </CardContent>
-                                    </Card>
-                                    <Button type="submit" className="w-full text-lg py-6">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Calculator className="mr-2 h-4 w-4"/>} Calcular Custos</Button>
-                                </form>
-                            </Form>
-                        </div>
-                        
-                        <div className="space-y-6">
+            <div className="grid lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                             <Card>
-                                <CardHeader className="flex flex-row justify-between items-center">
-                                    <CardTitle>Histórico de Simulações</CardTitle>
-                                    <Button variant="ghost" size="sm" onClick={() => { setSimulations([]); saveSimulations([]); }}>Limpar Histórico</Button>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
-                                        {simulations.map(sim => (
-                                            <div key={sim.id} className="flex items-center justify-between p-2 border rounded-md">
-                                                <div>
-                                                    <p className="font-semibold">{sim.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{sim.customer} - {sim.createdAt.toLocaleDateString()}</p>
-                                                </div>
-                                                <Button variant="outline" size="sm" onClick={() => handleLoadSimulation(sim)}><Eye className="mr-2 h-4 w-4"/> Carregar</Button>
-                                            </div>
-                                        ))}
-                                        {simulations.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">Nenhuma simulação salva.</p>}
-                                    </div>
+                                <CardHeader><CardTitle>Informações Gerais</CardTitle></CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                     <FormField control={form.control} name="simulationName" render={({ field }) => (<FormItem><FormLabel>Nome da Simulação</FormLabel><FormControl><Input placeholder="Simulação Eletrônicos" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                     <FormField control={form.control} name="customerName" render={({ field }) => (<FormItem><FormLabel>Cliente</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)}/>
                                 </CardContent>
                             </Card>
-
-                            {result && (
-                                <Card className="animate-in fade-in-50 duration-500">
-                                     <CardHeader className="flex flex-row justify-between items-center">
+                            <Card>
+                                <CardHeader className="flex flex-row justify-between items-center">
+                                    <div>
+                                        <CardTitle>Itens da Fatura</CardTitle>
+                                        <CardDescription>Adicione os itens da sua fatura comercial.</CardDescription>
+                                    </div>
+                                    <Button type="button" variant="outline" onClick={() => (document.querySelector('#invoice-upload') as HTMLInputElement).click()}><FileUp className="mr-2 h-4 w-4" /> Importar de Fatura</Button>
+                                    <input type="file" id="invoice-upload" className="hidden" accept=".xlsx, .xls, .csv, .xml, .pdf, .jpg, .png" onChange={handleFileUpload} />
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                    {fields.map((field, index) => (
+                                        <div key={field.id} className="grid grid-cols-12 gap-2 items-start p-2 border rounded-md">
+                                            <FormField control={form.control} name={`itens.${index}.descricao`} render={({ field }) => (<FormItem className="col-span-12 md:col-span-3"><FormLabel>Descrição</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                            <FormField control={form.control} name={`itens.${index}.ncm`} render={({ field }) => (<FormItem className="col-span-6 md:col-span-2"><FormLabel>NCM</FormLabel><div className="flex gap-1"><FormControl><Input maxLength={8} {...field} /></FormControl><Button type="button" size="icon" className="h-10 w-10" onClick={() => handleFetchNcmRates(index)} disabled={isLoading}><Calculator className="h-4 w-4"/></Button></div><FormMessage /></FormItem>)}/>
+                                            <FormField control={form.control} name={`itens.${index}.quantidade`} render={({ field }) => (<FormItem className="col-span-6 md:col-span-1"><FormLabel>Qtde</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                            <FormField control={form.control} name={`itens.${index}.valorUnitarioUSD`} render={({ field }) => (<FormItem className="col-span-6 md:col-span-2"><FormLabel>Valor Unit. (USD)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                            <FormField control={form.control} name={`itens.${index}.pesoKg`} render={({ field }) => (<FormItem className="col-span-6 md:col-span-2"><FormLabel>Peso Unit. (Kg)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                            <div className="col-span-12 md:col-span-1 flex items-end h-full">
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                            </div>
+                                            {watchedItens[index]?.taxRates && (
+                                                <div className="col-span-12 mt-2 p-2 bg-secondary rounded-md text-xs space-x-4">
+                                                    <span><strong>II:</strong> {watchedItens[index].taxRates?.ii}%</span>
+                                                    <span><strong>IPI:</strong> {watchedItens[index].taxRates?.ipi}%</span>
+                                                    <span><strong>PIS:</strong> {watchedItens[index].taxRates?.pis}%</span>
+                                                    <span><strong>COFINS:</strong> {watchedItens[index].taxRates?.cofins}%</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <Button type="button" variant="outline" size="sm" onClick={() => append({ descricao: '', ncm: '', quantidade: 1, valorUnitarioUSD: 0, pesoKg: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item</Button>
+                                </CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader><CardTitle>Custos e Despesas</CardTitle></CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                     <FormField control={form.control} name="freightCostUSD" render={({ field }) => (<FormItem><FormLabel>Frete Internacional (USD)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                     <FormField control={form.control} name="insuranceCostUSD" render={({ field }) => (<FormItem><FormLabel>Seguro Internacional (USD)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                     <FormField control={form.control} name="exchangeRate" render={({ field }) => (<FormItem><FormLabel>Taxa de Câmbio (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                     <FormField control={form.control} name="thcValueBRL" render={({ field }) => (<FormItem><FormLabel>THC (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                     <FormField control={form.control} name="icmsRate" render={({ field }) => (<FormItem><FormLabel>Alíquota de ICMS (%)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                     <FormField control={form.control} name="otherExpensesBRL" render={({ field }) => (<FormItem><FormLabel>Outras Despesas (BRL)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                                </CardContent>
+                            </Card>
+                            <Button type="submit" className="w-full text-lg py-6">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Calculator className="mr-2 h-4 w-4"/>} Calcular Custos</Button>
+                        </form>
+                    </Form>
+                </div>
+                
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader className="flex flex-row justify-between items-center">
+                            <CardTitle>Histórico de Simulações</CardTitle>
+                            <Button variant="ghost" size="sm" onClick={() => { setSimulations([]); saveSimulations([]); }}>Limpar Histórico</Button>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+                                {simulations.map(sim => (
+                                    <div key={sim.id} className="flex items-center justify-between p-2 border rounded-md">
                                         <div>
-                                            <CardTitle>Resultado da Simulação</CardTitle>
-                                            <CardDescription>Custo total: <span className="font-bold text-primary">BRL {result.custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></CardDescription>
+                                            <p className="font-semibold">{sim.name}</p>
+                                            <p className="text-xs text-muted-foreground">{sim.customer} - {sim.createdAt.toLocaleDateString()}</p>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <Button variant="secondary" size="sm" onClick={handleSaveSimulation}><Save className="mr-2 h-4 w-4"/> Salvar</Button>
-                                            <Button variant="secondary" size="sm" onClick={handleShare}><Share2 className="mr-2 h-4 w-4"/> Compartilhar</Button>
-                                            <Button variant="outline" size="sm" onClick={handleGeneratePdf} disabled={isLoading}>{isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>} PDF</Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="max-h-96 overflow-y-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Item</TableHead>
-                                                    <TableHead className="text-right">Custo Unit. Final</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {result.itens.map(item => (
-                                                    <TableRow key={item.ncm}>
-                                                        <TableCell>{item.descricao}</TableCell>
-                                                        <TableCell className="text-right font-semibold">BRL {item.custoUnitarioFinal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </div>
-                    </div>
-                    
-                     <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Compartilhar Simulação</DialogTitle>
-                                <DialogDescription>
-                                    Envie um resumo da simulação para seu cliente via E-mail ou WhatsApp.
-                                </DialogDescription>
-                            </DialogHeader>
-                            {currentSimulationData && (
-                                <div className="py-4 space-y-2">
-                                    <p><strong>Simulação:</strong> {currentSimulationData.name}</p>
-                                    <p><strong>Cliente:</strong> {currentSimulationData.customer}</p>
-                                    <p><strong>Custo Total:</strong> BRL {currentSimulationData.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                                        <Button variant="outline" size="sm" onClick={() => handleLoadSimulation(sim)}><Eye className="mr-2 h-4 w-4"/> Carregar</Button>
+                                    </div>
+                                ))}
+                                {simulations.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">Nenhuma simulação salva.</p>}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {result && (
+                        <Card className="animate-in fade-in-50 duration-500">
+                             <CardHeader className="flex flex-row justify-between items-center">
+                                <div>
+                                    <CardTitle>Resultado da Simulação</CardTitle>
+                                    <CardDescription>Custo total: <span className="font-bold text-primary">BRL {result.custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></CardDescription>
                                 </div>
-                            )}
-                            <DialogFooter>
-                                 <Button variant="outline" onClick={() => {}}>Enviar por E-mail</Button>
-                                 <Button onClick={() => {}}>Enviar por WhatsApp</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </main>
+                                <div className="flex gap-2">
+                                    <Button variant="secondary" size="sm" onClick={handleSaveSimulation}><Save className="mr-2 h-4 w-4"/> Salvar</Button>
+                                    <Button variant="secondary" size="sm" onClick={handleShare}><Share2 className="mr-2 h-4 w-4"/> Compartilhar</Button>
+                                    <Button variant="outline" size="sm" onClick={handleGeneratePdf} disabled={isLoading}>{isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4"/>} PDF</Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="max-h-96 overflow-y-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Item</TableHead>
+                                            <TableHead className="text-right">Custo Unit. Final</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {result.itens.map(item => (
+                                            <TableRow key={item.ncm}>
+                                                <TableCell>{item.descricao}</TableCell>
+                                                <TableCell className="text-right font-semibold">BRL {item.custoUnitarioFinal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
             </div>
-        </SidebarProvider>
+            
+             <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Compartilhar Simulação</DialogTitle>
+                        <DialogDescription>
+                            Envie um resumo da simulação para seu cliente via E-mail ou WhatsApp.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {currentSimulationData && (
+                        <div className="py-4 space-y-2">
+                            <p><strong>Simulação:</strong> {currentSimulationData.name}</p>
+                            <p><strong>Cliente:</strong> {currentSimulationData.customer}</p>
+                            <p><strong>Custo Total:</strong> BRL {currentSimulationData.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                        </div>
+                    )}
+                    <DialogFooter>
+                         <Button variant="outline" onClick={() => {}}>Enviar por E-mail</Button>
+                         <Button onClick={() => {}}>Enviar por WhatsApp</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
     );
 }

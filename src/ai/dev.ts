@@ -15,10 +15,10 @@ export default genkit({
     googleAI({
       apiKey: process.env.GEMINI_API_KEY || '',
       project: 'cargainteligente-lxhac',
-      location: 'global',
+      location: 'us-central1', // Correct location
     }),
   ],
-  model: 'gemini-1.5-flash', // Definindo o modelo padrão globalmente
+  model: 'gemini-1.5-flash-001', // Correct model
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });

@@ -3,63 +3,41 @@ interface TrackingInput {
   bookingNumber?: string;
   containerNumber?: string;
   mblNumber?: string;
-  oceanLine?: string;
-  productNumber?: string; // Adicionado conforme documentação
+  oceanLine?: string; // Optional for container tracking
 }
 
 export function buildTrackingPayload(input: TrackingInput) {
-  const { bookingNumber, containerNumber, mblNumber, oceanLine, productNumber } = input;
+  const { bookingNumber, containerNumber, mblNumber, oceanLine } = input;
 
   if (containerNumber) {
-    const payload: any = {
+    return {
       uploadType: 'FORM_BY_CONTAINER_NUMBER',
       formData: [{
         uploadType: 'FORM_BY_CONTAINER_NUMBER',
         containerNumber,
+        ...(oceanLine && { oceanLine }),
       }]
     };
-
-    // Adiciona campos opcionais apenas se fornecidos
-    if (productNumber) {
-      payload.formData[0].productNumber = productNumber;
-    }
-    if (oceanLine) {
-      payload.formData[0].oceanLine = oceanLine;
-    }
-
-    return payload;
   }
 
   if (mblNumber) {
-    const payload: any = {
+    return {
       uploadType: 'FORM_BY_MBL_NUMBER',
       formData: [{
         uploadType: 'FORM_BY_MBL_NUMBER',
         mblNumber,
       }]
     };
-
-    if (productNumber) {
-      payload.formData[0].productNumber = productNumber;
-    }
-
-    return payload;
   }
 
   if (bookingNumber) {
-    const payload: any = {
+    return {
       uploadType: 'FORM_BY_BOOKING_NUMBER',
       formData: [{
         uploadType: 'FORM_BY_BOOKING_NUMBER',
         bookingNumber,
       }]
     };
-
-    if (productNumber) {
-      payload.formData[0].productNumber = productNumber;
-    }
-
-    return payload;
   }
 
   throw new Error('É necessário informar pelo menos um identificador: container, booking ou MBL.');

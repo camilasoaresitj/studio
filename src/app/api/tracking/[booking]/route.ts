@@ -1,5 +1,7 @@
 // src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
+import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
+import { findCarrierByName } from '@/lib/carrier-data';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
@@ -43,8 +45,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const bookingNumber = params.booking;
   const url = new URL(req.url);
   const skipCreate = url.searchParams.get('skipCreate') === 'true';
-  let carrierCode = url.searchParams.get('carrierCode');
-  let carrierName = url.searchParams.get('carrierName');
+  const carrierName = url.searchParams.get('carrierName');
 
   if (!API_KEY || !ORG_TOKEN) {
     return NextResponse.json({
@@ -64,55 +65,23 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     let data = await res.json();
 
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
-      if (!carrierCode && carrierName) {
-        if (!cachedCarriers || Date.now() - lastCacheTime > CACHE_DURATION) {
-          const carrierListRes = await fetch(`${BASE_URL}/carrierList`, {
-            headers: {
-              'X-DPW-ApiKey': API_KEY,
-              'X-DPW-Org-Token': ORG_TOKEN
-            }
-          });
-          cachedCarriers = await carrierListRes.json();
-          lastCacheTime = Date.now();
-        }
+      const carrierInfo = findCarrierByName(carrierName || '');
 
-        const carrier = cachedCarriers.find((c: any) => c.carrierName.toLowerCase() === carrierName.toLowerCase());
-
-        if (!carrier) {
+      if (carrierName && (!carrierInfo || !carrierInfo.scac)) {
           return NextResponse.json({
             error: 'Carrier não encontrado.',
             detail: `Nenhum armador com nome ${carrierName} foi localizado.`
           }, { status: 400 });
-        }
-
-        if (!carrier.supportsTrackByBookingNumber) {
-          return NextResponse.json({
-            error: 'Este armador não suporta rastreamento por Booking Number.',
-            detail: `carrierName: ${carrier.carrierName}, utilize MBL.`
-          }, { status: 400 });
-        }
-
-        carrierCode = carrier.carrierScac;
-        carrierName = carrier.carrierName;
-        console.log('Carrier resolved from carrierList:', carrier);
       }
 
-      if (!carrierCode || !carrierName || !bookingNumber) {
+      if (!bookingNumber) {
         return NextResponse.json({
           error: 'Payload incompleto',
-          detail: 'Certifique-se de que bookingNumber, carrierCode e oceanLine foram preenchidos corretamente.'
+          detail: 'O número do booking é obrigatório.'
         }, { status: 400 });
       }
-
-      const payload = {
-        formData: [{
-          uploadType: 'FORM_BY_BOOKING_NUMBER',
-          bookingNumber,
-          shipmentType: 'INTERMODAL_SHIPMENT',
-          carrierCode,
-          oceanLine: carrierName
-        }]
-      };
+      
+      const payload = buildTrackingPayload({ bookingNumber });
 
       console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
 
@@ -127,10 +96,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       });
       
       console.log('📥 Resposta Cargo-flows status:', createRes.status);
-      console.log('📥 Headers:', JSON.stringify(Object.fromEntries(createRes.headers.entries())));
       const raw = await createRes.text();
       console.log('📥 Body (raw):', raw);
-
 
       if (!createRes.ok) {
         let errorBody;

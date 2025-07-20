@@ -36,7 +36,7 @@ import { isPast, format } from "date-fns";
 import { generateDiXmlFlow } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
 import { registerDueFlow } from "@/ai/flows/register-due";
-import type { RegisterDueInput, RegisterDueOutput } from "@/ai/flows/register-due";
+import type { RegisterDueInput, RegisterDueOutput } from '@/ai/flows/register-due';
 import { generateDiXmlFromSpreadsheet } from "@/ai/flows/generate-di-xml-from-spreadsheet";
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';

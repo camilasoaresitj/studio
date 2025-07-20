@@ -9,6 +9,7 @@ export default function AppLayout({
 }>) {
   return (
     <SidebarProvider>
+      <div className="flex min-h-screen">
         <MainSidebar />
         <div className="flex flex-col flex-1">
             <MainHeader />
@@ -16,6 +17,7 @@ export default function AppLayout({
                 {children}
             </main>
         </div>
+      </div>
     </SidebarProvider>
   );
 }

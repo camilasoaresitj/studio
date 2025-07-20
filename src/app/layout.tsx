@@ -1,6 +1,5 @@
 
 import './globals.css'
-import { Toaster } from "@/components/ui/toaster"
 
 export default function RootLayout({
   children,
@@ -10,10 +9,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <div className="min-h-screen">
+        <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
           {children}
         </div>
-        <Toaster />
       </body>
     </html>
   )

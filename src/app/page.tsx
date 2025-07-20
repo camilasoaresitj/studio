@@ -32,6 +32,7 @@ export default function MapaRastreamento() {
   const mapRef = useRef<HTMLElement | null>(null);
   const mapInstance = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   const carregarRastreamento = async () => {
     if (!bookingNumber.trim()) {
@@ -120,17 +121,24 @@ export default function MapaRastreamento() {
         return;
     }
     
+    if (!googleMapsApiKey) {
+        setStatus('error');
+        setMensagem("A chave da API de Mapas não está configurada.");
+        console.error("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set in the environment variables.");
+        return;
+    }
+    
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=maps,marker&v=beta`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=maps,marker&v=beta`;
     script.async = true;
     script.onload = initMap;
     document.head.appendChild(script);
-  }, []);
+  }, [googleMapsApiKey]);
   
    // Effect to update markers when 'eventos' change
    useEffect(() => {
-    if (!mapInstance.current || eventos.length === 0) return;
+    if (!mapInstance.current || eventos.length === 0 || !googleMapsApiKey) return;
 
     // Clear existing markers
     markersRef.current.forEach(marker => marker.map = null);
@@ -147,7 +155,7 @@ export default function MapaRastreamento() {
         if (!ev.location || ev.location.toLowerCase() === 'n/a' || ev.location.toLowerCase().includes('aguardando')) continue;
         
         try {
-          const geoRes = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(ev.location)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`);
+          const geoRes = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(ev.location)}&key=${googleMapsApiKey}`);
           const geo = await geoRes.json();
           const coords = geo.results?.[0]?.geometry?.location;
           
@@ -184,7 +192,7 @@ export default function MapaRastreamento() {
     };
     
     addMarkers();
-   }, [eventos]);
+   }, [eventos, googleMapsApiKey]);
 
 
   return (

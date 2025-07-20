@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -176,7 +175,7 @@ export default function CustomerPortalPage() {
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         Atualizar
                     </Button>
-                    <Button onClick={() => router.push('/comercial')}>
+                    <Button onClick={() => router.push('/portal/cotacao')}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Nova Cotação
                     </Button>
@@ -413,5 +412,3 @@ export default function CustomerPortalPage() {
         </>
     );
 }
-
-    

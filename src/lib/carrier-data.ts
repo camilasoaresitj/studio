@@ -1,6 +1,4 @@
 
-'use client';
-
 export interface Carrier {
     name: string;
     scac: string | null;

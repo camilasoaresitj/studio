@@ -32,21 +32,21 @@ import {
 import { GlobalChat } from '../global-chat';
 
 const menuItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/comercial', label: 'Comercial', icon: Briefcase },
-  { href: '/operacional', label: 'Operacional', icon: Truck },
-  { href: '/financeiro', label: 'Financeiro', icon: Landmark },
-  { href: '/demurrage', label: 'Demurrage', icon: Clock },
-  { href: '/schedules', label: 'Schedules', icon: CalendarClock },
-  { href: '/simulador-di', label: 'Simulador DI', icon: Calculator },
-  { href: '/tracking', label: 'Rastreamento', icon: Ship },
-  { href: '/crm', label: 'CRM / IA', icon: Bot },
-  { href: '/tasks', label: 'Monitor de Tarefas', icon: Mail },
+  { href: '/gerencial', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/gerencial/comercial', label: 'Comercial', icon: Briefcase },
+  { href: '/gerencial/operacional', label: 'Operacional', icon: Truck },
+  { href: '/gerencial/financeiro', label: 'Financeiro', icon: Landmark },
+  { href: '/gerencial/demurrage', label: 'Demurrage', icon: Clock },
+  { href: '/gerencial/schedules', label: 'Schedules', icon: CalendarClock },
+  { href: '/gerencial/simulador-di', label: 'Simulador DI', icon: Calculator },
+  { href: '/gerencial/tracking', label: 'Rastreamento', icon: Ship },
+  { href: '/gerencial/crm', label: 'CRM / IA', icon: Bot },
+  { href: '/gerencial/tasks', label: 'Monitor de Tarefas', icon: Mail },
 ];
 
 const bottomMenuItems = [
   { href: '/portal', label: 'Portal Cliente', icon: User },
-  { href: '/configuracoes', label: 'Configurações', icon: Settings },
+  { href: '/gerencial/configuracoes', label: 'Configurações', icon: Settings },
 ];
 
 export function MainSidebar() {
@@ -57,7 +57,7 @@ export function MainSidebar() {
     <>
       <Sidebar>
         <SidebarHeader>
-           <Link href="/" className="flex items-center gap-2">
+           <Link href="/gerencial" className="flex items-center gap-2">
               <Ship className="w-8 h-8 text-primary" />
               <span className="text-xl font-semibold text-sidebar-foreground">CargaInteligente</span>
           </Link>

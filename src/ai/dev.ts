@@ -12,10 +12,7 @@ import { googleAI } from '@genkit-ai/googleai';
 
 export default genkit({
   plugins: [
-    googleAI({
-      project: 'cargainteligente-lxhac',
-      location: 'us-central1',
-    }),
+    googleAI(),
   ],
   model: 'gemini-2.0-flash-001',
   logLevel: 'debug',

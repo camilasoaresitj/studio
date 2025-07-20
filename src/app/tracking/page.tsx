@@ -1,4 +1,3 @@
-
 // src/app/tracking/page.tsx
 export default function TrackingPage() {
   return (

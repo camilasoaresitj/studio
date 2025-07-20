@@ -4,6 +4,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { runDetectCarrier } from '@/app/actions';
 import { findCarrierByName } from '@/lib/carrier-data';
+import Link from 'next/link';
 
 type Evento = {
   eventName: string;
@@ -103,15 +104,22 @@ export default function MapaRastreamento() {
         if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
           throw new Error('Chave da API não configurada no ambiente frontend');
         }
+        
         if (window.google?.maps) {
           // Map is already loaded
         } else {
             await new Promise<void>((resolve, reject) => {
+              const scriptId = 'google-maps-script';
+              if (document.getElementById(scriptId)) {
+                resolve();
+                return;
+              }
               const script = document.createElement('script');
+              script.id = scriptId;
               script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&loading=async&libraries=marker`;
               script.async = true;
               script.onload = () => resolve();
-              script.onerror = () => reject(new Error('Falha ao carregar o script do Google Maps'));
+              script.onerror = (e) => reject(new Error('Falha ao carregar o script do Google Maps'));
               document.head.appendChild(script);
             });
         }
@@ -120,8 +128,9 @@ export default function MapaRastreamento() {
         if (!mapElement) {
           throw new Error('Elemento do mapa não encontrado no DOM');
         }
+        if (mapInstance.current) return;
 
-        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+        const { Map } = await window.google.maps.importLibrary("maps") as google.maps.MapsLibrary;
 
         mapInstance.current = new Map(mapElement, {
           center: { lat: 0, lng: -30 },
@@ -131,21 +140,17 @@ export default function MapaRastreamento() {
 
       } catch (error) {
         console.error('Erro no mapa:', error);
-        setMapError(error instanceof Error ? error.message : 'Erro desconhecido');
+        setMapError(error instanceof Error ? error.message : 'Erro desconhecido ao carregar o mapa');
       }
     };
 
     initMap();
 
-    return () => {
-      // Optional: Cleanup script tags to avoid memory leaks in some SPA scenarios
-      document.querySelectorAll('script[src*="googleapis"]').forEach(s => s.remove());
-    };
   }, []);
   
    // Effect to update markers when 'eventos' change
    useEffect(() => {
-    if (!mapInstance.current || eventos.length === 0) return;
+    if (!mapInstance.current || eventos.length === 0 || typeof window.google?.maps?.importLibrary !== 'function') return;
 
     // Clear existing markers
     markersRef.current.forEach(marker => marker.map = null);
@@ -155,8 +160,8 @@ export default function MapaRastreamento() {
     let markersCreated = 0;
 
     const addMarkers = async () => {
-      const { AdvancedMarkerElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
-      const { InfoWindow } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+      const { AdvancedMarkerElement } = await window.google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
+      const { InfoWindow } = await window.google.maps.importLibrary("maps") as google.maps.MapsLibrary;
 
       for (const ev of eventos) {
         if (!ev.location || ev.location.toLowerCase() === 'n/a' || ev.location.toLowerCase().includes('aguardando')) continue;
@@ -205,22 +210,29 @@ export default function MapaRastreamento() {
 
   return (
     <div className="w-full h-screen flex flex-col">
-      <div className="p-4 bg-white shadow flex items-center gap-4">
-        <input
-          value={bookingNumber}
-          onChange={(e) => setBookingNumber(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && carregarRastreamento()}
-          placeholder="Digite o Booking Number"
-          className="border p-2 rounded w-64"
-        />
-        <button
-          onClick={carregarRastreamento}
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
-          disabled={status === 'loading'}
-        >
-          {status === 'loading' ? 'Carregando...' : 'Atualizar Rastreamento'}
-        </button>
-      </div>
+      <header className="p-4 bg-white shadow flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <input
+            value={bookingNumber}
+            onChange={(e) => setBookingNumber(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && carregarRastreamento()}
+            placeholder="Digite o Booking Number"
+            className="border p-2 rounded w-64"
+          />
+          <button
+            onClick={carregarRastreamento}
+            className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+            disabled={status === 'loading'}
+          >
+            {status === 'loading' ? 'Carregando...' : 'Atualizar Rastreamento'}
+          </button>
+        </div>
+        <Link href="/gerencial" passHref>
+          <button className="bg-gray-200 text-gray-800 px-4 py-2 rounded">
+            Acessar Sistema
+          </button>
+        </Link>
+      </header>
 
       {status === 'processing' && (
         <div className="p-4 text-yellow-800 bg-yellow-100 text-center">

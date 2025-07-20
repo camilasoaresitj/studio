@@ -1,18 +1,1 @@
-
-'use client';
-
-import { FinancialPageClient } from '@/components/financials/financial-page-client';
-import { Suspense } from 'react';
-import { Loader2 } from 'lucide-react';
-
-export default function FinanceiroPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    }>
-        <FinancialPageClient />
-    </Suspense>
-  );
-}
+/src/app/(app)/financeiro/page.tsx

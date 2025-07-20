@@ -17,7 +17,7 @@ export default genkit({
       location: 'us-central1',
     }),
   ],
-  model: 'gemini-2.0-flash-001',
+  model: 'gemini-1.5-flash-latest',
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });

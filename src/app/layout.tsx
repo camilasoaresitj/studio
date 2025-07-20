@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { MainSidebar, SidebarProvider } from '@/components/layout/main-sidebar';
 
 export const metadata: Metadata = {
   title: 'CargaInteligente',
@@ -20,7 +21,14 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <div className="flex h-screen bg-gray-50 dark:bg-zinc-900">
+            <SidebarProvider>
+                <MainSidebar />
+                <main className="flex-1 flex flex-col overflow-hidden">
+                    {children}
+                </main>
+            </SidebarProvider>
+        </div>
         <Toaster />
       </body>
     </html>

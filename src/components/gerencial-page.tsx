@@ -1,4 +1,3 @@
-
 'use client';
 
 import { ShipmentsChart } from '@/components/shipments-chart';

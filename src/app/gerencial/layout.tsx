@@ -11,10 +11,8 @@ export default function AppLayout({
       <div className="flex min-h-screen">
         <MainSidebar />
         <div className="flex flex-col flex-1">
-            <MainHeader />
-            <main className="flex-1 p-4 md:p-8">
-                {children}
-            </main>
+          <MainHeader />
+          <main className="flex-1 p-4 md:p-8">{children}</main>
         </div>
       </div>
     </SidebarProvider>

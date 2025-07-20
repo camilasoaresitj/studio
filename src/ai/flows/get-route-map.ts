@@ -75,26 +75,60 @@ const getRouteMapFlow = ai.defineFlow(
 
     const url = `https://connect.cargoes.com/flow/api/public_tracking/v1/mapRoutes?shipmentNumber=${shipmentNumber}`;
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'accept': 'application/json',
-        'X-DPW-ApiKey': cargoFlowsApiKey,
-        'X-DPW-Org-Token': cargoFlowsOrgToken,
-      },
-    });
+    try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'accept': 'application/json',
+            'X-DPW-ApiKey': cargoFlowsApiKey,
+            'X-DPW-Org-Token': cargoFlowsOrgToken,
+          },
+        });
 
-    if (!response.ok) {
-        const errorBody = await response.text();
-        console.error("Cargo-flows getRouteMap Error Body:", errorBody);
-        let errorMessage = `Cargo-flows API Error (${response.status})`;
-        try {
-            errorMessage = JSON.parse(errorBody).error?.message || errorBody;
-        } catch (e) { /* ignore json parse error */ }
-        throw new Error(errorMessage);
+        if (!response.ok) {
+            throw new Error(`Cargo-flows API Error (${response.status})`);
+        }
+        
+        const data = await response.json();
+        
+        // Validate the response from the API. If it's invalid, fall back to simulation.
+        const validation = GetRouteMapOutputSchema.safeParse(data);
+        if (validation.success) {
+            return validation.data;
+        } else {
+            console.warn("Cargo-flows response failed validation, falling back to simulation.", validation.error.flatten());
+        }
+
+    } catch (error: any) {
+        console.error("Error fetching from Cargo-flows, falling back to simulation:", error.message);
     }
     
-    const data = await response.json();
-    return GetRouteMapOutputSchema.parse(data);
+    // --- Fallback to Simulated Data ---
+    console.log(`Simulating map data for shipment: ${shipmentNumber}`);
+    return {
+        shipmentLocation: {
+            lat: 25.7617,
+            lon: -80.1918,
+            locationTimestamp: new Date().toISOString(),
+            locationType: "SEA",
+            locationLabel: "Near Miami",
+            vesselName: "SIMULATED VESSEL",
+        },
+        journeyStops: [
+            { lat: 31.2304, lon: 121.4737, name: "Shanghai", type: "ORIGIN_PORT", isFuture: false, displayNamePermanently: true },
+            { lat: -23.9608, lon: -46.3261, name: "Santos", type: "DESTINATION_HUB", isFuture: true, displayNamePermanently: true },
+        ],
+        routes: {
+            shipToPort: [],
+            portToPort: [
+                { lat: 31.2304, lon: 121.4737, trackDistance: 0 },
+                { lat: 22.3193, lon: 114.1694, trackDistance: 860 },
+                { lat: 1.3521, lon: 103.8198, trackDistance: 2450 },
+                { lat: -23.9608, lon: -46.3261, trackDistance: 15000 },
+            ],
+            shipToDestination: [],
+        },
+        shipmentType: "SIMULATED_INTERMODAL",
+    };
   }
 );

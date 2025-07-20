@@ -1,5 +1,10 @@
 import { GerencialPage } from '@/components/gerencial-page';
+import AppLayout from './gerencial/layout';
 
 export default function Dashboard() {
-    return <GerencialPage />;
+    return (
+        <AppLayout>
+            <GerencialPage />
+        </AppLayout>
+    );
 }

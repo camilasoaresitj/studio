@@ -1,4 +1,3 @@
-
 import { MainHeader } from '@/components/layout/main-header';
 import { MainSidebar, SidebarProvider } from '@/components/layout/main-sidebar';
 

@@ -69,13 +69,13 @@ Given a tracking number and a specific carrier, you will create a plausible hist
     - **seal**: Invent a seal number.
     - **tare/grossWeight**: Provide realistic weights in KG.
     - **freeTime**: Provide a standard free time (e.g., '14 dias').
-4.  **Generate Tracking Events:** Create a sequence of 8-12 logical tracking events, from "Booking Confirmed" to "Delivered".
+4.  **Generate Tracking Events:** Create a sequence of 8-12 logical tracking events, from "Booking Confirmed" to "Delivered". The event names MUST BE IN PORTUGUESE.
+    - Examples in Portuguese: "Booking Confirmado", "Container Cheio Entregue no Porto", "Carregado no Navio", "Partida do Navio", "Descarregado no Destino", "Liberação Alfandegária".
     - Events must be in chronological order.
     - A portion of the events should be marked as \`completed: true\`, and the rest \`completed: false\`.
     - The dates should be logical and span the time between ETD and ETA.
     - The 'carrier' for each event should be the one you were given.
-    - Use standard logistics terminology for the events (e.g., "Container Gated In", "Loaded on Vessel", "Vessel Departure", "Discharged at Destination", "Customs Clearance").
-5.  **Overall Status:** The top-level 'status' field should be the status of the *last completed event*.
+5.  **Overall Status:** The top-level 'status' field should be the status of the *last completed event*, also in Portuguese.
 
 **CRITICAL:** Do NOT return the same data every time. Generate a unique and realistic scenario for each request.
 
@@ -83,6 +83,37 @@ Given a tracking number and a specific carrier, you will create a plausible hist
 **Input Carrier:** {{{carrier}}}
 `,
 });
+
+const statusTranslations: { [key: string]: string } = {
+    "booking accepted": "Booking Aceito",
+    "container assigned": "Contêiner Designado",
+    "pickup from shipper": "Coleta no Exportador",
+    "gate in": "Gate In (Entrada no Porto)",
+    "container gated in": "Container Entregue no Porto (Gate In)",
+    "loaded on vessel": "Embarcado no Navio",
+    "vessel departure": "Partida do Navio",
+    "vessel arrival": "Chegada do Navio",
+    "discharged": "Descarregado no Destino",
+    "import customs clearance": "Liberação Alfandegária (Importação)",
+    "available for pickup": "Disponível para Retirada",
+    "delivered": "Entregue",
+    "empty container returned": "Devolução do Vazio",
+    "transshipment": "Transbordo",
+    // Add other common statuses as needed
+};
+
+const translateStatus = (status: string): string => {
+    if (!status) return 'Status Desconhecido';
+    const lowerStatus = status.toLowerCase().trim();
+    for (const key in statusTranslations) {
+        if (lowerStatus.includes(key)) {
+            return statusTranslations[key];
+        }
+    }
+    // Capitalize the first letter if no translation is found
+    return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
 
 // Helper function to process successful tracking data from Cargo-flows
 const processTrackingData = (shipments: any[], carrierName: string): GetTrackingInfoOutput => {
@@ -114,7 +145,7 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
       const eventKey = `${event.name}-${event.location}-${event.actualTime || event.estimateTime}`;
       if (!allEvents.some(e => `${e.status}-${e.location}-${e.date}` === eventKey)) {
         allEvents.push({
-          status: event.name || 'N/A',
+          status: translateStatus(event.name || 'N/A'),
           date: event.actualTime || event.estimateTime,
           location: event.location || 'N/A',
           completed: !!event.actualTime,
@@ -171,12 +202,12 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
           predictedDate: new Date(event.date),
           effectiveDate: event.completed ? new Date(event.date) : null,
           details: event.location,
-          isTransshipment: event.status.toLowerCase().includes('transhipment')
+          isTransshipment: event.status.toLowerCase().includes('transbordo')
       })),
   };
 
   return {
-    status: lastCompletedEvent?.status || 'Pending',
+    status: lastCompletedEvent?.status || 'Pendente',
     events: allEvents,
     containers: allContainers,
     shipmentDetails: shipmentDetails,
@@ -294,7 +325,7 @@ const getTrackingInfoFlow = ai.defineFlow(
                 predictedDate: new Date(event.date),
                 effectiveDate: event.completed ? new Date(event.date) : null,
                 details: event.location,
-                isTransshipment: event.location.toLowerCase().includes('transhipment') || event.status.toLowerCase().includes('transhipment')
+                isTransshipment: event.location.toLowerCase().includes('transbordo') || event.status.toLowerCase().includes('transbordo')
             })),
         };
 

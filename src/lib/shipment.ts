@@ -4,7 +4,6 @@
 import { 
     getShipments as getShipmentsData, 
     saveShipments as saveShipmentsData,
-    rebuildMilestones as rebuildMilestonesData,
 } from './shipment-data';
 import type { 
     Shipment, 
@@ -29,7 +28,6 @@ import { addDays } from 'date-fns';
 
 export const getShipments = getShipmentsData;
 export const saveShipments = saveShipmentsData;
-export const rebuildMilestones = rebuildMilestonesData;
 
 const IMPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Instruções de Embarque Enviadas ao Agente': 0,

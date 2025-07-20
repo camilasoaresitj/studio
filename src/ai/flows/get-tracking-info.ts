@@ -188,6 +188,7 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
       carrier: carrierName,
       origin: mainLeg.loadingPort || mainLeg.origin || primaryShipment.originOceanPort || 'N/A',
       destination: mainLeg.dischargePort || mainLeg.destination || primaryShipment.destinationOceanPort || 'N/A',
+      dischargeTerminal: primaryShipment.destinationAddress || 'N/A',
       vesselName: mainLeg.currentTransportName || mainLeg.carrier || 'N/A',
       voyageNumber: mainLeg.currentTripNumber,
       etd: mainLeg.loadingPortAtd || mainLeg.atd ? new Date(mainLeg.loadingPortAtd || mainLeg.atd) : undefined,

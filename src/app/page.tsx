@@ -1,3 +1,4 @@
+
 import { GerencialPage } from '@/components/gerencial-page';
 import AppLayout from './gerencial/layout';
 

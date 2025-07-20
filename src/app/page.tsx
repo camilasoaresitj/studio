@@ -102,26 +102,25 @@ export default function MapaRastreamento() {
     const initMap = async () => {
       try {
         if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-          throw new Error('Chave da API não configurada no ambiente frontend');
+          throw new Error('A chave da API de Mapas não está configurada no ambiente frontend. Verifique o arquivo .env.local');
         }
         
         if (window.google?.maps) {
           // Map is already loaded
         } else {
-            await new Promise<void>((resolve, reject) => {
-              const scriptId = 'google-maps-script';
-              if (document.getElementById(scriptId)) {
-                resolve();
-                return;
-              }
-              const script = document.createElement('script');
-              script.id = scriptId;
-              script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&loading=async&libraries=marker`;
-              script.async = true;
-              script.onload = () => resolve();
-              script.onerror = (e) => reject(new Error('Falha ao carregar o script do Google Maps'));
-              document.head.appendChild(script);
-            });
+            const scriptId = 'google-maps-script';
+            if (!document.getElementById(scriptId)) {
+                const script = document.createElement('script');
+                script.id = scriptId;
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=marker`;
+                script.async = true;
+                script.defer = true;
+                document.head.appendChild(script);
+                await new Promise<void>((resolve, reject) => {
+                    script.onload = () => resolve();
+                    script.onerror = (e) => reject(new Error('Falha ao carregar o script do Google Maps'));
+                });
+            }
         }
 
         const mapElement = mapRef.current;

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -13,12 +12,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Info, CalendarCheck2, Ship } from 'lucide-react';
+import { AlertTriangle, CalendarCheck2 } from 'lucide-react';
 import { getShipments, Shipment, ContainerDetail } from '@/lib/shipment';
 import { DemurrageDetailsDialog } from '@/components/demurrage-details-dialog';
 import { DemurrageTariff, getDemurrageTariffs } from '@/lib/demurrage-tariffs-data';
 import { LtiTariff, getLtiTariffs } from '@/lib/lti-tariffs-data';
-import { differenceInDays, addDays, isPast } from 'date-fns';
+import { differenceInDays, addDays } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export interface DemurrageItem {
@@ -54,7 +53,6 @@ export default function DemurragePage() {
                         const freeDays = parseInt(s.details.freeTime.replace(/\D/g, '') || '7');
                         const isImport = s.destination.toUpperCase().includes('BR');
                         
-                        // Demurrage Calculation (Import)
                         if (isImport && s.eta) {
                             const startDate = new Date(s.eta);
                             const endDate = addDays(startDate, freeDays - 1);
@@ -79,7 +77,6 @@ export default function DemurragePage() {
                             });
                         }
 
-                        // Detention Calculation (Export)
                         if (!isImport && s.etd) {
                            const gateInMilestone = s.milestones.find(m => m.name.toLowerCase().includes('gate in'));
                            const pickupMilestone = s.milestones.find(m => m.name.toLowerCase().includes('retirada do vazio'));

@@ -3,12 +3,11 @@ import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { CustomerQuotesList, type Quote } from '@/components/customer-quotes-list';
 import { RatesTable, type Rate } from '@/components/rates-table';
 import { RateImporter } from '@/components/rate-importer';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRates, saveRates } from '@/lib/rates-data';
 import { getInitialQuotes } from '@/lib/initial-data';
 import { getPartners, savePartners, type Partner } from '@/lib/partners-data';
-import { getFees, saveFees, type Fee } from '@/lib/fees-data';
+import { getFees, type Fee } from '@/lib/fees-data';
 import { Button } from '@/components/ui/button';
 import { List } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
@@ -30,7 +29,9 @@ export default function ComercialPage() {
         if (storedQuotes) {
             setQuotes(JSON.parse(storedQuotes));
         } else {
-            setQuotes(getInitialQuotes());
+            const initialQuotes = getInitialQuotes();
+            setQuotes(initialQuotes);
+            localStorage.setItem('freight_quotes', JSON.stringify(initialQuotes));
         }
         setPartners(getPartners());
         setRates(getRates());

@@ -1,17 +1,17 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
+// These values are placeholders and will be replaced by the actual environment configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyApGpULRisWS_wr226ZKakcleZxBwIT0mQ", // Inferred from your provided JSON
-  authDomain: "cargainteligente-lxhac.firebaseapp.com",
-  projectId: "cargainteligente-lxhac",
-  storageBucket: "cargainteligente-lxhac.appspot.com",
-  messagingSenderId: "901391150489",
-  appId: "1:901391150489:web:your_app_id" // Placeholder, should be replaced with actual value from Firebase console
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
@@ -19,7 +19,8 @@ let app;
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
 } else {
-  app = getApps()[0];
+  app = getApp();
 }
 
 export const auth = getAuth(app);
+export const db = getFirestore(app);

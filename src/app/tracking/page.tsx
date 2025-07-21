@@ -1,5 +1,4 @@
 
-'use client'
 import { TrackingStatus } from '@/components/tracking-status';
 
 export default function TrackingPage() {

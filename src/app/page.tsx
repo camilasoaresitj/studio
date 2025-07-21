@@ -1,5 +1,11 @@
+
 import GerencialPage from './gerencial/page';
+import AppLayout from './gerencial/layout';
 
 export default function Home() {
-  return <GerencialPage />;
+  return (
+    <AppLayout>
+      <GerencialPage />
+    </AppLayout>
+  );
 }

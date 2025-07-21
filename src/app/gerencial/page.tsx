@@ -1,6 +1,5 @@
+import { GerencialPage as GerencialDashboard } from '@/components/gerencial-page';
 
-import { GerencialPage } from '@/components/gerencial-page';
-
-export default function Dashboard() {
-  return <GerencialPage />;
+export default function GerencialPage() {
+  return <GerencialDashboard />;
 }

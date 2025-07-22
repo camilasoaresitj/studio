@@ -60,6 +60,9 @@ export type Quote = {
   date: string;
   details: QuoteDetails;
   charges: QuoteCharge[];
+  shipper?: Partner;
+  consignee?: Partner;
+  agent?: Partner;
 };
 
 
@@ -276,7 +279,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         }
         
         // Update quote status
-        const approvedQuote = { ...quote, status: 'Aprovada' as const };
+        const approvedQuote = { ...quote, status: 'Aprovada' as const, shipper, consignee, agent };
         onQuoteUpdate(approvedQuote);
 
         // Create the new shipment, passing the full quote data and partners
@@ -341,10 +344,12 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead>Cotação ID</TableHead>
+                        <TableHead>ID</TableHead>
                         <TableHead>Cliente</TableHead>
-                        <TableHead>Origem</TableHead>
-                        <TableHead>Destino</TableHead>
+                        <TableHead>Rota</TableHead>
+                        <TableHead>Shipper</TableHead>
+                        <TableHead>Consignee</TableHead>
+                        <TableHead>Agente</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead className="text-center">Ações</TableHead>
@@ -355,8 +360,10 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                         <TableRow key={quote.id}>
                             <TableCell className="font-medium text-primary">{quote.id.replace('-DRAFT', '')}</TableCell>
                             <TableCell>{quote.customer}</TableCell>
-                            <TableCell>{quote.origin}</TableCell>
-                            <TableCell>{quote.destination}</TableCell>
+                            <TableCell>{quote.origin} &rarr; {quote.destination}</TableCell>
+                            <TableCell>{quote.shipper?.name || 'N/A'}</TableCell>
+                            <TableCell>{quote.consignee?.name || 'N/A'}</TableCell>
+                            <TableCell>{quote.agent?.name || 'N/A'}</TableCell>
                             <TableCell>
                                 <Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge>
                             </TableCell>

@@ -10,39 +10,16 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Shipment, TrackingEvent, Milestone, ContainerDetail, TransshipmentDetail } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail } from '@/lib/shipment';
 import { findCarrierByName } from '@/lib/carrier-data';
+import { GetTrackingInfoOutputSchema, TrackingEventSchema, ContainerDetailSchema, type TrackingEvent, type ContainerDetail, type GetTrackingInfoOutput } from '@/lib/schemas/tracking';
+
 
 const GetTrackingInfoInputSchema = z.object({
   trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
   carrier: z.string().describe('The identified shipping carrier (e.g., Maersk, MSC).'),
 });
 export type GetTrackingInfoInput = z.infer<typeof GetTrackingInfoInputSchema>;
-
-const TrackingEventSchema = z.object({
-    status: z.string(),
-    date: z.string(),
-    location: z.string(),
-    completed: z.boolean(),
-    carrier: z.string(),
-});
-
-const ContainerDetailSchema = z.object({
-  id: z.string(),
-  number: z.string().describe("The full container number (e.g., MSUC1234567)."),
-  seal: z.string().describe("The container's seal number."),
-  tare: z.string().describe("The container's tare weight in kg (e.g., '2200 KG')."),
-  grossWeight: z.string().describe("The container's gross weight in kg (e.g., '24000 KG')."),
-  freeTime: z.string().optional().describe("The free time in days (e.g., '14 dias')."),
-});
-
-const GetTrackingInfoOutputSchema = z.object({
-    status: z.string(),
-    events: z.array(TrackingEventSchema),
-    containers: z.array(ContainerDetailSchema).optional().describe("A list of containers associated with this shipment."),
-    shipmentDetails: z.any().optional(), // Using any() for the partial shipment object
-});
-export type GetTrackingInfoOutput = z.infer<typeof GetTrackingInfoOutputSchema>;
 
 
 export async function getTrackingInfo(input: GetTrackingInfoInput): Promise<GetTrackingInfoOutput> {
@@ -369,5 +346,3 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
-
-    

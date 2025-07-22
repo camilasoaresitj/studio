@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CheckCircle2, Circle, Loader, Search, Ship, Warehouse, Anchor, AlertTriangle, PackageSearch } from 'lucide-react';
 import { runGetTrackingInfo, runDetectCarrier } from '@/app/actions';
-import { GetTrackingInfoOutput, TrackingEvent } from '@/ai/flows/get-tracking-info';
+import { type GetTrackingInfoOutput, type TrackingEvent } from '@/lib/schemas/tracking';
 import { useToast } from '@/hooks/use-toast';
 
 type TrackingResult = GetTrackingInfoOutput | null;

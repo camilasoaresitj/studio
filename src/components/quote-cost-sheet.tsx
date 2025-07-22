@@ -50,7 +50,10 @@ const quoteChargeSchema = z.object({
   details: z.object({
       validityDate: z.date().optional(),
       freeTime: z.string().optional(),
-  })
+  }),
+  shipperId: z.string().optional(),
+  consigneeId: z.string().optional(),
+  agentId: z.string().optional(),
 });
 
 type QuoteCostSheetFormData = z.infer<typeof quoteChargeSchema>;
@@ -58,7 +61,7 @@ type QuoteCostSheetFormData = z.infer<typeof quoteChargeSchema>;
 interface QuoteCostSheetProps {
   quote: Quote;
   partners: Partner[];
-  onUpdate: (data: { charges: QuoteCharge[], details: Quote['details'] }) => void;
+  onUpdate: (data: { charges: QuoteCharge[], details: Quote['details'], shipper?: Partner, consignee?: Partner, agent?: Partner }) => void;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -119,7 +122,10 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
       details: {
         validityDate: quote.details.validity && quote.details.validity !== 'N/A' ? new Date(quote.details.validity.split('/').reverse().join('-')) : undefined,
         freeTime: quote.details.freeTime,
-      }
+      },
+      shipperId: quote.shipper?.id?.toString(),
+      consigneeId: quote.consignee?.id?.toString(),
+      agentId: quote.agent?.id?.toString(),
     },
   });
 
@@ -130,6 +136,8 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
 
   const clientPartners = React.useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
   const supplierPartners = React.useMemo(() => partners.filter(p => p.roles.fornecedor || p.roles.agente), [partners]);
+  const agentPartners = React.useMemo(() => partners.filter(p => p.roles.agente), [partners]);
+
 
   React.useEffect(() => {
     const fetchRates = async () => {
@@ -208,7 +216,13 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
         validity: data.details.validityDate ? format(data.details.validityDate, 'dd/MM/yyyy') : quote.details.validity,
         freeTime: data.details.freeTime || quote.details.freeTime,
     }
-    onUpdate({ charges: data.charges as QuoteCharge[], details: updatedDetails });
+    onUpdate({
+        charges: data.charges as QuoteCharge[],
+        details: updatedDetails,
+        shipper: partners.find(p => p.id?.toString() === data.shipperId),
+        consignee: partners.find(p => p.id?.toString() === data.consigneeId),
+        agent: partners.find(p => p.id?.toString() === data.agentId),
+    });
   };
   
   const handleFeeSelection = (feeName: string, index: number) => {
@@ -275,6 +289,22 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                 </Popover>
                             </FormItem>
                         )} />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-base">Parceiros do Embarque</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 pt-2">
+                        <FormField control={form.control} name="shipperId" render={({ field }) => (
+                            <FormItem><FormLabel>Shipper</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{partners.map(p => (<SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>))}</SelectContent></Select></FormItem>
+                        )}/>
+                         <FormField control={form.control} name="consigneeId" render={({ field }) => (
+                            <FormItem><FormLabel>Consignee</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{partners.map(p => (<SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>))}</SelectContent></Select></FormItem>
+                        )}/>
+                         <FormField control={form.control} name="agentId" render={({ field }) => (
+                            <FormItem><FormLabel>Agente</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{agentPartners.map(p => (<SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>))}</SelectContent></Select></FormItem>
+                        )}/>
                     </CardContent>
                 </Card>
                 <div className="flex justify-between items-center">

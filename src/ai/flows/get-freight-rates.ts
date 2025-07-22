@@ -166,14 +166,16 @@ const getFreightRatesFlow = ai.defineFlow(
           }]
       }
 
-      // The payload must be an array of offer objects
-      const payload = [{
+      const offerObject = {
         origin_id: parseInt(originLocationId),
         destination_id: parseInt(destinationLocationId),
         type: input.oceanShipmentType,
         departure_date: input.departureDate ? format(input.departureDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
         containers: containersDetails,
-      }];
+      };
+
+      // The payload must be an array of offer objects
+      const payload = [offerObject];
 
       console.log('Payload final para API POST:', JSON.stringify(payload, null, 2));
 

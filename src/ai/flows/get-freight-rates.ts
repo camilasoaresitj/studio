@@ -153,8 +153,8 @@ const getFreightRatesFlow = ai.defineFlow(
       }
       
       let payload: any = {
-        origins: originLocationId,
-        destinations: destinationLocationId,
+        origins: originLocationId, // Sempre enviar como string
+        destinations: destinationLocationId, // Sempre enviar como string
         type: input.oceanShipmentType,
         departure_date: input.departureDate ? format(input.departureDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
       };

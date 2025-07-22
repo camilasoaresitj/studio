@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, isPast, isValid, addDays } from 'date-fns';
+import { format, isPast, isValid, addDays, parseISO } from 'date-fns';
 import Image from 'next/image';
 
 import {
@@ -305,6 +305,21 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
     );
 }
 
+const milestoneMapping: { [key: string]: string[] } = {
+    'Confirmação de Embarque': ['vessel departure', 'gate out'],
+    'Chegada ao Destino': ['vessel arrival', 'discharged', 'unloaded from vessel'],
+    'Container Gate In (Entregue no Porto)': ['gate in', 'container received'],
+};
+
+function mapEventToMilestone(eventName: string): string | null {
+    const lowerEventName = eventName.toLowerCase();
+    for (const milestoneName in milestoneMapping) {
+        if (milestoneMapping[milestoneName].some(keyword => lowerEventName.includes(keyword))) {
+            return milestoneName;
+        }
+    }
+    return null;
+}
 
 export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
@@ -453,13 +468,37 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             if (!response.ok) {
                 throw new Error(data.detail || data.error || 'Erro desconhecido');
             }
+            
+            let updatedMilestones = [...(form.getValues('milestones') || [])];
+            let newEventsCount = 0;
 
-            if (data.status === 'processing' && data.fallback) {
-                // ... (update milestones with fallback)
-                toast({ title: 'Rastreamento em Processamento', description: data.message });
-            } else if (data.status === 'ready' && data.eventos) {
-                // ... (update milestones with real events)
-                toast({ title: 'Rastreamento Atualizado', description: `${data.eventos.length} eventos encontrados.`, className: 'bg-success text-success-foreground' });
+            if (data.status === 'ready' && data.eventos) {
+                data.eventos.forEach((evento: any) => {
+                    const milestoneName = mapEventToMilestone(evento.eventName);
+                    if (milestoneName) {
+                        const milestoneIndex = updatedMilestones.findIndex(m => m.name === milestoneName);
+                        if (milestoneIndex > -1 && !updatedMilestones[milestoneIndex].effectiveDate) {
+                            updatedMilestones[milestoneIndex] = {
+                                ...updatedMilestones[milestoneIndex],
+                                effectiveDate: parseISO(evento.actualTime),
+                                status: 'completed',
+                                details: evento.location
+                            };
+                            newEventsCount++;
+                        }
+                    }
+                });
+
+                if (newEventsCount > 0) {
+                    form.setValue('milestones', updatedMilestones);
+                    toast({ title: 'Rastreamento Atualizado', description: `${newEventsCount} novo(s) marco(s) atualizado(s).`, className: 'bg-success text-success-foreground' });
+                } else {
+                    toast({ title: 'Rastreamento Atualizado', description: `Nenhum novo evento acionável encontrado. ${data.eventos.length} eventos totais.` });
+                }
+            } else if (data.status === 'processing') {
+                 toast({ title: 'Rastreamento em Processamento', description: data.message });
+            } else {
+                 toast({ title: 'Rastreamento Encontrado', description: `${data.eventos?.length || 0} eventos encontrados.` });
             }
 
         } catch (error: any) {

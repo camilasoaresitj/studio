@@ -65,37 +65,7 @@ const cargoFiveRateTool = ai.defineTool(
   {
     name: 'getCargoFiveRates',
     description: 'Fetches real-time ocean freight rates from the CargoFive API.',
-    inputSchema: z.object({
-      origin: z.object({
-        unlocode: z.string(),
-        country: z.string(),
-        type: z.literal('port')
-      }),
-      destination: z.object({
-        unlocode: z.string(),
-        country: z.string(),
-        type: z.literal('port')
-      }),
-      packages: z.array(z.object({
-        quantity: z.number(),
-        weight: z.number(),
-        length: z.number(),
-        width: z.number(),
-        height: z.number()
-      })).optional(),
-      containers: z.array(z.object({
-        type: z.string(),
-        quantity: z.number()
-      })).optional(),
-      options: z.object({
-        container_type: z.string().optional(),
-        incoterm: z.string().default('FOB'),
-        hazardous: z.boolean().optional(),
-        refrigerated: z.boolean().optional(),
-        cbm: z.number().optional(),
-        weight: z.number().optional()
-      }).optional()
-    }),
+    inputSchema: z.any(),
     outputSchema: z.array(z.any())
   },
   async (params) => {
@@ -182,10 +152,6 @@ const getFreightRatesFlow = ai.defineFlow(
           country: destinationPort.country.toUpperCase(),
           type: 'port' as const
         },
-        options: {
-          incoterm: input.incoterm || 'FOB',
-          ...(isRefrigerated && { refrigerated: true })
-        },
       };
 
       if (input.oceanShipmentType === 'FCL') {
@@ -194,16 +160,18 @@ const getFreightRatesFlow = ai.defineFlow(
             quantity: c.quantity
           }));
           payload.options = {
-              ...payload.options,
+              incoterm: input.incoterm || 'FOB',
               container_type: CONTAINER_TYPE_MAPPING[input.oceanShipment.containers[0]?.type] || input.oceanShipment.containers[0]?.type,
+              ...(isRefrigerated && { refrigerated: true })
           };
       }
 
       if (input.oceanShipmentType === 'LCL') {
           payload.options = {
-              ...payload.options,
+              incoterm: input.incoterm || 'FOB',
               cbm: input.lclDetails.cbm,
-              weight: input.lclDetails.weight
+              weight: input.lclDetails.weight,
+              ...(isRefrigerated && { refrigerated: true })
           };
       }
 

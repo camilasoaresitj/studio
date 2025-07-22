@@ -91,7 +91,9 @@ const cargoFiveRateTool = ai.defineTool(
         container_type: z.string().optional(),
         incoterm: z.string().default('FOB'),
         hazardous: z.boolean().optional(),
-        refrigerated: z.boolean().optional()
+        refrigerated: z.boolean().optional(),
+        cbm: z.number().optional(),
+        weight: z.number().optional()
       }).optional()
     }),
     outputSchema: z.array(z.any())
@@ -193,16 +195,11 @@ const getFreightRatesFlow = ai.defineFlow(
       }
 
       if (input.oceanShipmentType === 'LCL') {
-          payload.packages = [{
-            quantity: 1, // Simplified assumption for LCL
-            weight: input.lclDetails.weight, // kg
-            // Dimensions are based on total CBM. We send a representative shape.
-            // 1 CBM = 1m x 1m x 1m = 100cm x 100cm x 100cm.
-            // We can derive one dimension from the others if CBM is provided.
-            length: 100,
-            width: 100,
-            height: Math.round(input.lclDetails.cbm * 1000000 / (100 * 100)),
-          }]
+          payload.options = {
+              ...payload.options,
+              cbm: input.lclDetails.cbm,
+              weight: input.lclDetails.weight
+          };
       }
 
       console.log('Payload final:', JSON.stringify(payload, null, 2));
@@ -309,5 +306,3 @@ const getAirFreightRatesFlow = ai.defineFlow(
 export async function getAirFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {
   return getAirFreightRatesFlow(input);
 }
-
-    

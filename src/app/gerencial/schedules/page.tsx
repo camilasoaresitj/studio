@@ -1,5 +1,5 @@
 
-import { TrackingStatus } from '@/components/tracking-status';
+import { ScheduleFinder } from '@/components/schedule-finder';
 
 export default function SchedulesPage() {
     return (
@@ -10,7 +10,7 @@ export default function SchedulesPage() {
                    Consulte a programação de navios, voos e rastreie suas cargas em tempo real.
                 </p>
             </header>
-            <TrackingStatus />
+            <ScheduleFinder />
         </div>
     );
 }

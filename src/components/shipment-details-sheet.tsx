@@ -326,6 +326,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         resolver: zodResolver(shipmentDetailsSchema),
     });
     
+    const { control } = form; // Destructure control here for use in useWatch
     const watchedCharges = useWatch({ control, name: 'charges' });
 
     const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);

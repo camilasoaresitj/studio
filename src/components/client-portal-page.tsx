@@ -19,9 +19,12 @@ import { ShipmentChat } from '@/components/shipment-chat';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
 
-const MilestoneIcon = ({ status, predictedDate }: { status: Milestone['status'], predictedDate?: Date | null }) => {
+const MilestoneIcon = ({ status, predictedDate, isTransshipment }: { status: Milestone['status'], predictedDate?: Date | null, isTransshipment?: boolean }) => {
     if (!predictedDate || !isValid(predictedDate)) {
         return <Circle className="h-6 w-6 text-muted-foreground" />;
+    }
+    if (isTransshipment) {
+        return <Anchor className="h-6 w-6 text-blue-500" />;
     }
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -184,12 +187,12 @@ export function ClientPortalPage({ id }: { id: string }) {
                                             <div key={index} className="relative mb-8 flex items-start gap-4">
                                                 <div className={cn(
                                                     `absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full -translate-x-1/2`,
-                                                    milestone.status === 'completed' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'
+                                                    milestone.isTransshipment ? 'bg-blue-500 text-white' : (milestone.status === 'completed' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground')
                                                 )}>
-                                                    <MilestoneIcon status={milestone.status} predictedDate={milestone.predictedDate ? new Date(milestone.predictedDate) : null} />
+                                                    <MilestoneIcon status={milestone.status} predictedDate={milestone.predictedDate ? new Date(milestone.predictedDate) : null} isTransshipment={milestone.isTransshipment} />
                                                 </div>
                                                 <div className="pt-1.5">
-                                                    <p className={`font-semibold ${milestone.status !== 'completed' ? 'text-foreground' : 'text-success'}`}>{milestone.name}</p>
+                                                    <p className={`font-semibold ${milestone.isTransshipment ? 'text-blue-600' : (milestone.status !== 'completed' ? 'text-foreground' : 'text-success')}`}>{milestone.name}</p>
                                                     <p className="text-sm text-muted-foreground">
                                                         {milestone.status === 'completed' && milestone.effectiveDate ? `Concluído em: ${format(new Date(milestone.effectiveDate), 'dd/MM/yyyy')}` : `Previsto para: ${milestone.predictedDate ? format(new Date(milestone.predictedDate), 'dd/MM/yyyy') : 'N/A'}`}
                                                     </p>

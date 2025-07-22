@@ -326,7 +326,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         resolver: zodResolver(shipmentDetailsSchema),
     });
     
-    const watchedCharges = useWatch({ control: form.control, name: 'charges' });
+    const watchedCharges = useWatch({ control, name: 'charges' });
 
     const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
     const carrierPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && (p.tipoFornecedor?.ciaMaritima || p.tipoFornecedor?.ciaAerea) && p.scac), [partners]);
@@ -560,8 +560,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             return `${shipment?.destination || ''} | ${shipment?.vesselName || ''}`;
         }
         if (lowerName.includes('transbordo')) {
-            const transshipment = shipment?.transshipments?.[0]; 
-            return `${transshipment?.port || ''} | ${transshipment?.vessel || ''}`;
+            // This logic is too simple, the real location is in the event itself. 
+            // The transshipment object itself can provide better context.
+            return `Transbordo`;
         }
         return '';
     };
@@ -724,6 +725,17 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
     };
 
+    const sortedMilestones = useMemo(() => {
+        if (!shipment) return [];
+        return [...(form.getValues('milestones') || [])].sort((a, b) => {
+            const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
+            const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return dateA - dateB;
+        });
+    }, [shipment, form.watch('milestones')]); // Re-sort when milestones change
+
     if (!shipment) {
         return (
             <Sheet open={open} onOpenChange={onOpenChange}>
@@ -826,11 +838,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                     <CardContent>
                                         <div className="relative pl-4 space-y-6">
                                             <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
-                                            {milestoneFields.map((milestone, index) => {
+                                            {sortedMilestones.map((milestone, index) => {
                                                 const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
-                                                const locationDetails = getMilestoneLocationDetails(milestone.name);
+                                                
                                                 return (
-                                                     <div key={milestone.id} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
+                                                     <div key={milestone.id || index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
                                                         <div className="flex h-full justify-center row-span-2">
                                                             <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
                                                                 <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
@@ -844,7 +856,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                             <div className="flex justify-between items-center">
                                                                 <div>
                                                                     <p className="font-semibold text-base">{milestone.name}</p>
-                                                                    {locationDetails && <p className="text-sm text-muted-foreground -mt-1">{locationDetails}</p>}
+                                                                    {milestone.details && <p className="text-sm text-muted-foreground -mt-1">{milestone.details}</p>}
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (

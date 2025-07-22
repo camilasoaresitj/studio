@@ -11,7 +11,6 @@ const permissionsSchema = z.object({
     rh: z.boolean().default(false),
     demurrage: z.boolean().default(false),
     simulador: z.boolean().default(false),
-    tracking: z.boolean().default(false),
     cadastros: z.boolean().default(false),
 });
 
@@ -82,7 +81,6 @@ const initialEmployees: Employee[] = [
         rh: true,
         demurrage: true,
         simulador: true,
-        tracking: true,
         cadastros: true,
     }
   }

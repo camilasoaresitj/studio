@@ -26,10 +26,6 @@ import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import type { Partner } from "@/lib/partners-data";
 import { getPartners } from "@/lib/partners-data";
 import type { Quote } from "@/components/customer-quotes-list";
-import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
-import type { GetTrackingInfoOutput } from "@/lib/schemas/tracking";
-import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
-import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getShipments, saveShipments } from "@/lib/shipment-data";
 import { isPast, format, addDays } from "date-fns";
 import { generateDiXmlFlow } from '@/ai/flows/generate-di-xml';
@@ -153,37 +149,6 @@ export async function runGenerateHblPdf(input: any) {
     return { success: false, error: error.message || "Failed to run flow" };
   }
 }
-
-export async function runGetTrackingInfo(input: { trackingNumber: string, carrier: string }): Promise<{ success: boolean; data?: GetTrackingInfoOutput; error?: string }> {
-  try {
-    const output = await getTrackingInfo(input);
-    return { success: true, data: output };
-  } catch (error: any) {
-    console.error("Server Action Failed for getTrackingInfo", error);
-    return { success: false, error: error.message || "Failed to run flow" };
-  }
-}
-
-export async function runUpdateShipmentInTracking(input: any) {
-    try {
-        const output = await updateShipmentInTracking(input);
-        return { success: true, data: output };
-    } catch (error: any) {
-        console.error("Server Action Failed for updateShipmentInTracking", error);
-        return { success: false, error: error.message || "Failed to run flow" };
-    }
-}
-
-export async function runGetRouteMap(shipmentNumber: string) {
-    try {
-        const data = await getRouteMap({ shipmentNumber });
-        return { success: true, data };
-    } catch (error: any) {
-        console.error("Get Route Map Action Failed", error);
-        return { success: false, error: error.message || "Failed to get route map" };
-    }
-}
-
 
 export async function runDetectCarrier(trackingNumber: string) {
     try {
@@ -712,4 +677,3 @@ export async function runGenerateSimulationPdfHtml(input: any) {
     }
 }
     
-

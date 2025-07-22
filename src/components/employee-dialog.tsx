@@ -42,7 +42,6 @@ const permissionLabels: { key: keyof Employee['permissions']; label: string }[] 
     { key: 'rh', label: 'RH' },
     { key: 'demurrage', label: 'Demurrage' },
     { key: 'simulador', label: 'Simulador DI' },
-    { key: 'tracking', label: 'Rastreamento' },
     { key: 'cadastros', label: 'Cadastros' },
 ];
 
@@ -53,7 +52,7 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
     defaultValues: {
       status: 'Ativo',
       benefits: { hasHealthPlan: false, hasMealVoucher: false },
-      permissions: { gerencial: false, comercial: true, operacional: false, financeiro: false, rh: false, demurrage: false, simulador: false, tracking: false, cadastros: false },
+      permissions: { gerencial: false, comercial: true, operacional: false, financeiro: false, rh: false, demurrage: false, simulador: false, cadastros: false },
     }
   });
 
@@ -82,7 +81,7 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
         dismissalDate: undefined,
         systemAccess: { email: '', password: '' },
         awards: { balance: 0, cajuCardNumber: '' },
-        permissions: { gerencial: false, comercial: true, operacional: false, financeiro: false, rh: false, demurrage: false, simulador: false, tracking: false, cadastros: false },
+        permissions: { gerencial: false, comercial: true, operacional: false, financeiro: false, rh: false, demurrage: false, simulador: false, cadastros: false },
       });
     }
   }, [employee, form]);

@@ -38,7 +38,6 @@ const menuItems = [
   { href: '/gerencial/rh', label: 'RH', icon: Users },
   { href: '/gerencial/demurrage', label: 'Demurrage', icon: Clock },
   { href: '/gerencial/simulador-di', label: 'Simulador DI', icon: Calculator },
-  { href: '/gerencial/tracking', label: 'Rastreamento', icon: Ship },
 ];
 
 const bottomMenuItems = [

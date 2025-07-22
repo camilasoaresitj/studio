@@ -1,5 +1,5 @@
 
-import { genkit } from 'genkit';
+import { genkit } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
 
 // This file is imported by all flows.

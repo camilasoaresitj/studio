@@ -57,7 +57,8 @@
     "zod-to-json-schema": "^3.23.1",
     "soap": "^1.0.0",
     "twilio": "^5.2.2",
-    "axios": "^1.7.2"
+    "axios": "^1.7.2",
+    "@genkit-ai/core": "0.5.0"
   },
   "devDependencies": {
     "@types/google.maps": "^3.55.11",

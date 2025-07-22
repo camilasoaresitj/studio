@@ -1,9 +1,11 @@
 // src/lib/ports.ts
 
 export interface Port {
+  id?: string;
   name: string;
   unlocode: string;
   country: string;
+  city?: string;
   type: 'port' | 'airport';
 }
 

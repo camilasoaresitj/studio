@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, Loader2, Calculator, FileUp, Share2, FileDown, Eye, Save } from 'lucide-react';
-import { runExtractInvoiceItems, runGetNcmRates, runShareSimulation, generateSimulationPdfHtml } from '@/app/actions';
+import { runExtractInvoiceItems, runGetNcmRates, runShareSimulation, runGenerateSimulationPdfHtml } from '@/app/actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvoiceItem } from '@/lib/schemas/invoice';
 import { getSimulations, saveSimulations, Simulation } from '@/lib/simulations-data';
@@ -17,6 +18,8 @@ import { getPartners, Partner } from '@/lib/partners-data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { ShareSimulationDialog } from '@/components/share-simulation-dialog';
+
 
 const ncmRateSchema = z.object({
   ncm: z.string(),
@@ -212,7 +215,7 @@ export default function SimuladorDIPage() {
         if (!result) return;
         setIsLoading(true);
         const simData = form.getValues();
-        const response = await generateSimulationPdfHtml({
+        const response = await runGenerateSimulationPdfHtml({
             simulationName: simData.simulationName,
             customerName: simData.customerName,
             createdAt: new Date().toLocaleDateString('pt-BR'),
@@ -361,27 +364,12 @@ export default function SimuladorDIPage() {
                 </div>
             </div>
             
-             <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Compartilhar Simulação</DialogTitle>
-                        <DialogDescription>
-                            Envie um resumo da simulação para seu cliente via E-mail ou WhatsApp.
-                        </DialogDescription>
-                    </DialogHeader>
-                    {currentSimulationData && (
-                        <div className="py-4 space-y-2">
-                            <p><strong>Simulação:</strong> {currentSimulationData.name}</p>
-                            <p><strong>Cliente:</strong> {currentSimulationData.customer}</p>
-                            <p><strong>Custo Total:</strong> BRL {currentSimulationData.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                        </div>
-                    )}
-                    <DialogFooter>
-                         <Button variant="outline" onClick={() => {}}>Enviar por E-mail</Button>
-                         <Button onClick={() => {}}>Enviar por WhatsApp</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+             <ShareSimulationDialog
+                open={isShareOpen}
+                onOpenChange={setIsShareOpen}
+                simulationData={currentSimulationData}
+                onShare={runShareSimulation}
+            />
         </div>
     );
 }

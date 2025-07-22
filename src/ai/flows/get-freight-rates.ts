@@ -13,6 +13,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { findPortByTerm } from '@/lib/ports';
+import axios from 'axios';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
 
@@ -42,47 +43,38 @@ export async function getAirFreightRates(input: GetFreightRatesInput): Promise<G
   return getAirFreightRatesFlow(input);
 }
 
-// SIMULATION FUNCTION for OCEAN
-function getSimulatedCargoFiveRates(input: GetFreightRatesInput): GetFreightRatesOutput {
-    console.log("Returning simulated CargoFive OCEAN rates for:", input.origin, "->", input.destination);
-    
-    const carriers = [
-        { name: 'Maersk', logoHint: 'maersk logo' },
-        { name: 'MSC', logoHint: 'msc logo' },
-        { name: 'CMA CGM', logoHint: 'cma cgm logo' },
-    ];
-    
-    const results: GetFreightRatesOutput = [];
-    
-    let baseCost = 2000;
-    if (input.origin.toLowerCase().includes('china') || input.destination.toLowerCase().includes('china')) {
-        baseCost = 5000;
+// Tool to call the CargoFive API
+const cargoFiveRateTool = ai.defineTool(
+  {
+    name: 'getCargoFiveRates',
+    description: 'Fetches real-time ocean freight rates from the CargoFive API.',
+    inputSchema: z.any(),
+    outputSchema: z.any(),
+  },
+  async (params) => {
+    const apiKey = process.env.CARGOFIVE_API_KEY;
+    const apiUrl = process.env.CARGOFIVE_API_URL;
+    if (!apiKey || !apiUrl) {
+      throw new Error('CargoFive API key or URL is not configured.');
     }
+    
+    // CargoFive uses a different endpoint for quotations
+    const response = await axios.post(`${apiUrl}/forwarding/quotes/search`, params, {
+        headers: {
+            'x-api-key': apiKey,
+            'Content-Type': 'application/json'
+        }
+    });
 
-    const containerType = input.oceanShipment.containers[0]?.type || "20'GP";
-    if (containerType.includes('40')) {
-        baseCost *= 1.8;
+    if (response.status !== 200) {
+        console.error("CargoFive API Error:", response.data);
+        throw new Error(`CargoFive API Error (${response.status}): ${response.data.message || 'Unknown error'}`);
     }
     
-    for (const carrier of carriers) {
-        const costValue = baseCost + Math.random() * 500;
-        const transitTime = 25 + Math.floor(Math.random() * 10);
-        results.push({
-            id: `simulated-ocean-${carrier.name}-${Date.now()}`,
-            carrier: carrier.name,
-            origin: input.origin,
-            destination: input.destination,
-            transitTime: `${transitTime} dias`,
-            cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(costValue),
-            costValue: costValue,
-            carrierLogo: `https://placehold.co/120x40.png?text=${carrier.name}`,
-            dataAiHint: carrier.logoHint,
-            source: 'CargoFive (Simulado)',
-        });
-    }
+    return response.data;
+  }
+);
 
-    return results;
-}
 
 // SIMULATION FUNCTION for AIR
 function getSimulatedCargoAiRates(input: GetFreightRatesInput): GetFreightRatesOutput {
@@ -128,28 +120,63 @@ const getFreightRatesFlow = ai.defineFlow(
     name: 'getFreightRatesFlow',
     inputSchema: freightQuoteFormSchema,
     outputSchema: GetFreightRatesOutputSchema,
+    tools: [cargoFiveRateTool]
   },
   async (input) => {
     
-    // Using the simulation function directly.
-    const searchOrigins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
-    const searchDestinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
+    const originPort = findPortByTerm(input.origin);
+    const destinationPort = findPortByTerm(input.destination);
 
-    if (searchOrigins.length === 0 || searchDestinations.length === 0) {
-        return []; 
+    if (!originPort || !destinationPort) {
+        throw new Error('Could not find valid UNLOCODEs for the specified origin or destination.');
     }
     
-    const allResults: GetFreightRatesOutput = [];
+    const apiParams = {
+        origin_port: originPort.unlocode,
+        destination_port: destinationPort.unlocode,
+        incoterm: input.incoterm,
+        ...(input.oceanShipmentType === 'FCL' && {
+            shipment_type: 'FCL',
+            containers: input.oceanShipment.containers.map(c => ({
+                iso_code: c.type.replace("'", "").replace("GP", "G1").replace("HC", "P1"),
+                quantity: c.quantity,
+            }))
+        }),
+         ...(input.oceanShipmentType === 'LCL' && {
+            shipment_type: 'LCL',
+            packages: [{
+                quantity: 1, // Simplified for now
+                weight: input.lclDetails.weight,
+                dimensions: {
+                    length: Math.cbrt(input.lclDetails.cbm * 1_000_000), // Approximate dimensions from CBM
+                    width: Math.cbrt(input.lclDetails.cbm * 1_000_000),
+                    height: Math.cbrt(input.lclDetails.cbm * 1_000_000),
+                }
+            }]
+        })
+    };
 
-    for (const origin of searchOrigins) {
-        for (const destination of searchDestinations) {
-            const simulatedInput = { ...input, origin, destination };
-            const simulatedRates = getSimulatedCargoFiveRates(simulatedInput);
-            allResults.push(...simulatedRates);
-        }
+    const rateResponse = await cargoFiveRateTool(apiParams);
+
+    if (rateResponse && rateResponse.results) {
+        return rateResponse.results.map((rate: any): GetFreightRatesOutput[0] => {
+            const totalAmount = rate.charges.reduce((sum: number, charge: any) => sum + charge.amount, 0);
+            return {
+                id: rate.id,
+                carrier: rate.carrier_name,
+                origin: rate.origin_port_name,
+                destination: rate.destination_port_name,
+                transitTime: `${rate.transit_time} dias`,
+                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: rate.charges[0]?.currency || 'USD' }).format(totalAmount),
+                costValue: totalAmount,
+                carrierLogo: rate.carrier_logo || `https://placehold.co/120x40.png?text=${rate.carrier_name}`,
+                dataAiHint: `${rate.carrier_name.toLowerCase()} logo`,
+                source: 'CargoFive',
+            };
+        }).sort((a: any, b: any) => a.costValue - b.costValue);
     }
     
-    return allResults.sort((a,b) => a.costValue - b.costValue);
+    return [];
   }
 );
 

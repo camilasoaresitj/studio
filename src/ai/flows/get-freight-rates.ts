@@ -167,6 +167,19 @@ const getFreightRatesFlow = ai.defineFlow(
         throw new Error('Não foi possível encontrar códigos de porto (UNLOCODE) válidos para a origem ou destino especificados. Por favor, use nomes de cidade reconhecidos.');
     }
     
+    const containerTypeMapping: { [key: string]: string } = {
+        "20'GP": "20DRY",
+        "40'GP": "40DRY",
+        "40'HC": "40HDRY",
+        "20'RF": "20REF",
+        "40'RF": "40HREF",
+        "40'NOR": "40NOR",
+        "20'OT": "20OT",
+        "40'OT": "40OT",
+        "20'FR": "20FLAT",
+        "40'FR": "40FLAT",
+    };
+    
     const apiParams = {
         origin: {
             unlocode: originPort.unlocode,
@@ -180,7 +193,7 @@ const getFreightRatesFlow = ai.defineFlow(
         },
         ...(input.oceanShipmentType === 'FCL' && {
             options: {
-                container_type: input.oceanShipment.containers[0]?.type,
+                container_type: containerTypeMapping[input.oceanShipment.containers[0]?.type] || input.oceanShipment.containers[0]?.type,
                 incoterm: input.incoterm || 'FOB',
             }
         }),
@@ -195,6 +208,7 @@ const getFreightRatesFlow = ai.defineFlow(
             }],
             options: {
                 incoterm: input.incoterm || 'FOB',
+                container_type: 'LCL',
             }
         })
     };

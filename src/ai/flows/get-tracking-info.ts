@@ -10,10 +10,74 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Shipment, Milestone, TransshipmentDetail } from '@/lib/shipment';
 import { findCarrierByName } from '@/lib/carrier-data';
 import { GetTrackingInfoOutputSchema, TrackingEventSchema, ContainerDetailSchema, type TrackingEvent, type ContainerDetail, type GetTrackingInfoOutput } from '@/lib/schemas/tracking';
+import type { Partner } from '@/lib/partners-data';
 
+// --- Type Definitions moved from shipment-data.ts to break client->server import chain ---
+
+export type QuoteCharge = {
+  id: string;
+  name: string;
+  type: string;
+  localPagamento?: 'Origem' | 'Frete' | 'Destino';
+  cost: number;
+  costCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
+  sale: number;
+  saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
+  supplier: string;
+  sacado?: string;
+  approvalStatus: 'aprovada' | 'pendente' | 'rejeitada';
+  justification?: string;
+  financialEntryId?: string | null;
+};
+
+export type Milestone = {
+  name: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  predictedDate: Date;
+  effectiveDate: Date | null;
+  details?: string;
+  isTransshipment?: boolean;
+};
+
+export type TransshipmentDetail = {
+  id: string;
+  port: string;
+  vessel: string;
+  etd?: Date;
+  eta?: Date;
+};
+
+export type Shipment = {
+  id: string; 
+  quoteId: string;
+  origin: string;
+  destination: string;
+  shipper: Partner;
+  consignee: Partner;
+  agent?: Partner;
+  responsibleUser?: string;
+  charges: QuoteCharge[];
+  details: any;
+  milestones: Milestone[];
+  documents: any[];
+  carrier?: string;
+  bookingNumber?: string;
+  vesselName?: string;
+  voyageNumber?: string;
+  masterBillNumber?: string;
+  houseBillNumber?: string;
+  etd?: Date;
+  eta?: Date;
+  containers?: any[];
+  transshipments?: TransshipmentDetail[];
+  customer: string;
+  [key: string]: any; // Allow other properties
+};
+
+
+// --- Flow Implementation ---
 
 const GetTrackingInfoInputSchema = z.object({
   trackingNumber: z.string().describe('The tracking number (e.g., Bill of Lading, Container No, AWB).'),
@@ -346,3 +410,5 @@ const getTrackingInfoFlow = ai.defineFlow(
     }
   }
 );
+
+    

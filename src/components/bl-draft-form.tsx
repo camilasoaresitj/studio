@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import type { Shipment, Partner, BLDraftHistory, BLDraftData } from '@/lib/shipment-data';
 import { saveShipments } from '@/lib/shipment-data';
-import { submitBLDraft } from '@/app/actions';
+import { runSubmitBLDraft } from '@/app/actions';
 import { Loader2, Send, FileText, AlertTriangle, CheckCircle, Ship, Trash2, PlusCircle, History } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -195,7 +195,7 @@ export const BLDraftForm = forwardRef<{ submit: () => void }, BLDraftFormProps>(
         toast({ title: 'Draft Salvo!', description: 'As informações do draft foram salvas no processo.' });
     } else {
         // Submit from the customer portal
-        const response = await submitBLDraft(shipment.id, draftDataToSave);
+        const response = await runSubmitBLDraft(shipment.id, draftDataToSave);
         if (response.success && response.data) {
           saveShipments(response.data);
           const updatedShipmentFromServer = response.data.find(s => s.id === shipment.id);
@@ -529,5 +529,3 @@ export const BLDraftForm = forwardRef<{ submit: () => void }, BLDraftFormProps>(
 });
 
 BLDraftForm.displayName = 'BLDraftForm';
-
-    

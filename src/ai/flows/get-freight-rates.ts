@@ -73,24 +73,27 @@ const CONTAINER_TYPE_MAPPING: Record<string, string> = {
 const cargoFiveRateTool = ai.defineTool(
   {
     name: 'getCargoFiveRates',
-    description: 'Fetches real-time ocean freight rates from the CargoFive API using a POST request.',
+    description: 'Fetches real-time ocean freight rates from the CargoFive API using a GET request with query parameters.',
     inputSchema: z.any(),
     outputSchema: z.array(z.any())
   },
-  async (payload) => {
+  async (params) => {
     const apiKey = process.env.CARGOFIVE_API_KEY || 'a256c19a3c3d85da2e35846de3205954';
-    const apiUrl = 'https://coreapp-qa.cargofive.com/api/v1/public/rates';
+    const baseUrl = 'https://coreapp-qa.cargofive.com/api/v1/public/rates';
     
     if (!apiKey) {
       throw new Error('CargoFive API key is not configured.');
     }
-
+    
     try {
-      console.log('Enviando para CargoFive (POST):', JSON.stringify(payload, null, 2));
-      const response = await axios.post(apiUrl, payload, {
+      const url = new URL(baseUrl);
+      Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+
+      console.log('Enviando para CargoFive (GET):', url.toString());
+      
+      const response = await axios.get(url.toString(), {
         headers: {
           'X-API-Key': apiKey,
-          'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
         timeout: 30000
@@ -105,7 +108,7 @@ const cargoFiveRateTool = ai.defineTool(
       return response.data;
     } catch (error: any) {
       const errorDetails = {
-        payload,
+        params,
         status: error.response?.status,
         errorData: error.response?.data,
         message: error.message
@@ -144,42 +147,27 @@ const getFreightRatesFlow = ai.defineFlow(
         throw new Error(`Mapeamento de ID de localização não encontrado para a rota: ${input.origin} -> ${input.destination}. Verifique o cadastro de portos.`);
       }
       
-      let containersDetails: any[] = [];
+      let cargoDetails = '';
       if (input.oceanShipmentType === 'FCL') {
-          containersDetails = input.oceanShipment.containers.map(c => {
+          cargoDetails = input.oceanShipment.containers.map(c => {
               const type = CONTAINER_TYPE_MAPPING[c.type] || '20DV';
               const weight = c.weight || 15000; // Default weight if not provided
-              return {
-                  quantity: c.quantity,
-                  type: type,
-                  weight: weight,
-                  weight_unit: "Kg"
-              };
-          });
-      } else { // LCL
-          containersDetails = [{
-              type: "LCL",
-              quantity: 1,
-              cbm: input.lclDetails.cbm,
-              weight: input.lclDetails.weight,
-              weight_unit: "Kg"
-          }]
+              return `${c.quantity}x${type}x${weight}`;
+          }).join(',');
+      } else { // LCL - Not supported by this API endpoint in this format
+          return [];
       }
 
-      const offerObject = {
-        origin_id: parseInt(originLocationId),
-        destination_id: parseInt(destinationLocationId),
+      const params = {
+        origins: originLocationId,
+        destinations: destinationLocationId,
         type: input.oceanShipmentType,
         departure_date: input.departureDate ? format(input.departureDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-        containers: containersDetails,
+        cargo_details: cargoDetails,
+        api_providers: '-1', // Search all providers
       };
 
-      // The payload must be an array of offer objects
-      const payload = [offerObject];
-
-      console.log('Payload final para API POST:', JSON.stringify(payload, null, 2));
-
-      const rates = await cargoFiveRateTool(payload);
+      const rates = await cargoFiveRateTool(params);
       
       if (rates.length === 0) {
         return [];

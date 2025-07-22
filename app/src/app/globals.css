@@ -1,89 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  :root {
-    --background: 220 20% 98%; /* Very light gray-blue */
-    --foreground: 224 71.4% 4.1%; /* Almost black, slightly blue */
-    --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-    --primary: 221.2 83.2% 53.3%; /* Strong blue */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 215 27.9% 95.9%; /* Lighter gray-blue */
-    --secondary-foreground: 224 71.4% 4.1%;
-    --muted: 215 27.9% 95.9%;
-    --muted-foreground: 215.4 16.3% 46.9%; /* Muted gray text */
-    --accent: 215 27.9% 95.9%; /* Same as secondary, for hovers */
-    --accent-foreground: 224 71.4% 4.1%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142.1 76.2% 36.3%; /* Added */
-    --success-foreground: 0 0% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --chart-1: 221.2 83.2% 53.3%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --sidebar-background: 224 71.4% 4.1%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 221.2 83.2% 53.3%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 224 71.4% 10.1%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 224 71.4% 10.1%;
-    --sidebar-ring: 221.2 83.2% 53.3%;
-  }
-
-  .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 0 0% 98%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 0 0% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 224 71.4% 4.1%;
-    --secondary: 224 71.4% 10.1%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 224 71.4% 10.1%;
-    --muted-foreground: 215.4 16.3% 56.9%;
-    --accent: 224 71.4% 10.1%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142.1 76.2% 36.3%;
-    --success-foreground: 0 0% 98%;
-    --border: 224 71.4% 10.1%;
-    --input: 224 71.4% 10.1%;
-    --ring: 217.2 91.2% 59.8%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 224 71.4% 4.1%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 217.2 91.2% 59.8%;
-    --sidebar-primary-foreground: 224 71.4% 4.1%;
-    --sidebar-accent: 224 71.4% 10.1%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 224 71.4% 10.1%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  experimental: {
+    optimizePackageImports: ['@googlemaps/js-api-loader']
+  },
+  trailingSlash: true,
+  skipTrailingSlashRedirect: true
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
+module.exports = nextConfig

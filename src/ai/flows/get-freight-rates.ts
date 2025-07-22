@@ -27,21 +27,6 @@ const FreightRateSchema = z.object({
 const GetFreightRatesOutputSchema = z.array(FreightRateSchema);
 export type GetFreightRatesOutput = z.infer<typeof GetFreightRatesOutputSchema>;
 
-export type CargoFiveRateResponse = {
-  id: string;
-  carrier: {
-    name: string;
-    scac: string;
-  };
-  service: string;
-  price: number;
-  currency: string;
-  transit_time: number;
-  validity_start_date: string;
-  validity_end_date: string;
-  origin_port: Port;
-  destination_port: Port;
-};
 
 // Mapeamento de UNLOCODE para CargoFive Location ID
 const PORT_LOCATIONS: Record<string, string> = {
@@ -73,26 +58,29 @@ const CONTAINER_TYPE_MAPPING: Record<string, string> = {
 const cargoFiveRateTool = ai.defineTool(
   {
     name: 'getCargoFiveRates',
-    description: 'Fetches real-time ocean freight rates from the CargoFive API using a GET request.',
-    inputSchema: z.any(),
-    outputSchema: z.array(z.any())
+    description: 'Fetches real-time ocean freight rates from the CargoFive API using a POST request.',
+    inputSchema: z.object({
+        url: z.string(),
+        payload: z.any(),
+    }),
+    outputSchema: z.any() // API returns a complex object, not an array.
   },
-  async (params) => {
+  async ({ url, payload }) => {
     const apiKey = process.env.CARGOFIVE_API_KEY || 'a256c19a3c3d85da2e35846de3205954';
-    const baseUrl = 'https://coreapp-qa.cargofive.com/api/v1/public/rates';
     
     if (!apiKey) {
       throw new Error('CargoFive API key is not configured.');
     }
     
     try {
-      console.log('Enviando para CargoFive (GET) com params:', params);
+      console.log('Enviando para CargoFive (POST) com URL:', url);
+      console.log('Payload:', JSON.stringify(payload, null, 2));
       
-      const response = await axios.get(baseUrl, {
-          params,
+      const response = await axios.post(url, payload, {
           headers: {
             'X-API-Key': apiKey,
             'Accept': 'application/json',
+            'Content-Type': 'application/json'
           },
           timeout: 30000
         }
@@ -100,14 +88,15 @@ const cargoFiveRateTool = ai.defineTool(
 
       console.log('Resposta da CargoFive:', JSON.stringify(response.data, null, 2));
 
-      if (!response.data || (Array.isArray(response.data) && response.data.length === 0)) {
-        return [];
+      if (!response.data) {
+        return null;
       }
 
       return response.data;
     } catch (error: any) {
       const errorDetails = {
-        params,
+        url,
+        payload,
         status: error.response?.status,
         errorData: error.response?.data,
         message: error.message
@@ -164,32 +153,56 @@ const getFreightRatesFlow = ai.defineFlow(
       const departureDate = input.departureDate 
         ? format(new Date(input.departureDate), 'yyyy-MM-dd') 
         : format(addDays(new Date(), 15), 'yyyy-MM-dd');
+        
+      const validityDate = format(addDays(new Date(departureDate), 4), 'yyyy-MM-dd');
 
-      const params = {
+      const baseUrl = 'https://coreapp-qa.cargofive.com/api/v1/public/rates';
+      const params = new URLSearchParams({
         origins: originLocationId,
         destinations: destinationLocationId,
         type: input.oceanShipmentType,
         departure_date: departureDate,
         cargo_details: cargoDetails,
-        api_providers: '-1', // Search all providers
-      };
+        api_providers: '-1',
+      });
+      const fullUrl = `${baseUrl}?${params.toString()}`;
 
-      const rates = await cargoFiveRateTool(params);
+      const payload = [
+        {
+            offer_id: null,
+            type: "FCL",
+            containers: input.oceanShipment.containers.map(c => ({
+                quantity: c.quantity,
+                type: CONTAINER_TYPE_MAPPING[c.type] || "20DV",
+                weight: c.weight || 15000,
+                weight_unit: "Kg"
+            })),
+            origin_port_id: parseInt(originLocationId),
+            destination_port_id: parseInt(destinationLocationId),
+            departure_date: departureDate,
+            validity_date: validityDate
+        }
+      ];
+
+      const response = await cargoFiveRateTool({ url: fullUrl, payload });
       
-      if (rates.length === 0) {
+      const rates = response?.offers?.rates;
+      if (!rates || rates.length === 0) {
         return [];
       }
 
-      return rates.map((rate: CargoFiveRateResponse) => ({
-        id: rate.id,
-        carrier: rate.carrier.name,
-        origin: rate.origin_port.name,
-        destination: rate.destination_port.name,
-        transitTime: `${rate.transit_time} dias`,
-        cost: `${rate.currency} ${rate.price.toFixed(2)}`,
-        costValue: rate.price,
-        carrierLogo: `https://logo.clearbit.com/${rate.carrier.scac.toLowerCase()}.com`,
-        dataAiHint: `${rate.carrier.name.toLowerCase()} logo`,
+      const containerType = CONTAINER_TYPE_MAPPING[input.oceanShipment.containers[0].type] || '20DV';
+      
+      return rates.map((rate: any, index: number) => ({
+        id: rate.product_offer?.rate_uuid || `rate-${index}`,
+        carrier: rate.product_offer?.main_carrier_name || 'N/A',
+        origin: rate.product_offer?.origin_port_display_name || 'N/A',
+        destination: rate.product_offer?.destination_port_display_name || 'N/A',
+        transitTime: `${rate.schedules?.[0]?.transit_time || 'N/A'} dias`,
+        costValue: rate.product_price?.totals?.per_container?.containers?.[containerType]?.total_unit_price_usd || 0,
+        cost: `USD ${(rate.product_price?.totals?.per_container?.containers?.[containerType]?.total_unit_price_usd || 0).toFixed(2)}`,
+        carrierLogo: rate.product_offer?.main_carrier_logo || `https://logo.clearbit.com/${rate.product_offer?.main_carrier_scac?.toLowerCase()}.com`,
+        dataAiHint: `${rate.product_offer?.main_carrier_name?.toLowerCase()} logo`,
         source: 'CargoFive'
       })).sort((a, b) => a.costValue - b.costValue);
 

@@ -95,78 +95,75 @@ export default function OperacionalPage() {
           Gerencie todos os processos de embarque ativos e acompanhe as tarefas críticas.
         </p>
       </header>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Processos de Embarque</CardTitle>
-                  <CardDescription>Visualize e gerencie todos os processos de importação e exportação.</CardDescription>
+      
+      <ImportantTasks />
+
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Processos de Embarque</CardTitle>
+              <CardDescription>Visualize e gerencie todos os processos de importação e exportação.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Buscar processo..." className="pl-8" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="relative">
-                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Buscar processo..." className="pl-8" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                    </div>
-                    <Button disabled>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Novo Processo
-                    </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Processo</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Modal</TableHead>
-                      <TableHead>Rota</TableHead>
-                      <TableHead>Master / AWB</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredShipments.map((shipment) => (
-                      <TableRow key={shipment.id} onClick={() => handleOpenSheet(shipment)} className="cursor-pointer">
-                        <TableCell className="font-medium text-primary">{shipment.id}</TableCell>
-                        <TableCell>{shipment.customer}</TableCell>
-                        <TableCell>{shipment.details.cargo.includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
-                        <TableCell>{shipment.origin} &rarr; {shipment.destination}</TableCell>
-                        <TableCell>{shipment.masterBillNumber}</TableCell>
-                        <TableCell>
-                          <Badge variant={getShipmentStatus(shipment).variant}>{getShipmentStatus(shipment).text}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                           <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleOpenSheet(shipment)}>
-                                  Ver/Editar Detalhes
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        <div className="lg:col-span-1">
-          <ImportantTasks />
-        </div>
-      </div>
+                <Button disabled>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Novo Processo
+                </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Processo</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Modal</TableHead>
+                  <TableHead>Rota</TableHead>
+                  <TableHead>Master / AWB</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredShipments.map((shipment) => (
+                  <TableRow key={shipment.id} onClick={() => handleOpenSheet(shipment)} className="cursor-pointer">
+                    <TableCell className="font-medium text-primary">{shipment.id}</TableCell>
+                    <TableCell>{shipment.customer}</TableCell>
+                    <TableCell>{shipment.details.cargo.includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
+                    <TableCell>{shipment.origin} &rarr; {shipment.destination}</TableCell>
+                    <TableCell>{shipment.masterBillNumber}</TableCell>
+                    <TableCell>
+                      <Badge variant={getShipmentStatus(shipment).variant}>{getShipmentStatus(shipment).text}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleOpenSheet(shipment)}>
+                              Ver/Editar Detalhes
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
        <ShipmentDetailsSheet 
         shipment={selectedShipment}
         partners={partners}

@@ -22,14 +22,14 @@ export const portsAndAirports: Port[] = [
   { name: 'Vitória', unlocode: 'BRVIX', country: 'BR', type: 'port' },
 
   // Portos Internacionais
-  { name: 'Nova York', unlocode: 'USNYC', country: 'US', type: 'port' },
+  { name: 'New York', unlocode: 'USNYC', country: 'US', type: 'port' },
   { name: 'Los Angeles', unlocode: 'USLAX', country: 'US', type: 'port' },
   { name: 'Rotterdam', unlocode: 'NLRTM', country: 'NL', type: 'port' },
-  { name: 'Antuérpia', unlocode: 'BEANR', country: 'BE', type: 'port' },
-  { name: 'Hamburgo', unlocode: 'DEHAM', country: 'DE', type: 'port' },
-  { name: 'Xangai', unlocode: 'CNSHA', country: 'CN', type: 'port' },
+  { name: 'Antwerp', unlocode: 'BEANR', country: 'BE', type: 'port' },
+  { name: 'Hamburg', unlocode: 'DEHAM', country: 'DE', type: 'port' },
+  { name: 'Shanghai', unlocode: 'CNSHA', country: 'CN', type: 'port' },
   { name: 'Shenzhen', unlocode: 'CNSZX', country: 'CN', type: 'port' },
-  { name: 'Singapura', unlocode: 'SGSIN', country: 'SG', type: 'port' },
+  { name: 'Singapore', unlocode: 'SGSIN', country: 'SG', type: 'port' },
   { name: 'Busan', unlocode: 'KRPUS', country: 'KR', type: 'port' },
   { name: 'Valparaíso', unlocode: 'CLVAP', country: 'CL', type: 'port' },
 

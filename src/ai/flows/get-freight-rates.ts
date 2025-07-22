@@ -104,7 +104,9 @@ const cargoFiveRateTool = ai.defineTool(
         return response.data.data;
     } catch (error: any) {
         console.error("CargoFive API Request Failed:", error.response?.data || error.message);
-        throw new Error(error.response?.data?.message || `Failed to fetch rates from CargoFive: ${error.message}`);
+        const errorMessage = error.response?.data?.message || `Failed to fetch rates from CargoFive: ${error.message}`;
+        // Adicionando o payload ao erro para depuração
+        throw new Error(`${errorMessage}. Payload enviado: ${JSON.stringify(params, null, 2)}`);
     }
   }
 );

@@ -149,6 +149,8 @@ const getFreightRatesFlow = ai.defineFlow(
         })
     };
 
+    console.log("Enviando payload para CargoFive:", JSON.stringify(apiParams, null, 2));
+
     const rateResponse = await cargoFiveRateTool(apiParams);
 
     if (rateResponse && Array.isArray(rateResponse)) {

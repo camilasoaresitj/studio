@@ -95,7 +95,7 @@ const statusTranslations: { [key: string]: string } = {
     "load on vessel": "Embarcado no Navio",
     "vessel departure": "Partida do Navio",
     "vessel arrival": "Chegada do Navio",
-    "discharged": "Descarregado no Destino",
+    "discharged": "Descarregado",
     "import customs clearance": "Liberação Alfandegária (Importação)",
     "available for pickup": "Disponível para Retirada",
     "delivered": "Entregue",
@@ -103,14 +103,28 @@ const statusTranslations: { [key: string]: string } = {
     "transshipment": "Transbordo",
 };
 
-const translateStatus = (status: string): string => {
+const translateStatus = (status: string, location: string, origin: string, destination: string): string => {
     if (!status) return 'Status Desconhecido';
     const lowerStatus = status.toLowerCase().trim();
+    const isOrigin = location.toLowerCase().includes(origin.toLowerCase());
+    const isDestination = location.toLowerCase().includes(destination.toLowerCase());
+
+    if (lowerStatus.includes('vessel departure') || lowerStatus.includes('loaded on vessel')) {
+        if (isOrigin) return `Partida do Navio de ${location}`;
+        return `Partida de Transbordo de ${location}`;
+    }
+    
+    if (lowerStatus.includes('vessel arrival') || lowerStatus.includes('discharged')) {
+        if (isDestination) return `Chegada e Desembarque em ${location}`;
+        return `Chegada para Transbordo em ${location}`;
+    }
+
     for (const key in statusTranslations) {
         if (lowerStatus.includes(key)) {
             return statusTranslations[key];
         }
     }
+    
     // Capitalize the first letter if no translation is found
     return status.charAt(0).toUpperCase() + status.slice(1);
 };
@@ -127,6 +141,11 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
   const allEventsMap = new Map<string, TrackingEvent>();
   const allContainers = new Map<string, ContainerDetail>();
   const allTransshipments = new Map<string, TransshipmentDetail>();
+  
+  // Dynamically determine origin, destination, etc. based on the available leg
+  const mainLeg = primaryShipment.shipmentLegs?.portToPort || primaryShipment.shipmentLegs?.road || {};
+  const origin = mainLeg.loadingPort || mainLeg.origin || primaryShipment.originOceanPort || 'N/A';
+  const destination = mainLeg.dischargePort || mainLeg.destination || primaryShipment.destinationOceanPort || 'N/A';
 
   shipments.forEach(shipment => {
     // Collect all containers, avoiding duplicates
@@ -143,7 +162,8 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
 
     // Collect all events, avoiding duplicates with a more robust key
     (shipment.shipmentEvents || []).forEach((event: any) => {
-      const translatedStatus = translateStatus(event.name || 'N/A');
+      const eventLocation = event.location || 'N/A';
+      const translatedStatus = translateStatus(event.name || 'N/A', eventLocation, origin, destination);
       const eventDate = event.actualTime || event.estimateTime;
       const eventKey = `${translatedStatus}-${event.location}-${eventDate}`;
       
@@ -158,9 +178,6 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
       }
     });
     
-    // Detect the primary shipment leg dynamically (portToPort, road, etc.)
-    const mainLeg = primaryShipment.shipmentLegs?.portToPort || primaryShipment.shipmentLegs?.road || null;
-
     // Collect all transshipment ports, if applicable
     if (mainLeg?.segments) {
       mainLeg.segments
@@ -186,13 +203,10 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
 
   const lastCompletedEvent = allEvents.slice().reverse().find(e => e.completed) || allEvents[allEvents.length - 1];
   
-  // Dynamically determine origin, destination, etc. based on the available leg
-  const mainLeg = primaryShipment.shipmentLegs?.portToPort || primaryShipment.shipmentLegs?.road || {};
-
   const shipmentDetails: Partial<Shipment> = {
       carrier: carrierName,
-      origin: mainLeg.loadingPort || mainLeg.origin || primaryShipment.originOceanPort || 'N/A',
-      destination: mainLeg.dischargePort || mainLeg.destination || primaryShipment.destinationOceanPort || 'N/A',
+      origin: origin,
+      destination: destination,
       dischargeTerminal: primaryShipment.destinationAddress || 'N/A',
       vesselName: mainLeg.currentTransportName || mainLeg.carrier || 'N/A',
       voyageNumber: mainLeg.currentTripNumber,
@@ -347,5 +361,3 @@ const getTrackingInfoFlow = ai.defineFlow(
 );
 
     
-
-

@@ -24,6 +24,7 @@ import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import type { Partner } from "@/lib/partners-data";
+import { getPartners } from "@/lib/partners-data";
 import type { Quote } from "@/components/customer-quotes-list";
 import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import type { GetTrackingInfoOutput } from "@/lib/schemas/tracking";
@@ -441,6 +442,15 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
 
 // Moved from `shipment.ts` to `actions.ts` to be a server action
 async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
+  const allPartners = getPartners();
+  const shipper = allPartners.find(p => p.id?.toString() === quoteData.shipperId);
+  const consignee = allPartners.find(p => p.id?.toString() === quoteData.consigneeId);
+  const agent = allPartners.find(p => p.id?.toString() === quoteData.agentId);
+
+  if(!shipper || !consignee) {
+      throw new Error("Shipper or Consignee not found");
+  }
+
   const isImport = quoteData.destination.toUpperCase().includes('BR');
   const creationDate = new Date();
   
@@ -491,7 +501,7 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
   };
 
   const milestones = generateInitialMilestones(isImport, quoteData.details.transitTime, quoteData.details.freeTime, creationDate);
-  if (milestones.length > 0 && quoteData.agent) { milestones[0].status = 'completed'; milestones[0].effectiveDate = new Date(); }
+  if (milestones.length > 0 && quoteData.agentId) { milestones[0].status = 'completed'; milestones[0].effectiveDate = new Date(); }
 
   const transitTime = parseInt(quoteData.details.transitTime.split('-').pop() || '30', 10);
   const etdDays = isImport ? IMPORT_MILESTONE_DUE_DAYS['Confirmação de Embarque'] : EXPORT_MILESTONE_DUE_DAYS['Embarque'];
@@ -508,7 +518,7 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
   const newShipment: Shipment = {
     id: shipmentId, quoteId: quoteData.id, origin: quoteData.origin, destination: quoteData.destination,
     collectionAddress: quoteData.collectionAddress, deliveryAddress: quoteData.deliveryAddress,
-    shipper: quoteData.shipper, consignee: quoteData.consignee, agent: quoteData.agent,
+    shipper, consignee, agent,
     responsibleUser: quoteData.responsibleUser, terminalRedestinacaoId: quoteData.terminalRedestinacaoId,
     charges: quoteData.charges.map(c => ({ ...c, approvalStatus: 'aprovada' })),
     details: quoteData.details, carrier: freightCharge?.supplier, milestones, documents, etd, eta,
@@ -521,15 +531,15 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
     blDraftHistory: { sentAt: null, revisions: [] },
   };
 
-  if (isImport && quoteData.agent) {
+  if (isImport && agent) {
     const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
     const agentPortalUrl = typeof window !== 'undefined' ? `${window.location.origin}/agent-portal/${shipmentId}` : `/agent-portal/${shipmentId}`;
     await runSendShippingInstructions({
-      shipmentId: newShipment.id, agentName: quoteData.agent.name, agentEmail: quoteData.agent.contacts[0]?.email || 'agent@example.com',
-      shipper: quoteData.shipper, consigneeName: quoteData.consignee.name, notifyName: quoteData.notifyName,
+      shipmentId: newShipment.id, agentName: agent.name, agentEmail: agent.contacts[0]?.email || 'agent@example.com',
+      shipper: shipper, consigneeName: consignee.name, notifyName: quoteData.notifyName,
       freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
       freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'AS AGREED',
-      agentProfit: quoteData.agent.profitAgreement?.amount ? `USD ${quoteData.agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
+      agentProfit: agent.profitAgreement?.amount ? `USD ${agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
       thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
       commodity: newShipment.commodityDescription || 'General Cargo', equipmentDescription: newShipment.details.cargo || 'N/A',
       ncm: newShipment.ncms?.[0] || 'N/A', invoiceNumber: newShipment.invoiceNumber || 'N/A', purchaseOrderNumber: newShipment.purchaseOrderNumber || 'N/A',
@@ -545,9 +555,6 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
 
 export async function runApproveQuote(
     quote: Quote, 
-    shipper: Partner, 
-    consignee: Partner, 
-    agent: Partner | undefined, 
     notifyName: string, 
     terminalId: string | undefined, 
     responsibleUser: string, 
@@ -558,9 +565,6 @@ export async function runApproveQuote(
     try {
         await createShipment({
             ...quote,
-            shipper,
-            consignee,
-            agent,
             notifyName,
             responsibleUser,
             terminalRedestinacaoId: terminalId,

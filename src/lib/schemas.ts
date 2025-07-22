@@ -45,6 +45,9 @@ export const baseFreightQuoteFormSchema = z.object({
   collectionAddress: z.string().optional(),
   deliveryAddress: z.string().optional(),
   commodity: z.string().optional(),
+  shipperId: z.string().optional(),
+  consigneeId: z.string().optional(),
+  agentId: z.string().optional(),
   
   airShipment: z.object({
     pieces: z.array(airPieceSchema),

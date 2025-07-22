@@ -46,9 +46,9 @@ export type ShipmentCreationData = {
   customer: string;
   charges: QuoteCharge[];
   details: QuoteDetails;
-  shipper: Partner;
-  consignee: Partner;
-  agent?: Partner;
+  shipperId?: string;
+  consigneeId?: string;
+  agentId?: string;
   notifyName: string;
   responsibleUser: string;
   terminalRedestinacaoId?: string;

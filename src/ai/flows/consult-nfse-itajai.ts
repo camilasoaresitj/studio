@@ -36,7 +36,8 @@ const consultNfseItajaiFlow = ai.defineFlow(
     inputSchema: ConsultNfseItajaiInputSchema,
     outputSchema: ConsultNfseItajaiOutputSchema,
   },
-  async ({ cnpj, startDate, endDate, page }) => {
+  async (input) => {
+    const { cnpj, startDate, endDate, page } = input;
     console.log(`Starting NFS-e consultation for CNPJ: ${cnpj}`);
 
     const xmlPayload = `

@@ -37,10 +37,12 @@ import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generat
 import { registerDueFlow } from '@/ai/flows/register-due';
 import type { RegisterDueInput, RegisterDueOutput } from '@/ai/flows/register-due';
 import { generateDiXmlFromSpreadsheet } from "@/ai/flows/generate-di-xml-from-spreadsheet";
-import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
-import { getNcmRates } from '@/ai/flows/get-ncm-rates';
+import { extractInvoiceItems } from "@/ai/flows/extract-invoice-items";
+import { getNcmRates } from "@/ai/flows/get-ncm-rates";
 import type { ExtractInvoiceItemsOutput, ExtractInvoiceItemsInput } from '@/lib/schemas/invoice';
 import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision, UploadedDocument, DocumentStatus, ShipmentCreationData } from "@/lib/shipment-data";
+import { shareSimulation } from '@/ai/flows/share-simulation';
+import { generateSimulationPdfHtml } from '@/ai/flows/generate-simulation-pdf-html';
 
 
 export async function runGetFreightRates(input: any) {
@@ -690,4 +692,24 @@ export async function runGetNcmRates(ncm: string) {
     }
 }
 
+export async function runShareSimulation(input: any) {
+    try {
+        const data = await shareSimulation(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Share Simulation Action Failed", error);
+        return { success: false, error: error.message || "Failed to share simulation" };
+    }
+}
+
+export async function runGenerateSimulationPdfHtml(input: any) {
+    try {
+        const data = await generateSimulationPdfHtml(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Generate Simulation PDF HTML Action Failed", error);
+        return { success: false, error: error.message || "Failed to generate PDF HTML" };
+    }
+}
     
+

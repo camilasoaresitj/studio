@@ -32,7 +32,7 @@ interface ReportData {
 
 export function GerencialPage() {
     const [reportData, setReportData] = useState<ReportData | null>(null);
-
+    const [partners, setPartners] = useState<Partner[]>([]);
     const [kpiData, setKpiData] = useState({
         monthlyProfit: 0,
         operationalProfit: 0,
@@ -49,7 +49,8 @@ export function GerencialPage() {
         const shipments = getShipments();
         const quotes = getInitialQuotes(); 
         const financialEntries = getFinancialEntries();
-        const partners = getPartners();
+        const allPartners = getPartners();
+        setPartners(allPartners);
         const today = new Date();
         today.setHours(0,0,0,0);
         
@@ -96,7 +97,7 @@ export function GerencialPage() {
         );
         
         const thirtyDaysAgo = subDays(today, 30);
-        const newClients = partners.filter(p => p.roles.cliente && p.createdAt && new Date(p.createdAt) > thirtyDaysAgo);
+        const newClients = allPartners.filter(p => p.roles.cliente && p.createdAt && new Date(p.createdAt) > thirtyDaysAgo);
 
         const ninetyDaysAgo = subDays(today, 90);
         const activeClientNames = new Set(
@@ -332,5 +333,3 @@ export function GerencialPage() {
     </>
   );
 }
-
-    

@@ -62,7 +62,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runGetCourierStatus, runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking, runGetRouteMap, addManualMilestone } from '@/app/actions';
+import { runGetTrackingInfo, runCourierStatus, runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking, runGetRouteMap, addManualMilestone } from '@/app/actions';
 import { Checkbox } from './ui/checkbox';
 import { getFees } from '@/lib/fees-data';
 import type { Fee } from '@/lib/fees-data';
@@ -191,6 +191,7 @@ const JustificationDialog = ({ open, onOpenChange, onConfirm }: { open: boolean,
             return;
         }
         onConfirm(justification);
+        setJustification('');
     };
 
     return (
@@ -199,7 +200,7 @@ const JustificationDialog = ({ open, onOpenChange, onConfirm }: { open: boolean,
                 <DialogHeader>
                     <DialogTitle>Justificar Alteração de Valor</DialogTitle>
                     <DialogDescription>
-                        Esta taxa já foi aprovada. Por favor, insira uma justificativa para a alteração do valor de venda. A alteração ficará pendente de aprovação gerencial.
+                        Esta taxa já foi aprovada. Por favor, insira uma justificativa para a alteração do valor. A alteração ficará pendente de aprovação gerencial.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
@@ -316,7 +317,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
     const [documentPreviews, setDocumentPreviews] = useState<Record<string, string>>({});
     const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
-    const [justificationData, setJustificationData] = useState<{ chargeIndex: number, newSaleValue: number } | null>(null);
+    const [justificationData, setJustificationData] = useState<{ chargeIndex: number; field: 'cost' | 'sale'; newValue: number } | null>(null);
     const [financialEntries, setFinancialEntries] = useState(getFinancialEntries());
     const [detailsEntry, setDetailsEntry] = useState<any>(null); // State for finance details dialog
 
@@ -685,12 +686,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         });
     };
 
-    const handleSaleValueChange = (index: number, newValue: number) => {
+    const handleValueChange = (index: number, field: 'cost' | 'sale', newValue: number) => {
         const charge = watchedCharges[index];
-        if (charge.approvalStatus === 'aprovada' && newValue !== charge.sale) {
-            setJustificationData({ chargeIndex: index, newSaleValue: newValue });
+        if (charge.approvalStatus === 'aprovada' && newValue !== charge[field]) {
+            setJustificationData({ chargeIndex: index, field, newValue });
         } else {
-            updateCharge(index, { ...charge, sale: newValue });
+            updateCharge(index, { ...charge, [field]: newValue });
         }
     };
     
@@ -709,6 +710,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             });
         }
     };
+
 
     const sortedMilestones = useMemo(() => {
         if (!shipment) return [];
@@ -1102,7 +1104,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                 <TableCell className="p-1 align-top">
                                                                     <div className="flex gap-1">
                                                                         <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isBilled}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                        <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled} />} />
+                                                                        <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled} onBlur={(e) => handleValueChange(index, 'cost', parseFloat(e.target.value) || 0)} />} />
                                                                     </div>
                                                                 </TableCell>
                                                                 <TableCell className="p-1 align-top">
@@ -1116,7 +1118,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                 <TableCell className="p-1 align-top">
                                                                     <div className="flex gap-1">
                                                                         <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isBilled}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                        <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" onChange={(e) => handleSaleValueChange(index, parseFloat(e.target.value) || 0)} disabled={isBilled && charge.approvalStatus !== 'pendente'} />} />
+                                                                        <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled && charge.approvalStatus !== 'pendente'} onBlur={(e) => handleValueChange(index, 'sale', parseFloat(e.target.value) || 0)} />} />
                                                                     </div>
                                                                     {charge.approvalStatus === 'pendente' && <Badge variant="default" className="mt-1">Pendente</Badge>}
                                                                     {charge.approvalStatus === 'rejeitada' && <Badge variant="destructive" className="mt-1">Rejeitada</Badge>}
@@ -1320,11 +1322,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     onOpenChange={() => setJustificationData(null)}
                     onConfirm={(justification) => {
                         if (justificationData) {
-                            const { chargeIndex, newSaleValue } = justificationData;
+                            const { chargeIndex, field, newValue } = justificationData;
                             const charge = watchedCharges[chargeIndex];
                             updateCharge(chargeIndex, {
                                 ...charge,
-                                sale: newSaleValue,
+                                [field]: newValue,
                                 approvalStatus: 'pendente',
                                 justification,
                             });

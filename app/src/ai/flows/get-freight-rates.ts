@@ -95,25 +95,20 @@ const cargoFiveRateTool = ai.defineTool(
 
       return response.data.data;
     } catch (error: any) {
-      console.error('Erro na API CargoFive:', {
+      const errorDetails = {
         payload: params,
         status: error.response?.status,
-        data: error.response?.data,
+        errorData: error.response?.data,
         message: error.message
-      });
-
-      let errorMessage = 'Erro ao buscar tarifas';
-      if (error.response?.data) {
-        const errorData = error.response.data;
-        if (typeof errorData === 'object' && errorData !== null) {
-            errorMessage = errorData.message || (errorData.errors && errorData.errors[0]?.detail) || JSON.stringify(errorData);
-        } else {
-            errorMessage = errorData;
-        }
-      } else {
-        errorMessage = error.message;
-      }
+      };
       
+      console.error('Erro na API CargoFive:', errorDetails);
+      
+      const errorMessage =
+        error.response?.data?.message || 
+        error.response?.data?.errors?.[0]?.detail || 
+        'Erro ao consultar tarifas';
+
       throw new Error(errorMessage);
     }
   }
@@ -152,23 +147,33 @@ const getFreightRatesFlow = ai.defineFlow(
           country: destinationPort.country.toUpperCase(),
           type: 'port' as const
         },
+        options: {
+          incoterm: input.incoterm || 'FOB',
+        }
       };
+      
+      if (input.optionalServices?.insurance) {
+        // CargoFive expects hazardous, not insurance. This is a placeholder.
+        // payload.options.hazardous = true; 
+      }
 
       if (input.oceanShipmentType === 'FCL') {
           payload.containers = input.oceanShipment.containers.map(c => ({
             type: CONTAINER_TYPE_MAPPING[c.type] || c.type,
             quantity: c.quantity
           }));
+          // Merge options correctly
           payload.options = {
-              incoterm: input.incoterm || 'FOB',
+              ...payload.options,
               container_type: CONTAINER_TYPE_MAPPING[input.oceanShipment.containers[0]?.type] || input.oceanShipment.containers[0]?.type,
               ...(isRefrigerated && { refrigerated: true })
           };
       }
 
       if (input.oceanShipmentType === 'LCL') {
+          // Send cbm and weight inside options for LCL
           payload.options = {
-              incoterm: input.incoterm || 'FOB',
+              ...payload.options,
               cbm: input.lclDetails.cbm,
               weight: input.lclDetails.weight,
               ...(isRefrigerated && { refrigerated: true })
@@ -198,7 +203,7 @@ const getFreightRatesFlow = ai.defineFlow(
 
     } catch (error: any) {
       console.error('Erro no fluxo de tarifas:', error);
-      throw new Error(error.message);
+      throw error; // Re-throw the clear error from the tool
     }
   }
 );
@@ -243,7 +248,13 @@ function getSimulatedCargoAiRates(input: GetFreightRatesInput): GetFreightRatesO
 }
 
 export async function getFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {
-  return getFreightRatesFlow(input);
+  // For Ocean, call the real API. For Air, call the simulation.
+  if (input.modal === 'ocean') {
+    return getFreightRatesFlow(input);
+  } else {
+    // This part remains a simulation as per the existing code.
+    return getAirFreightRates(input);
+  }
 }
 
 const getAirFreightRatesFlow = ai.defineFlow(

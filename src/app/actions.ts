@@ -31,6 +31,7 @@ import { getTrackingInfo } from "@/ai/flows/get-tracking-info";
 import { updateShipmentInTracking } from "@/ai/flows/update-shipment-in-tracking";
 import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getShipments, saveShipments } from "@/lib/shipment-data";
+import { createShipment } from "@/lib/shipment";
 import { isPast, format } from "date-fns";
 import { generateDiXmlFlow } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
@@ -40,7 +41,7 @@ import { generateDiXmlFromSpreadsheet } from "@/ai/flows/generate-di-xml-from-sp
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
 import { getNcmRates } from '@/ai/flows/get-ncm-rates';
 import type { ExtractInvoiceItemsOutput, ExtractInvoiceItemsInput } from '@/lib/schemas/invoice';
-import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision } from "@/lib/shipment-data";
+import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision, UploadedDocument } from "@/lib/shipment-data";
 
 
 export async function runGetFreightRates(input: any) {
@@ -327,7 +328,7 @@ export async function runCreateEmailCampaign(instruction: string, partners: Part
     }
 }
 
-export async function submitBLDraft(shipmentId: string, draftData: BLDraftData): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
+export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftData): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
   try {
     const allShipments = getShipments();
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
@@ -461,6 +462,38 @@ export async function submitBLDraft(shipmentId: string, draftData: BLDraftData):
   }
 }
 
+export async function runApproveQuote(
+    quote: Quote, 
+    shipper: Partner, 
+    consignee: Partner, 
+    agent: Partner | undefined, 
+    notifyName: string, 
+    terminalId: string | undefined, 
+    responsibleUser: string, 
+    invoiceNumber: string, 
+    poNumber: string, 
+    uploadedDocs: UploadedDocument[]
+): Promise<{ success: boolean, error?: string}> {
+    try {
+        await createShipment({
+            ...quote,
+            shipper,
+            consignee,
+            agent,
+            notifyName,
+            responsibleUser,
+            terminalRedestinacaoId: terminalId,
+            invoiceNumber: invoiceNumber,
+            purchaseOrderNumber: poNumber,
+            uploadedDocs: uploadedDocs,
+        });
+        return { success: true };
+    } catch(e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+
 export async function updateShipmentFromAgent(shipmentId: string, agentData: any): Promise<{ success: boolean, error?: string }> {
     try {
         const shipments = getShipments();
@@ -571,5 +604,3 @@ export async function runGetNcmRates(ncm: string) {
         return { success: false, error: error.message || "Failed to get NCM rates" };
     }
 }
-
-    

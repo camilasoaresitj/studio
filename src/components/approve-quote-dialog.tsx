@@ -27,11 +27,11 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { runExtractPartnerInfo } from '@/app/actions';
+import { runExtractPartnerInfo, runApproveQuote } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import type { Quote } from './customer-quotes-list';
 import { Label } from './ui/label';
-import type { UploadedDocument } from '@/lib/shipment';
+import type { UploadedDocument } from '@/lib/shipment-data';
 
 const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 
@@ -287,7 +287,13 @@ export function ApproveQuoteDialog({ quote, partners: initialPartners, onApprova
     const agent = selectedAgentId !== 'none' ? partners.find(p => p.id?.toString() === selectedAgentId) : undefined;
     const responsibleUser = systemUsers.find(u => u.id === responsibleUserId)?.name || 'N/A';
     
-    onApprovalConfirmed(quote, shipper, consignee, agent, notifyName, selectedTerminalId, responsibleUser, invoiceNumber, poNumber, uploadedDocs);
+    const response = await runApproveQuote(quote, shipper, consignee, agent, notifyName, selectedTerminalId, responsibleUser, invoiceNumber, poNumber, uploadedDocs);
+
+    if (response.success) {
+        onApprovalConfirmed(quote, shipper, consignee, agent, notifyName, selectedTerminalId, responsibleUser, invoiceNumber, poNumber, uploadedDocs);
+    } else {
+        toast({ variant: 'destructive', title: 'Erro ao aprovar cotação', description: response.error });
+    }
   };
 
   return (

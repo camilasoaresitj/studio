@@ -27,7 +27,7 @@ const formatCurrency = (value: number, currency = 'BRL') => {
 interface ReportData {
     title: string;
     data: any[];
-    type: 'shipments' | 'quotes' | 'tasks' | 'clients' | 'profit';
+    type: 'shipments' | 'quotes' | 'tasks' | 'clients' | 'profit' | 'profit_detail';
 }
 
 export function GerencialPage() {
@@ -40,7 +40,7 @@ export function GerencialPage() {
         exchangeProfit: 0,
         demurrageProfit: 0,
         activeShipments: [] as Shipment[],
-        approvedQuotesThisMonth: [] as Quote[],
+        approvedQuotesThisMonth: [] as (Quote & { profitBRL: number })[],
         overdueTasks: [] as (Milestone & { shipment: Shipment })[],
         newClients: [] as Partner[],
         activeClients: [] as string[],
@@ -71,17 +71,16 @@ export function GerencialPage() {
             } catch {
                 return false;
             }
-        });
-        
-        const monthlyProfit = approvedQuotesThisMonth.reduce((totalProfit, quote) => {
-            const profit = quote.charges.reduce((chargeProfit, charge) => {
-                // Simplified rate for demo. A real app would use daily exchange rates.
+        }).map(quote => {
+             const profit = quote.charges.reduce((chargeProfit, charge) => {
                 const saleBRL = charge.sale * (charge.saleCurrency === 'BRL' ? 1 : 5.25); 
                 const costBRL = charge.cost * (charge.costCurrency === 'BRL' ? 1 : 5.25);
                 return chargeProfit + (saleBRL - costBRL);
             }, 0);
-            return totalProfit + profit;
-        }, 0);
+            return { ...quote, profitBRL: profit };
+        });
+        
+        const monthlyProfit = approvedQuotesThisMonth.reduce((total, quote) => total + quote.profitBRL, 0);
 
         const demurrageProfit = financialEntries
             .filter(e => e.description?.toLowerCase().includes('demurrage'))
@@ -149,21 +148,41 @@ export function GerencialPage() {
     }, []);
 
     const profitBreakdown = useMemo(() => [
-        { item: 'Lucro do Mês (Cotações)', value: kpiData.monthlyProfit },
-        { item: 'Lucro Operacional Extra', value: kpiData.operationalProfit },
-        { item: 'Lucro com Demurrage', value: kpiData.demurrageProfit },
-        { item: 'Ganhos Cambiais', value: kpiData.exchangeProfit },
+        { item: 'Lucro do Mês (Cotações)', value: kpiData.monthlyProfit, details: kpiData.approvedQuotesThisMonth },
+        { item: 'Lucro Operacional Extra', value: kpiData.operationalProfit, details: [] }, // Placeholder
+        { item: 'Lucro com Demurrage', value: kpiData.demurrageProfit, details: [] }, // Placeholder
+        { item: 'Ganhos Cambiais', value: kpiData.exchangeProfit, details: [] }, // Placeholder
     ], [kpiData]);
 
     const renderReportContent = () => {
         if (!reportData) return null;
+
+        if (reportData.type === 'profit_detail') {
+            return (
+                <Table>
+                    <TableHeader><TableRow><TableHead>Processo</TableHead><TableHead>Cliente</TableHead><TableHead>Responsável</TableHead><TableHead className="text-right">Lucro (BRL)</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {reportData.data.length === 0 ? (
+                             <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum dado detalhado para este KPI.</TableCell></TableRow>
+                        ) : reportData.data.map((item: any) => (
+                            <TableRow key={item.id}>
+                                <TableCell>{item.id}</TableCell>
+                                <TableCell>{item.customer}</TableCell>
+                                <TableCell>{item.responsibleUser || 'N/A'}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.profitBRL)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )
+        }
 
         if (reportData.type === 'profit') {
             return (
                  <Table>
                     <TableHeader><TableRow><TableHead>Componente do Lucro</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader>
                     <TableBody>
-                        {reportData.data.map(item => (
+                        {profitBreakdown.map(item => (
                             <TableRow key={item.item}>
                                 <TableCell>{item.item}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(item.value)}</TableCell>
@@ -171,7 +190,7 @@ export function GerencialPage() {
                         ))}
                          <TableRow className="font-bold bg-secondary">
                             <TableCell>Lucro Total</TableCell>
-                            <TableCell className="text-right">{formatCurrency(reportData.data.reduce((sum, item) => sum + item.value, 0))}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(kpiData.totalProfit)}</TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
@@ -266,7 +285,7 @@ export function GerencialPage() {
       </header>
       
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-6">
-        <Card className="col-span-2 sm:col-span-1 lg:col-span-2 cursor-pointer bg-primary/10 border-primary hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento do Lucro Total', data: profitBreakdown, type: 'profit' })}>
+        <Card className="col-span-2 sm:col-span-1 lg:col-span-2 cursor-pointer bg-primary/10 border-primary hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento do Lucro Total', data: [], type: 'profit' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro Total do Mês</CardTitle>
             <DollarSign className="h-5 w-5 text-muted-foreground" />
@@ -276,7 +295,7 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Soma de todos os resultados do período.</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Lucro de Cotações', data: [], type: 'profit' })}>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Lucro de Cotações', data: kpiData.approvedQuotesThisMonth, type: 'profit_detail' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro do Mês (Cotações)</CardTitle>
             <DollarSign className="h-5 w-5 text-muted-foreground" />
@@ -286,7 +305,7 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Resultado de fretes aprovados no mês</p>
           </CardContent>
         </Card>
-         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Lucro Operacional Extra', data: [], type: 'profit' })}>
+         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Lucro Operacional Extra', data: [], type: 'profit_detail' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro Operacional Extra</CardTitle>
             <TrendingUp className="h-5 w-5 text-muted-foreground" />
@@ -296,7 +315,7 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Taxas extras adicionadas nos processos</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Lucro com Demurrage', data: [], type: 'profit' })}>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Lucro com Demurrage', data: [], type: 'profit_detail' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro com Demurrage</CardTitle>
             <AlertTriangle className="h-5 w-5 text-muted-foreground" />
@@ -306,7 +325,7 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Resultado de sobrestadia de contêineres</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Ganhos Cambiais', data: [], type: 'profit' })}>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Ganhos Cambiais', data: [], type: 'profit_detail' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ganhos Cambiais</CardTitle>
             <Scale className="h-5 w-5 text-muted-foreground" />

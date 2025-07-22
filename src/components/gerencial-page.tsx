@@ -27,13 +27,14 @@ const formatCurrency = (value: number, currency = 'BRL') => {
 interface ReportData {
     title: string;
     data: any[];
-    type: 'shipments' | 'quotes' | 'tasks' | 'clients';
+    type: 'shipments' | 'quotes' | 'tasks' | 'clients' | 'profit';
 }
 
 export function GerencialPage() {
     const [reportData, setReportData] = useState<ReportData | null>(null);
     const [partners, setPartners] = useState<Partner[]>([]);
     const [kpiData, setKpiData] = useState({
+        totalProfit: 0,
         monthlyProfit: 0,
         operationalProfit: 0,
         exchangeProfit: 0,
@@ -128,8 +129,10 @@ export function GerencialPage() {
         // Simulated values
         const operationalProfit = 12540.75; 
         const exchangeProfit = 3450.21;
+        const totalProfit = monthlyProfit + operationalProfit + demurrageProfit + exchangeProfit;
 
         setKpiData({
+            totalProfit,
             monthlyProfit,
             operationalProfit,
             exchangeProfit,
@@ -145,8 +148,35 @@ export function GerencialPage() {
 
     }, []);
 
+    const profitBreakdown = useMemo(() => [
+        { item: 'Lucro do Mês (Cotações)', value: kpiData.monthlyProfit },
+        { item: 'Lucro Operacional Extra', value: kpiData.operationalProfit },
+        { item: 'Lucro com Demurrage', value: kpiData.demurrageProfit },
+        { item: 'Ganhos Cambiais', value: kpiData.exchangeProfit },
+    ], [kpiData]);
+
     const renderReportContent = () => {
         if (!reportData) return null;
+
+        if (reportData.type === 'profit') {
+            return (
+                 <Table>
+                    <TableHeader><TableRow><TableHead>Componente do Lucro</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {reportData.data.map(item => (
+                            <TableRow key={item.item}>
+                                <TableCell>{item.item}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.value)}</TableCell>
+                            </TableRow>
+                        ))}
+                         <TableRow className="font-bold bg-secondary">
+                            <TableCell>Lucro Total</TableCell>
+                            <TableCell className="text-right">{formatCurrency(reportData.data.reduce((sum, item) => sum + item.value, 0))}</TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            )
+        }
 
         if (reportData.type === 'tasks') {
             return (
@@ -235,8 +265,18 @@ export function GerencialPage() {
         </p>
       </header>
       
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
-        <Card>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-6">
+        <Card className="col-span-2 sm:col-span-1 lg:col-span-2 cursor-pointer bg-primary/10 border-primary hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento do Lucro Total', data: profitBreakdown, type: 'profit' })}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lucro Total do Mês</CardTitle>
+            <DollarSign className="h-5 w-5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-primary">{formatCurrency(kpiData.totalProfit)}</div>
+            <p className="text-xs text-muted-foreground">Soma de todos os resultados do período.</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Lucro de Cotações', data: [], type: 'profit' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro do Mês (Cotações)</CardTitle>
             <DollarSign className="h-5 w-5 text-muted-foreground" />
@@ -246,7 +286,7 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Resultado de fretes aprovados no mês</p>
           </CardContent>
         </Card>
-         <Card>
+         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Lucro Operacional Extra', data: [], type: 'profit' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro Operacional Extra</CardTitle>
             <TrendingUp className="h-5 w-5 text-muted-foreground" />
@@ -256,7 +296,7 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Taxas extras adicionadas nos processos</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Lucro com Demurrage', data: [], type: 'profit' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro com Demurrage</CardTitle>
             <AlertTriangle className="h-5 w-5 text-muted-foreground" />
@@ -266,7 +306,7 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Resultado de sobrestadia de contêineres</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Detalhamento: Ganhos Cambiais', data: [], type: 'profit' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ganhos Cambiais</CardTitle>
             <Scale className="h-5 w-5 text-muted-foreground" />
@@ -276,7 +316,9 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Resultado de negociações de câmbio</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Volume (TEUs) no Mês', data: getShipments().filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd))), type: 'shipments' })}>
+      </div>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Volume (TEUs) no Mês', data: getShipments().filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd))), type: 'shipments' })}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Volume (TEUs) no Mês</CardTitle>
                 <Ship className="h-5 w-5 text-muted-foreground" />

@@ -116,9 +116,9 @@ export function GerencialPage() {
                 s.containers.forEach(c => {
                     const quantity = 1; // Assuming each entry is one container
                     monthlyContainers += quantity;
-                    if (c.type.includes("20'")) {
+                    if (c.type && c.type.includes("20'")) {
                         monthlyTEUs += 1 * quantity;
-                    } else if (c.type.includes("40'")) {
+                    } else if (c.type && c.type.includes("40'")) {
                         monthlyTEUs += 2 * quantity;
                     }
                 });
@@ -276,7 +276,7 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Resultado de negociações de câmbio</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Volume (TEUs) no Mês', data: kpiData.activeShipments, type: 'shipments' })}>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Volume (TEUs) no Mês', data: getShipments().filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd))), type: 'shipments' })}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Volume (TEUs) no Mês</CardTitle>
                 <Ship className="h-5 w-5 text-muted-foreground" />
@@ -286,7 +286,7 @@ export function GerencialPage() {
                 <p className="text-xs text-muted-foreground">Total de TEUs embarcados</p>
             </CardContent>
         </Card>
-         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Contêineres Embarcados no Mês', data: kpiData.activeShipments, type: 'shipments' })}>
+         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Contêineres Embarcados no Mês', data: getShipments().filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd))), type: 'shipments' })}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Contêineres no Mês</CardTitle>
                 <Package className="h-5 w-5 text-muted-foreground" />

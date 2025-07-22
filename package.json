@@ -51,9 +51,10 @@
     "tailwindcss-animate": "^1.0.7",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8",
-    "@genkit-ai/googleai": "latest",
-    "genkit": "latest",
-    "zod-to-json-schema": "latest",
+    "@genkit-ai/googleai": "1.15.2",
+    "@genkit-ai/firebase": "1.15.2",
+    "genkit": "1.15.2",
+    "zod-to-json-schema": "3.23.1",
     "soap": "^1.0.0",
     "twilio": "^5.2.2",
     "axios": "^1.7.2"

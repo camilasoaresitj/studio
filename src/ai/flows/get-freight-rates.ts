@@ -53,25 +53,27 @@ const cargoFiveRateTool = ai.defineTool(
   },
   async (params) => {
     const apiKey = process.env.CARGOFIVE_API_KEY;
-    const apiUrl = process.env.CARGOFIVE_API_URL;
-    if (!apiKey || !apiUrl) {
-      throw new Error('CargoFive API key or URL is not configured.');
+    const apiUrl = process.env.CARGOFIVE_API_URL || 'https://api.cargofive.com/v1'; // Use a default value
+    if (!apiKey) {
+      throw new Error('CargoFive API key is not configured.');
     }
     
-    // CargoFive uses a different endpoint for quotations
-    const response = await axios.post(`${apiUrl}/forwarding/quotes/search`, params, {
+    // Corrected endpoint as per documentation review
+    const response = await axios.post(`${apiUrl}/rates`, params, {
         headers: {
-            'x-api-key': apiKey,
+            'X-API-Key': apiKey, // Corrected header key
             'Content-Type': 'application/json'
         }
     });
 
     if (response.status !== 200) {
         console.error("CargoFive API Error:", response.data);
-        throw new Error(`CargoFive API Error (${response.status}): ${response.data.message || 'Unknown error'}`);
+        const errorMessage = response.data?.errors?.[0]?.detail || response.data.message || 'Unknown API error';
+        throw new Error(`CargoFive API Error (${response.status}): ${errorMessage}`);
     }
     
-    return response.data;
+    // Response data is directly in `response.data.data`
+    return response.data.data;
   }
 );
 
@@ -124,53 +126,66 @@ const getFreightRatesFlow = ai.defineFlow(
   },
   async (input) => {
     
+    // Per documentation, CargoFive uses zip codes, not UNLOCODEs.
+    // We will use port names for display but send zip codes if available.
+    // This is a simplification; a real app would need a robust location mapping service.
     const originPort = findPortByTerm(input.origin);
     const destinationPort = findPortByTerm(input.destination);
 
     if (!originPort || !destinationPort) {
-        throw new Error('Could not find valid UNLOCODEs for the specified origin or destination.');
+        throw new Error('Could not find valid ports for the specified origin or destination.');
     }
     
+    // Corrected API payload structure
     const apiParams = {
-        origin_port: originPort.unlocode,
-        destination_port: destinationPort.unlocode,
-        incoterm: input.incoterm,
+        origin: {
+            zip_code: '01001000', // Placeholder, needs mapping
+            country: originPort.country,
+        },
+        destination: {
+            zip_code: '20010000', // Placeholder, needs mapping
+            country: destinationPort.country,
+        },
         ...(input.oceanShipmentType === 'FCL' && {
-            shipment_type: 'FCL',
-            containers: input.oceanShipment.containers.map(c => ({
-                iso_code: c.type.replace("'", "").replace("GP", "G1").replace("HC", "P1"),
+            packages: input.oceanShipment.containers.map(c => ({
                 quantity: c.quantity,
+                weight: c.weight || 20000, // Default weight
+                length: c.length || 1200, // Default dimensions
+                width: c.width || 230,
+                height: c.height || 230,
             }))
         }),
          ...(input.oceanShipmentType === 'LCL' && {
-            shipment_type: 'LCL',
             packages: [{
-                quantity: 1, // Simplified for now
+                quantity: 1, // Simplified
                 weight: input.lclDetails.weight,
-                dimensions: {
-                    length: Math.cbrt(input.lclDetails.cbm * 1_000_000), // Approximate dimensions from CBM
-                    width: Math.cbrt(input.lclDetails.cbm * 1_000_000),
-                    height: Math.cbrt(input.lclDetails.cbm * 1_000_000),
-                }
+                // Approximate dimensions from CBM
+                length: Math.cbrt(input.lclDetails.cbm * 1_000_000), 
+                width: Math.cbrt(input.lclDetails.cbm * 1_000_000),
+                height: Math.cbrt(input.lclDetails.cbm * 1_000_000),
             }]
         })
     };
 
     const rateResponse = await cargoFiveRateTool(apiParams);
 
-    if (rateResponse && rateResponse.results) {
-        return rateResponse.results.map((rate: any): GetFreightRatesOutput[0] => {
-            const totalAmount = rate.charges.reduce((sum: number, charge: any) => sum + charge.amount, 0);
+    if (rateResponse && Array.isArray(rateResponse)) {
+        return rateResponse.map((rate: any): GetFreightRatesOutput[0] => {
+            const deliveryRange = rate.delivery_range;
+            const transitTime = (deliveryRange && deliveryRange.min && deliveryRange.max) 
+                ? `${deliveryRange.min}-${deliveryRange.max} dias`
+                : `${rate.delivery_time || '?'} dias`;
+
             return {
                 id: rate.id,
-                carrier: rate.carrier_name,
-                origin: rate.origin_port_name,
-                destination: rate.destination_port_name,
-                transitTime: `${rate.transit_time} dias`,
-                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: rate.charges[0]?.currency || 'USD' }).format(totalAmount),
-                costValue: totalAmount,
-                carrierLogo: rate.carrier_logo || `https://placehold.co/120x40.png?text=${rate.carrier_name}`,
-                dataAiHint: `${rate.carrier_name.toLowerCase()} logo`,
+                carrier: rate.carrier.name,
+                origin: originPort.name,
+                destination: destinationPort.name,
+                transitTime: transitTime,
+                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: rate.currency || 'USD' }).format(rate.price),
+                costValue: rate.price,
+                carrierLogo: `https://placehold.co/120x40.png?text=${rate.carrier.code}`,
+                dataAiHint: `${rate.carrier.name.toLowerCase()} logo`,
                 source: 'CargoFive',
             };
         }).sort((a: any, b: any) => a.costValue - b.costValue);

@@ -53,15 +53,15 @@ const cargoFiveRateTool = ai.defineTool(
   },
   async (params) => {
     const apiKey = process.env.CARGOFIVE_API_KEY;
-    const apiUrl = process.env.CARGOFIVE_API_URL || 'https://api.cargofive.com/v1'; // Use a default value
+    const apiUrl = process.env.CARGOFIVE_API_URL || 'https://api.cargofive.com/v1';
     if (!apiKey) {
       throw new Error('CargoFive API key is not configured.');
     }
     
     // Corrected endpoint as per documentation review
-    const response = await axios.post(`${apiUrl}/rates`, params, {
+    const response = await axios.post(`${apiUrl}/forwarding/quotes/search`, params, {
         headers: {
-            'X-API-Key': apiKey, // Corrected header key
+            'X-API-Key': apiKey,
             'Content-Type': 'application/json'
         }
     });
@@ -72,7 +72,6 @@ const cargoFiveRateTool = ai.defineTool(
         throw new Error(`CargoFive API Error (${response.status}): ${errorMessage}`);
     }
     
-    // Response data is directly in `response.data.data`
     return response.data.data;
   }
 );
@@ -126,44 +125,27 @@ const getFreightRatesFlow = ai.defineFlow(
   },
   async (input) => {
     
-    // Per documentation, CargoFive uses zip codes, not UNLOCODEs.
-    // We will use port names for display but send zip codes if available.
-    // This is a simplification; a real app would need a robust location mapping service.
     const originPort = findPortByTerm(input.origin);
     const destinationPort = findPortByTerm(input.destination);
 
-    if (!originPort || !destinationPort) {
-        throw new Error('Could not find valid ports for the specified origin or destination.');
+    if (!originPort?.unlocode || !destinationPort?.unlocode) {
+        throw new Error('Não foi possível encontrar códigos de porto (UNLOCODE) válidos para a origem ou destino especificados. Por favor, use nomes de cidade reconhecidos.');
     }
     
-    // Corrected API payload structure
     const apiParams = {
-        origin: {
-            zip_code: '01001000', // Placeholder, needs mapping
-            country: originPort.country,
-        },
-        destination: {
-            zip_code: '20010000', // Placeholder, needs mapping
-            country: destinationPort.country,
-        },
+        origin_port: originPort.unlocode,
+        destination_port: destinationPort.unlocode,
         ...(input.oceanShipmentType === 'FCL' && {
-            packages: input.oceanShipment.containers.map(c => ({
-                quantity: c.quantity,
-                weight: c.weight || 20000, // Default weight
-                length: c.length || 1200, // Default dimensions
-                width: c.width || 230,
-                height: c.height || 230,
+            container_types: input.oceanShipment.containers.map(c => ({
+                name: c.type,
+                count: c.quantity,
             }))
         }),
          ...(input.oceanShipmentType === 'LCL' && {
-            packages: [{
-                quantity: 1, // Simplified
-                weight: input.lclDetails.weight,
-                // Approximate dimensions from CBM
-                length: Math.cbrt(input.lclDetails.cbm * 1_000_000), 
-                width: Math.cbrt(input.lclDetails.cbm * 1_000_000),
-                height: Math.cbrt(input.lclDetails.cbm * 1_000_000),
-            }]
+            cargo_details: {
+                total_weight: input.lclDetails.weight,
+                total_volume: input.lclDetails.cbm,
+            }
         })
     };
 
@@ -171,10 +153,9 @@ const getFreightRatesFlow = ai.defineFlow(
 
     if (rateResponse && Array.isArray(rateResponse)) {
         return rateResponse.map((rate: any): GetFreightRatesOutput[0] => {
-            const deliveryRange = rate.delivery_range;
-            const transitTime = (deliveryRange && deliveryRange.min && deliveryRange.max) 
-                ? `${deliveryRange.min}-${deliveryRange.max} dias`
-                : `${rate.delivery_time || '?'} dias`;
+            const transitTime = (rate.transit_time) 
+                ? `${rate.transit_time} dias`
+                : 'N/A';
 
             return {
                 id: rate.id,
@@ -182,9 +163,9 @@ const getFreightRatesFlow = ai.defineFlow(
                 origin: originPort.name,
                 destination: destinationPort.name,
                 transitTime: transitTime,
-                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: rate.currency || 'USD' }).format(rate.price),
-                costValue: rate.price,
-                carrierLogo: `https://placehold.co/120x40.png?text=${rate.carrier.code}`,
+                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: rate.total_amount_currency || 'USD' }).format(rate.total_amount),
+                costValue: rate.total_amount,
+                carrierLogo: `https://placehold.co/120x40.png?text=${rate.carrier.scac}`,
                 dataAiHint: `${rate.carrier.name.toLowerCase()} logo`,
                 source: 'CargoFive',
             };

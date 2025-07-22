@@ -67,3 +67,5 @@ export function saveLtiTariffs(tariffs: LtiTariff[]): void {
     console.error("Failed to save LTI tariffs to localStorage", error);
   }
 }
+
+    

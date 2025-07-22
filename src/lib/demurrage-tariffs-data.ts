@@ -71,3 +71,5 @@ export function saveDemurrageTariffs(tariffs: DemurrageTariff[]): void {
     console.error("Failed to save demurrage tariffs to localStorage", error);
   }
 }
+
+    

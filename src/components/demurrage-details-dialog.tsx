@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from './ui/badge';
 import { FileText, Receipt, Banknote, Loader2, AlertTriangle, Ship, ArrowUp, ArrowDown } from 'lucide-react';
-import type { DemurrageItem } from '@/app/demurrage/page';
+import type { DemurrageItem } from '@/app/gerencial/demurrage/page';
 import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { addFinancialEntry } from '@/lib/financials-data';
@@ -298,3 +298,5 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, costTariffs, sal
     </Dialog>
   );
 }
+
+    

@@ -91,11 +91,11 @@ const statusTranslations: { [key: string]: string } = {
     "empty container gate out": "Retirada do Vazio (Gate Out)",
     "gate in": "Gate In (Entrada no Porto)",
     "container gated in": "Container Entregue no Porto (Gate In)",
-    "loaded on vessel": "Embarcado no Navio",
-    "load on vessel": "Embarcado no Navio",
-    "vessel departure": "Partida do Navio",
-    "vessel arrival": "Chegada do Navio",
-    "discharged": "Descarregado",
+    "loaded on vessel": "Embarcado",
+    "load on vessel": "Embarcado",
+    "vessel departure": "Partida",
+    "vessel arrival": "Chegada",
+    "discharged": "Desembarque",
     "import customs clearance": "Liberação Alfandegária (Importação)",
     "available for pickup": "Disponível para Retirada",
     "delivered": "Entregue",
@@ -106,11 +106,6 @@ const statusTranslations: { [key: string]: string } = {
 const translateStatus = (status: string): string => {
     if (!status) return 'Status Desconhecido';
     const lowerStatus = status.toLowerCase().trim();
-
-    if (lowerStatus.includes('vessel departure')) return `Partida`;
-    if (lowerStatus.includes('loaded on vessel')) return `Embarcado`;
-    if (lowerStatus.includes('vessel arrival')) return `Chegada`;
-    if (lowerStatus.includes('discharged')) return `Desembarque`;
 
     for (const key in statusTranslations) {
         if (lowerStatus.includes(key)) {
@@ -140,21 +135,6 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
   const destination = mainLeg.dischargePort || mainLeg.destination || primaryShipment.destinationOceanPort || 'N/A';
 
   const allTransshipmentDetails = new Map<string, TransshipmentDetail>();
-  if (mainLeg?.segments) {
-    mainLeg.segments.forEach((seg: any) => {
-        if (seg.originPortCode !== mainLeg.loadingPortCode) {
-             if (!allTransshipmentDetails.has(seg.originPortCode)) {
-                allTransshipmentDetails.set(seg.originPortCode, {
-                    id: seg.originPortCode,
-                    port: seg.origin,
-                    vessel: seg.transportName,
-                    eta: seg.ata ? new Date(seg.ata) : undefined,
-                    etd: seg.atd ? new Date(seg.atd) : undefined,
-                });
-            }
-        }
-    });
-  }
 
   shipments.forEach(shipment => {
     // Collect all containers, avoiding duplicates
@@ -193,6 +173,53 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
 
   const lastCompletedEvent = allEvents.slice().reverse().find(e => e.completed) || allEvents[allEvents.length - 1];
   
+  const milestones: Milestone[] = [];
+  let lastVesselName = '';
+
+  (mainLeg.segments || []).forEach((segment: any, index: number) => {
+      const isTransshipment = lastVesselName !== '' && lastVesselName !== segment.transportName;
+      
+      // Arrival at segment origin
+      if (segment.ata) {
+           milestones.push({
+                name: `Chegada`,
+                status: 'completed',
+                predictedDate: new Date(segment.ata),
+                effectiveDate: new Date(segment.ata),
+                details: `${segment.origin}\nNavio: ${segment.transportName}`,
+                isTransshipment: isTransshipment
+            });
+      }
+       // Departure from segment origin
+      if (segment.atd) {
+          milestones.push({
+                name: `Partida`,
+                status: 'completed',
+                predictedDate: new Date(segment.atd),
+                effectiveDate: new Date(segment.atd),
+                details: `${segment.origin}\nNavio: ${segment.transportName}`,
+                isTransshipment: index === 0 ? false : isTransshipment
+            });
+      }
+      
+      lastVesselName = segment.transportName;
+
+      // Handle the final destination arrival if it's the last segment
+      if (index === mainLeg.segments.length - 1) {
+          if (segment.eta) {
+            milestones.push({
+                name: `Chegada`,
+                status: 'pending',
+                predictedDate: new Date(segment.eta),
+                effectiveDate: null,
+                details: `${segment.destination}\nNavio: ${segment.transportName}`,
+                isTransshipment: false
+            });
+          }
+      }
+  });
+
+
   const shipmentDetails: Partial<Shipment> = {
       carrier: carrierName,
       origin: origin,
@@ -206,18 +233,7 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
       bookingNumber: primaryShipment.bookingNumber,
       containers: Array.from(allContainers.values()),
       transshipments: Array.from(allTransshipmentDetails.values()),
-      milestones: allEvents.map((event: TrackingEvent): Milestone => {
-          const isTransshipmentEvent = Array.from(allTransshipmentDetails.values()).some(t => t.port === event.location);
-          
-          return {
-              name: event.status,
-              status: event.completed ? 'completed' : 'pending',
-              predictedDate: new Date(event.date),
-              effectiveDate: event.completed ? new Date(event.date) : null,
-              details: event.location,
-              isTransshipment: isTransshipmentEvent && (event.status.toLowerCase().includes('chegada') || event.status.toLowerCase().includes('partida') || event.status.toLowerCase().includes('desembarque')),
-          }
-      }),
+      milestones: milestones,
   };
 
   return {

@@ -306,9 +306,9 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
 }
 
 const milestoneMapping: { [key: string]: string[] } = {
-    'Confirmação de Embarque': ['vessel departure', 'gate out'],
-    'Chegada ao Destino': ['vessel arrival', 'discharged', 'unloaded from vessel'],
-    'Container Gate In (Entregue no Porto)': ['gate in', 'container received'],
+    'Confirmação de Embarque': ['vessel departure', 'gate out', 'saída do navio'],
+    'Chegada ao Destino': ['vessel arrival', 'discharged', 'unloaded from vessel', 'chegada do navio'],
+    'Container Gate In (Entregue no Porto)': ['gate in', 'container received', 'container entregue no porto'],
 };
 
 function mapEventToMilestone(eventName: string): string | null {
@@ -452,11 +452,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
     const handleRefreshTracking = async () => {
         if (!shipment?.bookingNumber || !shipment.carrier) {
-            toast({
-                variant: 'destructive',
-                title: 'Dados Incompletos',
-                description: 'É necessário ter um Booking Number e uma Transportadora definidos para o rastreamento.',
-            });
+            toast({ variant: 'destructive', title: 'Dados Incompletos', description: 'É necessário ter um Booking Number e uma Transportadora definidos para o rastreamento.' });
             return;
         }
 
@@ -469,10 +465,26 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 throw new Error(data.detail || data.error || 'Erro desconhecido');
             }
             
-            let updatedMilestones = [...(form.getValues('milestones') || [])];
-            let newEventsCount = 0;
+            if (data.status === 'ready' && Array.isArray(data.eventos) && data.eventos.length > 0) {
+                const trackingData = data.eventos[0]; // Assuming the first record in response has master data
+                let updatedMilestones = [...(form.getValues('milestones') || [])];
+                let newEventsCount = 0;
+                let masterDataUpdated = false;
 
-            if (data.status === 'ready' && data.eventos) {
+                // Update Master Data if available
+                if (trackingData.shipment) {
+                    const { shipment: apiShipment } = trackingData;
+                    if (apiShipment.vesselName) form.setValue('vesselName', apiShipment.vesselName);
+                    if (apiShipment.voyageNumber) form.setValue('voyageNumber', apiShipment.voyageNumber);
+                    if (apiShipment.etd) form.setValue('etd', parseISO(apiShipment.etd));
+                    if (apiShipment.eta) form.setValue('eta', parseISO(apiShipment.eta));
+                    if (apiShipment.containers && apiShipment.containers.length > 0) {
+                        form.setValue('containers', apiShipment.containers);
+                    }
+                    masterDataUpdated = true;
+                }
+                
+                // Update Milestones
                 data.eventos.forEach((evento: any) => {
                     const milestoneName = mapEventToMilestone(evento.eventName);
                     if (milestoneName) {
@@ -489,11 +501,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     }
                 });
 
-                if (newEventsCount > 0) {
+                if (newEventsCount > 0 || masterDataUpdated) {
                     form.setValue('milestones', updatedMilestones);
-                    toast({ title: 'Rastreamento Atualizado', description: `${newEventsCount} novo(s) marco(s) atualizado(s).`, className: 'bg-success text-success-foreground' });
+                    toast({ title: 'Rastreamento Atualizado', description: `${newEventsCount} marco(s) e dados do embarque foram atualizados.`, className: 'bg-success text-success-foreground' });
                 } else {
-                    toast({ title: 'Rastreamento Atualizado', description: `Nenhum novo evento acionável encontrado. ${data.eventos.length} eventos totais.` });
+                    toast({ title: 'Rastreamento Sincronizado', description: `Nenhum novo evento acionável encontrado. ${data.eventos.length} eventos totais.` });
                 }
             } else if (data.status === 'processing') {
                  toast({ title: 'Rastreamento em Processamento', description: data.message });

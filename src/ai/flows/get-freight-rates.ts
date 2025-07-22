@@ -135,9 +135,11 @@ const cargoFiveRateTool = ai.defineTool(
       let errorMessage = 'Erro ao buscar tarifas';
       if (error.response?.data) {
         const errorData = error.response.data;
-        errorMessage = errorData.message || 
-                      (errorData.errors && errorData.errors[0]?.detail) || 
-                      `Erro ${error.response.status}`;
+        if (typeof errorData === 'object' && errorData !== null) {
+            errorMessage = errorData.message || (errorData.errors && errorData.errors[0]?.detail) || JSON.stringify(errorData);
+        } else {
+            errorMessage = errorData;
+        }
       } else {
         errorMessage = error.message;
       }

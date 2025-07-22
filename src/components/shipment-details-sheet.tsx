@@ -303,7 +303,7 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
             </PopoverContent>
         </Popover>
     );
-};
+}
 
 
 export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
@@ -436,12 +436,37 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     };
 
     const handleRefreshTracking = async () => {
-        // This functionality was removed as per user request.
-        toast({
-            variant: 'destructive',
-            title: 'Funcionalidade Removida',
-            description: 'O rastreamento de carga foi desativado.',
-        });
+        if (!shipment?.bookingNumber || !shipment.carrier) {
+            toast({
+                variant: 'destructive',
+                title: 'Dados Incompletos',
+                description: 'É necessário ter um Booking Number e uma Transportadora definidos para o rastreamento.',
+            });
+            return;
+        }
+
+        setIsUpdating(true);
+        try {
+            const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || data.error || 'Erro desconhecido');
+            }
+
+            if (data.status === 'processing' && data.fallback) {
+                // ... (update milestones with fallback)
+                toast({ title: 'Rastreamento em Processamento', description: data.message });
+            } else if (data.status === 'ready' && data.eventos) {
+                // ... (update milestones with real events)
+                toast({ title: 'Rastreamento Atualizado', description: `${data.eventos.length} eventos encontrados.`, className: 'bg-success text-success-foreground' });
+            }
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro ao Rastrear', description: error.message });
+        } finally {
+            setIsUpdating(false);
+        }
     };
 
     const generatePdf = async (type: 'client' | 'agent' | 'hbl') => {

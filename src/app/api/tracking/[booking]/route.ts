@@ -68,10 +68,10 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
       const carrierInfo = findCarrierByName(carrierName || '');
 
-      if (carrierName && (!carrierInfo || !carrierInfo.scac)) {
+      if (!carrierName || !carrierInfo || !carrierInfo.scac) {
           return NextResponse.json({
-            error: 'Carrier não encontrado.',
-            detail: `Nenhum armador com nome ${carrierName} foi localizado.`
+            error: 'Carrier não encontrado ou SCAC ausente.',
+            detail: `Nenhum armador com nome '${carrierName}' e SCAC code válido foi localizado.`
           }, { status: 400 });
       }
 

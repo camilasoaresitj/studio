@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
-import { createShipment, type UploadedDocument } from '@/lib/shipment';
+import type { UploadedDocument } from '@/lib/shipment-data';
 
 export type QuoteCharge = {
   id: string;
@@ -257,7 +257,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         setQuoteToDetail(updatedQuote); 
     };
 
-    const handleApprovalConfirmed = async (
+    const handleApprovalConfirmed = (
         quote: Quote, 
         shipper: Partner, 
         consignee: Partner, 
@@ -269,39 +269,24 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         poNumber: string,
         uploadedDocs: UploadedDocument[]
     ) => {
-        // If the shipper is new, save it.
+        // This function will now be called by the dialog
+        // and we can assume the server action was successful.
         if (!partners.some(p => p.id === shipper.id)) {
             onPartnerSaved(shipper);
         }
-        // If the consignee is new, save it.
         if (!partners.some(p => p.id === consignee.id)) {
             onPartnerSaved(consignee);
         }
         
-        // Update quote status
         const approvedQuote = { ...quote, status: 'Aprovada' as const, shipper, consignee, agent };
         onQuoteUpdate(approvedQuote);
-
-        // Create the new shipment, passing the full quote data and partners
-        await createShipment({
-          ...quote,
-          shipper,
-          consignee,
-          agent,
-          notifyName,
-          responsibleUser,
-          terminalRedestinacaoId: terminalId,
-          invoiceNumber: invoiceNumber,
-          purchaseOrderNumber: poNumber,
-          uploadedDocs: uploadedDocs,
-        });
 
         toast({
             title: `Cotação ${quote.id.replace('-DRAFT', '')} Aprovada!`,
             description: `Embarque criado no Módulo Operacional.`,
             className: 'bg-success text-success-foreground'
         });
-        setQuoteToApprove(null); // Close the dialog
+        setQuoteToApprove(null);
     };
     
     const handleStatusChange = (quote: Quote, newStatus: Quote['status']) => {

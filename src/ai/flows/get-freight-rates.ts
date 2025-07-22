@@ -6,7 +6,7 @@ import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { findPortByTerm } from '@/lib/ports';
 import type { Port } from '@/lib/ports';
 import axios from 'axios';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
 
@@ -167,7 +167,7 @@ const getFreightRatesFlow = ai.defineFlow(
         origins: originLocationId,
         destinations: destinationLocationId,
         type: input.oceanShipmentType,
-        departure_date: input.departureDate ? format(input.departureDate, 'yyyy-MM-dd') : format(addDays(new Date(), 15), 'yyyy-MM-dd'),
+        departure_date: input.departureDate ? format(new Date(input.departureDate), 'yyyy-MM-dd') : format(addDays(new Date(), 15), 'yyyy-MM-dd'),
         cargo_details: cargoDetails,
         api_providers: '-1', // Search all providers
       };

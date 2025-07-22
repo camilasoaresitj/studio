@@ -54,7 +54,8 @@
     "@genkit-ai/googleai": "latest",
     "genkit": "latest",
     "zod-to-json-schema": "latest",
-    "soap": "^1.0.0"
+    "soap": "^1.0.0",
+    "twilio": "^5.2.2"
   },
   "devDependencies": {
     "@types/google.maps": "^3.55.11",

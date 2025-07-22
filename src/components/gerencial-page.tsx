@@ -6,15 +6,16 @@ import { ShipmentsChart } from '@/components/shipments-chart';
 import { RecentShipments } from '@/components/recent-shipments';
 import { ApprovalsPanel } from '@/components/approvals-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Ship, CheckCircle, TrendingUp, AlertTriangle, Scale, ListTodo } from 'lucide-react';
+import { DollarSign, Ship, CheckCircle, TrendingUp, AlertTriangle, Scale, ListTodo, Users, UserPlus, UserCheck } from 'lucide-react';
 import { getShipments, Shipment, Milestone } from '@/lib/shipment';
 import { getInitialQuotes, Quote } from '@/lib/initial-data';
 import { getFinancialEntries } from '@/lib/financials-data';
-import { isThisMonth, parseISO, isPast, differenceInDays, isValid } from 'date-fns';
+import { isThisMonth, parseISO, isPast, differenceInDays, isValid, subDays } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { format } from 'date-fns';
+import { Partner, getPartners } from '@/lib/partners-data';
 
 const formatCurrency = (value: number, currency = 'BRL') => {
     return new Intl.NumberFormat('pt-BR', {
@@ -26,7 +27,7 @@ const formatCurrency = (value: number, currency = 'BRL') => {
 interface ReportData {
     title: string;
     data: any[];
-    type: 'shipments' | 'quotes' | 'tasks';
+    type: 'shipments' | 'quotes' | 'tasks' | 'clients';
 }
 
 export function GerencialPage() {
@@ -40,12 +41,15 @@ export function GerencialPage() {
         activeShipments: [] as Shipment[],
         approvedQuotesThisMonth: [] as Quote[],
         overdueTasks: [] as (Milestone & { shipment: Shipment })[],
+        newClients: [] as Partner[],
+        activeClients: [] as string[],
     });
 
     useEffect(() => {
         const shipments = getShipments();
         const quotes = getInitialQuotes(); 
         const financialEntries = getFinancialEntries();
+        const partners = getPartners();
         const today = new Date();
         today.setHours(0,0,0,0);
         
@@ -90,6 +94,18 @@ export function GerencialPage() {
                 .filter(m => m.status !== 'completed' && m.predictedDate && isValid(new Date(m.predictedDate)) && isPast(new Date(m.predictedDate)))
                 .map(m => ({ ...m, shipment }))
         );
+        
+        const thirtyDaysAgo = subDays(today, 30);
+        const newClients = partners.filter(p => p.roles.cliente && p.createdAt && new Date(p.createdAt) > thirtyDaysAgo);
+
+        const ninetyDaysAgo = subDays(today, 90);
+        const activeClientNames = new Set(
+            shipments
+                .filter(s => s.etd && new Date(s.etd) > ninetyDaysAgo)
+                .map(s => s.customer)
+        );
+        const activeClients = Array.from(activeClientNames);
+
 
         const operationalProfit = 12540.75; 
         const exchangeProfit = 3450.21;
@@ -102,6 +118,8 @@ export function GerencialPage() {
             activeShipments,
             approvedQuotesThisMonth,
             overdueTasks,
+            newClients,
+            activeClients,
         });
 
     }, []);
@@ -158,6 +176,24 @@ export function GerencialPage() {
                                 <TableCell>{quote.origin}</TableCell>
                                 <TableCell>{quote.destination}</TableCell>
                                 <TableCell>{quote.date}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            );
+        }
+        
+        if (reportData.type === 'clients') {
+            return (
+                <Table>
+                    <TableHeader><TableRow><TableHead>Nome do Cliente</TableHead><TableHead>País</TableHead><TableHead>Contato Principal</TableHead><TableHead>Data de Cadastro</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {reportData.data.map(client => (
+                            <TableRow key={client.id}>
+                                <TableCell>{client.name}</TableCell>
+                                <TableCell>{client.address?.country}</TableCell>
+                                <TableCell>{client.contacts[0]?.name} ({client.contacts[0]?.email})</TableCell>
+                                <TableCell>{client.createdAt ? format(new Date(client.createdAt), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -249,6 +285,26 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Milestones operacionais vencidos</p>
           </CardContent>
         </Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Clientes Novos (Últimos 30 Dias)', data: kpiData.newClients, type: 'clients' })}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Clientes Novos</CardTitle>
+                <UserPlus className="h-5 w-5 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">+{kpiData.newClients.length}</div>
+                <p className="text-xs text-muted-foreground">nos últimos 30 dias</p>
+            </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Clientes Ativos (Últimos 90 Dias)', data: partners.filter(p => kpiData.activeClients.includes(p.name)), type: 'clients' })}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Clientes Ativos</CardTitle>
+                <UserCheck className="h-5 w-5 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{kpiData.activeClients.length}</div>
+                <p className="text-xs text-muted-foreground">com embarques nos últimos 90 dias</p>
+            </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -276,3 +332,5 @@ export function GerencialPage() {
     </>
   );
 }
+
+    

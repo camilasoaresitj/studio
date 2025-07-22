@@ -6,7 +6,7 @@ import { ShipmentsChart } from '@/components/shipments-chart';
 import { RecentShipments } from '@/components/recent-shipments';
 import { ApprovalsPanel } from '@/components/approvals-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Ship, CheckCircle, TrendingUp, AlertTriangle, Scale, ListTodo, Users, UserPlus, UserCheck } from 'lucide-react';
+import { DollarSign, Ship, CheckCircle, TrendingUp, AlertTriangle, Scale, ListTodo, Users, UserPlus, UserCheck, Package } from 'lucide-react';
 import { getShipments, Shipment, Milestone } from '@/lib/shipment';
 import { getInitialQuotes, Quote } from '@/lib/initial-data';
 import { getFinancialEntries } from '@/lib/financials-data';
@@ -43,6 +43,8 @@ export function GerencialPage() {
         overdueTasks: [] as (Milestone & { shipment: Shipment })[],
         newClients: [] as Partner[],
         activeClients: [] as string[],
+        monthlyContainers: 0,
+        monthlyTEUs: 0,
     });
 
     useEffect(() => {
@@ -105,6 +107,23 @@ export function GerencialPage() {
         );
         const activeClients = Array.from(activeClientNames);
 
+        let monthlyContainers = 0;
+        let monthlyTEUs = 0;
+        const shipmentsThisMonth = shipments.filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd)));
+        
+        shipmentsThisMonth.forEach(s => {
+            if (s.containers) {
+                s.containers.forEach(c => {
+                    const quantity = 1; // Assuming each entry is one container
+                    monthlyContainers += quantity;
+                    if (c.type.includes("20'")) {
+                        monthlyTEUs += 1 * quantity;
+                    } else if (c.type.includes("40'")) {
+                        monthlyTEUs += 2 * quantity;
+                    }
+                });
+            }
+        });
 
         // Simulated values
         const operationalProfit = 12540.75; 
@@ -120,6 +139,8 @@ export function GerencialPage() {
             overdueTasks,
             newClients,
             activeClients,
+            monthlyContainers,
+            monthlyTEUs,
         });
 
     }, []);
@@ -214,7 +235,7 @@ export function GerencialPage() {
         </p>
       </header>
       
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro do Mês (Cotações)</CardTitle>
@@ -255,15 +276,25 @@ export function GerencialPage() {
             <p className="text-xs text-muted-foreground">Resultado de negociações de câmbio</p>
           </CardContent>
         </Card>
-         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Embarques em Andamento', data: kpiData.activeShipments, type: 'shipments' })}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Embarques em Andamento</CardTitle>
-            <Ship className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpiData.activeShipments.length}</div>
-            <p className="text-xs text-muted-foreground">Processos operacionais ativos</p>
-          </CardContent>
+        <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Volume (TEUs) no Mês', data: kpiData.activeShipments, type: 'shipments' })}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Volume (TEUs) no Mês</CardTitle>
+                <Ship className="h-5 w-5 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{kpiData.monthlyTEUs}</div>
+                <p className="text-xs text-muted-foreground">Total de TEUs embarcados</p>
+            </CardContent>
+        </Card>
+         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Contêineres Embarcados no Mês', data: kpiData.activeShipments, type: 'shipments' })}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Contêineres no Mês</CardTitle>
+                <Package className="h-5 w-5 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{kpiData.monthlyContainers}</div>
+                <p className="text-xs text-muted-foreground">Total de contêineres embarcados</p>
+            </CardContent>
         </Card>
         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: `Cotações Aprovadas em ${format(new Date(), 'MMMM')}`, data: kpiData.approvedQuotesThisMonth, type: 'quotes' })}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

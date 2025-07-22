@@ -40,7 +40,7 @@ export const baseFreightQuoteFormSchema = z.object({
   incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'DDU']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
-  departureDate: z.date().optional(),
+  departureDate: z.string().optional(),
   validityDate: z.date().optional(),
   collectionAddress: z.string().optional(),
   deliveryAddress: z.string().optional(),

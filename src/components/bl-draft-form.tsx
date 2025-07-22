@@ -11,8 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import type { Shipment, Partner, BLDraftHistory, BLDraftData } from '@/lib/shipment';
-import { saveShipments } from '@/lib/shipment';
+import type { Shipment, Partner, BLDraftHistory, BLDraftData } from '@/lib/shipment-data';
+import { saveShipments } from '@/lib/shipment-data';
 import { submitBLDraft } from '@/app/actions';
 import { Loader2, Send, FileText, AlertTriangle, CheckCircle, Ship, Trash2, PlusCircle, History } from 'lucide-react';
 import { Textarea } from './ui/textarea';
@@ -529,3 +529,5 @@ export const BLDraftForm = forwardRef<{ submit: () => void }, BLDraftFormProps>(
 });
 
 BLDraftForm.displayName = 'BLDraftForm';
+
+    

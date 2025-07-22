@@ -4,6 +4,8 @@
 import { 
     getShipments as getShipmentsData, 
     saveShipments as saveShipmentsData,
+    getShipmentById as getShipmentByIdData,
+    updateShipment as updateShipmentData,
 } from './shipment-data';
 import type { 
     Shipment, 
@@ -28,6 +30,8 @@ import { addDays } from 'date-fns';
 
 export const getShipments = getShipmentsData;
 export const saveShipments = saveShipmentsData;
+export const getShipmentById = getShipmentByIdData;
+export const updateShipment = updateShipmentData;
 
 const IMPORT_MILESTONE_DUE_DAYS: { [key: string]: number } = {
   'Instruções de Embarque Enviadas ao Agente': 0,
@@ -242,27 +246,4 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   return newShipment;
 }
 
-
-export function getShipmentById(id: string): Shipment | null {
-  const shipments = getShipments();
-  return shipments.find(s => s.id === id) || null;
-}
-
-/**
- * Updates an existing shipment. This function is designed to be used
- * on the client-side, as it interacts with localStorage.
- */
-export function updateShipment(updatedShipment: Shipment): Shipment[] {
-  const shipments = getShipments();
-  const shipmentIndex = shipments.findIndex(s => s.id === updatedShipment.id);
-
-  if (shipmentIndex === -1) {
-    const newShipments = [updatedShipment, ...shipments];
-    saveShipments(newShipments);
-    return newShipments;
-  }
-
-  shipments[shipmentIndex] = updatedShipment;
-  saveShipments(shipments);
-  return shipments;
-}
+    

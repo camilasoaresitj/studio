@@ -39,6 +39,7 @@ import type { ExtractInvoiceItemsOutput, ExtractInvoiceItemsInput } from '@/lib/
 import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision, UploadedDocument, DocumentStatus, ShipmentCreationData } from "@/lib/shipment-data";
 import { shareSimulation } from '@/ai/flows/share-simulation';
 import { generateSimulationPdfHtml } from '@/ai/flows/generate-simulation-pdf-html';
+import { getRouteMap } from '@/ai/flows/get-route-map';
 
 
 export async function runGetFreightRates(input: any) {
@@ -676,4 +677,22 @@ export async function runGenerateSimulationPdfHtml(input: any) {
         return { success: false, error: error.message || "Failed to generate PDF HTML" };
     }
 }
-    
+
+export async function runGetRouteMap(shipmentNumber: string) {
+    try {
+        const data = await getRouteMap(shipmentNumber);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Get Route Map Action Failed", error);
+        return { success: false, error: error.message || "Failed to get route map" };
+    }
+}
+
+export async function runUpdateShipmentInTracking(shipment: Shipment) {
+    // This is a placeholder for a more complex action.
+    // In a real app, this would likely call an external tracking API
+    // to register or update the shipment details.
+    console.log(`Simulating update in tracking system for shipment ${shipment.id}`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
+}

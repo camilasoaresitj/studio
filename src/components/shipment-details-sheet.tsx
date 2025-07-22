@@ -62,7 +62,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetTrackingInfo, runCourierStatus, runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking, runGetRouteMap, addManualMilestone } from '@/app/actions';
+import { runCourierStatus, runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, addManualMilestone, runGetRouteMap } from '@/app/actions';
 import { Checkbox } from './ui/checkbox';
 import { getFees } from '@/lib/fees-data';
 import type { Fee } from '@/lib/fees-data';
@@ -436,35 +436,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     };
 
     const handleRefreshTracking = async () => {
-        if(!shipment) return;
-        setIsUpdating(true);
-        const trackingNumber = form.getValues('masterBillNumber') || form.getValues('bookingNumber');
-        const carrier = form.getValues('carrier');
-
-        if (!trackingNumber || !carrier) {
-            toast({
-                variant: 'destructive',
-                title: 'Dados insuficientes',
-                description: 'O processo precisa de um Armador e Master BL/Booking para ser rastreado.',
-            });
-            setIsUpdating(false);
-            return;
-        }
-
-        const response = await runGetTrackingInfo({ trackingNumber, carrier });
-        if (response.success && response.data) {
-            const fetchedDetails = response.data.shipmentDetails || {};
-            onUpdate({ ...shipment, ...fetchedDetails } as Shipment);
-            toast({ title: 'Rastreamento Atualizado', description: `Status: ${response.data.status}` });
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao rastrear',
-                description: response.error,
-            });
-        }
-
-        setIsUpdating(false);
+        // This functionality was removed as per user request.
+        toast({
+            variant: 'destructive',
+            title: 'Funcionalidade Removida',
+            description: 'O rastreamento de carga foi desativado.',
+        });
     };
 
     const generatePdf = async (type: 'client' | 'agent' | 'hbl') => {

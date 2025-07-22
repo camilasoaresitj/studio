@@ -128,6 +128,13 @@ const cargoFiveRateTool = ai.defineTool(
           errorMessage = error.message;
       }
 
+      // Adiciona uma mensagem mais clara quando o erro for de timeout
+      if (axios.isCancel(error)) {
+        errorMessage = 'A consulta à API excedeu o tempo limite. Tente novamente.';
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = 'A consulta à API demorou muito para responder. Por favor, verifique a complexidade da sua busca e tente novamente.';
+      }
+
       throw new Error(errorMessage);
     }
   }

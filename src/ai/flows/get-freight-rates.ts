@@ -3,7 +3,8 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
-import { findPortByTerm, Port } from '@/lib/ports';
+import { findPortByTerm } from '@/lib/ports';
+import type { Port } from '@/lib/ports';
 import axios from 'axios';
 import { format } from 'date-fns';
 

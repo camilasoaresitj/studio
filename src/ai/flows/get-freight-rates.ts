@@ -104,10 +104,16 @@ const cargoFiveRateTool = ai.defineTool(
       
       console.error('Erro na API CargoFive:', errorDetails);
       
-      const errorMessage =
-        error.response?.data?.message || 
-        error.response?.data?.errors?.[0]?.detail || 
-        'Erro ao consultar tarifas';
+      let errorMessage = 'Erro ao consultar tarifas';
+      if (error.response?.data) {
+          if (typeof error.response.data === 'string') {
+              errorMessage = error.response.data;
+          } else if (typeof error.response.data === 'object') {
+              errorMessage = error.response.data.message || error.response.data.errors?.[0]?.detail || JSON.stringify(error.response.data);
+          }
+      } else {
+          errorMessage = error.message;
+      }
 
       throw new Error(`${errorMessage}. Payload: ${JSON.stringify(params, null, 2)}`);
     }

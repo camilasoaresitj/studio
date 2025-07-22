@@ -326,7 +326,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         resolver: zodResolver(shipmentDetailsSchema),
     });
     
-    const { control } = form; // Destructure control here for use in useWatch
+    const { control } = form; 
     const watchedCharges = useWatch({ control, name: 'charges' });
 
     const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
@@ -551,22 +551,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             toast({ variant: 'destructive', title: 'Erro', description: response.error });
         }
     });
-    
-    const getMilestoneLocationDetails = (milestoneName: string): string => {
-        const lowerName = milestoneName.toLowerCase();
-        if (lowerName.includes('embarque') || lowerName.includes('gate in') || lowerName.includes('partida')) {
-            return `${shipment?.origin || ''} | ${shipment?.vesselName || ''}`;
-        }
-        if (lowerName.includes('chegada') || lowerName.includes('desembarque')) {
-            return `${shipment?.destination || ''} | ${shipment?.vesselName || ''}`;
-        }
-        if (lowerName.includes('transbordo')) {
-            // This logic is too simple, the real location is in the event itself. 
-            // The transshipment object itself can provide better context.
-            return `Transbordo`;
-        }
-        return '';
-    };
     
     const handleDocumentUpload = (docName: string, file: File | null) => {
         if (!file) return;
@@ -816,76 +800,84 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 <TabsTrigger value="documents">Documentos</TabsTrigger>
                                 <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>
                                 <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
-                                <TabsTrigger value="map">Mapa</TabsTrigger>
                             </TabsList>
                             </div>
 
                             <div className="p-4">
                             <TabsContent value="timeline">
                                 <Form {...form}>
-                                <div className="space-y-4">
-                                <Card>
-                                    <CardHeader>
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <CardTitle>Timeline do Processo</CardTitle>
-                                                <CardDescription>Acompanhe e atualize os marcos do embarque.</CardDescription>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <Card className="lg:col-span-1">
+                                        <CardHeader>
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <CardTitle>Timeline do Processo</CardTitle>
+                                                    <CardDescription>Acompanhe e atualize os marcos do embarque.</CardDescription>
+                                                </div>
+                                                <Button size="sm" type="button" variant="outline" onClick={() => setIsManualMilestoneOpen(true)}>
+                                                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Milestone
+                                                </Button>
                                             </div>
-                                            <Button size="sm" type="button" variant="outline" onClick={() => setIsManualMilestoneOpen(true)}>
-                                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Milestone Manual
-                                            </Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="relative pl-4 space-y-6">
-                                            <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
-                                            {sortedMilestones.map((milestone, index) => {
-                                                const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
-                                                
-                                                return (
-                                                     <div key={milestone.id || index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
-                                                        <div className="flex h-full justify-center row-span-2">
-                                                            <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
-                                                                <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
-                                                                    milestone.effectiveDate ? 'bg-success' : 'bg-muted',
-                                                                    overdue && 'bg-destructive')}>
-                                                                    {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="relative pl-4 space-y-6">
+                                                <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
+                                                {sortedMilestones.map((milestone, index) => {
+                                                    const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
+                                                    return (
+                                                        <div key={milestone.id || index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
+                                                            <div className="flex h-full justify-center row-span-2">
+                                                                <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
+                                                                    <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
+                                                                        milestone.effectiveDate ? 'bg-success' : 'bg-muted',
+                                                                        overdue && 'bg-destructive')}>
+                                                                        {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                        <div className="w-full space-y-2 pt-1">
-                                                            <div className="flex justify-between items-center">
-                                                                <div>
-                                                                    <p className="font-semibold text-base">{milestone.name}</p>
-                                                                    {milestone.details && <p className="text-sm text-muted-foreground -mt-1">{milestone.details}</p>}
+                                                            <div className="w-full space-y-2 pt-1">
+                                                                <div className="flex justify-between items-center">
+                                                                    <div>
+                                                                        <p className="font-semibold text-base">{milestone.isTransshipment ? milestone.details : milestone.name}</p>
+                                                                        {milestone.isTransshipment ? null : <p className="text-sm text-muted-foreground -mt-1">{milestone.details}</p>}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
+                                                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                                                <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
+                                                                                    <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
+                                                                                </Button>
+                                                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                                        )} />
+                                                                        <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
+                                                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                                                <Button variant="outline" size="sm" className={cn("h-7 text-xs w-32 justify-start", !field.value && "text-muted-foreground")}>
+                                                                                    <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
+                                                                                </Button>
+                                                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                                        )} />
+                                                                    </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
-                                                                        <Popover><PopoverTrigger asChild><FormControl>
-                                                                            <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
-                                                                                <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
-                                                                            </Button>
-                                                                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
-                                                                    )} />
-                                                                    <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
-                                                                        <Popover><PopoverTrigger asChild><FormControl>
-                                                                            <Button variant="outline" size="sm" className={cn("h-7 text-xs w-32 justify-start", !field.value && "text-muted-foreground")}>
-                                                                                <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
-                                                                            </Button>
-                                                                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
-                                                                    )} />
-                                                                </div>
+                                                                {index < milestoneFields.length - 1 && <Separator className="my-4"/>}
                                                             </div>
-                                                            {index < milestoneFields.length - 1 && <Separator className="my-4"/>}
                                                         </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                        <Separator className="my-4"/>
-                                        <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel className="text-base font-semibold">Informações Adicionais (Visível ao Cliente)</FormLabel><FormControl><Textarea placeholder="Adicione aqui observações importantes sobre o processo que devem ser visíveis ao cliente no portal..." className="min-h-[100px]" {...field} /></FormControl></FormItem>)} />
-                                    </CardContent>
-                                </Card>
+                                                    )
+                                                })}
+                                            </div>
+                                            <Separator className="my-4"/>
+                                            <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel className="text-base font-semibold">Informações Adicionais (Visível ao Cliente)</FormLabel><FormControl><Textarea placeholder="Adicione aqui observações importantes sobre o processo que devem ser visíveis ao cliente no portal..." className="min-h-[100px]" {...field} /></FormControl></FormItem>)} />
+                                        </CardContent>
+                                    </Card>
+                                    <div className="lg:col-span-1">
+                                        {shipment.bookingNumber ? (
+                                            <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                                        ) : (
+                                            <div className="text-center p-8 text-muted-foreground h-full flex flex-col justify-center items-center border rounded-lg">
+                                                <MapIcon className="mx-auto h-12 w-12 mb-4" />
+                                                <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 </Form>
                             </TabsContent>
@@ -1284,16 +1276,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                <CustomsClearanceTab shipment={shipment} />
                             </TabsContent>
                             
-                            <TabsContent value="map">
-                                {shipment.bookingNumber ? (
-                                    <ShipmentMap shipmentNumber={shipment.bookingNumber} />
-                                ) : (
-                                    <div className="text-center p-8 text-muted-foreground">
-                                        <MapIcon className="mx-auto h-12 w-12 mb-4" />
-                                        <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
-                                    </div>
-                                )}
-                            </TabsContent>
                             </div>
                         </Tabs>
                     </div>

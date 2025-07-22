@@ -1,46 +1,105 @@
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { AlertTriangle, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
 
-// Now representing overdue tasks for the management dashboard
-const tasks = [
-    { title: "Verificar documento de importação BL-998172", area: "Operacional", overdue: "2 dias" },
-    { title: "Fatura #INV-780 - Cliente Nexus Imports", area: "Financeiro", overdue: "5 dias" },
-    { title: "Follow-up Cotação #COT-00121", area: "Comercial", overdue: "1 dia" },
-    { title: "Renovar tabela de fretes Maersk", area: "Comercial", overdue: "3 dias" },
-];
+'use client';
 
-export function ImportantTasks() {
+import { Card, CardContent } from '@/components/ui/card';
+import { AlertTriangle, CalendarCheck2 } from 'lucide-react';
+import { getShipments, Shipment } from '@/lib/shipment';
+import { useState, useEffect, useMemo } from 'react';
+import { isToday, isPast, differenceInDays } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+interface ImportantTasksProps {
+    onTaskClick: (shipment: Shipment) => void;
+}
+
+interface Task {
+    id: string;
+    shipment: Shipment;
+    title: string;
+    dueDate: Date;
+    type: 'overdue' | 'due_today';
+}
+
+export function ImportantTasks({ onTaskClick }: ImportantTasksProps) {
+    const [tasks, setTasks] = useState<Task[]>([]);
+
+    useEffect(() => {
+        const calculateTasks = () => {
+            const shipments = getShipments();
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const criticalTasks: Task[] = [];
+
+            shipments.forEach(s => {
+                s.milestones.forEach(m => {
+                    if (m.status !== 'completed' && m.predictedDate) {
+                        const dueDate = new Date(m.predictedDate);
+                        dueDate.setHours(0,0,0,0);
+                        const isOverdueTask = isPast(dueDate) && !isToday(dueDate);
+                        const isDueTodayTask = isToday(dueDate);
+
+                        if (isOverdueTask || isDueTodayTask) {
+                             criticalTasks.push({
+                                id: `${s.id}-${m.name}`,
+                                shipment: s,
+                                title: m.name,
+                                dueDate: dueDate,
+                                type: isOverdueTask ? 'overdue' : 'due_today',
+                            });
+                        }
+                    }
+                })
+            });
+            
+            // Sort to show most overdue first
+            criticalTasks.sort((a,b) => a.dueDate.getTime() - b.dueDate.getTime());
+            setTasks(criticalTasks);
+        }
+        
+        calculateTasks();
+        window.addEventListener('shipmentsUpdated', calculateTasks);
+        return () => window.removeEventListener('shipmentsUpdated', calculateTasks);
+    }, []);
+
+    const getDaysDifference = (dueDate: Date) => {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        return differenceInDays(today, dueDate);
+    }
+    
     return (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-                <div>
-                    <CardTitle className='text-base font-medium'>Tarefas Atrasadas</CardTitle>
-                    <CardDescription>Visão geral de todas as pendências críticas.</CardDescription>
-                </div>
-                <Button asChild variant="ghost" size="sm" className='-mr-2 text-primary hover:text-primary'>
-                    <Link href="/operacional">
-                        Ver todas
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                </Button>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
-                    {tasks.map(task => (
-                        <div key={task.title} className="flex items-start space-x-3">
-                            <div>
-                                <AlertTriangle className="h-5 w-5 text-destructive" />
+            <CardContent className="p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {tasks.length > 0 ? tasks.map(task => (
+                        <div key={task.id} 
+                             className={cn(
+                                "p-3 rounded-lg border flex items-start gap-3 cursor-pointer transition-all hover:ring-2 hover:ring-primary",
+                                task.type === 'overdue' ? 'bg-destructive/10 border-destructive/50' : 'bg-secondary'
+                             )}
+                             onClick={() => onTaskClick(task.shipment)}>
+                           
+                            <div className={cn("mt-1", task.type === 'overdue' ? 'text-destructive' : 'text-primary')}>
+                                {task.type === 'overdue' ? <AlertTriangle className="h-5 w-5" /> : <CalendarCheck2 className="h-5 w-5" />}
                             </div>
-                            <div className="flex-1">
-                                <p className="text-sm font-medium leading-none">{task.title}</p>
-                                <p className="text-sm text-muted-foreground">{task.area} &middot; <span className="text-destructive font-semibold">Atrasada há {task.overdue}</span></p>
+                            <div>
+                                <p className="font-semibold text-sm leading-tight">{task.title}</p>
+                                <p className="text-xs text-muted-foreground font-medium">Processo: {task.shipment.id}</p>
+                                {task.type === 'overdue' ? (
+                                    <p className="text-xs font-bold text-destructive">Atrasada há {getDaysDifference(task.dueDate)} dias</p>
+                                ) : (
+                                    <p className="text-xs font-semibold text-primary">Vence Hoje</p>
+                                )}
                             </div>
                         </div>
-                    ))}
+                    )) : (
+                        <div className="col-span-full text-center text-muted-foreground py-4">
+                            Nenhuma tarefa crítica para hoje.
+                        </div>
+                    )}
                 </div>
             </CardContent>
         </Card>
-    )
+    );
 }

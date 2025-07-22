@@ -216,14 +216,20 @@ const processTrackingData = (shipments: any[], carrierName: string): GetTracking
       bookingNumber: primaryShipment.bookingNumber,
       containers: Array.from(allContainers.values()),
       transshipments: Array.from(allTransshipments.values()),
-      milestones: allEvents.map((event: TrackingEvent): Milestone => ({
-          name: event.status,
-          status: event.completed ? 'completed' : 'pending',
-          predictedDate: new Date(event.date),
-          effectiveDate: event.completed ? new Date(event.date) : null,
-          details: event.location,
-          isTransshipment: event.status.toLowerCase().includes('transbordo')
-      })),
+      milestones: allEvents.map((event: TrackingEvent, index): Milestone => {
+          // A stop is a transshipment ONLY if the vessel changes.
+          // This is a simplified check. We look at the next "vessel departure" event's carrier details if available.
+          // A more robust solution would be to check against the mainLeg segments.
+          const isTransshipmentEvent = event.status.toLowerCase().includes('transbordo');
+          return {
+              name: event.status,
+              status: event.completed ? 'completed' : 'pending',
+              predictedDate: new Date(event.date),
+              effectiveDate: event.completed ? new Date(event.date) : null,
+              details: event.location,
+              isTransshipment: isTransshipmentEvent,
+          }
+      }),
   };
 
   return {

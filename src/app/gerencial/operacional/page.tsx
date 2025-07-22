@@ -96,7 +96,7 @@ export default function OperacionalPage() {
         </p>
       </header>
       
-      <ImportantTasks />
+      <ImportantTasks onTaskClick={handleOpenSheet} />
 
       <Card>
         <CardHeader>

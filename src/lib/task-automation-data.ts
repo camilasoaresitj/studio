@@ -3,6 +3,14 @@
 
 import { z } from 'zod';
 
+export const serviceConditionEnum = z.enum([
+    'DESPACHO_ADUANEIRO',
+    'SEGURO_INTERNACIONAL',
+    'ENTREGA',
+    'TRADING',
+    'REDESTINACAO'
+]);
+
 export const taskAutomationRuleSchema = z.object({
   id: z.string().optional(),
   modal: z.enum([
@@ -23,11 +31,12 @@ export const taskAutomationRuleSchema = z.object({
     'TERMINAL'
   ]),
   content: z.string().min(10, "O conteúdo deve ter pelo menos 10 caracteres."),
+  serviceConditions: z.array(serviceConditionEnum).optional(),
 });
 
 export type TaskAutomationRule = z.infer<typeof taskAutomationRuleSchema>;
 
-const TASK_AUTOMATION_STORAGE_KEY = 'cargaInteligente_task_automation_rules_v1';
+const TASK_AUTOMATION_STORAGE_KEY = 'cargaInteligente_task_automation_rules_v2';
 
 const initialRules: TaskAutomationRule[] = [
   {
@@ -38,7 +47,8 @@ const initialRules: TaskAutomationRule[] = [
     milestone: 'ETA',
     action: 'ALERTA',
     recipient: 'OPERACIONAL',
-    content: 'Verificar com o cliente o status do numerário para desembaraço. Carga chegando em 3 dias.'
+    content: 'Verificar com o cliente o status do numerário para desembaraço. Carga chegando em 3 dias.',
+    serviceConditions: ['DESPACHO_ADUANEIRO'],
   },
   {
     id: 'rule-2',
@@ -48,7 +58,8 @@ const initialRules: TaskAutomationRule[] = [
     milestone: 'ETD',
     action: 'EMAIL',
     recipient: 'CLIENTE',
-    content: 'Prezado cliente, seu embarque está programado para partir em 2 dias. Por favor, certifique-se que toda a documentação foi enviada. Obrigado!'
+    content: 'Prezado cliente, seu embarque está programado para partir em 2 dias. Por favor, certifique-se que toda a documentação foi enviada. Obrigado!',
+    serviceConditions: [],
   },
 ];
 

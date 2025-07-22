@@ -31,11 +31,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import {
   TaskAutomationRule,
   taskAutomationRuleSchema,
+  serviceConditionEnum,
   getTaskAutomationRules,
   saveTaskAutomationRules
 } from '@/lib/task-automation-data';
+import { Checkbox } from './ui/checkbox';
+import { Badge } from './ui/badge';
 
 type RuleFormData = TaskAutomationRule;
+
+const serviceConditionLabels: Record<z.infer<typeof serviceConditionEnum>, string> = {
+    'DESPACHO_ADUANEIRO': 'Despacho Aduaneiro',
+    'SEGURO_INTERNACIONAL': 'Seguro Internacional',
+    'ENTREGA': 'Entrega',
+    'TRADING': 'Trading',
+    'REDESTINACAO': 'Redestinação',
+};
+
 
 export function TaskAutomationRegistry() {
   const [rules, setRules] = useState<TaskAutomationRule[]>([]);
@@ -61,6 +73,7 @@ export function TaskAutomationRegistry() {
       action: 'ALERTA',
       recipient: 'OPERACIONAL',
       content: '',
+      serviceConditions: [],
     });
     setIsDialogOpen(true);
   };
@@ -112,9 +125,9 @@ export function TaskAutomationRegistry() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Gatilho</TableHead>
+                            <TableHead>Condição</TableHead>
                             <TableHead>Ação</TableHead>
                             <TableHead>Destinatário</TableHead>
-                            <TableHead>Conteúdo</TableHead>
                             <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -124,11 +137,19 @@ export function TaskAutomationRegistry() {
                                 <TableRow key={rule.id}>
                                     <TableCell className="font-medium text-sm">
                                         <p className="font-semibold">{rule.days} dia(s) {rule.timing.toLowerCase()} do {rule.milestone}</p>
-                                        <p className="text-xs text-muted-foreground">{rule.modal.replace('_', ' ')}</p>
+                                        <p className="text-xs text-muted-foreground">{rule.modal.replace(/_/g, ' ')}</p>
+                                    </TableCell>
+                                    <TableCell>
+                                        {rule.serviceConditions && rule.serviceConditions.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {rule.serviceConditions.map(c => <Badge key={c} variant="secondary">{serviceConditionLabels[c]}</Badge>)}
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">Todos os Processos</span>
+                                        )}
                                     </TableCell>
                                     <TableCell>{rule.action}</TableCell>
                                     <TableCell>{rule.recipient}</TableCell>
-                                    <TableCell className="text-xs max-w-xs truncate">{rule.content}</TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(rule)}>
                                             <Edit className="h-4 w-4" />
@@ -168,6 +189,43 @@ export function TaskAutomationRegistry() {
                                     <SelectItem value="EXPORTACAO_AEREA">Exportação Aérea</SelectItem>
                                 </SelectContent></Select><FormMessage /></FormItem>
                             )} />
+                            <FormField
+                                control={form.control}
+                                name="serviceConditions"
+                                render={() => (
+                                <FormItem>
+                                    <FormLabel>Serviços Opcionais (Condição)</FormLabel>
+                                    <p className="text-xs text-muted-foreground">Se nenhum for selecionado, a regra se aplicará a todos os processos.</p>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
+                                    {Object.entries(serviceConditionLabels).map(([key, label]) => (
+                                        <FormField
+                                            key={key}
+                                            control={form.control}
+                                            name="serviceConditions"
+                                            render={({ field }) => (
+                                                <FormItem key={key} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value?.includes(key as z.infer<typeof serviceConditionEnum>)}
+                                                            onCheckedChange={(checked) => {
+                                                                const currentValue = field.value || [];
+                                                                const serviceKey = key as z.infer<typeof serviceConditionEnum>;
+                                                                return checked
+                                                                ? field.onChange([...currentValue, serviceKey])
+                                                                : field.onChange(currentValue.filter((value) => value !== serviceKey));
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel className="text-sm font-normal">{label}</FormLabel>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                              <FormField control={form.control} name="days" render={({ field }) => (

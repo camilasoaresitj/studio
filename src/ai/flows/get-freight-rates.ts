@@ -43,6 +43,35 @@ export async function getAirFreightRates(input: GetFreightRatesInput): Promise<G
   return getAirFreightRatesFlow(input);
 }
 
+// Type for the actual API response from CargoFive
+export type CargoFiveRateResponse = {
+  id: string;
+  carrier: {
+    name: string;
+    code: string;
+    scac?: string;
+  };
+  service: string;
+  price: number;
+  currency: string;
+  transit_time: number;
+  delivery_range: {
+    min: number;
+    max: number;
+  };
+  validity: string;
+  details: {
+    origin_port: {
+      name: string;
+      unlocode: string;
+    };
+    destination_port: {
+      name: string;
+      unlocode: string;
+    };
+  };
+};
+
 // Tool to call the CargoFive API
 const cargoFiveRateTool = ai.defineTool(
   {
@@ -58,21 +87,25 @@ const cargoFiveRateTool = ai.defineTool(
       throw new Error('CargoFive API key is not configured.');
     }
     
-    // Corrected endpoint as per official documentation.
-    const response = await axios.post(`${apiUrl}/v1/rates`, params, {
-        headers: {
-            'X-API-Key': apiKey,
-            'Content-Type': 'application/json'
-        }
-    });
+    try {
+        const response = await axios.post(`${apiUrl}/v1/rates`, params, {
+            headers: {
+                'X-API-Key': apiKey,
+                'Content-Type': 'application/json'
+            }
+        });
 
-    if (response.status !== 200) {
-        console.error("CargoFive API Error:", response.data);
-        const errorMessage = response.data?.errors?.[0]?.detail || response.data.message || 'Unknown API error';
-        throw new Error(`CargoFive API Error (${response.status}): ${errorMessage}`);
+        if (response.status !== 200) {
+            console.error("CargoFive API Error:", response.data);
+            const errorMessage = response.data?.errors?.[0]?.detail || response.data.message || 'Unknown API error';
+            throw new Error(`CargoFive API Error (${response.status}): ${errorMessage}`);
+        }
+        
+        return response.data.data;
+    } catch (error: any) {
+        console.error("CargoFive API Request Failed:", error.response?.data || error.message);
+        throw new Error(error.response?.data?.message || `Failed to fetch rates from CargoFive: ${error.message}`);
     }
-    
-    return response.data.data;
   }
 );
 
@@ -133,18 +166,33 @@ const getFreightRatesFlow = ai.defineFlow(
     }
     
     const apiParams = {
-        origin_port: originPort.unlocode,
-        destination_port: destinationPort.unlocode,
+        origin: {
+            unlocode: originPort.unlocode,
+            country: originPort.country,
+            type: 'port' as const
+        },
+        destination: {
+            unlocode: destinationPort.unlocode,
+            country: destinationPort.country,
+            type: 'port' as const
+        },
         ...(input.oceanShipmentType === 'FCL' && {
-            container_types: input.oceanShipment.containers.map(c => ({
-                name: c.type,
-                count: c.quantity,
-            }))
+            options: {
+                container_type: input.oceanShipment.containers[0]?.type,
+                incoterm: input.incoterm || 'FOB',
+            }
         }),
          ...(input.oceanShipmentType === 'LCL' && {
-            cargo_details: {
-                total_weight: input.lclDetails.weight,
-                total_volume: input.lclDetails.cbm,
+            packages: [{
+                quantity: 1, // Simplified for now
+                weight: input.lclDetails.weight,
+                // CargoFive requires dimensions for LCL, let's provide defaults if not present
+                length: 100, 
+                width: 100,
+                height: 100,
+            }],
+            options: {
+                incoterm: input.incoterm || 'FOB',
             }
         })
     };
@@ -154,20 +202,20 @@ const getFreightRatesFlow = ai.defineFlow(
     const rateResponse = await cargoFiveRateTool(apiParams);
 
     if (rateResponse && Array.isArray(rateResponse)) {
-        return rateResponse.map((rate: any): GetFreightRatesOutput[0] => {
+        return rateResponse.map((rate: CargoFiveRateResponse): GetFreightRatesOutput[0] => {
             const transitTime = (rate.transit_time) 
                 ? `${rate.transit_time} dias`
-                : 'N/A';
+                : `${rate.delivery_range.min}-${rate.delivery_range.max} dias`;
 
             return {
                 id: rate.id,
                 carrier: rate.carrier.name,
-                origin: originPort.name,
-                destination: destinationPort.name,
+                origin: rate.details.origin_port.name,
+                destination: rate.details.destination_port.name,
                 transitTime: transitTime,
-                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: rate.total_amount_currency || 'USD' }).format(rate.total_amount),
-                costValue: rate.total_amount,
-                carrierLogo: `https://placehold.co/120x40.png?text=${rate.carrier.scac}`,
+                cost: new Intl.NumberFormat('en-US', { style: 'currency', currency: rate.currency || 'USD' }).format(rate.price),
+                costValue: rate.price,
+                carrierLogo: `https://placehold.co/120x40.png?text=${rate.carrier.scac || rate.carrier.code}`,
                 dataAiHint: `${rate.carrier.name.toLowerCase()} logo`,
                 source: 'CargoFive',
             };

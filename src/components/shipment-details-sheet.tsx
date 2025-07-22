@@ -806,8 +806,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <div className="p-4">
                             <TabsContent value="timeline">
                                 <Form {...form}>
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <Card className="lg:col-span-1">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <Card className="lg:col-span-2">
                                         <CardHeader>
                                             <div className="flex justify-between items-center">
                                                 <div>
@@ -824,22 +824,23 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                 <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
                                                 {sortedMilestones.map((milestone, index) => {
                                                     const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
+                                                    const isCompleted = !!milestone.effectiveDate;
                                                     return (
                                                         <div key={milestone.id || index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
                                                             <div className="flex h-full justify-center row-span-2">
                                                                 <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
                                                                     <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
-                                                                        milestone.effectiveDate ? 'bg-success' : 'bg-muted',
+                                                                        isCompleted ? 'bg-success' : 'bg-muted',
                                                                         overdue && 'bg-destructive')}>
-                                                                        {milestone.effectiveDate ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                                                        {isCompleted ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                             <div className="w-full space-y-2 pt-1">
                                                                 <div className="flex justify-between items-center">
                                                                     <div>
-                                                                        <p className="font-semibold text-base">{milestone.isTransshipment ? milestone.details : milestone.name}</p>
-                                                                        {milestone.isTransshipment ? null : <p className="text-sm text-muted-foreground -mt-1">{milestone.details}</p>}
+                                                                        <p className={cn("font-semibold text-base", milestone.isTransshipment && "text-red-500", isCompleted && "text-success")}>{milestone.isTransshipment ? milestone.name.toUpperCase() : milestone.name}</p>
+                                                                        <p className="text-sm text-muted-foreground -mt-1">{milestone.details}</p>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (

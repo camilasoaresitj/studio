@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
+import { baseFreightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,7 @@ type FreightRate = {
 };
 
 // A simplified version of the form for clients
-const clientQuoteSchema = freightQuoteFormSchema.omit({ customerId: true });
+const clientQuoteSchema = baseFreightQuoteFormSchema.omit({ customerId: true });
 type ClientQuoteFormData = Omit<FreightQuoteFormData, 'customerId'>;
 
 export function ClientQuoteForm() {

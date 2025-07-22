@@ -13,8 +13,8 @@ import {
   User,
   Calculator,
   Ship,
-  Bot,
-  Mail
+  Users,
+  BookUser,
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -35,16 +35,15 @@ const menuItems = [
   { href: '/gerencial/comercial', label: 'Comercial', icon: Briefcase },
   { href: '/gerencial/operacional', label: 'Operacional', icon: Truck },
   { href: '/gerencial/financeiro', label: 'Financeiro', icon: Landmark },
+  { href: '/gerencial/rh', label: 'RH', icon: Users },
   { href: '/gerencial/demurrage', label: 'Demurrage', icon: Clock },
   { href: '/gerencial/simulador-di', label: 'Simulador DI', icon: Calculator },
   { href: '/gerencial/tracking', label: 'Rastreamento', icon: Ship },
-  { href: '/gerencial/crm', label: 'CRM / IA', icon: Bot },
-  { href: '/gerencial/tasks', label: 'Monitor de Tarefas', icon: Mail },
 ];
 
 const bottomMenuItems = [
   { href: '/portal', label: 'Portal Cliente', icon: User },
-  { href: '/gerencial/configuracoes', label: 'Configurações', icon: Settings },
+  { href: '/gerencial/cadastros', label: 'Cadastros', icon: BookUser },
 ];
 
 export function MainSidebar() {

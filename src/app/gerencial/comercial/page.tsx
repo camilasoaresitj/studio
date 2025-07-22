@@ -11,6 +11,7 @@ import { getFees, type Fee } from '@/lib/fees-data';
 import { Button } from '@/components/ui/button';
 import { List } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { CrmForm } from '@/components/crm-form';
 
 export default function ComercialPage() {
     const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -90,7 +91,7 @@ export default function ComercialPage() {
                 <div>
                     <h1 className="text-3xl md:text-4xl font-bold text-foreground">Módulo Comercial</h1>
                     <p className="text-muted-foreground mt-2 text-lg">
-                       {view === 'form' ? 'Crie, busque e gerencie cotações de frete.' : 'Gerencie e acompanhe o status de todas as suas propostas.'}
+                       {view === 'form' ? 'Crie, busque e gerencie cotações de frete e campanhas de marketing.' : 'Gerencie e acompanhe o status de todas as suas propostas.'}
                     </p>
                 </div>
                 <Button variant="outline" onClick={() => setView(view === 'form' ? 'list' : 'form')}>
@@ -105,6 +106,7 @@ export default function ComercialPage() {
                         <TabsTrigger value="quote">Cotação</TabsTrigger>
                         <TabsTrigger value="rates">Tabela de Tarifas</TabsTrigger>
                         <TabsTrigger value="import">Importador de Tarifas</TabsTrigger>
+                        <TabsTrigger value="crm">CRM / IA</TabsTrigger>
                     </TabsList>
                     <TabsContent value="quote" className="mt-6">
                         <FreightQuoteForm 
@@ -122,6 +124,9 @@ export default function ComercialPage() {
                     </TabsContent>
                     <TabsContent value="import" className="mt-6">
                         <RateImporter onRatesImported={(newRates) => setRates(prev => [...prev, ...newRates])} />
+                    </TabsContent>
+                    <TabsContent value="crm" className="mt-6">
+                        <CrmForm />
                     </TabsContent>
                 </Tabs>
             ) : (

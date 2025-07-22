@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -236,6 +235,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
       incoterm: 'FOB',
       origin: '',
       destination: '',
+      departureDate: format(new Date(), 'yyyy-MM-dd'),
       commodity: '',
       collectionAddress: '',
       deliveryAddress: '',
@@ -1346,3 +1346,5 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     </div>
   );
 }
+
+    

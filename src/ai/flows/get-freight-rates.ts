@@ -58,14 +58,14 @@ const CONTAINER_TYPE_MAPPING: Record<string, string> = {
 const cargoFiveRateTool = ai.defineTool(
   {
     name: 'getCargoFiveRates',
-    description: 'Fetches real-time ocean freight rates from the CargoFive API using a POST request.',
+    description: 'Fetches real-time ocean freight rates from the CargoFive API using a POST request with query parameters.',
     inputSchema: z.object({
-        url: z.string(),
+        fullUrl: z.string(),
         payload: z.any(),
     }),
     outputSchema: z.any() // API returns a complex object, not an array.
   },
-  async ({ url, payload }) => {
+  async ({ fullUrl, payload }) => {
     const apiKey = process.env.CARGOFIVE_API_KEY || 'a256c19a3c3d85da2e35846de3205954';
     
     if (!apiKey) {
@@ -73,10 +73,10 @@ const cargoFiveRateTool = ai.defineTool(
     }
     
     try {
-      console.log('Enviando para CargoFive (POST) com URL:', url);
+      console.log('Enviando para CargoFive (POST) com URL:', fullUrl);
       console.log('Payload:', JSON.stringify(payload, null, 2));
       
-      const response = await axios.post(url, payload, {
+      const response = await axios.post(fullUrl, payload, {
           headers: {
             'X-API-Key': apiKey,
             'Accept': 'application/json',
@@ -95,7 +95,7 @@ const cargoFiveRateTool = ai.defineTool(
       return response.data;
     } catch (error: any) {
       const errorDetails = {
-        url,
+        url: fullUrl,
         payload,
         status: error.response?.status,
         errorData: error.response?.data,
@@ -184,7 +184,7 @@ const getFreightRatesFlow = ai.defineFlow(
         }
       ];
 
-      const response = await cargoFiveRateTool({ url: fullUrl, payload });
+      const response = await cargoFiveRateTool({ fullUrl, payload });
       
       const rates = response?.offers?.rates;
       if (!rates || rates.length === 0) {
@@ -295,3 +295,5 @@ const getAirFreightRatesFlow = ai.defineFlow(
 export async function getAirFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {
   return getAirFreightRatesFlow(input);
 }
+
+    

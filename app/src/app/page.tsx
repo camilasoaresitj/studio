@@ -1,6 +1,5 @@
-// This file is intentionally left empty as the correct page is at /gerencial
-import GerencialPage from './gerencial/page';
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-  return <GerencialPage />;
+  redirect('/gerencial');
 }

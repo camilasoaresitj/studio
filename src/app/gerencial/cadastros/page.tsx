@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompanySettingsForm } from '@/components/settings/company-settings-form';
@@ -15,11 +15,17 @@ import { ProfitSettings } from '@/components/profit-settings';
 import { ShipRegistry } from '@/components/settings/ship-registry';
 import { getFees, saveFees, type Fee } from '@/lib/fees-data';
 import { getPartners, savePartners, type Partner } from '@/lib/partners-data';
+import { UserManagementTable } from '@/components/settings/user-management-table';
 
 export default function CadastrosPage() {
-    const [fees, setFees] = useState<Fee[]>(getFees);
-    const [partners, setPartners] = useState<Partner[]>(getPartners);
+    const [fees, setFees] = useState<Fee[]>([]);
+    const [partners, setPartners] = useState<Partner[]>([]);
     
+    useEffect(() => {
+        setFees(getFees());
+        setPartners(getPartners());
+    }, []);
+
     const handleFeeSave = (feeToSave: Fee) => {
         let updatedFees;
         if (feeToSave.id && feeToSave.id !== 0) {

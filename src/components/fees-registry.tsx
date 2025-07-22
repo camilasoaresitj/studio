@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -35,7 +36,7 @@ export type Fee = {
     name: string;
     value: string;
     currency: 'BRL' | 'USD' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
-    type: 'Fixo' | 'Percentual' | 'Por CBM/Ton' | 'Opcional' | 'Por KG';
+    type: 'Fixo' | 'Percentual' | 'W/M' | 'Opcional' | 'KG';
     unit: string;
     modal: 'Marítimo' | 'Aéreo' | 'Ambos';
     direction: 'Importação' | 'Exportação' | 'Ambos';
@@ -48,7 +49,7 @@ const feeSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   value: z.string().min(1, 'Valor é obrigatório'),
   currency: z.enum(['BRL', 'USD', 'EUR', 'JPY', 'CHF', 'GBP']),
-  type: z.enum(['Fixo', 'Percentual', 'Por CBM/Ton', 'Opcional', 'Por KG']),
+  type: z.enum(['Fixo', 'Percentual', 'W/M', 'Opcional', 'KG']),
   unit: z.string().min(1, 'Unidade é obrigatória'),
   modal: z.enum(['Marítimo', 'Aéreo', 'Ambos']),
   direction: z.enum(['Importação', 'Exportação', 'Ambos']),
@@ -86,7 +87,7 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
         value: '',
         currency: 'BRL',
         type: 'Fixo',
-        unit: 'Por Contêiner',
+        unit: 'Contêiner',
         modal: 'Marítimo',
         direction: 'Importação',
         chargeType: 'FCL',
@@ -235,15 +236,15 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                               <SelectContent>
                                   <SelectItem value="Fixo">Fixo</SelectItem>
                                   <SelectItem value="Percentual">Percentual</SelectItem>
-                                  <SelectItem value="Por CBM/Ton">Por CBM/Ton</SelectItem>
-                                  <SelectItem value="Por KG">Por KG</SelectItem>
+                                  <SelectItem value="W/M">W/M</SelectItem>
+                                  <SelectItem value="KG">KG</SelectItem>
                                   <SelectItem value="Opcional">Opcional</SelectItem>
                               </SelectContent>
                             </Select>
                         <FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="unit" render={({ field }) => (
-                        <FormItem><FormLabel>Unidade</FormLabel><FormControl><Input placeholder="Ex: Por Contêiner" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Unidade</FormLabel><FormControl><Input placeholder="Ex: Contêiner" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
                 <FormField control={form.control} name="minValue" render={({ field }) => (

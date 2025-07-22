@@ -1,4 +1,5 @@
 
+
 import type { Rate } from '@/components/rates-table';
 import type { Quote } from '@/components/customer-quotes-list';
 
@@ -55,10 +56,10 @@ export function getInitialQuotes(): Quote[] {
         date: '15/07/2024',
         details: { cargo: '1x20GP', transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias', incoterm: 'FOB' },
         charges: [
-            { id: 'charge-1', name: 'FRETE MARÍTIMO', type: 'Por Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
-            { id: 'charge-2', name: 'THC', type: 'Por Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
-            { id: 'charge-3', name: 'BL FEE', type: 'Por BL', cost: 500, costCurrency: 'BRL', sale: 600, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
-            { id: 'charge-4', name: 'DESPACHO ADUANEIRO', type: 'Por Processo', cost: 800, costCurrency: 'BRL', sale: 1000, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
+            { id: 'charge-1', name: 'FRETE MARÍTIMO', type: 'Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
+            { id: 'charge-2', name: 'THC', type: 'Contêiner', cost: 1350, costCurrency: 'BRL', sale: 1350, saleCurrency: 'BRL', supplier: 'Porto de Roterdã', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
+            { id: 'charge-3', name: 'BL FEE', type: 'BL', cost: 500, costCurrency: 'BRL', sale: 600, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
+            { id: 'charge-4', name: 'DESPACHO ADUANEIRO', type: 'Processo', cost: 800, costCurrency: 'BRL', sale: 1000, saleCurrency: 'BRL', supplier: 'CargaInteligente', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
         ]
       },
       { 
@@ -70,8 +71,8 @@ export function getInitialQuotes(): Quote[] {
         date: '14/07/2024', 
         details: { cargo: '500kg', transitTime: '1 dia', validity: '31/10/2024', freeTime: 'N/A', incoterm: 'FCA' },
         charges: [
-            { id: 'charge-5', name: 'FRETE AÉREO', type: 'Por KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo', sacado: 'TechFront Solutions', approvalStatus: 'aprovada' },
-            { id: 'charge-6', name: 'HANDLING FEE', type: 'Por AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA', sacado: 'TechFront Solutions', approvalStatus: 'aprovada' },
+            { id: 'charge-5', name: 'FRETE AÉREO', type: 'KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo', sacado: 'TechFront Solutions', approvalStatus: 'aprovada' },
+            { id: 'charge-6', name: 'HANDLING FEE', type: 'AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA', sacado: 'TechFront Solutions', approvalStatus: 'aprovada' },
         ]
       },
       { id: 'COT-00123', customer: 'Global Foods Ltda', origin: 'Paranaguá, BR', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', details: { cargo: '1x40HC', transitTime: '35-40 dias', validity: '31/12/2024', freeTime: '7 dias', incoterm: 'CFR' }, charges: [] },

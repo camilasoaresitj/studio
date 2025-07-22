@@ -103,12 +103,12 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
 }
 
 const chargeTypeOptions = [
-    'Por Contêiner',
-    'Por BL',
-    'Por Processo',
+    'Contêiner',
+    'BL',
+    'Processo',
     'W/M',
-    'Por KG',
-    'Por AWB',
+    'KG',
+    'AWB',
     'Fixo',
     'Percentual',
 ];
@@ -453,7 +453,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                     <Card>
                         <CardHeader className="p-2"><CardTitle className="text-base">Custo Total (em BRL)</CardTitle></CardHeader>
                         <CardContent className="p-2 pt-0 text-sm">
-                            <div className="flex justify-between font-semibold">
+                            <div className="flex justify-between font-semibold text-base">
                                 <span>BRL:</span>
                                 <span className="font-mono">{totals.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
@@ -462,7 +462,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                     <Card>
                         <CardHeader className="p-2"><CardTitle className="text-base">Venda Total (em BRL)</CardTitle></CardHeader>
                         <CardContent className="p-2 pt-0 text-sm">
-                            <div className="flex justify-between font-semibold">
+                            <div className="flex justify-between font-semibold text-base">
                                 <span>BRL:</span>
                                 <span className="font-mono">{totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>

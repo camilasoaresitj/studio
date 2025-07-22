@@ -15,8 +15,6 @@ import { getCourierRates } from "@/ai/flows/get-courier-rates";
 import { monitorEmailForTasks } from "@/ai/flows/monitor-email-for-tasks";
 import { requestAgentQuote } from "@/ai/flows/request-agent-quote";
 import { sendQuote } from "@/ai/flows/send-quote";
-import { getVesselSchedules } from "@/ai/flows/get-ship-schedules";
-import { getFlightSchedules } from "@/ai/flows/get-flight-schedules";
 import { sendShippingInstructions } from "@/ai/flows/send-shipping-instructions";
 import { getCourierStatus } from "@/ai/flows/get-courier-status";
 import { consultNfseItajai } from "@/ai/flows/consult-nfse-itajai";
@@ -36,7 +34,7 @@ import { createShipment } from "@/lib/shipment";
 import { isPast, format } from "date-fns";
 import { generateDiXmlFlow } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
-import { registerDueFlow } from "@/ai/flows/register-due";
+import { registerDueFlow } from '@/ai/flows/register-due';
 import type { RegisterDueInput, RegisterDueOutput } from '@/ai/flows/register-due';
 import { generateDiXmlFromSpreadsheet } from "@/ai/flows/generate-di-xml-from-spreadsheet";
 import { extractInvoiceItems } from '@/ai/flows/extract-invoice-items';
@@ -114,14 +112,14 @@ export async function runSendWhatsapp(to: string, message: string) {
     }
 }
 
-export async function runGenerateQuotePdf(input: any) {
-  try {
-    const output = await generateQuotePdfHtml(input);
-    return { success: true, data: output };
-  } catch (error: any) {
-    console.error("Server Action Failed", error);
-    return { success: false, error: error.message || "Failed to run flow" };
-  }
+export async function runGenerateQuotePdfHtml(input: any) {
+    try {
+      const output = await generateQuotePdfHtml(input);
+      return { success: true, data: output };
+    } catch (error: any) {
+      console.error("Server Action Failed", error);
+      return { success: false, error: error.message || "Failed to run flow" };
+    }
 }
 
 export async function runGenerateClientInvoicePdf(input: any) {
@@ -233,27 +231,6 @@ export async function runExtractQuoteDetailsFromText(textInput: string) {
     } catch (error: any) {
         console.error("Extract Quote Details Action Failed", error);
         return { success: false, error: error.message || "Failed to extract details" };
-    }
-}
-
-
-export async function runGetVesselSchedules(input: { origin: string, destination: string }) {
-    try {
-        const data = await getVesselSchedules(input);
-        return { success: true, data };
-    } catch (error: any) {
-        console.error("Get Vessel Schedules Action Failed", error);
-        return { success: false, error: error.message || "Failed to get schedules" };
-    }
-}
-
-export async function runGetFlightSchedules(input: { origin: string, destination: string }) {
-    try {
-        const data = await getFlightSchedules(input);
-        return { success: true, data };
-    } catch (error: any) {
-        console.error("Get Flight Schedules Action Failed", error);
-        return { success: false, error: error.message || "Failed to get schedules" };
     }
 }
 
@@ -605,3 +582,5 @@ export async function runGetNcmRates(ncm: string) {
         return { success: false, error: error.message || "Failed to get NCM rates" };
     }
 }
+
+    

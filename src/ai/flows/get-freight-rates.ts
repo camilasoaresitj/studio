@@ -27,82 +27,72 @@ const FreightRateSchema = z.object({
 const GetFreightRatesOutputSchema = z.array(FreightRateSchema);
 export type GetFreightRatesOutput = z.infer<typeof GetFreightRatesOutputSchema>;
 
-
-// Mapeamento de UNLOCODE para CargoFive Location ID
-const PORT_LOCATIONS: Record<string, string> = {
-  CNSHA: '120',  // Shanghai
-  BRSSZ: '55',   // Santos
-  USNYC: '84',   // New York
-  NLRTM: '135',  // Rotterdam
-  DEHAM: '97',   // Hamburg
-  BEANR: '103',  // Antwerp
-  BRITJ: '56',   // Itajai
-  BRPNG: '57',   // Paranagua
-  BRIOA: '407',  // Itapoa
+// Mapeamento de UNLOCODE para os dados da CargoFive API v2
+const PORT_UNLOCODES: Record<string, { unlocode: string; country: string }> = {
+  CNSHA: { unlocode: 'CNSHA', country: 'CN' },  // Shanghai
+  BRSSZ: { unlocode: 'BRSSZ', country: 'BR' },   // Santos
+  USNYC: { unlocode: 'USNYC', country: 'US' },   // New York
+  NLRTM: { unlocode: 'NLRTM', country: 'NL' },  // Rotterdam
+  DEHAM: { unlocode: 'DEHAM', country: 'DE' },   // Hamburg
+  BEANR: { unlocode: 'BEANR', country: 'BE' },  // Antwerp
+  BRITJ: { unlocode: 'BRITJ', country: 'BR' },   // Itajai
+  BRPNG: { unlocode: 'BRPNG', country: 'BR' },  // Paranagua
+  BRIOA: { unlocode: 'BRIOA', country: 'BR' },  // Itapoa
 };
 
-// Mapeamento de tipos de container para o formato da CargoFive
-const CONTAINER_TYPE_MAPPING: Record<string, string> = {
-  "20'GP": "20DV",
-  "40'GP": "40DV",
+
+// Mapeamento de tipos de container para o formato da CargoFive v2
+const CONTAINER_TYPE_MAPPING_V2: Record<string, string> = {
+  "20'GP": "20GP",
+  "40'GP": "40GP",
   "40'HC": "40HC",
   "20'RF": "20RF",
   "40'RF": "40HRF",
   "40'NOR": "40NOR",
-  "20'OT": "20OT",
-  "40'OT": "40OT",
-  "20'FR": "20FL",
-  "40'FR": "40FL",
 };
 
 const cargoFiveRateTool = ai.defineTool(
   {
-    name: 'getCargoFiveRates',
-    description: 'Fetches real-time ocean freight rates from the CargoFive API using a POST request with query parameters.',
+    name: 'createCargoFiveQuote',
+    description: 'Creates a quote on the CargoFive v2 API using a POST request.',
     inputSchema: z.object({
-        fullUrl: z.string(),
         payload: z.any(),
     }),
-    outputSchema: z.any() // API returns a complex object, not an array.
+    outputSchema: z.any() 
   },
-  async ({ fullUrl, payload }) => {
+  async ({ payload }) => {
     const apiKey = process.env.CARGOFIVE_API_KEY || 'a256c19a3c3d85da2e35846de3205954';
+    const API_URL = 'https://api.cargofive.com/v2/rates';
     
     if (!apiKey) {
       throw new Error('CargoFive API key is not configured.');
     }
     
     try {
-      console.log('Enviando para CargoFive (POST) com URL:', fullUrl);
-      console.log('Payload:', JSON.stringify(payload, null, 2));
+      console.log('Enviando para CargoFive v2 (POST) com payload:', JSON.stringify(payload, null, 2));
       
-      const response = await axios.post(fullUrl, payload, {
+      const response = await axios.post(API_URL, payload, {
           headers: {
-            'X-API-Key': apiKey,
-            'Accept': 'application/json',
+            'x-api-key': apiKey,
             'Content-Type': 'application/json'
           },
           timeout: 30000
         }
       );
 
-      console.log('Resposta da CargoFive:', JSON.stringify(response.data, null, 2));
-
-      if (!response.data) {
-        return null;
-      }
-
+      console.log('Resposta da CargoFive v2:', JSON.stringify(response.data, null, 2));
       return response.data;
+
     } catch (error: any) {
       const errorDetails = {
-        url: fullUrl,
+        url: API_URL,
         payload,
         status: error.response?.status,
         errorData: error.response?.data,
         message: error.message
       };
       
-      console.error('Erro na API CargoFive:', errorDetails);
+      console.error('Erro na API CargoFive v2:', errorDetails);
       
       let errorMessage = 'Erro ao consultar tarifas';
       if (error.response?.data) {
@@ -132,77 +122,50 @@ const getFreightRatesFlow = ai.defineFlow(
       const originPort = findPortByTerm(input.origin);
       const destinationPort = findPortByTerm(input.destination);
 
-      const originLocationId = PORT_LOCATIONS[originPort?.unlocode.toUpperCase() || ''];
-      const destinationLocationId = PORT_LOCATIONS[destinationPort?.unlocode.toUpperCase() || ''];
-
-      if (!originLocationId || !destinationLocationId) {
-        throw new Error(`Mapeamento de ID de localização não encontrado para a rota: ${input.origin} -> ${input.destination}. Verifique o cadastro de portos.`);
+      const originData = PORT_UNLOCODES[originPort?.unlocode.toUpperCase() || ''];
+      const destinationData = PORT_UNLOCODES[destinationPort?.unlocode.toUpperCase() || ''];
+      
+      if (!originData || !destinationData) {
+        throw new Error(`Mapeamento de UNLOCODE não encontrado para a rota: ${input.origin} -> ${input.destination}.`);
       }
       
-      let cargoDetails = '';
-      if (input.oceanShipmentType === 'FCL') {
-          cargoDetails = input.oceanShipment.containers.map(c => {
-              const type = CONTAINER_TYPE_MAPPING[c.type] || '20DV';
-              const weight = c.weight || 15000; // Default weight if not provided
-              return `${c.quantity}x${type}x${weight}`;
-          }).join(',');
-      } else { // LCL
+      if (input.oceanShipmentType !== 'FCL' || !input.oceanShipment.containers.length) {
           return [];
       }
-
-      const departureDate = input.departureDate 
-        ? format(new Date(input.departureDate), 'yyyy-MM-dd') 
-        : format(addDays(new Date(), 15), 'yyyy-MM-dd');
-        
-      const validityDate = format(addDays(new Date(departureDate), 4), 'yyyy-MM-dd');
-
-      const baseUrl = 'https://coreapp-qa.cargofive.com/api/v1/public/rates';
-      const params = new URLSearchParams({
-        origins: originLocationId,
-        destinations: destinationLocationId,
-        type: input.oceanShipmentType,
-        departure_date: departureDate,
-        cargo_details: cargoDetails,
-        api_providers: '-1',
-      });
-      const fullUrl = `${baseUrl}?${params.toString()}`;
-
-      const payload = [
-        {
-            offer_id: null,
-            type: "FCL",
-            containers: input.oceanShipment.containers.map(c => ({
-                quantity: c.quantity,
-                type: CONTAINER_TYPE_MAPPING[c.type] || "20DV",
-                weight: c.weight || 15000,
-                weight_unit: "Kg"
-            })),
-            origin_port_id: parseInt(originLocationId),
-            destination_port_id: parseInt(destinationLocationId),
-            departure_date: departureDate,
-            validity_date: validityDate
-        }
-      ];
-
-      const response = await cargoFiveRateTool({ fullUrl, payload });
       
-      const rates = response?.offers?.rates;
+      // Use the first container type for the 'options' field as per the user's example
+      const primaryContainerType = CONTAINER_TYPE_MAPPING_V2[input.oceanShipment.containers[0].type] || '20GP';
+
+      const payload = {
+        origin: { unlocode: originData.unlocode, country: originData.country, type: 'port' as const },
+        destination: { unlocode: destinationData.unlocode, country: destinationData.country, type: 'port' as const },
+        options: {
+            incoterm: input.incoterm,
+            container_type: primaryContainerType
+        },
+        containers: input.oceanShipment.containers.map(c => ({
+            type: CONTAINER_TYPE_MAPPING_V2[c.type] || '20GP',
+            quantity: c.quantity
+        })),
+      };
+
+      const response = await cargoFiveRateTool({ payload });
+      
+      const rates = response?.rates;
       if (!rates || rates.length === 0) {
         return [];
       }
 
-      const containerType = CONTAINER_TYPE_MAPPING[input.oceanShipment.containers[0].type] || '20DV';
-      
       return rates.map((rate: any, index: number) => ({
-        id: rate.product_offer?.rate_uuid || `rate-${index}`,
-        carrier: rate.product_offer?.main_carrier_name || 'N/A',
-        origin: rate.product_offer?.origin_port_display_name || 'N/A',
-        destination: rate.product_offer?.destination_port_display_name || 'N/A',
-        transitTime: `${rate.schedules?.[0]?.transit_time || 'N/A'} dias`,
-        costValue: rate.product_price?.totals?.per_container?.containers?.[containerType]?.total_unit_price_usd || 0,
-        cost: `USD ${(rate.product_price?.totals?.per_container?.containers?.[containerType]?.total_unit_price_usd || 0).toFixed(2)}`,
-        carrierLogo: rate.product_offer?.main_carrier_logo || `https://logo.clearbit.com/${rate.product_offer?.main_carrier_scac?.toLowerCase()}.com`,
-        dataAiHint: `${rate.product_offer?.main_carrier_name?.toLowerCase()} logo`,
+        id: rate.rate_id || `rate-${index}`,
+        carrier: rate.carrier?.name || 'N/A',
+        origin: rate.origin?.name || 'N/A',
+        destination: rate.destination?.name || 'N/A',
+        transitTime: `${rate.transit_time || 'N/A'} dias`,
+        costValue: parseFloat(rate.price.replace(/[^0-9.-]+/g, "")),
+        cost: rate.price,
+        carrierLogo: rate.carrier?.logo_url || `https://logo.clearbit.com/${rate.carrier?.name?.toLowerCase()}.com`,
+        dataAiHint: `${rate.carrier?.name?.toLowerCase()} logo`,
         source: 'CargoFive'
       })).sort((a, b) => a.costValue - b.costValue);
 
@@ -295,7 +258,5 @@ const getAirFreightRatesFlow = ai.defineFlow(
 export async function getAirFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {
   return getAirFreightRatesFlow(input);
 }
-
-    
 
     

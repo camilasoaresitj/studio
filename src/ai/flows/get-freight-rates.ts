@@ -54,7 +54,6 @@ const PORT_LOCATIONS: Record<string, string> = {
   BRITJ: '56',   // Itajai
   BRPNG: '57',   // Paranagua
   BRIOA: '407',  // Itapoa
-  // Adicionar outros portos conforme necessário
 };
 
 // Mapeamento de tipos de container para o formato da CargoFive
@@ -74,11 +73,11 @@ const CONTAINER_TYPE_MAPPING: Record<string, string> = {
 const cargoFiveRateTool = ai.defineTool(
   {
     name: 'getCargoFiveRates',
-    description: 'Fetches real-time ocean freight rates from the CargoFive API using a GET request.',
+    description: 'Fetches real-time ocean freight rates from the CargoFive API using a POST request.',
     inputSchema: z.any(),
     outputSchema: z.array(z.any())
   },
-  async (params) => {
+  async (payload) => {
     const apiKey = process.env.CARGOFIVE_API_KEY || 'a256c19a3c3d85da2e35846de3205954';
     const apiUrl = 'https://coreapp-qa.cargofive.com/api/v1/public/rates';
     
@@ -87,18 +86,11 @@ const cargoFiveRateTool = ai.defineTool(
     }
 
     try {
-      console.log('Enviando para CargoFive (GET):', params);
-      const response = await axios.get(apiUrl, {
-        params: {
-          api_providers: -1,
-          ...params,
-          integrations: true,
-          include_destination_charges: true,
-          include_origin_charges: true,
-          include_imo_charges: false
-        },
+      console.log('Enviando para CargoFive (POST):', JSON.stringify(payload, null, 2));
+      const response = await axios.post(apiUrl, payload, {
         headers: {
           'X-API-Key': apiKey,
+          'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
         timeout: 30000
@@ -107,14 +99,13 @@ const cargoFiveRateTool = ai.defineTool(
       console.log('Resposta da CargoFive:', JSON.stringify(response.data, null, 2));
 
       if (!response.data || response.data.length === 0) {
-        // A API da CargoFive retorna um array vazio quando não há tarifas, isso não é um erro.
         return [];
       }
 
       return response.data;
     } catch (error: any) {
       const errorDetails = {
-        params,
+        payload,
         status: error.response?.status,
         errorData: error.response?.data,
         message: error.message
@@ -153,30 +144,43 @@ const getFreightRatesFlow = ai.defineFlow(
         throw new Error(`Mapeamento de ID de localização não encontrado para a rota: ${input.origin} -> ${input.destination}. Verifique o cadastro de portos.`);
       }
       
-      let payload: any = {
-        origins: originLocationId, // Sempre enviar como string
-        destinations: destinationLocationId, // Sempre enviar como string
-        type: input.oceanShipmentType,
-        departure_date: input.departureDate ? format(input.departureDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
-      };
-
+      let containersDetails: any[] = [];
       if (input.oceanShipmentType === 'FCL') {
-          payload.cargo_details = input.oceanShipment.containers.map(c => {
+          containersDetails = input.oceanShipment.containers.map(c => {
               const type = CONTAINER_TYPE_MAPPING[c.type] || '20DV';
               const weight = c.weight || 15000; // Default weight if not provided
-              return `${c.quantity}x${type}x${weight}`;
-          }).join(',');
+              return {
+                  quantity: c.quantity,
+                  type: type,
+                  weight: weight,
+                  weight_unit: "Kg"
+              };
+          });
       } else { // LCL
-          // A API GET parece usar o mesmo formato de cargo_details para LCL
-          payload.cargo_details = `${input.lclDetails.cbm}CBMx${input.lclDetails.weight}KGS`;
+          containersDetails = [{
+              type: "LCL",
+              quantity: 1,
+              cbm: input.lclDetails.cbm,
+              weight: input.lclDetails.weight,
+              weight_unit: "Kg"
+          }]
       }
 
-      console.log('Payload final para API GET:', JSON.stringify(payload, null, 2));
+      // The payload must be an array of offer objects
+      const payload = [{
+        origin_id: parseInt(originLocationId),
+        destination_id: parseInt(destinationLocationId),
+        type: input.oceanShipmentType,
+        departure_date: input.departureDate ? format(input.departureDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        containers: containersDetails,
+      }];
+
+      console.log('Payload final para API POST:', JSON.stringify(payload, null, 2));
 
       const rates = await cargoFiveRateTool(payload);
       
       if (rates.length === 0) {
-        return []; // Retorna array vazio se não houver tarifas, sem lançar erro.
+        return [];
       }
 
       return rates.map((rate: CargoFiveRateResponse) => ({

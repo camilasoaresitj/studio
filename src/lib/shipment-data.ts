@@ -393,4 +393,17 @@ export function saveShipments(shipments: Shipment[]): void {
   }
 }
 
-    
+export function getShipmentById(id: string): Shipment | undefined {
+  const shipments = getShipments();
+  return shipments.find(s => s.id === id);
+}
+
+export function updateShipment(updatedShipment: Shipment): Shipment[] {
+  const shipments = getShipments();
+  const index = shipments.findIndex(s => s.id === updatedShipment.id);
+  if (index !== -1) {
+    shipments[index] = updatedShipment;
+    saveShipments(shipments);
+  }
+  return shipments;
+}

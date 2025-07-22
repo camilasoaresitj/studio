@@ -73,7 +73,7 @@ const CONTAINER_TYPE_MAPPING: Record<string, string> = {
 const cargoFiveRateTool = ai.defineTool(
   {
     name: 'getCargoFiveRates',
-    description: 'Fetches real-time ocean freight rates from the CargoFive API using a POST request with query parameters.',
+    description: 'Fetches real-time ocean freight rates from the CargoFive API using a GET request.',
     inputSchema: z.any(),
     outputSchema: z.array(z.any())
   },
@@ -86,19 +86,13 @@ const cargoFiveRateTool = ai.defineTool(
     }
     
     try {
-      const url = new URL(baseUrl);
-      Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-
-      console.log('Enviando para CargoFive (POST):', url.toString());
+      console.log('Enviando para CargoFive (GET) com params:', params);
       
-      const response = await axios.post(
-        url.toString(),
-        [], // API requires POST with an empty array in the body
-        {
+      const response = await axios.get(baseUrl, {
+          params,
           headers: {
             'X-API-Key': apiKey,
             'Accept': 'application/json',
-            'Content-Type': 'application/json'
           },
           timeout: 30000
         }
@@ -127,12 +121,9 @@ const cargoFiveRateTool = ai.defineTool(
       } else {
           errorMessage = error.message;
       }
-
-      // Adiciona uma mensagem mais clara quando o erro for de timeout
-      if (axios.isCancel(error)) {
+      
+      if (axios.isCancel(error) || error.code === 'ECONNABORTED') {
         errorMessage = 'A consulta à API excedeu o tempo limite. Tente novamente.';
-      } else if (error.code === 'ECONNABORTED') {
-        errorMessage = 'A consulta à API demorou muito para responder. Por favor, verifique a complexidade da sua busca e tente novamente.';
       }
 
       throw new Error(errorMessage);
@@ -166,15 +157,19 @@ const getFreightRatesFlow = ai.defineFlow(
               const weight = c.weight || 15000; // Default weight if not provided
               return `${c.quantity}x${type}x${weight}`;
           }).join(',');
-      } else { // LCL - Not supported by this API endpoint in this format
+      } else { // LCL
           return [];
       }
+
+      const departureDate = input.departureDate 
+        ? format(new Date(input.departureDate), 'yyyy-MM-dd') 
+        : format(addDays(new Date(), 15), 'yyyy-MM-dd');
 
       const params = {
         origins: originLocationId,
         destinations: destinationLocationId,
         type: input.oceanShipmentType,
-        departure_date: input.departureDate ? format(new Date(input.departureDate), 'yyyy-MM-dd') : format(addDays(new Date(), 15), 'yyyy-MM-dd'),
+        departure_date: departureDate,
         cargo_details: cargoDetails,
         api_providers: '-1', // Search all providers
       };

@@ -69,7 +69,7 @@ const cargoFiveRateTool = ai.defineTool(
     outputSchema: z.array(z.any())
   },
   async (params) => {
-    const apiKey = process.env.CARGOFIVE_API_KEY;
+    const apiKey = process.env.CARGOFIVE_API_KEY || 'a256c19a3c3d85da2e35846de3205954';
     const apiUrl = process.env.CARGOFIVE_API_URL || 'https://api.cargofive.com';
     
     if (!apiKey) {

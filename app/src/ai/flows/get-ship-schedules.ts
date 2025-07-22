@@ -10,7 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, addDays } from 'date-fns';
 
 const GetVesselSchedulesInputSchema = z.object({
   origin: z.string().describe('The origin port code (e.g., CNSHA).'),

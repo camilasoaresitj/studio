@@ -158,12 +158,13 @@ const getFreightRatesFlow = ai.defineFlow(
         throw new Error('Portos de origem/destino não encontrados. Use UN/LOCODEs válidos.');
       }
 
-      // Validação adicional dos portos
       if (!originPort.country || !destinationPort.country) {
         throw new Error('País do porto não especificado');
       }
+      
+      const isRefrigerated = input.oceanShipment.containers.some(c => c.type.includes('RF') || c.type.includes('NOR'));
 
-      const payload: any = {
+      let payload: any = {
         origin: {
           unlocode: originPort.unlocode.toUpperCase(),
           country: originPort.country.toUpperCase(),
@@ -176,6 +177,7 @@ const getFreightRatesFlow = ai.defineFlow(
         },
         options: {
           incoterm: input.incoterm || 'FOB',
+          ...(isRefrigerated && { refrigerated: true })
         },
       };
 
@@ -184,20 +186,24 @@ const getFreightRatesFlow = ai.defineFlow(
             type: CONTAINER_TYPE_MAPPING[c.type] || c.type,
             quantity: c.quantity
           }));
-          payload.options.container_type = CONTAINER_TYPE_MAPPING[input.oceanShipment.containers[0]?.type] || 
-                        input.oceanShipment.containers[0]?.type;
+          payload.options = {
+              ...payload.options,
+              container_type: CONTAINER_TYPE_MAPPING[input.oceanShipment.containers[0]?.type] || input.oceanShipment.containers[0]?.type,
+          };
       }
 
       if (input.oceanShipmentType === 'LCL') {
           payload.packages = [{
-            quantity: 1,
-            weight: input.lclDetails.weight,
-            length: 120,
-            width: 80,
-            height: 100
+            quantity: 1, // Simplified assumption for LCL
+            weight: input.lclDetails.weight, // kg
+            // Dimensions are based on total CBM. We send a representative shape.
+            // 1 CBM = 1m x 1m x 1m = 100cm x 100cm x 100cm.
+            // We can derive one dimension from the others if CBM is provided.
+            length: 100,
+            width: 100,
+            height: Math.round(input.lclDetails.cbm * 1000000 / (100 * 100)),
           }]
       }
-
 
       console.log('Payload final:', JSON.stringify(payload, null, 2));
 
@@ -303,3 +309,5 @@ const getAirFreightRatesFlow = ai.defineFlow(
 export async function getAirFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {
   return getAirFreightRatesFlow(input);
 }
+
+    

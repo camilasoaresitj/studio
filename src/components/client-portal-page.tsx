@@ -7,7 +7,7 @@ import { getShipmentById, Shipment, Milestone, DocumentStatus } from '@/lib/ship
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare, Wallet, Info } from 'lucide-react';
+import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare, Wallet, Info, Anchor } from 'lucide-react';
 import { format, isValid, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';

@@ -57,7 +57,7 @@ export default function ConfiguracoesPage() {
             </header>
 
             <Tabs defaultValue="empresa" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 lg:grid-cols-7">
+                <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
                     <TabsTrigger value="empresa">Empresa</TabsTrigger>
                     <TabsTrigger value="parceiros">Parceiros</TabsTrigger>
                     <TabsTrigger value="taxas">Taxas Padrão</TabsTrigger>
@@ -65,6 +65,7 @@ export default function ConfiguracoesPage() {
                     <TabsTrigger value="usuarios">Usuários</TabsTrigger>
                     <TabsTrigger value="integracoes">Integrações</TabsTrigger>
                     <TabsTrigger value="certificados">Certificados</TabsTrigger>
+                    <TabsTrigger value="navios">Navios</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="empresa" className="mt-6">
@@ -138,9 +139,11 @@ export default function ConfiguracoesPage() {
                 <TabsContent value="certificados" className="mt-6">
                     <CertificateSettings />
                 </TabsContent>
+
+                <TabsContent value="navios" className="mt-6">
+                    <ShipRegistry />
+                </TabsContent>
             </Tabs>
         </div>
     );
 }
-
-    

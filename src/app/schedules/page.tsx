@@ -1,4 +1,6 @@
-// This file is intentionally left empty as the correct page is now at /gerencial/schedules
+
+import { redirect } from 'next/navigation';
+
 export default function SchedulesRedirect() {
-  return null;
+  redirect('/gerencial/schedules');
 }

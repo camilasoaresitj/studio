@@ -1,4 +1,6 @@
-// This file is intentionally left empty as the correct page is now at /gerencial/financeiro
+
+import { redirect } from 'next/navigation';
+
 export default function FinanceiroRedirect() {
-  return null;
+  redirect('/gerencial/financeiro');
 }

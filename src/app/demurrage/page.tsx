@@ -1,4 +1,6 @@
-// This file is intentionally left empty as the correct page is now at /gerencial/demurrage
+
+import { redirect } from 'next/navigation';
+
 export default function DemurrageRedirect() {
-  return null;
+  redirect('/gerencial/demurrage');
 }

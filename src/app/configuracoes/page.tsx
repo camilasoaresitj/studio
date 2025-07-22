@@ -1,4 +1,6 @@
-// This file is intentionally left empty as the correct page is now at /gerencial/configuracoes
+
+import { redirect } from 'next/navigation';
+
 export default function ConfigRedirect() {
-  return null;
+  redirect('/gerencial/configuracoes');
 }

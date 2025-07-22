@@ -1,4 +1,6 @@
-// This file is intentionally left empty as the correct page is now at /gerencial/nfse
+
+import { redirect } from 'next/navigation';
+
 export default function NfseRedirect() {
-  return null;
+  redirect('/gerencial/nfse');
 }

@@ -1,4 +1,6 @@
-// This file is intentionally left empty as the correct page is now at /gerencial/tasks
+
+import { redirect } from 'next/navigation';
+
 export default function TasksRedirect() {
-  return null;
+  redirect('/gerencial/tasks');
 }

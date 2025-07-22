@@ -257,3 +257,19 @@ export async function createShipment(quoteData: ShipmentCreationData): Promise<S
   saveShipments(shipments);
   return newShipment;
 }
+
+export type {
+    Shipment, 
+    Milestone,
+    TransshipmentDetail,
+    DocumentStatus,
+    QuoteCharge,
+    QuoteDetails,
+    UploadedDocument,
+    ShipmentCreationData,
+    ContainerDetail,
+    BLDraftData,
+    ChatMessage,
+    BLDraftRevision,
+    BLDraftHistory
+};

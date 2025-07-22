@@ -73,7 +73,7 @@ const CONTAINER_TYPE_MAPPING: Record<string, string> = {
 const cargoFiveRateTool = ai.defineTool(
   {
     name: 'getCargoFiveRates',
-    description: 'Fetches real-time ocean freight rates from the CargoFive API using a GET request with query parameters.',
+    description: 'Fetches real-time ocean freight rates from the CargoFive API using a POST request with query parameters.',
     inputSchema: z.any(),
     outputSchema: z.array(z.any())
   },
@@ -89,19 +89,24 @@ const cargoFiveRateTool = ai.defineTool(
       const url = new URL(baseUrl);
       Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-      console.log('Enviando para CargoFive (GET):', url.toString());
+      console.log('Enviando para CargoFive (POST):', url.toString());
       
-      const response = await axios.get(url.toString(), {
-        headers: {
-          'X-API-Key': apiKey,
-          'Accept': 'application/json'
-        },
-        timeout: 30000
-      });
+      const response = await axios.post(
+        url.toString(),
+        [], // API requires POST with an empty array in the body
+        {
+          headers: {
+            'X-API-Key': apiKey,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
+        }
+      );
 
       console.log('Resposta da CargoFive:', JSON.stringify(response.data, null, 2));
 
-      if (!response.data || response.data.length === 0) {
+      if (!response.data || (Array.isArray(response.data) && response.data.length === 0)) {
         return [];
       }
 
@@ -162,7 +167,7 @@ const getFreightRatesFlow = ai.defineFlow(
         origins: originLocationId,
         destinations: destinationLocationId,
         type: input.oceanShipmentType,
-        departure_date: input.departureDate ? format(input.departureDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        departure_date: input.departureDate ? format(input.departureDate, 'yyyy-MM-dd') : format(addDays(new Date(), 15), 'yyyy-MM-dd'),
         cargo_details: cargoDetails,
         api_providers: '-1', // Search all providers
       };

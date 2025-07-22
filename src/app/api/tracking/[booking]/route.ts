@@ -12,6 +12,22 @@ let cachedCarriers: any[] | null = null;
 let lastCacheTime = 0;
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24h
 
+async function safelyParseJSON(response: Response) {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+    }
+    const text = await response.text();
+    // If we get HTML, it's likely an error page from the API provider.
+    if (text.trim().startsWith('<html>')) {
+        console.error("Received HTML response instead of JSON:", text);
+        throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada.");
+    }
+    // Attempt to parse anyway for other cases, but might fail.
+    return JSON.parse(text);
+}
+
+
 // Endpoint para listar carriers com cache de 24h
 export async function OPTIONS() {
   if (!API_KEY || !ORG_TOKEN) {
@@ -63,7 +79,12 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
     });
 
-    let data = await res.json();
+    let data;
+    // Handle empty response (204) before trying to parse JSON
+    if (res.status !== 204) {
+      data = await safelyParseJSON(res);
+    }
+
 
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
       const carrierInfo = findCarrierByName(carrierName || '');
@@ -106,7 +127,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
-          detail: typeof errorBody === 'string' && errorBody.includes('<html>')
+          detail: typeof errorBody === 'string' && errorBody.toLowerCase().includes('<html>')
             ? 'Resposta HTML inválida recebida do servidor CargoFlows. O payload pode estar incompleto ou mal formatado.'
             : errorBody,
           payload: payload,
@@ -130,7 +151,9 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: res.status });
       }
 
-      data = await res.json();
+      if (res.status !== 204) {
+        data = await safelyParseJSON(res);
+      }
     }
 
     if (res.status === 204 || (Array.isArray(data) && data.length === 0)) {

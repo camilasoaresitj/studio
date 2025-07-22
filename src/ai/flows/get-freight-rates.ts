@@ -13,7 +13,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { findPortByTerm } from '@/lib/ports';
-import axios from 'axios';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
 
@@ -49,6 +48,7 @@ export type CargoFiveRateResponse = {
   carrier: {
     name: string;
     scac: string;
+    code: string;
   };
   origin_port: {
     name: string;
@@ -89,24 +89,32 @@ const cargoFiveRateTool = ai.defineTool(
         
         console.log("Calling CargoFive API with URL:", url);
 
-        const response = await axios.get(url, {
+        const response = await fetch(url, {
+            method: 'GET',
             headers: {
                 'x-api-key': apiKey,
                 'Content-Type': 'application/json'
             }
         });
 
-        if (response.status !== 200) {
-            console.error("CargoFive API Error:", response.data);
-            const errorMessage = response.data?.errors?.[0]?.detail || response.data.message || 'Unknown API error';
-            throw new Error(`CargoFive API Error (${response.status}): ${errorMessage}`);
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("CargoFive API Error:", errorBody);
+            let errorMessage = `API Error (${response.status})`;
+            try {
+                const errorJson = JSON.parse(errorBody);
+                errorMessage = errorJson.message || errorJson.errors?.[0]?.detail || JSON.stringify(errorJson);
+            } catch (e) {
+                errorMessage = errorBody;
+            }
+            throw new Error(errorMessage);
         }
         
-        return response.data; // The V2 response is not nested in a 'data' property
+        return await response.json();
+
     } catch (error: any) {
-        console.error("CargoFive API Request Failed:", error.response?.data || error.message);
-        const errorMessage = error.response?.data?.message || `Failed to fetch rates from CargoFive: ${error.message}`;
-        throw new Error(`${errorMessage}. Payload sent: ${JSON.stringify(params, null, 2)}`);
+        console.error("CargoFive API Request Failed:", error.message);
+        throw new Error(`Failed to fetch rates from CargoFive: ${error.message}. Payload sent: ${JSON.stringify(params, null, 2)}`);
     }
   }
 );
@@ -168,16 +176,16 @@ const getFreightRatesFlow = ai.defineFlow(
     }
     
     const containerTypeMapping: { [key: string]: string } = {
-        "20'GP": "20GP",
-        "40'GP": "40GP",
-        "40'HC": "40HC",
+        "20'GP": "20DRY",
+        "40'GP": "40DRY",
+        "40'HC": "40HDRY",
         "20'RF": "20RF",
-        "40'RF": "40RF",
+        "40'RF": "40HRF",
         "40'NOR": "40NOR",
         "20'OT": "20OT",
         "40'OT": "40OT",
-        "20'FR": "20FR",
-        "40'FR": "40FR",
+        "20'FR": "20FLAT",
+        "40'FR": "40FLAT",
     };
     
     const apiParams = {

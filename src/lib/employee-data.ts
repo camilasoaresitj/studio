@@ -3,6 +3,18 @@
 
 import { z } from 'zod';
 
+const permissionsSchema = z.object({
+    gerencial: z.boolean().default(false),
+    comercial: z.boolean().default(false),
+    operacional: z.boolean().default(false),
+    financeiro: z.boolean().default(false),
+    rh: z.boolean().default(false),
+    demurrage: z.boolean().default(false),
+    simulador: z.boolean().default(false),
+    tracking: z.boolean().default(false),
+    cadastros: z.boolean().default(false),
+});
+
 export const employeeSchema = z.object({
   id: z.number(),
   name: z.string().min(1, "Nome é obrigatório."),
@@ -29,11 +41,12 @@ export const employeeSchema = z.object({
     balance: z.coerce.number().default(0),
     cajuCardNumber: z.string().optional(),
   }),
+  permissions: permissionsSchema.default({}),
 });
 
 export type Employee = z.infer<typeof employeeSchema>;
 
-const EMPLOYEES_STORAGE_KEY = 'cargaInteligente_employees_v1';
+const EMPLOYEES_STORAGE_KEY = 'cargaInteligente_employees_v2';
 
 const initialEmployees: Employee[] = [
   {
@@ -60,6 +73,17 @@ const initialEmployees: Employee[] = [
     awards: {
         balance: 500,
         cajuCardNumber: '1234-5678-9012-3456'
+    },
+    permissions: {
+        gerencial: true,
+        comercial: true,
+        operacional: true,
+        financeiro: true,
+        rh: true,
+        demurrage: true,
+        simulador: true,
+        tracking: true,
+        cadastros: true,
     }
   }
 ];

@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect } from 'react';
 import { ScrollArea } from './ui/scroll-area';
@@ -34,12 +34,26 @@ interface EmployeeDialogProps {
   employee: Employee | null;
 }
 
+const permissionLabels: { key: keyof Employee['permissions']; label: string }[] = [
+    { key: 'gerencial', label: 'Dashboard' },
+    { key: 'comercial', label: 'Comercial' },
+    { key: 'operacional', label: 'Operacional' },
+    { key: 'financeiro', label: 'Financeiro' },
+    { key: 'rh', label: 'RH' },
+    { key: 'demurrage', label: 'Demurrage' },
+    { key: 'simulador', label: 'Simulador DI' },
+    { key: 'tracking', label: 'Rastreamento' },
+    { key: 'cadastros', label: 'Cadastros' },
+];
+
+
 export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDialogProps) {
   const form = useForm<Employee>({
     resolver: zodResolver(employeeSchema),
     defaultValues: {
       status: 'Ativo',
       benefits: { hasHealthPlan: false, hasMealVoucher: false },
+      permissions: { gerencial: false, comercial: true, operacional: false, financeiro: false, rh: false, demurrage: false, simulador: false, tracking: false, cadastros: false },
     }
   });
 
@@ -67,7 +81,8 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
         admissionDate: new Date(),
         dismissalDate: undefined,
         systemAccess: { email: '', password: '' },
-        awards: { balance: 0, cajuCardNumber: '' }
+        awards: { balance: 0, cajuCardNumber: '' },
+        permissions: { gerencial: false, comercial: true, operacional: false, financeiro: false, rh: false, demurrage: false, simulador: false, tracking: false, cadastros: false },
       });
     }
   }, [employee, form]);
@@ -128,6 +143,31 @@ export function EmployeeDialog({ isOpen, onClose, onSave, employee }: EmployeeDi
                     <FormField control={form.control} name="systemAccess.password" render={({ field }) => (<FormItem><FormLabel>Senha de Acesso</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="awards.cajuCardNumber" render={({ field }) => (<FormItem><FormLabel>Cartão CAJU</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="awards.balance" render={({ field }) => (<FormItem><FormLabel>Saldo de Prêmios (BRL)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                </div>
+
+                <Separator />
+                <div>
+                    <FormLabel className="text-base font-semibold flex items-center gap-2"><KeyRound /> Permissões de Acesso ao Sistema</FormLabel>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 mt-2 border rounded-lg">
+                        {permissionLabels.map(({ key, label }) => (
+                            <FormField
+                                key={key}
+                                control={form.control}
+                                name={`permissions.${key}`}
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormControl>
+                                    <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">{label}</FormLabel>
+                                </FormItem>
+                                )}
+                            />
+                        ))}
+                    </div>
                 </div>
             </div>
             </ScrollArea>

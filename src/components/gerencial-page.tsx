@@ -70,16 +70,14 @@ export function GerencialPage() {
             }
         });
         
-        const monthlyProfit = shipments.reduce((totalProfit, shipment) => {
-            if (shipment.etd && isThisMonth(new Date(shipment.etd))) {
-                const profit = shipment.charges.reduce((chargeProfit, charge) => {
-                    const saleBRL = charge.sale * (charge.saleCurrency === 'BRL' ? 1 : 5.25); // Simplified rate
-                    const costBRL = charge.cost * (charge.costCurrency === 'BRL' ? 1 : 5.25);
-                    return chargeProfit + (saleBRL - costBRL);
-                }, 0);
-                return totalProfit + profit;
-            }
-            return totalProfit;
+        const monthlyProfit = approvedQuotesThisMonth.reduce((totalProfit, quote) => {
+            const profit = quote.charges.reduce((chargeProfit, charge) => {
+                // Simplified rate for demo. A real app would use daily exchange rates.
+                const saleBRL = charge.sale * (charge.saleCurrency === 'BRL' ? 1 : 5.25); 
+                const costBRL = charge.cost * (charge.costCurrency === 'BRL' ? 1 : 5.25);
+                return chargeProfit + (saleBRL - costBRL);
+            }, 0);
+            return totalProfit + profit;
         }, 0);
 
         const demurrageProfit = financialEntries
@@ -108,6 +106,7 @@ export function GerencialPage() {
         const activeClients = Array.from(activeClientNames);
 
 
+        // Simulated values
         const operationalProfit = 12540.75; 
         const exchangeProfit = 3450.21;
 

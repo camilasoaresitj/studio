@@ -133,13 +133,16 @@ const cargoFiveRateTool = ai.defineTool(
       });
 
       let errorMessage = 'Erro ao buscar tarifas';
-      if (error.response) {
-        errorMessage = error.response.data?.message || 
-                      error.response.data?.errors?.[0]?.detail || 
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        errorMessage = errorData.message || 
+                      (errorData.errors && errorData.errors[0]?.detail) || 
                       `Erro ${error.response.status}`;
+      } else {
+        errorMessage = error.message;
       }
-
-      throw new Error(`${errorMessage}. Payload: ${JSON.stringify(params)}`);
+      
+      throw new Error(errorMessage);
     }
   }
 );
@@ -225,7 +228,7 @@ const getFreightRatesFlow = ai.defineFlow(
 
     } catch (error: any) {
       console.error('Erro no fluxo de tarifas:', error);
-      throw new Error(`Falha ao obter cotações: ${error.message}`);
+      throw new Error(error.message);
     }
   }
 );

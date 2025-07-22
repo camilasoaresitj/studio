@@ -217,6 +217,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const [autofillText, setAutofillText] = useState("");
   const [isClient, setIsClient] = useState(false);
   const [fees, setFees] = useState<Fee[]>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -283,6 +284,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     setIsLoading(true);
     setActiveQuote(null);
     setResults([]);
+    setApiError(null);
     
     let apiResults: FreightRate[] = [];
 
@@ -292,6 +294,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             apiResults = response.data as FreightRate[];
         } else {
              toast({ variant: "destructive", title: "Erro ao buscar tarifas de courier", description: response.error });
+             setApiError(response.error);
         }
     } else {
         const response = await runGetFreightRates(values);
@@ -299,6 +302,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             apiResults = response.data as FreightRate[];
         } else {
             toast({ variant: "destructive", title: "Erro ao buscar tarifas", description: response.error });
+            setApiError(response.error);
         }
     }
     
@@ -310,7 +314,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             title: "Cotações encontradas!",
             description: `Encontramos ${apiResults.length} opções para você.`,
         });
-    } else {
+    } else if (!apiError) {
         toast({
             variant: "default",
             title: "Nenhuma cotação encontrada",
@@ -1424,13 +1428,13 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
           </div>
       )}
 
-       {!isLoading && results.length === 0 && form.formState.isSubmitted && (
+       {!isLoading && (form.formState.isSubmitted || apiError) && results.length === 0 && (
           <div className="mt-8 space-y-4">
               <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Nenhuma tarifa encontrada</AlertTitle>
                   <AlertDescription>
-                  Não encontramos nenhuma tarifa para os critérios informados. Você pode solicitar a cotação a um agente ou adicionar o frete manualmente.
+                  {apiError || "Não encontramos nenhuma tarifa para os critérios informados. Você pode solicitar a cotação a um agente ou adicionar o frete manualmente."}
                   </AlertDescription>
               </Alert>
               <ManualFreightForm onManualRateAdd={handleSelectRate} />

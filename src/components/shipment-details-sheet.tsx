@@ -62,7 +62,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGetRouteMap, runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, addManualMilestone } from '@/app/actions';
+import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, addManualMilestone } from '@/app/actions';
 import { Checkbox } from './ui/checkbox';
 import { getFees } from '@/lib/fees-data';
 import type { Fee } from '@/lib/fees-data';
@@ -306,8 +306,8 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
 }
 
 const milestoneMapping: { [key: string]: string[] } = {
-    'Confirmação de Embarque': ['vessel departure', 'gate out', 'saída do navio'],
-    'Chegada ao Destino': ['vessel arrival', 'discharged', 'unloaded from vessel', 'chegada do navio'],
+    'Confirmação de Embarque': ['vessel departure', 'gate out', 'saída do navio', 'departed'],
+    'Chegada ao Destino': ['vessel arrival', 'discharged', 'unloaded from vessel', 'chegada do navio', 'arrived'],
     'Container Gate In (Entregue no Porto)': ['gate in', 'container received', 'container entregue no porto'],
 };
 
@@ -466,20 +466,19 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             }
             
             if (data.status === 'ready' && Array.isArray(data.eventos) && data.eventos.length > 0) {
-                const trackingData = data.eventos[0]; // Assuming the first record in response has master data
                 let updatedMilestones = [...(form.getValues('milestones') || [])];
                 let newEventsCount = 0;
                 let masterDataUpdated = false;
 
-                // Update Master Data if available
-                if (trackingData.shipment) {
-                    const { shipment: apiShipment } = trackingData;
-                    if (apiShipment.vesselName) form.setValue('vesselName', apiShipment.vesselName);
-                    if (apiShipment.voyageNumber) form.setValue('voyageNumber', apiShipment.voyageNumber);
-                    if (apiShipment.etd) form.setValue('etd', parseISO(apiShipment.etd));
-                    if (apiShipment.eta) form.setValue('eta', parseISO(apiShipment.eta));
-                    if (apiShipment.containers && apiShipment.containers.length > 0) {
-                        form.setValue('containers', apiShipment.containers);
+                // Update Master Data if available from the first event object
+                const trackingShipmentData = data.eventos[0]?.shipment;
+                if (trackingShipmentData) {
+                    if (trackingShipmentData.vesselName) form.setValue('vesselName', trackingShipmentData.vesselName);
+                    if (trackingShipmentData.voyageNumber) form.setValue('voyageNumber', trackingShipmentData.voyageNumber);
+                    if (trackingShipmentData.etd) form.setValue('etd', parseISO(trackingShipmentData.etd));
+                    if (trackingShipmentData.eta) form.setValue('eta', parseISO(trackingShipmentData.eta));
+                    if (trackingShipmentData.containers && trackingShipmentData.containers.length > 0) {
+                        form.setValue('containers', trackingShipmentData.containers);
                     }
                     masterDataUpdated = true;
                 }
@@ -503,7 +502,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
                 if (newEventsCount > 0 || masterDataUpdated) {
                     form.setValue('milestones', updatedMilestones);
-                    toast({ title: 'Rastreamento Atualizado', description: `${newEventsCount} marco(s) e dados do embarque foram atualizados.`, className: 'bg-success text-success-foreground' });
+                    toast({ title: 'Rastreamento Atualizado', description: `${newEventsCount} marco(s) e/ou dados do embarque foram atualizados.`, className: 'bg-success text-success-foreground' });
                 } else {
                     toast({ title: 'Rastreamento Sincronizado', description: `Nenhum novo evento acionável encontrado. ${data.eventos.length} eventos totais.` });
                 }
@@ -943,13 +942,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         </CardContent>
                                     </Card>
                                     <div className="lg:col-span-1">
-                                        {shipment.bookingNumber ? (
+                                        {shipment.bookingNumber && (
                                             <ShipmentMap shipmentNumber={shipment.bookingNumber} />
-                                        ) : (
-                                            <div className="text-center p-8 text-muted-foreground h-full flex flex-col justify-center items-center border rounded-lg">
-                                                <MapIcon className="mx-auto h-12 w-12 mb-4" />
-                                                <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
-                                            </div>
                                         )}
                                     </div>
                                 </div>

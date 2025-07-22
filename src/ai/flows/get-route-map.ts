@@ -64,6 +64,8 @@ const getRouteMapFlow = ai.defineFlow(
         'CNSHA': { lat: 31.23, lon: 121.47 },
         'USMIA': { lat: 25.76, lon: -80.19 },
         'USLAX': { lat: 33.73, lon: -118.26 },
+        'SGSIN': { lat: 1.29, lon: 103.85 },
+        'BEANR': { lat: 51.22, lon: 4.40 },
     };
     
     const originCoords = portCoords[originPort.unlocode];
@@ -77,15 +79,23 @@ const getRouteMapFlow = ai.defineFlow(
       { name: originPort.name, type: 'ORIGIN_PORT', ...originCoords },
       { name: destPort.name, type: 'DESTINATION_HUB', ...destCoords },
     ];
-    
-    // Simulate a simple route (straight line)
-    const portToPort = [originCoords, destCoords];
 
-    // Simulate current location (midpoint)
+    // Simulate a transshipment point for longer routes
+    const transshipmentPoint = portCoords['SGSIN'];
+    let portToPort = [originCoords, destCoords];
+
+    if (shipment.origin.includes('CN') && shipment.destination.includes('BR')) {
+        journeyStops.push({ name: 'Port of Singapore', type: 'TRANSSHIPMENT_PORT', ...transshipmentPoint});
+        portToPort = [originCoords, transshipmentPoint, destCoords];
+    }
+    
+    // Simulate current location (midpoint of the first leg)
     const shipmentLocation = {
-        lat: (originCoords.lat + destCoords.lat) / 2,
-        lon: (originCoords.lon + destCoords.lon) / 2,
+        lat: (portToPort[0].lat + portToPort[1].lat) / 2,
+        lon: (portToPort[0].lon + portToPort[1].lon) / 2,
     };
+    
+     journeyStops.push({ name: 'Current Location', type: 'CURRENT_LOCATION', ...shipmentLocation});
     
     return {
       journeyStops,

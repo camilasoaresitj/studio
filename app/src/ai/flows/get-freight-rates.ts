@@ -154,7 +154,7 @@ const getFreightRatesFlow = ai.defineFlow(
           type: 'port' as const
         },
         options: {
-          incoterm: input.incoterm || 'FOB',
+          // incoterm field removed as requested for debugging.
         }
       };
       

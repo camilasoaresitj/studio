@@ -1,4 +1,3 @@
-
 import { TrackingStatus } from '@/components/tracking-status';
 
 export default function TrackingPage() {

@@ -695,6 +695,24 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
     };
     
+    const handleConfirmJustification = (justification: string) => {
+        if (justificationData) {
+            const { chargeIndex, field, newValue } = justificationData;
+            const charge = watchedCharges[chargeIndex];
+            const updatedCharge = {
+                ...charge,
+                [field]: newValue,
+                approvalStatus: 'pendente' as const,
+                justification,
+            };
+            updateCharge(chargeIndex, updatedCharge);
+            // Salvar o estado do formulário para persistir a alteração pendente
+            onMainFormSubmit(form.getValues());
+        }
+        setJustificationData(null);
+    };
+
+    
     const handleFeeSelection = (feeName: string, index: number) => {
         const fee = fees.find(f => f.name === feeName);
         if (fee) {
@@ -1320,19 +1338,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                  <JustificationDialog
                     open={!!justificationData}
                     onOpenChange={() => setJustificationData(null)}
-                    onConfirm={(justification) => {
-                        if (justificationData) {
-                            const { chargeIndex, field, newValue } = justificationData;
-                            const charge = watchedCharges[chargeIndex];
-                            updateCharge(chargeIndex, {
-                                ...charge,
-                                [field]: newValue,
-                                approvalStatus: 'pendente',
-                                justification,
-                            });
-                        }
-                        setJustificationData(null);
-                    }}
+                    onConfirm={handleConfirmJustification}
                 />
             </SheetContent>
         </Sheet>

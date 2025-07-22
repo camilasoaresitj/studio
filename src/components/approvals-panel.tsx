@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertCircle, DollarSign, Settings, ArrowRight } from 'lucide-react';
 import { getFinancialEntries, saveFinancialEntries, FinancialEntry } from '@/lib/financials-data';
-import { getShipments, saveShipments, Shipment, QuoteCharge } from '@/lib/shipment';
+import { getShipments, saveShipments, Shipment, QuoteCharge, ApprovalLog } from '@/lib/shipment';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -78,13 +78,23 @@ export function ApprovalsPanel() {
             const allShipments = getShipments();
             const updatedShipments = allShipments.map(s => {
                 if (s.id === shipment.id) {
+                    const originalCharge = shipment.charges.find(c => c.id === charge.id);
+                    const newApprovalLog: ApprovalLog = {
+                        timestamp: new Date(),
+                        user: 'Admin Geral', // Em um app real, viria do contexto de autenticação
+                        chargeName: charge.name,
+                        originalValue: `${originalCharge?.saleCurrency} ${originalCharge?.sale.toFixed(2)}`,
+                        newValue: `${charge.saleCurrency} ${charge.sale.toFixed(2)}`,
+                        justification: charge.justification || 'N/A',
+                        status: approved ? 'approved' : 'rejected',
+                    };
                     const updatedCharges = s.charges.map(c => {
                         if (c.id === charge.id) {
                             return { ...c, approvalStatus: approved ? 'aprovada' : 'rejeitada', justification: undefined };
                         }
                         return c;
                     });
-                    return { ...s, charges: updatedCharges };
+                    return { ...s, charges: updatedCharges, approvalLogs: [...(s.approvalLogs || []), newApprovalLog] };
                 }
                 return s;
             });

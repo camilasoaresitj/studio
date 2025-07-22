@@ -214,6 +214,7 @@ export type Shipment = {
   commodityDescription?: string;
   ncms?: string[];
   operationalNotes?: string;
+  approvalLogs?: ApprovalLog[];
 };
 
 // --- Milestone Templates & Due Date Calculation ---
@@ -373,6 +374,10 @@ export function getShipments(): Shipment[] {
                     date: safeDate(r.date),
                 })),
             } : undefined,
+            approvalLogs: (shipment.approvalLogs || []).map((log: any) => ({
+                ...log,
+                timestamp: safeDate(log.timestamp)
+            })),
         };
     });
   } catch (error) {

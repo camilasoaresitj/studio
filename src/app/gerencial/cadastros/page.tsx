@@ -16,6 +16,7 @@ import { ShipRegistry } from '@/components/settings/ship-registry';
 import { getFees, saveFees, type Fee } from '@/lib/fees-data';
 import { getPartners, savePartners, type Partner } from '@/lib/partners-data';
 import { UserManagementTable } from '@/components/settings/user-management-table';
+import { TaskAutomationRegistry } from '@/components/task-automation-registry';
 
 export default function CadastrosPage() {
     const [fees, setFees] = useState<Fee[]>([]);
@@ -62,11 +63,12 @@ export default function CadastrosPage() {
             </header>
 
             <Tabs defaultValue="parceiros" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 md:grid-cols-7">
+                <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
                     <TabsTrigger value="parceiros">Parceiros</TabsTrigger>
                     <TabsTrigger value="taxas">Taxas Padrão</TabsTrigger>
                     <TabsTrigger value="demurrage">Demurrage</TabsTrigger>
                     <TabsTrigger value="navios">Navios</TabsTrigger>
+                    <TabsTrigger value="automacao">Automação</TabsTrigger>
                     <TabsTrigger value="empresa">Empresa</TabsTrigger>
                     <TabsTrigger value="integracoes">Integrações</TabsTrigger>
                     <TabsTrigger value="certificados">Certificados</TabsTrigger>
@@ -110,6 +112,10 @@ export default function CadastrosPage() {
                 
                  <TabsContent value="navios" className="mt-6">
                     <ShipRegistry />
+                </TabsContent>
+
+                <TabsContent value="automacao" className="mt-6">
+                    <TaskAutomationRegistry />
                 </TabsContent>
 
                 <TabsContent value="empresa" className="mt-6">

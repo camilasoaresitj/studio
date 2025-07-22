@@ -53,13 +53,13 @@ const cargoFiveRateTool = ai.defineTool(
   },
   async (params) => {
     const apiKey = process.env.CARGOFIVE_API_KEY;
-    const apiUrl = process.env.CARGOFIVE_API_URL || 'https://api.cargofive.com/v1';
+    const apiUrl = process.env.CARGOFIVE_API_URL || 'https://api.cargofive.com';
     if (!apiKey) {
       throw new Error('CargoFive API key is not configured.');
     }
     
-    // Corrected endpoint as per documentation review
-    const response = await axios.post(`${apiUrl}/forwarding/quotes/search`, params, {
+    // Corrected endpoint as per official documentation.
+    const response = await axios.post(`${apiUrl}/v1/rates`, params, {
         headers: {
             'X-API-Key': apiKey,
             'Content-Type': 'application/json'

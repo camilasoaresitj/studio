@@ -8,7 +8,7 @@
  * RequestAgentQuoteOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import * as schemas from '@/lib/schemas';
 
@@ -29,10 +29,10 @@ const PromptInputSchema = schemas.baseFreightQuoteFormSchema.extend({
     departureDate: z.string().optional().describe('The formatted departure date.'),
 });
 
-const requestAgentQuotePrompt = ai.definePrompt({
+const requestAgentQuotePrompt = definePrompt({
   name: 'requestAgentQuotePrompt',
-  input: { schema: PromptInputSchema },
-  output: { schema: RequestAgentQuoteOutputSchema },
+  inputSchema: PromptInputSchema,
+  outputSchema: RequestAgentQuoteOutputSchema,
   prompt: `You are a freight forwarding operations assistant. Your task is to write a clear and professional email in English to a freight agent to request a quote for a shipment.
 
 Generate the following:
@@ -61,7 +61,7 @@ Generate the following:
 `,
 });
 
-const requestAgentQuoteFlow = ai.defineFlow(
+const requestAgentQuoteFlow = defineFlow(
   {
     name: 'requestAgentQuoteFlow',
     inputSchema: schemas.baseFreightQuoteFormSchema,
@@ -105,7 +105,10 @@ const requestAgentQuoteFlow = ai.defineFlow(
         shipmentDetails: shipmentDetailsString
     };
 
-    const { output } = await requestAgentQuotePrompt(promptInput);
+    const { output } = await generate({
+        prompt: { ...requestAgentQuotePrompt, input: promptInput },
+        model: 'gemini-pro',
+    });
     
     if (!output) {
       throw new Error("AI failed to generate agent quote request.");

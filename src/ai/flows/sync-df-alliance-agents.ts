@@ -7,10 +7,8 @@
  * - DFAgent - The return type for a single agent.
  */
 
-import { defineFlow, generate, defineTool } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { defineFlow, definePrompt, defineTool, generate } from '@genkit-ai/core';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 
 // This is a simplified schema for what we can reliably extract from the directory page.
 // The frontend will be responsible for mapping this to the full Partner schema.
@@ -98,12 +96,12 @@ const syncDFAgentsFlow = defineFlow(
     outputSchema: z.array(DFAgentSchema),
   },
   async () => {
-    const response = await generate({
-      prompt: syncPrompt,
-      model: googleAI('gemini-pro'),
+    const llmResponse = await generate({
+      prompt: { ...syncPrompt },
+      model: 'gemini-pro',
     });
-
-    const output = response.output();
+    
+    const output = llmResponse.output();
     if (!output?.agents) {
       throw new Error('AI failed to extract any agent information from the directory.');
     }

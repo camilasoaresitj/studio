@@ -4,7 +4,7 @@
  * @fileOverview A Genkit flow to simulate the registration of a DUE with Portal Único.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 
 const DueItemSchema = z.object({
@@ -32,7 +32,7 @@ export const RegisterDueOutputSchema = z.object({
 });
 export type RegisterDueOutput = z.infer<typeof RegisterDueOutputSchema>;
 
-export const registerDueFlow = ai.defineFlow(
+export const registerDueFlow = defineFlow(
   {
     name: 'registerDueFlow',
     inputSchema: RegisterDueInputSchema,

@@ -8,10 +8,8 @@
  * ShareSimulationOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 
 const ShareSimulationInputSchema = z.object({
   customerName: z.string().describe('The name of the customer receiving the simulation.'),
@@ -73,13 +71,11 @@ const shareSimulationFlow = defineFlow(
         totalCostBRL: input.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     };
 
-    const response = await generate({
-      prompt: shareSimulationPrompt,
-      input: formattedInput,
-      model: googleAI('gemini-pro'),
+    const { output } = await generate({
+      prompt: { ...shareSimulationPrompt, input: formattedInput },
+      model: 'gemini-pro',
     });
     
-    const output = response.output();
     if (!output) {
       throw new Error("A IA não conseguiu gerar o conteúdo para compartilhamento.");
     }

@@ -8,11 +8,9 @@
  * - ExtractQuoteDetailsFromTextOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import { baseFreightQuoteFormSchema, oceanContainerSchema } from '@/lib/schemas';
-import { googleAI } from '@genkit-ai/googleai';
 
 const ExtractQuoteDetailsFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight quote request information, like an email.'),
@@ -121,11 +119,13 @@ const extractQuoteDetailsFromTextFlow = defineFlow(
     outputSchema: ExtractQuoteDetailsFromTextOutputSchema,
   },
   async (input) => {
-    const response = await generate({
-      prompt: extractQuoteDetailsFromTextPrompt,
-      input,
-      model: googleAI('gemini-pro'),
+    const { output } = await generate({
+      model: 'gemini-pro',
+      prompt: {
+        ...extractQuoteDetailsFromTextPrompt,
+        input,
+      }
     });
-    return response.output() || {};
+    return output || {};
   }
 );

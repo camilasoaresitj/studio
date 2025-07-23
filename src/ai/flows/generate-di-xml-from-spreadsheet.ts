@@ -8,7 +8,7 @@
  * GenerateDiXmlFromSpreadsheetOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 
 const GenerateDiXmlFromSpreadsheetInputSchema = z.object({
@@ -26,10 +26,10 @@ export async function generateDiXmlFromSpreadsheet(input: GenerateDiXmlFromSprea
   return generateDiXmlFromSpreadsheetFlow(input);
 }
 
-const generateDiXmlFromSpreadsheetPrompt = ai.definePrompt({
+const generateDiXmlFromSpreadsheetPrompt = definePrompt({
   name: 'generateDiXmlFromSpreadsheetPrompt',
-  input: { schema: GenerateDiXmlFromSpreadsheetInputSchema },
-  output: { schema: GenerateDiXmlFromSpreadsheetOutputSchema },
+  inputSchema: GenerateDiXmlFromSpreadsheetInputSchema,
+  outputSchema: GenerateDiXmlFromSpreadsheetOutputSchema,
   prompt: `You are an expert system for generating Brazilian Customs Declaration XML (Declaração de Importação - DI).
 Your task is to convert the provided JSON data (extracted from a CargoWise spreadsheet) and shipment data into a valid DI XML format.
 Carefully map the fields from the JSON to the corresponding XML tags based on the provided example.
@@ -84,19 +84,18 @@ Now, generate the complete XML based on the provided data.
 `,
 });
 
-const generateDiXmlFromSpreadsheetFlow = ai.defineFlow(
+const generateDiXmlFromSpreadsheetFlow = defineFlow(
   {
     name: 'generateDiXmlFromSpreadsheetFlow',
     inputSchema: GenerateDiXmlFromSpreadsheetInputSchema,
     outputSchema: GenerateDiXmlFromSpreadsheetOutputSchema,
   },
   async (input) => {
-    const response = await ai.generate({
-      prompt: generateDiXmlFromSpreadsheetPrompt,
-      input,
+    const response = await generate({
+      prompt: { ...generateDiXmlFromSpreadsheetPrompt, input },
     });
     
-    const output = response.output;
+    const output = response.output();
     if (!output?.xml) {
       throw new Error("A IA não conseguiu gerar o XML. Verifique os dados da planilha e do processo.");
     }

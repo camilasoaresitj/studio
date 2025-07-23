@@ -8,7 +8,7 @@
  * ConsultNfseItajaiOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 import { createClientAsync, Client } from 'soap';
 
@@ -27,7 +27,7 @@ export type ConsultNfseItajaiOutput = z.infer<typeof ConsultNfseItajaiOutputSche
 const WSDL_URL = 'http://nfse-teste.publica.inf.br/homologa_nfse_integracao/Consultas?wsdl';
 
 
-const consultNfseItajaiFlow = ai.defineFlow(
+const consultNfseItajaiFlow = defineFlow(
   {
     name: 'consultNfseItajaiFlow',
     inputSchema: ConsultNfseItajaiInputSchema,
@@ -57,9 +57,6 @@ const consultNfseItajaiFlow = ai.defineFlow(
     try {
       const soapClient: Client = await createClientAsync(WSDL_URL);
       
-      // In node-soap, the payload for a single XML string is passed directly
-      // to the method, not wrapped in a { xml: ... } object.
-      // The method name from WSDL is `ConsultarNfseRecebidas`
       const [result] = await soapClient.ConsultarNfseRecebidasAsync({ ConsultarNfseRecebidasEnvio: xmlPayload });
       
       console.log('Successfully received response from NFS-e API.');

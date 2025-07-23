@@ -7,11 +7,9 @@
  * GetCourierStatusInput - The input type for the function.
  * GetCourierStatusOutput - The return type for the function.
  */
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { GetCourierStatusInputSchema, GetCourierStatusOutputSchema } from '@/lib/schemas';
 import type { GetCourierStatusInput, GetCourierStatusOutput } from '@/lib/schemas';
-import { googleAI } from '@genkit-ai/googleai';
 
 export async function getCourierStatus(input: GetCourierStatusInput): Promise<GetCourierStatusOutput> {
   return getCourierStatusFlow(input);
@@ -50,13 +48,15 @@ const getCourierStatusFlow = defineFlow(
     outputSchema: GetCourierStatusOutputSchema,
   },
   async input => {
-    const response = await generate({
-      prompt: getCourierStatusPrompt,
-      input,
-      model: googleAI('gemini-pro'),
+    const llmResponse = await generate({
+      model: 'gemini-pro',
+      prompt: {
+        ...getCourierStatusPrompt,
+        input
+      }
     });
     
-    const output = response.output();
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate status.");
     }

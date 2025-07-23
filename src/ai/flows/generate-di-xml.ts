@@ -8,7 +8,7 @@
  * GenerateDiXmlOutputSchema - The output Zod schema for the flow.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 import { format } from 'date-fns';
 
@@ -38,53 +38,53 @@ export const GenerateDiXmlOutputSchema = z.object({
 });
 export type GenerateDiXmlOutput = z.infer<typeof GenerateDiXmlOutputSchema>;
 
-export const generateDiXmlFlow = ai.defineFlow(
+export const generateDiXmlFlow = defineFlow(
   {
     name: 'generateDiXmlFlow',
     inputSchema: GenerateDiXmlInputSchema,
     outputSchema: GenerateDiXmlOutputSchema,
-  },
-  async (input) => {
-    const additionsXml = input.additions.map((item, index) => `
-      <adicao numero="${index + 1}">
-        <ncm>${item.ncm}</ncm>
-        <descricao>${item.description}</descricao>
-        <quantidade>${item.quantity}</quantidade>
-        <unidade>${item.unit}</unidade>
-        <valor>${item.value.toFixed(2)}</valor>
-      </adicao>
-    `).join('');
+    run: async (input) => {
+        const additionsXml = input.additions.map((item, index) => `
+        <adicao numero="${index + 1}">
+            <ncm>${item.ncm}</ncm>
+            <descricao>${item.description}</descricao>
+            <quantidade>${item.quantity}</quantidade>
+            <unidade>${item.unit}</unidade>
+            <valor>${item.value.toFixed(2)}</valor>
+        </adicao>
+        `).join('');
 
-    const xmlContent = `
-<?xml version="1.0" encoding="UTF-8"?>
-<di xmlns="http://www.receita.fazenda.gov.br/siscomex/di">
-  <cabecalho>
-    <numero>${input.diNumber}</numero>
-    <dataRegistro>${format(new Date(), "yyyy-MM-dd'T'HH:mm:ss")}</dataRegistro>
-  </cabecalho>
-  <importador>
-    <cnpj>${input.importerCnpj}</cnpj>
-  </importador>
-  <representante>
-    <cnpj>${input.representativeCnpj}</cnpj>
-  </representante>
-  <carga>
-    <mbl>${input.mblNumber}</mbl>
-    <hbl>${input.hblNumber}</hbl>
-  </carga>
-  <valores>
-    <totalBRL>${input.totalValueBRL.toFixed(2)}</totalBRL>
-    <freteUSD>${input.totalFreightUSD.toFixed(2)}</freteUSD>
-    <seguroUSD>${input.totalInsuranceUSD.toFixed(2)}</seguroUSD>
-  </valores>
-  <adicoes>
-    ${additionsXml}
-  </adicoes>
-</di>
-    `.trim();
+        const xmlContent = `
+    <?xml version="1.0" encoding="UTF-8"?>
+    <di xmlns="http://www.receita.fazenda.gov.br/siscomex/di">
+    <cabecalho>
+        <numero>${input.diNumber}</numero>
+        <dataRegistro>${format(new Date(), "yyyy-MM-dd'T'HH:mm:ss")}</dataRegistro>
+    </cabecalho>
+    <importador>
+        <cnpj>${input.importerCnpj}</cnpj>
+    </importador>
+    <representante>
+        <cnpj>${input.representativeCnpj}</cnpj>
+    </representante>
+    <carga>
+        <mbl>${input.mblNumber}</mbl>
+        <hbl>${input.hblNumber}</hbl>
+    </carga>
+    <valores>
+        <totalBRL>${input.totalValueBRL.toFixed(2)}</totalBRL>
+        <freteUSD>${input.totalFreightUSD.toFixed(2)}</freteUSD>
+        <seguroUSD>${input.totalInsuranceUSD.toFixed(2)}</seguroUSD>
+    </valores>
+    <adicoes>
+        ${additionsXml}
+    </adicoes>
+    </di>
+        `.trim();
 
-    return {
-      xml: xmlContent,
-    };
+        return {
+        xml: xmlContent,
+        };
+    },
   }
 );

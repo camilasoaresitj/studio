@@ -8,10 +8,8 @@
  * SendDraftApprovalRequestOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 
 const SendDraftApprovalRequestInputSchema = z.object({
   customerName: z.string().describe("The client's name."),
@@ -61,13 +59,11 @@ const sendDraftApprovalRequestFlow = defineFlow(
     outputSchema: SendDraftApprovalRequestOutputSchema,
   },
   async (input) => {
-    const response = await generate({
-      prompt: sendDraftApprovalRequestPrompt,
-      input,
-      model: googleAI('gemini-pro'),
+    const { output } = await generate({
+      prompt: { ...sendDraftApprovalRequestPrompt, input },
+      model: 'gemini-pro',
     });
 
-    const output = response.output();
     if (!output) {
       throw new Error("AI failed to generate draft approval request.");
     }

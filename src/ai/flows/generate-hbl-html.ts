@@ -8,10 +8,8 @@
  * GenerateHblHtmlOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateHblHtmlInputSchema = z.object({
   isOriginal: z.boolean().describe("If true, generate the original BL with signature. If false, generate a draft with a watermark."),
@@ -192,9 +190,8 @@ const generateHblHtmlFlow = defineFlow(
   },
   async (input) => {
     const response = await generate({
-      prompt: generateHblHtmlPrompt,
-      input,
-      model: googleAI('gemini-pro'),
+      prompt: { ...generateHblHtmlPrompt, input },
+      model: 'gemini-pro',
     });
     
     const output = response.output();

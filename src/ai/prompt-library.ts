@@ -1,5 +1,5 @@
 
-import { definePrompt } from '@genkit-ai/ai';
+import { definePrompt } from '@genkit-ai/core';
 import { z } from 'zod';
 
 const SendQuoteInputSchema = z.object({

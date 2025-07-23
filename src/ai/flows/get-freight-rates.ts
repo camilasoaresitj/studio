@@ -1,12 +1,11 @@
 
 'use server';
-import { ai } from '@/ai/genkit';
+import { defineFlow, defineTool, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { findPortByTerm } from '@/lib/ports';
 import type { Port } from '@/lib/ports';
 import { format, addDays } from 'date-fns';
-import { defineFlow, defineTool } from '@genkit-ai/core';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
 
@@ -114,62 +113,62 @@ const getFreightRatesFlow = defineFlow(
     outputSchema: GetFreightRatesOutputSchema,
   },
   async (input) => {
-    try {
-      const originPort = findPortByTerm(input.origin);
-      const destinationPort = findPortByTerm(input.destination);
+        try {
+        const originPort = findPortByTerm(input.origin);
+        const destinationPort = findPortByTerm(input.destination);
 
-      const originData = PORT_UNLOCODES[originPort?.unlocode.toUpperCase() || ''];
-      const destinationData = PORT_UNLOCODES[destinationPort?.unlocode.toUpperCase() || ''];
-      
-      if (!originData || !destinationData) {
-        throw new Error(`Mapeamento de UNLOCODE não encontrado para a rota: ${input.origin} -> ${input.destination}.`);
-      }
-      
-      if (input.oceanShipmentType !== 'FCL' || !input.oceanShipment.containers.length) {
-          return [];
-      }
-      
-      // Use the first container type for the 'options' field as per the user's example
-      const primaryContainerType = CONTAINER_TYPE_MAPPING_V2[input.oceanShipment.containers[0].type] || '20GP';
+        const originData = PORT_UNLOCODES[originPort?.unlocode.toUpperCase() || ''];
+        const destinationData = PORT_UNLOCODES[destinationPort?.unlocode.toUpperCase() || ''];
+        
+        if (!originData || !destinationData) {
+            throw new Error(`Mapeamento de UNLOCODE não encontrado para a rota: ${input.origin} -> ${input.destination}.`);
+        }
+        
+        if (input.oceanShipmentType !== 'FCL' || !input.oceanShipment.containers.length) {
+            return [];
+        }
+        
+        // Use the first container type for the 'options' field as per the user's example
+        const primaryContainerType = CONTAINER_TYPE_MAPPING_V2[input.oceanShipment.containers[0].type] || '20GP';
 
-      const payload = {
-        origin: { unlocode: originData.unlocode, country: originData.country, type: 'port' as const },
-        destination: { unlocode: destinationData.unlocode, country: destinationData.country, type: 'port' as const },
-        options: {
-            incoterm: input.incoterm,
-            container_type: primaryContainerType
-        },
-        containers: input.oceanShipment.containers.map(c => ({
-            type: CONTAINER_TYPE_MAPPING_V2[c.type] || '20GP',
-            quantity: c.quantity
-        })),
-      };
+        const payload = {
+            origin: { unlocode: originData.unlocode, country: originData.country, type: 'port' as const },
+            destination: { unlocode: destinationData.unlocode, country: destinationData.country, type: 'port' as const },
+            options: {
+                incoterm: input.incoterm,
+                container_type: primaryContainerType
+            },
+            containers: input.oceanShipment.containers.map(c => ({
+                type: CONTAINER_TYPE_MAPPING_V2[c.type] || '20GP',
+                quantity: c.quantity
+            })),
+        };
 
-      const response = await cargoFiveRateTool({ payload });
-      
-      const rates = response?.rates;
-      if (!rates || rates.length === 0) {
-        return [];
-      }
+        const response = await cargoFiveRateTool(payload);
+        
+        const rates = response?.rates;
+        if (!rates || rates.length === 0) {
+            return [];
+        }
 
-      return rates.map((rate: any, index: number) => ({
-        id: rate.rate_id || `rate-${index}`,
-        carrier: rate.carrier?.name || 'N/A',
-        origin: rate.origin?.name || 'N/A',
-        destination: rate.destination?.name || 'N/A',
-        transitTime: `${rate.transit_time || 'N/A'} dias`,
-        costValue: parseFloat(rate.price.replace(/[^0-9.-]+/g, "")),
-        cost: rate.price,
-        carrierLogo: rate.carrier?.logo_url || `https://logo.clearbit.com/${rate.carrier?.name?.toLowerCase()}.com`,
-        dataAiHint: `${rate.carrier?.name?.toLowerCase()} logo`,
-        source: 'CargoFive'
-      })).sort((a, b) => a.costValue - b.costValue);
+        return rates.map((rate: any, index: number) => ({
+            id: rate.rate_id || `rate-${index}`,
+            carrier: rate.carrier?.name || 'N/A',
+            origin: rate.origin?.name || 'N/A',
+            destination: rate.destination?.name || 'N/A',
+            transitTime: `${rate.transit_time || 'N/A'} dias`,
+            costValue: parseFloat(rate.price.replace(/[^0-9.-]+/g, "")),
+            cost: rate.price,
+            carrierLogo: rate.carrier?.logo_url || `https://logo.clearbit.com/${rate.carrier?.name?.toLowerCase()}.com`,
+            dataAiHint: `${rate.carrier?.name?.toLowerCase()} logo`,
+            source: 'CargoFive'
+        })).sort((a, b) => a.costValue - b.costValue);
 
-    } catch (error: any) {
-      console.error('Erro no fluxo de tarifas:', error);
-      throw error;
+        } catch (error: any) {
+        console.error('Erro no fluxo de tarifas:', error);
+        throw error;
+        }
     }
-  }
 );
 
 
@@ -229,26 +228,26 @@ const getAirFreightRatesFlow = defineFlow(
   },
   async (input) => {
     
-    // Using the simulation function for AIR.
-    const searchOrigins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
-    const searchDestinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
+        // Using the simulation function for AIR.
+        const searchOrigins = input.origin.split(',').map(s => s.trim()).filter(Boolean);
+        const searchDestinations = input.destination.split(',').map(s => s.trim()).filter(Boolean);
 
-    if (searchOrigins.length === 0 || searchDestinations.length === 0) {
-        return []; 
-    }
-    
-    const allResults: GetFreightRatesOutput = [];
-
-    for (const origin of searchOrigins) {
-        for (const destination of searchDestinations) {
-            const simulatedInput = { ...input, origin, destination };
-            const simulatedRates = getSimulatedCargoAiRates(simulatedInput);
-            allResults.push(...simulatedRates);
+        if (searchOrigins.length === 0 || searchDestinations.length === 0) {
+            return []; 
         }
+        
+        const allResults: GetFreightRatesOutput = [];
+
+        for (const origin of searchOrigins) {
+            for (const destination of searchDestinations) {
+                const simulatedInput = { ...input, origin, destination };
+                const simulatedRates = getSimulatedCargoAiRates(simulatedInput);
+                allResults.push(...simulatedRates);
+            }
+        }
+        
+        return allResults.sort((a,b) => a.costValue - b.costValue);
     }
-    
-    return allResults.sort((a,b) => a.costValue - b.costValue);
-  }
 );
 
 export async function getAirFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {

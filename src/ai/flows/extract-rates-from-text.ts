@@ -8,10 +8,8 @@
  * - ExtractRatesFromTextOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
-import { defineFlow } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
 
 const ExtractRatesFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
@@ -129,13 +127,15 @@ const extractRatesFromTextFlow = defineFlow(
   },
   async (input) => {
     // The prompt returns a list of potentially incomplete rate objects.
-    const response = await ai.generate({
-      prompt: extractRatesFromTextPrompt,
-      input,
+    const response = await generate({
       model: 'gemini-pro',
+      prompt: {
+        ...extractRatesFromTextPrompt,
+        input
+      }
     });
     
-    const output = response.output?.rates;
+    const output = response.output()?.rates;
     
     // It's possible the AI returns nothing if the text is very unclear.
     if (!output || output.length === 0) {

@@ -8,7 +8,7 @@
  * SendQuoteOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 
 const RateDetailsSchema = z.object({
@@ -41,10 +41,10 @@ export async function sendQuote(input: SendQuoteInput): Promise<SendQuoteOutput>
   return sendQuoteFlow(input);
 }
 
-const sendQuotePrompt = ai.definePrompt({
+const sendQuotePrompt = definePrompt({
   name: 'sendQuotePrompt',
-  input: { schema: SendQuoteInputSchema },
-  output: { schema: SendQuoteOutputSchema },
+  inputSchema: SendQuoteInputSchema,
+  outputSchema: SendQuoteOutputSchema,
   prompt: `You are an expert logistics assistant. Your task is to create a professional and friendly communication for a customer, which could be either a freight quote or an invoice notification. The language of the communication must be based on whether the client is an agent or not.
 
 **Language Rules:**
@@ -80,7 +80,7 @@ Generate the following based on the input data, language rule, and whether it's 
 `,
 });
 
-const sendQuoteFlow = ai.defineFlow(
+const sendQuoteFlow = defineFlow(
   {
     name: 'sendQuoteFlow',
     inputSchema: SendQuoteInputSchema,
@@ -89,7 +89,13 @@ const sendQuoteFlow = ai.defineFlow(
   async input => {
     console.log(`Simulating generating communication for ${input.customerName}`);
     
-    const { output } = await sendQuotePrompt(input);
+    const { output } = await generate({
+        model: 'gemini-pro',
+        prompt: {
+          ...sendQuotePrompt,
+          input,
+        }
+    });
 
     if (!output) {
       throw new Error("AI failed to generate communication content.");

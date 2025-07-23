@@ -4,13 +4,11 @@
  * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
 import type { ExtractInvoiceItemsInput, ExtractInvoiceItemsOutput } from '@/lib/schemas/invoice';
-import { googleAI } from '@genkit-ai/googleai';
 
 const extractFromXml = (dataUri: string): { textContent: string; media?: never } => {
     const base64 = dataUri.split(',')[1];
@@ -108,13 +106,15 @@ const extractInvoiceItemsFlow = defineFlow(
             throw new Error('The file appears to be empty or could not be read.');
         }
 
-        const response = await generate({
-          prompt: extractInvoiceItemsPrompt,
-          input: promptInput,
-          model: googleAI('gemini-pro-vision'),
+        const llmResponse = await generate({
+          model: 'gemini-pro-vision',
+          prompt: {
+            ...extractInvoiceItemsPrompt,
+            input: promptInput,
+          },
         });
         
-        const output = response.output();
+        const output = llmResponse.output();
 
         if (!output || !output.data || output.data.length === 0) {
             throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo, o formato e se as colunas necessárias (descrição, quantidade, valor, ncm) estão presentes.");

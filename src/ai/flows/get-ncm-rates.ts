@@ -8,8 +8,10 @@
  * GetNcmRatesOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const GetNcmRatesInputSchema = z.object({
   ncm: z.string().describe('The NCM code (8 digits).'),
@@ -32,8 +34,8 @@ export async function getNcmRates(input: GetNcmRatesInput): Promise<GetNcmRatesO
 
 const getNcmRatesPrompt = definePrompt({
   name: 'getNcmRatesPrompt',
-  input: { schema: GetNcmRatesInputSchema },
-  output: { schema: GetNcmRatesOutputSchema },
+  inputSchema: GetNcmRatesInputSchema,
+  outputSchema: GetNcmRatesOutputSchema,
   prompt: `You are a Brazilian customs expert AI. Your task is to provide the standard tax rates for a given NCM code.
 You must return the standard, most common ad valorem rates for II, IPI, PIS, and COFINS.
 
@@ -73,7 +75,7 @@ const getNcmRatesFlow = defineFlow(
     const response = await generate({
       prompt: getNcmRatesPrompt,
       input,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     
     const output = response.output();

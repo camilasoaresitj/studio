@@ -8,8 +8,10 @@
  * ShareSimulationOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const ShareSimulationInputSchema = z.object({
   customerName: z.string().describe('The name of the customer receiving the simulation.'),
@@ -32,8 +34,8 @@ export async function shareSimulation(input: ShareSimulationInput): Promise<Shar
 
 const shareSimulationPrompt = definePrompt({
   name: 'shareSimulationPrompt',
-  input: { schema: ShareSimulationInputSchema },
-  output: { schema: ShareSimulationOutputSchema },
+  inputSchema: ShareSimulationInputSchema,
+  outputSchema: ShareSimulationOutputSchema,
   prompt: `You are an expert logistics assistant. Your task is to create a professional communication to a client sharing a cost simulation. The language must be in Portuguese.
 
 Generate the following based on the input data:
@@ -74,7 +76,7 @@ const shareSimulationFlow = defineFlow(
     const response = await generate({
       prompt: shareSimulationPrompt,
       input: formattedInput,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     
     const output = response.output();

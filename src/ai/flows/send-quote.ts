@@ -8,8 +8,10 @@
  * SendQuoteOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const RateDetailsSchema = z.object({
     origin: z.string().describe("The origin of the shipment."),
@@ -43,8 +45,8 @@ export async function sendQuote(input: SendQuoteInput): Promise<SendQuoteOutput>
 
 const sendQuotePrompt = definePrompt({
   name: 'sendQuotePrompt',
-  input: {schema: SendQuoteInputSchema},
-  output: {schema: SendQuoteOutputSchema},
+  inputSchema: SendQuoteInputSchema,
+  outputSchema: SendQuoteOutputSchema,
   prompt: `You are an expert logistics assistant. Your task is to create a professional and friendly communication for a customer, which could be either a freight quote or an invoice notification. The language of the communication must be based on whether the client is an agent or not.
 
 **Language Rules:**
@@ -92,7 +94,7 @@ const sendQuoteFlow = defineFlow(
     const response = await generate({
       prompt: sendQuotePrompt,
       input,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     
     const output = response.output();

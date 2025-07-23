@@ -7,8 +7,10 @@
  * - DFAgent - The return type for a single agent.
  */
 
-import { defineFlow, definePrompt, defineTool, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt, defineTool } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 // This is a simplified schema for what we can reliably extract from the directory page.
 // The frontend will be responsible for mapping this to the full Partner schema.
@@ -61,7 +63,7 @@ const syncDFAgentsFlow = defineFlow(
     // Define a prompt that uses the tool to get the page content and then parses it.
     const syncPrompt = definePrompt({
         name: 'syncDFAgentsPrompt',
-        output: { schema: SyncDFAgentsOutputSchema },
+        outputSchema: SyncDFAgentsOutputSchema,
         prompt: `You are an expert data extraction AI. Your task is to extract all freight forwarder agent details from the provided HTML content of the DF Alliance directory.
 
 First, call the \`fetchDirectoryPageContent\` tool to get the HTML.
@@ -95,7 +97,7 @@ Return an empty array [] if no agents can be extracted.
 
     const response = await generate({
         prompt: syncPrompt,
-        model: 'googleai/gemini-pro',
+        model: googleAI('gemini-pro'),
         tools: [fetchDirectoryPageContent]
     });
 

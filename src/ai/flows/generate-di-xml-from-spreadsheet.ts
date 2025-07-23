@@ -8,9 +8,11 @@
  * GenerateDiXmlFromSpreadsheetOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import type { Shipment } from '@/lib/shipment-data';
+import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateDiXmlFromSpreadsheetInputSchema = z.object({
   spreadsheetData: z.array(z.any()).describe("Data extracted from the CargoWise spreadsheet."),
@@ -29,8 +31,8 @@ export async function generateDiXmlFromSpreadsheet(input: GenerateDiXmlFromSprea
 
 const generateDiXmlFromSpreadsheetPrompt = definePrompt({
   name: 'generateDiXmlFromSpreadsheetPrompt',
-  input: { schema: GenerateDiXmlFromSpreadsheetInputSchema },
-  output: { schema: GenerateDiXmlFromSpreadsheetOutputSchema },
+  inputSchema: GenerateDiXmlFromSpreadsheetInputSchema,
+  outputSchema: GenerateDiXmlFromSpreadsheetOutputSchema,
   prompt: `You are an expert system for generating Brazilian Customs Declaration XML (Declaração de Importação - DI).
 Your task is to convert the provided JSON data (extracted from a CargoWise spreadsheet) and shipment data into a valid DI XML format.
 Carefully map the fields from the JSON to the corresponding XML tags based on the provided example.
@@ -95,7 +97,7 @@ const generateDiXmlFromSpreadsheetFlow = defineFlow(
     const response = await generate({
       prompt: generateDiXmlFromSpreadsheetPrompt,
       input,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     
     const output = response.output();

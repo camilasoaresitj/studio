@@ -8,8 +8,10 @@
  * - ExtractRatesFromTextOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const ExtractRatesFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
@@ -63,9 +65,9 @@ export async function extractRatesFromText(input: ExtractRatesFromTextInput): Pr
 
 const extractRatesFromTextPrompt = definePrompt({
   name: 'extractRatesFromTextPrompt',
-  input: { schema: ExtractRatesFromTextInputSchema },
+  inputSchema: ExtractRatesFromTextInputSchema,
   // Use the more lenient, partial schema for the prompt's output.
-  output: { schema: z.array(PartialRateSchemaForPrompt) },
+  outputSchema: z.array(PartialRateSchemaForPrompt),
   prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the text below and return a valid JSON array of rate objects.
 
 **Extraction Process & Rules:**
@@ -130,7 +132,7 @@ const extractRatesFromTextFlow = defineFlow(
     const response = await generate({
       prompt: extractRatesFromTextPrompt,
       input,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     
     const output = response.output();

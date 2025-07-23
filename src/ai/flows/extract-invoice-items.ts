@@ -4,7 +4,8 @@
  * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
@@ -31,8 +32,8 @@ const extractFromMedia = (dataUri: string): { media: { url: string }; textConten
 
 const extractInvoiceItemsPrompt = definePrompt({
   name: 'extractInvoiceItemsPrompt',
-  input: { schema: z.object({ textContent: z.string().optional(), media: z.any().optional() }) },
-  output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) },
+  inputSchema: z.object({ textContent: z.string().optional(), media: z.any().optional() }),
+  outputSchema: z.object({ data: z.array(InvoiceItemSchema) }),
   prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided content, which could be from a CSV, XML, plain text, an image, or a PDF file.
 
 Analyze the content below and extract all product line items. For each item, you must find:
@@ -110,7 +111,7 @@ const extractInvoiceItemsFlow = defineFlow(
         const response = await generate({
             prompt: extractInvoiceItemsPrompt,
             input: promptInput,
-            model: 'googleai/gemini-pro',
+            model: googleAI('gemini-pro'),
         });
         
         const output = response.output();

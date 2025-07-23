@@ -8,9 +8,11 @@
  * RequestAgentQuoteOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import * as schemas from '@/lib/schemas';
+import { googleAI } from '@genkit-ai/googleai';
 
 type RequestAgentQuoteInput = schemas.FreightQuoteFormData;
 
@@ -31,8 +33,8 @@ const PromptInputSchema = schemas.baseFreightQuoteFormSchema.extend({
 
 const requestAgentQuotePrompt = definePrompt({
   name: 'requestAgentQuotePrompt',
-  input: {schema: PromptInputSchema},
-  output: {schema: RequestAgentQuoteOutputSchema},
+  inputSchema: PromptInputSchema,
+  outputSchema: RequestAgentQuoteOutputSchema,
   prompt: `You are a freight forwarding operations assistant. Your task is to write a clear and professional email in English to a freight agent to request a quote for a shipment.
 
 Generate the following:
@@ -108,7 +110,7 @@ const requestAgentQuoteFlow = defineFlow(
     const response = await generate({
       prompt: requestAgentQuotePrompt,
       input: promptInput,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     
     const output = response.output();

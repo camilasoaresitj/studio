@@ -1,5 +1,5 @@
 
-import { definePrompt } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 import { z } from 'zod';
 
 const SendQuoteInputSchema = z.object({
@@ -24,8 +24,8 @@ const SendQuoteOutputSchema = z.object({
 
 export const sendQuotePrompt = definePrompt({
   name: 'send-quote',
-  input: { schema: SendQuoteInputSchema },
-  output: { schema: SendQuoteOutputSchema },
+  inputSchema: SendQuoteInputSchema,
+  outputSchema: SendQuoteOutputSchema,
   prompt: `You are an expert logistics communication AI, skilled in creating professional and persuasive messages for sending rate quotes to clients.
 
 **Instructions:**
@@ -138,8 +138,8 @@ const GenerateQuotePdfHtmlOutputSchema = z.object({
 
 export const generateQuotePdfHtmlPrompt = definePrompt({
   name: 'generate-quote-pdf-html',
-  input: { schema: GenerateQuotePdfHtmlInputSchema },
-  output: { schema: GenerateQuotePdfHtmlOutputSchema },
+  inputSchema: GenerateQuotePdfHtmlInputSchema,
+  outputSchema: GenerateQuotePdfHtmlOutputSchema,
   prompt: `You are an expert in generating HTML content for a shipping quote PDF.
 You will receive data about the quote and must return a complete, well-structured HTML document that is ready to be converted into a PDF.
 
@@ -364,8 +364,8 @@ const ExtractPartnerInfoOutputSchema = z.object({
 
 export const extractPartnerInfoPrompt = definePrompt({
     name: 'extract-partner-info',
-    input: { schema: ExtractPartnerInfoInputSchema },
-    output: { schema: ExtractPartnerInfoOutputSchema },
+    inputSchema: ExtractPartnerInfoInputSchema,
+    outputSchema: ExtractPartnerInfoOutputSchema,
     prompt: `You are an expert AI in extracting partner information from unstructured text.
 Given a text containing information about a partner (customer, supplier, agent, etc.), you will extract the partner's name, CNPJ (if available), address, and contact information.
 

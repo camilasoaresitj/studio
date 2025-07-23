@@ -8,10 +8,12 @@
  * SendShippingInstructionsOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema } from '@/lib/schemas';
 import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
+import { googleAI } from '@genkit-ai/googleai';
 
 
 export async function sendShippingInstructions(input: SendShippingInstructionsInput): Promise<SendShippingInstructionsOutput> {
@@ -20,8 +22,8 @@ export async function sendShippingInstructions(input: SendShippingInstructionsIn
 
 const prompt = definePrompt({
   name: 'sendShippingInstructionsPrompt',
-  input: { schema: SendShippingInstructionsInputSchema },
-  output: { schema: SendShippingInstructionsOutputSchema },
+  inputSchema: SendShippingInstructionsInputSchema,
+  outputSchema: SendShippingInstructionsOutputSchema,
   prompt: `You are a logistics operations expert. Your task is to generate a professional and detailed "Shipping Instructions" email in English to a freight agent. The email must be in HTML format and resemble a draft Bill of Lading.
 
 **Crucial Formatting Rules:**
@@ -127,7 +129,7 @@ const sendShippingInstructionsFlow = defineFlow(
     const response = await generate({
       prompt,
       input,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     
     const output = response.output();

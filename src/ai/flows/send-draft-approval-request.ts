@@ -8,8 +8,10 @@
  * SendDraftApprovalRequestOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const SendDraftApprovalRequestInputSchema = z.object({
   customerName: z.string().describe("The client's name."),
@@ -31,8 +33,8 @@ export async function sendDraftApprovalRequest(input: SendDraftApprovalRequestIn
 
 const sendDraftApprovalRequestPrompt = definePrompt({
   name: 'sendDraftApprovalRequestPrompt',
-  input: { schema: SendDraftApprovalRequestInputSchema },
-  output: { schema: SendDraftApprovalRequestOutputSchema },
+  inputSchema: SendDraftApprovalRequestInputSchema,
+  outputSchema: SendDraftApprovalRequestOutputSchema,
   prompt: `You are a logistics operations expert. Your task is to generate a professional and clear email in Portuguese to a client, asking them to approve a draft Bill of Lading (HBL).
 
 **Instructions:**
@@ -62,7 +64,7 @@ const sendDraftApprovalRequestFlow = defineFlow(
     const response = await generate({
       prompt: sendDraftApprovalRequestPrompt,
       input,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     const output = response.output();
     if (!output) {

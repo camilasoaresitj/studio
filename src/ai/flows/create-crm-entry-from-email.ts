@@ -8,8 +8,10 @@
  * CreateCrmEntryFromEmailOutput - The return type for the createCrmEntryFromEmail function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const CreateCrmEntryFromEmailInputSchema = z.object({
   emailContent: z.string().describe('The complete content of the email.'),
@@ -31,8 +33,8 @@ export async function createCrmEntryFromEmail(input: CreateCrmEntryFromEmailInpu
 
 const createCrmEntryFromEmailPrompt = definePrompt({
   name: 'createCrmEntryFromEmailPrompt',
-  input: { schema: CreateCrmEntryFromEmailInputSchema },
-  output: { schema: CreateCrmEntryFromEmailOutputSchema },
+  inputSchema: CreateCrmEntryFromEmailInputSchema,
+  outputSchema: CreateCrmEntryFromEmailOutputSchema,
   prompt: `You are an AI assistant tasked with analyzing email content and creating CRM entries.
   Your goal is to extract key information from the email and structure it into a CRM entry.
 
@@ -61,7 +63,7 @@ const createCrmEntryFromEmailFlow = defineFlow(
     const response = await generate({
       prompt: createCrmEntryFromEmailPrompt,
       input,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     
     const output = response.output();

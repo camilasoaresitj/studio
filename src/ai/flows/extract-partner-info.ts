@@ -8,8 +8,10 @@
  * - ExtractPartnerInfoOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { defineFlow, definePrompt } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/core';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
 
@@ -51,8 +53,8 @@ export async function extractPartnerInfo(input: ExtractPartnerInfoInput): Promis
 
 const extractPartnerInfoPrompt = definePrompt({
   name: 'extractPartnerInfoPrompt',
-  input: { schema: ExtractPartnerInfoInputSchema },
-  output: { schema: ExtractPartnerInfoOutputSchema },
+  inputSchema: ExtractPartnerInfoInputSchema,
+  outputSchema: ExtractPartnerInfoOutputSchema,
   prompt: `You are an expert data entry assistant for a logistics company. Your task is to extract company and contact information from the unstructured text provided below and return a valid JSON object.
 
 **Extraction Rules:**
@@ -111,7 +113,7 @@ const extractPartnerInfoFlow = defineFlow(
     const response = await generate({
       prompt: extractPartnerInfoPrompt,
       input,
-      model: 'googleai/gemini-pro',
+      model: googleAI('gemini-pro'),
     });
     const output = response.output();
     if (!output) {

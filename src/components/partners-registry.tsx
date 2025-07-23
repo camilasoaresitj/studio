@@ -346,7 +346,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const handleAddRoute = () => {
     if (routeInput.trim()) {
-        appendRoute(routeInput.trim());
+        appendRoute({ value: routeInput.trim() });
         setRouteInput('');
     }
   };

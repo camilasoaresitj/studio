@@ -66,6 +66,7 @@ export const baseFreightQuoteFormSchema = z.object({
     delivery: z.boolean(),
     trading: z.boolean(),
     redestinacao: z.boolean(),
+    dta: z.boolean(),
     cargoValue: z.number(),
     cargoValueCurrency: z.enum(['BRL', 'USD', 'EUR', 'GBP', 'CHF', 'JPY']).default('BRL'),
     storageCost: z.number().optional(),

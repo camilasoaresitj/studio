@@ -36,7 +36,7 @@ export type QuoteDetails = {
 };
 
 export type UploadedDocument = {
-    name: 'Negociação NET' | 'Invoice' | 'Packing List' | 'Outro';
+    name: 'Invoice' | 'Packing List' | 'Negociação NET' | 'Outro';
     file: File;
 };
 

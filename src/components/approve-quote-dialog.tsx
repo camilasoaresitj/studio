@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { runApproveQuote } from '@/app/actions';
 import type { Quote } from './customer-quotes-list';
@@ -21,17 +21,7 @@ import { Label } from './ui/label';
 import type { UploadedDocument } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
 
-const FileUploadField = ({ label, file, onFileChange }: { label: string, file: File | null, onFileChange: (file: File | null) => void }) => {
-    return (
-        <div>
-            <Label>{label}</Label>
-            <div className="flex items-center gap-2 mt-1">
-                <Input type="file" onChange={(e) => onFileChange(e.target.files ? e.target.files[0] : null)} className="flex-grow" />
-                {file && <span className="text-sm text-muted-foreground truncate flex items-center gap-1"><Paperclip className="h-4 w-4" /> {file.name}</span>}
-            </div>
-        </div>
-    );
-};
+const documentTypes = ['Invoice', 'Packing List', 'Negociação NET', 'Outro'];
 
 interface ApproveQuoteDialogProps {
   quote: Quote | null;
@@ -52,25 +42,21 @@ const systemUsers = [
 export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPartnerSaved, onClose }: ApproveQuoteDialogProps) {
   const [selectedTerminalId, setSelectedTerminalId] = useState<string | undefined>();
   const [responsibleUserId, setResponsibleUserId] = useState<string | undefined>();
-  const [notifyName, setNotifyName] = useState('');
+  const [notifyId, setNotifyId] = useState<string | undefined>();
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [poNumber, setPoNumber] = useState('');
-  const [netFile, setNetFile] = useState<File | null>(null);
-  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
-  const [packingFile, setPackingFile] = useState<File | null>(null);
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocument[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     if (quote) {
-      const consignee = partners.find(p => p.id?.toString() === quote.consigneeId);
-      setNotifyName(consignee?.name || '');
+      const consigneeId = quote.consignee?.id?.toString();
+      setNotifyId(consigneeId);
       setSelectedTerminalId(undefined);
       setResponsibleUserId(undefined);
       setInvoiceNumber('');
       setPoNumber('');
-      setNetFile(null);
-      setInvoiceFile(null);
-      setPackingFile(null);
+      setUploadedDocs([]);
     }
   }, [quote, partners]);
 
@@ -78,9 +64,34 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
   
   const terminalPartners = partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal);
   const needsRedestinacao = quote.charges.some(c => c.name.toUpperCase().includes('REDESTINA'));
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const newDocs = [...uploadedDocs];
+      newDocs[index].file = file;
+      setUploadedDocs(newDocs);
+    }
+  };
+
+  const handleDocTypeChange = (value: string, index: number) => {
+    const newDocs = [...uploadedDocs];
+    newDocs[index].name = value as UploadedDocument['name'];
+    setUploadedDocs(newDocs);
+  };
+  
+  const addDocumentSlot = () => {
+    setUploadedDocs([...uploadedDocs, { name: 'Outro', file: null as any }]);
+  };
+
+  const removeDocumentSlot = (index: number) => {
+    setUploadedDocs(uploadedDocs.filter((_, i) => i !== index));
+  };
+
 
   const handleConfirm = async () => {
-    if (!notifyName.trim()) {
+    const notifyPartner = partners.find(p => p.id?.toString() === notifyId);
+    if (!notifyPartner) {
         toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, informe o Notify Party.' });
         return;
     }
@@ -95,14 +106,11 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
         return;
     }
     
-    const uploadedDocs: UploadedDocument[] = [];
-    if(netFile) uploadedDocs.push({ name: 'Negociação NET', file: netFile });
-    if(invoiceFile) uploadedDocs.push({ name: 'Invoice', file: invoiceFile });
-    if(packingFile) uploadedDocs.push({ name: 'Packing List', file: packingFile });
+    const validDocs = uploadedDocs.filter(d => d.file);
 
     const responsibleUser = systemUsers.find(u => u.id === responsibleUserId)?.name || 'N/A';
     
-    const response = await runApproveQuote(quote, notifyName, selectedTerminalId, responsibleUser, invoiceNumber, poNumber, uploadedDocs);
+    const response = await runApproveQuote(quote, notifyPartner.name, selectedTerminalId, responsibleUser, invoiceNumber, poNumber, validDocs);
 
     if (response.success) {
         onApprovalConfirmed();
@@ -131,7 +139,18 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
 
             <div className="space-y-2">
                 <Label>Notify Party (Obrigatório)</Label>
-                <Input value={notifyName} onChange={(e) => setNotifyName(e.target.value)} placeholder="Digite o nome do Notify" />
+                 <Select value={notifyId} onValueChange={setNotifyId}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Selecione um parceiro..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {partners.map(partner => (
+                            <SelectItem key={partner.id} value={partner.id!.toString()}>
+                                {partner.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -180,10 +199,21 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
             </div>
             
             <h3 className="font-semibold pt-2">Anexar Documentos</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FileUploadField label="Negociação NET" file={netFile} onFileChange={setNetFile} />
-                <FileUploadField label="Invoice" file={invoiceFile} onFileChange={setInvoiceFile} />
-                <FileUploadField label="Packing List" file={packingFile} onFileChange={setPackingFile} />
+            <div className="space-y-3">
+                 {uploadedDocs.map((doc, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                        <Select value={doc.name} onValueChange={(value) => handleDocTypeChange(value, index)}>
+                            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {documentTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Input type="file" onChange={(e) => handleFileChange(e, index)} className="flex-grow"/>
+                        {doc.file && <Paperclip className="h-4 w-4 text-muted-foreground" />}
+                        <Button variant="ghost" size="icon" onClick={() => removeDocumentSlot(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                    </div>
+                 ))}
+                <Button variant="outline" size="sm" onClick={addDocumentSlot}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar Documento</Button>
             </div>
         </div>
 

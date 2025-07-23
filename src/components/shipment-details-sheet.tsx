@@ -14,7 +14,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';

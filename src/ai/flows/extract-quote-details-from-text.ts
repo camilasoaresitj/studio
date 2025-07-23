@@ -8,9 +8,11 @@
  * - ExtractQuoteDetailsFromTextOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, generate } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 import { z } from 'zod';
 import { baseFreightQuoteFormSchema, oceanContainerSchema } from '@/lib/schemas';
+import { googleAI } from '@genkit-ai/googleai';
 
 const ExtractQuoteDetailsFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight quote request information, like an email.'),
@@ -36,10 +38,10 @@ export async function extractQuoteDetailsFromText(input: ExtractQuoteDetailsFrom
   return extractQuoteDetailsFromTextFlow(input);
 }
 
-const extractQuoteDetailsFromTextPrompt = ai.definePrompt({
+const extractQuoteDetailsFromTextPrompt = definePrompt({
   name: 'extractQuoteDetailsFromTextPrompt',
-  input: { schema: ExtractQuoteDetailsFromTextInputSchema },
-  output: { schema: ExtractQuoteDetailsFromTextOutputSchema },
+  inputSchema: ExtractQuoteDetailsFromTextInputSchema,
+  outputSchema: ExtractQuoteDetailsFromTextOutputSchema,
   prompt: `You are a logistics operations expert. Your task is to extract freight quoting information from the unstructured text provided below and return a valid JSON object that partially matches the quoting form schema.
 
 **Extraction Rules:**
@@ -112,14 +114,18 @@ Now, analyze the following text and extract the quoting information:
 `,
 });
 
-const extractQuoteDetailsFromTextFlow = ai.defineFlow(
+const extractQuoteDetailsFromTextFlow = defineFlow(
   {
     name: 'extractQuoteDetailsFromTextFlow',
     inputSchema: ExtractQuoteDetailsFromTextInputSchema,
     outputSchema: ExtractQuoteDetailsFromTextOutputSchema,
   },
   async (input) => {
-    const { output } = await extractQuoteDetailsFromTextPrompt(input);
-    return output || {};
+    const response = await generate({
+      prompt: extractQuoteDetailsFromTextPrompt,
+      input,
+      model: googleAI('gemini-pro'),
+    });
+    return response.output() || {};
   }
 );

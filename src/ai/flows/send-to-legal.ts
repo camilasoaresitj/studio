@@ -8,8 +8,10 @@
  * SendToLegalOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, generate } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const SendToLegalInputSchema = z.object({
   lawyerName: z.string().describe('The name of the lawyer receiving the case.'),
@@ -31,10 +33,10 @@ export async function sendToLegal(input: SendToLegalInput): Promise<SendToLegalO
   return sendToLegalFlow(input);
 }
 
-const sendToLegalPrompt = ai.definePrompt({
+const sendToLegalPrompt = definePrompt({
   name: 'sendToLegalPrompt',
-  input: { schema: SendToLegalInputSchema },
-  output: { schema: SendToLegalOutputSchema },
+  inputSchema: SendToLegalInputSchema,
+  outputSchema: SendToLegalOutputSchema,
   prompt: `You are an expert financial assistant. Your task is to generate a professional and clear email in Portuguese to send a legal collection case to a lawyer. The email should be formal and include all necessary details for the lawyer to start the process.
 
 **Instructions:**
@@ -61,15 +63,20 @@ const sendToLegalPrompt = ai.definePrompt({
 `,
 });
 
-const sendToLegalFlow = ai.defineFlow(
+const sendToLegalFlow = defineFlow(
   {
     name: 'sendToLegalFlow',
     inputSchema: SendToLegalInputSchema,
     outputSchema: SendToLegalOutputSchema,
   },
   async (input) => {
-    const { output } = await sendToLegalPrompt(input);
+    const response = await generate({
+      prompt: sendToLegalPrompt,
+      input,
+      model: googleAI('gemini-pro'),
+    });
     
+    const output = response.output();
     if (!output) {
       throw new Error("AI failed to generate legal email.");
     }

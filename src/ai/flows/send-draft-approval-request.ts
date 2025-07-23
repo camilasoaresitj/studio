@@ -8,8 +8,10 @@
  * SendDraftApprovalRequestOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, generate } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const SendDraftApprovalRequestInputSchema = z.object({
   customerName: z.string().describe("The client's name."),
@@ -29,10 +31,10 @@ export async function sendDraftApprovalRequest(input: SendDraftApprovalRequestIn
   return sendDraftApprovalRequestFlow(input);
 }
 
-const sendDraftApprovalRequestPrompt = ai.definePrompt({
+const sendDraftApprovalRequestPrompt = definePrompt({
   name: 'sendDraftApprovalRequestPrompt',
-  input: { schema: SendDraftApprovalRequestInputSchema },
-  output: { schema: SendDraftApprovalRequestOutputSchema },
+  inputSchema: SendDraftApprovalRequestInputSchema,
+  outputSchema: SendDraftApprovalRequestOutputSchema,
   prompt: `You are a logistics operations expert. Your task is to generate a professional and clear email in Portuguese to a client, asking them to approve a draft Bill of Lading (HBL).
 
 **Instructions:**
@@ -52,14 +54,20 @@ const sendDraftApprovalRequestPrompt = ai.definePrompt({
 `,
 });
 
-const sendDraftApprovalRequestFlow = ai.defineFlow(
+const sendDraftApprovalRequestFlow = defineFlow(
   {
     name: 'sendDraftApprovalRequestFlow',
     inputSchema: SendDraftApprovalRequestInputSchema,
     outputSchema: SendDraftApprovalRequestOutputSchema,
   },
   async (input) => {
-    const { output } = await sendDraftApprovalRequestPrompt(input);
+    const response = await generate({
+      prompt: sendDraftApprovalRequestPrompt,
+      input,
+      model: googleAI('gemini-pro'),
+    });
+
+    const output = response.output();
     if (!output) {
       throw new Error("AI failed to generate draft approval request.");
     }

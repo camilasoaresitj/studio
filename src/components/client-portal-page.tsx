@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { getShipmentById, Shipment, Milestone, DocumentStatus } from '@/lib/shipment';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import { ShipmentChat } from '@/components/shipment-chat';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
 import { findPortByTerm } from '@/lib/ports';
-import React, { useMemo } from 'react';
+import React from 'react';
 import { ShipmentMap } from './shipment-map';
 
 const MilestoneIcon = ({ status, predictedDate, isTransshipment }: { status: Milestone['status'], predictedDate?: Date | null, isTransshipment?: boolean }) => {
@@ -84,6 +84,15 @@ export function ClientPortalPage({ id }: { id: string }) {
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
+    useEffect(() => {
+      setIsLoading(true);
+      const data = getShipmentById(id);
+      if (data) {
+        setShipment(data);
+      }
+      setIsLoading(false);
+    }, [id]);
+    
     const sortedMilestones = useMemo(() => {
         if (!shipment) return [];
         const uniqueMilestones = (shipment.milestones || []).reduce((acc: Milestone[], current) => {
@@ -123,15 +132,6 @@ export function ClientPortalPage({ id }: { id: string }) {
         }
         return null; // Return null if both are in BR or not found
     }, [shipment]);
-    
-    useEffect(() => {
-      setIsLoading(true);
-      const data = getShipmentById(id);
-      if (data) {
-        setShipment(data);
-      }
-      setIsLoading(false);
-    }, [id]);
 
     const handleUpdate = (updatedShipment: Shipment) => {
         setShipment(updatedShipment);
@@ -253,50 +253,54 @@ export function ClientPortalPage({ id }: { id: string }) {
                             </TabsTrigger>
                         </TabsList>
                         <TabsContent value="timeline" className="mt-4 space-y-6">
-                            {shipment.bookingNumber ? (
-                                <ShipmentMap shipmentNumber={shipment.bookingNumber} />
-                            ) : (
-                                <Card>
-                                    <CardContent className="flex flex-col items-center justify-center h-96 text-center text-muted-foreground">
-                                        <MapIcon className="h-12 w-12 mb-4" />
-                                        <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <Card className="lg:col-span-2">
+                                    <CardHeader><CardTitle>Timeline do Processo</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="relative pl-8">
+                                            <div className="absolute left-[15px] top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
+                                            {clientVisibleMilestones.map((milestone, index) => (
+                                                <div key={index} className="relative mb-8 flex items-start gap-6">
+                                                    <div className={cn(
+                                                        `absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full -translate-x-1/2`,
+                                                        milestone.isTransshipment ? 'bg-blue-500 text-white' : (milestone.status === 'completed' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground')
+                                                    )}>
+                                                        <MilestoneIcon status={milestone.status} predictedDate={milestone.predictedDate ? new Date(milestone.predictedDate) : null} isTransshipment={milestone.isTransshipment} />
+                                                    </div>
+                                                    <div className="pt-1.5 ml-8">
+                                                        <p className={`font-semibold ${milestone.isTransshipment ? 'text-blue-600' : (milestone.status !== 'completed' ? 'text-foreground' : 'text-success')}`}>{milestone.name}</p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {milestone.status === 'completed' && milestone.effectiveDate ? `Concluído em: ${format(new Date(milestone.effectiveDate), 'dd/MM/yyyy')}` : `Previsto para: ${milestone.predictedDate ? format(new Date(milestone.predictedDate), 'dd/MM/yyyy') : 'N/A'}`}
+                                                        </p>
+                                                         {milestone.details && (
+                                                            <p className="text-xs text-muted-foreground italic mt-1">
+                                                                {milestone.details}
+                                                            </p>
+                                                        )}
+                                                         {(milestone.name.toLowerCase().includes('embarque') || milestone.name.toLowerCase().includes('chegada')) && shipment.vesselName && (
+                                                            <p className="text-xs text-muted-foreground italic mt-1">
+                                                                Navio: {shipment.vesselName}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </CardContent>
                                 </Card>
-                            )}
-                            <Card>
-                                <CardHeader><CardTitle>Timeline do Processo</CardTitle></CardHeader>
-                                <CardContent>
-                                    <div className="relative pl-8">
-                                        <div className="absolute left-[15px] top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
-                                        {clientVisibleMilestones.map((milestone, index) => (
-                                            <div key={index} className="relative mb-8 flex items-start gap-4">
-                                                <div className={cn(
-                                                    `absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full -translate-x-1/2`,
-                                                    milestone.isTransshipment ? 'bg-blue-500 text-white' : (milestone.status === 'completed' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground')
-                                                )}>
-                                                    <MilestoneIcon status={milestone.status} predictedDate={milestone.predictedDate ? new Date(milestone.predictedDate) : null} isTransshipment={milestone.isTransshipment} />
-                                                </div>
-                                                <div className="pt-1.5 ml-8">
-                                                    <p className={`font-semibold ${milestone.isTransshipment ? 'text-blue-600' : (milestone.status !== 'completed' ? 'text-foreground' : 'text-success')}`}>{milestone.name}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {milestone.status === 'completed' && milestone.effectiveDate ? `Concluído em: ${format(new Date(milestone.effectiveDate), 'dd/MM/yyyy')}` : `Previsto para: ${milestone.predictedDate ? format(new Date(milestone.predictedDate), 'dd/MM/yyyy') : 'N/A'}`}
-                                                    </p>
-                                                     {milestone.details && (
-                                                        <p className="text-xs text-muted-foreground italic mt-1">
-                                                            {milestone.details}
-                                                        </p>
-                                                    )}
-                                                     {(milestone.name.toLowerCase().includes('embarque') || milestone.name.toLowerCase().includes('chegada')) && shipment.vesselName && (
-                                                        <p className="text-xs text-muted-foreground italic mt-1">
-                                                            Navio: {shipment.vesselName}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                 <div className="lg:col-span-1">
+                                     {shipment.bookingNumber ? (
+                                        <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                                    ) : (
+                                        <Card>
+                                            <CardContent className="flex flex-col items-center justify-center h-96 text-center text-muted-foreground">
+                                                <MapIcon className="h-12 w-12 mb-4" />
+                                                <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </div>
+                            </div>
                         </TabsContent>
                         <TabsContent value="draft">
                             <BLDraftForm shipment={shipment} onUpdate={handleUpdate} />

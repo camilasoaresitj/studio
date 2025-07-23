@@ -36,6 +36,7 @@ const quoteChargeSchema = z.object({
     id: z.string(),
     name: z.string().min(1, 'Obrigatório'),
     type: z.string(),
+    containerType: z.string().optional(),
     localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
     cost: z.coerce.number().default(0),
     costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
@@ -63,6 +64,8 @@ interface QuoteCostSheetProps {
   partners: Partner[];
   onUpdate: (data: { charges: QuoteCharge[], details: Quote['details'], shipper?: Partner, consignee?: Partner, agent?: Partner }) => void;
 }
+
+const containerTypes = ["20'GP", "40'GP", "40'HC", "20'RF", "40'RF", "40'NOR", "20'OT", "40'OT", "20'FR", "40'FR"];
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
     const [open, setOpen] = React.useState(false);
@@ -319,8 +322,9 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         <Table>
                         <TableHeader className="sticky top-0 bg-secondary z-10">
                             <TableRow>
-                            <TableHead className="h-9 w-[200px]">Taxa</TableHead>
-                            <TableHead className="h-9 w-[250px]">Tipo Cobrança</TableHead>
+                            <TableHead className="h-9 w-[150px]">Taxa</TableHead>
+                            <TableHead className="h-9 w-[150px]">Tipo Cobrança</TableHead>
+                             <TableHead className="h-9 w-[150px]">Tipo Contêiner</TableHead>
                             <TableHead className="h-9 text-right min-w-[250px]">Compra</TableHead>
                             <TableHead className="h-9 text-right min-w-[250px]">Venda</TableHead>
                             <TableHead className="h-9 w-[120px] text-right">Lucro</TableHead>
@@ -363,6 +367,21 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                </TableCell>
+                                 <TableCell className="p-1 align-top">
+                                    <FormField
+                                        control={form.control}
+                                        name={`charges.${index}.containerType`}
+                                        render={({ field }) => (
+                                             <Select onValueChange={field.onChange} value={field.value}>
+                                                <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="N/A">N/A</SelectItem>
+                                                    {containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         )}

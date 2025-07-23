@@ -8,7 +8,8 @@
  * CreateCrmEntryFromEmailOutput - The return type for the createCrmEntryFromEmail function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt } from '@genkit-ai/core';
+import { generate } from '@genkit-ai/googleai';
 import { z } from 'zod';
 
 const CreateCrmEntryFromEmailInputSchema = z.object({
@@ -29,7 +30,7 @@ export async function createCrmEntryFromEmail(input: CreateCrmEntryFromEmailInpu
   return createCrmEntryFromEmailFlow(input);
 }
 
-const createCrmEntryFromEmailPrompt = ai.definePrompt({
+const createCrmEntryFromEmailPrompt = definePrompt({
   name: 'createCrmEntryFromEmailPrompt',
   inputSchema: CreateCrmEntryFromEmailInputSchema,
   outputSchema: CreateCrmEntryFromEmailOutputSchema,
@@ -51,14 +52,14 @@ const createCrmEntryFromEmailPrompt = ai.definePrompt({
   If some information is not available return "unknown".`,
 });
 
-const createCrmEntryFromEmailFlow = ai.defineFlow(
+const createCrmEntryFromEmailFlow = defineFlow(
   {
     name: 'createCrmEntryFromEmailFlow',
     inputSchema: CreateCrmEntryFromEmailInputSchema,
     outputSchema: CreateCrmEntryFromEmailOutputSchema,
   },
   async (input) => {
-      const { output } = await ai.generate({
+      const { output } = await generate({
           prompt: createCrmEntryFromEmailPrompt,
           input,
           model: 'gemini-pro',

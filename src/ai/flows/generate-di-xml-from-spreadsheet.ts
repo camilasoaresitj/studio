@@ -8,7 +8,8 @@
  * GenerateDiXmlFromSpreadsheetOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt } from '@genkit-ai/core';
+import { generate } from '@genkit-ai/googleai';
 import { z } from 'zod';
 
 const GenerateDiXmlFromSpreadsheetInputSchema = z.object({
@@ -26,7 +27,7 @@ export async function generateDiXmlFromSpreadsheet(input: GenerateDiXmlFromSprea
   return generateDiXmlFromSpreadsheetFlow(input);
 }
 
-const generateDiXmlFromSpreadsheetPrompt = ai.definePrompt({
+const generateDiXmlFromSpreadsheetPrompt = definePrompt({
   name: 'generateDiXmlFromSpreadsheetPrompt',
   inputSchema: GenerateDiXmlFromSpreadsheetInputSchema,
   outputSchema: GenerateDiXmlFromSpreadsheetOutputSchema,
@@ -84,14 +85,14 @@ Now, generate the complete XML based on the provided data.
 `,
 });
 
-const generateDiXmlFromSpreadsheetFlow = ai.defineFlow(
+const generateDiXmlFromSpreadsheetFlow = defineFlow(
   {
     name: 'generateDiXmlFromSpreadsheetFlow',
     inputSchema: GenerateDiXmlFromSpreadsheetInputSchema,
     outputSchema: GenerateDiXmlFromSpreadsheetOutputSchema,
   },
   async (input) => {
-    const response = await ai.generate({
+    const response = await generate({
       prompt: { ...generateDiXmlFromSpreadsheetPrompt, input },
       model: 'gemini-pro',
     });

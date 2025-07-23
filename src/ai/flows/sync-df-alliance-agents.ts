@@ -7,7 +7,8 @@
  * - DFAgent - The return type for a single agent.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, defineTool } from '@genkit-ai/core';
+import { generate } from '@genkit-ai/googleai';
 import { z } from 'zod';
 
 // This is a simplified schema for what we can reliably extract from the directory page.
@@ -23,7 +24,7 @@ const SyncDFAgentsOutputSchema = z.object({ agents: z.array(DFAgentSchema) });
 export type SyncDFAgentsOutput = z.infer<typeof SyncDFAgentsOutputSchema>;
 
 // Tool to fetch the raw HTML content from the directory URL.
-const fetchDirectoryPageContent = ai.defineTool(
+const fetchDirectoryPageContent = defineTool(
     {
         name: 'fetchDirectoryPageContent',
         description: 'Fetches the HTML content of the DF Alliance directory page. The directory URL is fixed and known.',
@@ -52,7 +53,7 @@ const fetchDirectoryPageContent = ai.defineTool(
 
 
 // Define a prompt that uses the tool to get the page content and then parses it.
-const syncPrompt = ai.definePrompt({
+const syncPrompt = definePrompt({
     name: 'syncDFAgentsPrompt',
     outputSchema: SyncDFAgentsOutputSchema,
     tools: [fetchDirectoryPageContent],
@@ -89,14 +90,14 @@ Return an empty array [] in the "agents" key if no agents can be extracted.
 `,
 });
 
-const syncDFAgentsFlow = ai.defineFlow(
+const syncDFAgentsFlow = defineFlow(
   {
     name: 'syncDFAgentsFlow',
     inputSchema: z.void(),
     outputSchema: z.array(DFAgentSchema),
   },
   async () => {
-    const { output } = await ai.generate({
+    const { output } = await generate({
       prompt: syncPrompt,
       model: 'gemini-pro',
     });

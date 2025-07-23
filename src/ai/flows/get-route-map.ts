@@ -8,7 +8,7 @@
  * GetRouteMapOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 import { getShipmentById } from '@/lib/shipment';
 import { findPortByTerm } from '@/lib/ports';
@@ -36,7 +36,7 @@ export type GetRouteMapOutput = z.infer<typeof GetRouteMapOutputSchema>;
 
 // This flow is a simulation. A real implementation would use a geolocation service
 // to get coordinates for ports and a vessel tracking API for the live route.
-const getRouteMapFlow = ai.defineFlow(
+const getRouteMapFlow = defineFlow(
   {
     name: 'getRouteMapFlow',
     inputSchema: z.string(), // Shipment ID

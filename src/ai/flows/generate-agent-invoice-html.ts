@@ -8,7 +8,8 @@
  * GenerateAgentInvoiceHtmlOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt } from '@genkit-ai/core';
+import { generate } from '@genkit-ai/googleai';
 import { z } from 'zod';
 
 const AgentChargeSchema = z.object({
@@ -43,7 +44,7 @@ export async function generateAgentInvoiceHtml(input: GenerateAgentInvoiceHtmlIn
   return generateAgentInvoiceHtmlFlow(input);
 }
 
-const generateAgentInvoiceHtmlPrompt = ai.definePrompt({
+const generateAgentInvoiceHtmlPrompt = definePrompt({
   name: 'generateAgentInvoiceHtmlPrompt',
   inputSchema: GenerateAgentInvoiceHtmlInputSchema,
   outputSchema: GenerateAgentInvoiceHtmlOutputSchema,
@@ -166,14 +167,14 @@ Your task is to generate the HTML for an invoice based on the provided JSON data
 `,
 });
 
-const generateAgentInvoiceHtmlFlow = ai.defineFlow(
+const generateAgentInvoiceHtmlFlow = defineFlow(
   {
     name: 'generateAgentInvoiceHtmlFlow',
     inputSchema: GenerateAgentInvoiceHtmlInputSchema,
     outputSchema: GenerateAgentInvoiceHtmlOutputSchema,
   },
   async (input) => {
-    const response = await ai.generate({
+    const response = await generate({
       prompt: { ...generateAgentInvoiceHtmlPrompt, input },
       model: 'gemini-pro',
     });

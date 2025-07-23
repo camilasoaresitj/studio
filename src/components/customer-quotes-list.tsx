@@ -29,6 +29,7 @@ export type QuoteCharge = {
   id: string;
   name: string;
   type: string;
+  containerType?: string;
   localPagamento?: 'Origem' | 'Frete' | 'Destino';
   cost: number;
   costCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
@@ -437,7 +438,13 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         quote={quoteToApprove}
         partners={partners}
         onClose={() => setQuoteToApprove(null)}
-        onApprovalConfirmed={handleApprovalConfirmed}
+        onApprovalConfirmed={() => {
+            if (quoteToApprove) {
+                // Simplified call, as the dialog now handles the complex logic
+                handleStatusChange(quoteToApprove, 'Aprovada');
+                setQuoteToApprove(null); // Close the dialog on success
+            }
+        }}
         onPartnerSaved={onPartnerSaved}
     />
     </>

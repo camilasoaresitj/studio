@@ -4,21 +4,12 @@
  * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
  */
 
-import { genkit } from '@genkit-ai/core';
-import { googleAI } from '@genkit-ai/googleai';
+import { defineFlow, definePrompt } from '@genkit-ai/core';
+import { generate } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
 import type { ExtractInvoiceItemsInput, ExtractInvoiceItemsOutput } from '@/lib/schemas/invoice';
-
-const ai = genkit({
-  plugins: [googleAI()],
-  models: {
-    'gemini-pro-vision': {
-      model: 'gemini-1.5-pro-latest',
-    },
-  },
-});
 
 const extractFromXml = (dataUri: string): { textContent: string; media?: never } => {
     const base64 = dataUri.split(',')[1];
@@ -38,7 +29,7 @@ const extractFromMedia = (dataUri: string): { media: { url: string }; textConten
 };
 
 
-const extractInvoiceItemsPrompt = ai.definePrompt({
+const extractInvoiceItemsPrompt = definePrompt({
   name: 'extractInvoiceItemsPrompt',
   inputSchema: z.object({ textContent: z.string().optional(), media: z.any().optional() }),
   outputSchema: z.object({ data: z.array(InvoiceItemSchema) }),
@@ -86,7 +77,7 @@ Now, analyze the following media content and return the JSON object:
 `,
 });
 
-const extractInvoiceItemsFlow = ai.defineFlow(
+const extractInvoiceItemsFlow = defineFlow(
   {
     name: 'extractInvoiceItemsFlow',
     inputSchema: ExtractInvoiceItemsInputSchema,
@@ -116,7 +107,7 @@ const extractInvoiceItemsFlow = ai.defineFlow(
             throw new Error('The file appears to be empty or could not be read.');
         }
 
-        const { output } = await ai.generate({
+        const { output } = await generate({
           model: 'gemini-pro-vision',
           prompt: {
             ...extractInvoiceItemsPrompt,

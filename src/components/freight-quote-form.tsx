@@ -255,6 +255,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         delivery: false,
         trading: false,
         redestinacao: false,
+        dta: false,
         cargoValue: 0,
         cargoValueCurrency: 'BRL',
         storageCost: 0,
@@ -383,7 +384,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             (fee.name.toUpperCase().includes('DESPACHO') && values.optionalServices.customsClearance) ||
             (fee.name.toUpperCase().includes('SEGURO') && values.optionalServices.insurance) ||
             (fee.name.toUpperCase().includes('TRADING') && values.optionalServices.trading) ||
-            (fee.name.toUpperCase().includes('REDESTINA') && values.optionalServices.redestinacao);
+            (fee.name.toUpperCase().includes('REDESTINA') && values.optionalServices.redestinacao) ||
+            (fee.name.toUpperCase().includes('DTA') && values.optionalServices.dta);
+
 
         return modalMatch && directionMatch && chargeTypeMatch && (fee.type !== 'Opcional' || isOptionalSelected);
     });
@@ -1172,6 +1175,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                         )} />
                         <FormField control={form.control} name="optionalServices.redestinacao" render={({ field }) => (
                             <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Redestinação</FormLabel></div></FormItem>
+                        )} />
+                        <FormField control={form.control} name="optionalServices.dta" render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>DTA</FormLabel></div></FormItem>
                         )} />
                         <FormField control={form.control} name="optionalServices.insurance" render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 col-span-1 lg:col-span-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>

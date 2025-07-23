@@ -8,7 +8,8 @@
  * CreateEmailCampaignOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt } from '@genkit-ai/core';
+import { generate } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from '@/components/customer-quotes-list';
@@ -93,7 +94,7 @@ const findRelevantClients = (instruction: string, partners: Partner[], quotes: Q
     return Array.from(clientSet);
 }
 
-const emailPrompt = ai.definePrompt({
+const emailPrompt = definePrompt({
     name: 'generateCampaignEmailPrompt',
     inputSchema: z.object({ instruction: z.string() }),
     outputSchema: z.object({ emailSubject: z.string(), emailBody: z.string() }),
@@ -116,7 +117,7 @@ const emailPrompt = ai.definePrompt({
 });
 
 
-const createEmailCampaignFlow = ai.defineFlow(
+const createEmailCampaignFlow = defineFlow(
   {
     name: 'createEmailCampaignFlow',
     inputSchema: CreateEmailCampaignInputSchema,
@@ -130,7 +131,7 @@ const createEmailCampaignFlow = ai.defineFlow(
             console.log("No specific clients found based on manual KPIs or quote history.");
         }
 
-        const { output } = await ai.generate({
+        const { output } = await generate({
             prompt: {
                 ...emailPrompt,
                 input: { instruction },

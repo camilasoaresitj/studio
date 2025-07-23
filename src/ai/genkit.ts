@@ -4,7 +4,7 @@ import { configureGenkit } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
 import { dotprompt } from '@genkit-ai/dotprompt';
 
-export const ai = configureGenkit({
+configureGenkit({
   plugins: [
     googleAI(),
     dotprompt,

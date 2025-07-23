@@ -8,7 +8,8 @@
  * GetNcmRatesOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt } from '@genkit-ai/core';
+import { generate } from '@genkit-ai/googleai';
 import { z } from 'zod';
 
 const GetNcmRatesInputSchema = z.object({
@@ -30,7 +31,7 @@ export async function getNcmRates(input: GetNcmRatesInput): Promise<GetNcmRatesO
   return getNcmRatesFlow(input);
 }
 
-const getNcmRatesPrompt = ai.definePrompt({
+const getNcmRatesPrompt = definePrompt({
   name: 'getNcmRatesPrompt',
   inputSchema: GetNcmRatesInputSchema,
   outputSchema: GetNcmRatesOutputSchema,
@@ -60,7 +61,7 @@ Now, provide the rates for the requested NCM.
 `,
 });
 
-const getNcmRatesFlow = ai.defineFlow(
+const getNcmRatesFlow = defineFlow(
   {
     name: 'getNcmRatesFlow',
     inputSchema: GetNcmRatesInputSchema,
@@ -70,7 +71,7 @@ const getNcmRatesFlow = ai.defineFlow(
     // This is a simulation. A real implementation would require a dedicated, paid API for NCM rates.
     // The AI will generate a plausible response based on its training data.
     console.log(`Simulating NCM rate lookup for ${input.ncm}`);
-    const { output } = await ai.generate({
+    const { output } = await generate({
       model: 'gemini-pro',
       prompt: getNcmRatesPrompt,
       input,

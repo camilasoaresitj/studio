@@ -8,7 +8,7 @@
  * GenerateClientInvoiceHtmlOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 
 const ChargeSchema = z.object({
@@ -44,7 +44,7 @@ export async function generateClientInvoiceHtml(input: GenerateClientInvoiceHtml
   return generateClientInvoiceHtmlFlow(input);
 }
 
-const generateClientInvoiceHtmlFlow = ai.defineFlow(
+const generateClientInvoiceHtmlFlow = defineFlow(
   {
     name: 'generateClientInvoiceHtmlFlow',
     inputSchema: GenerateClientInvoiceHtmlInputSchema,

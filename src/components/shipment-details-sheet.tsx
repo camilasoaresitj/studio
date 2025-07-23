@@ -898,7 +898,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </Button>
                             </div>
                         </div>
-                        <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center">
+                        <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <Form {...form}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
                                     <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
@@ -907,11 +907,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                     <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
                                 </div>
                             </Form>
-                            <div className="flex gap-4 mt-2 md:mt-0">
-                                {foreignLocationClock && (
-                                    <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
-                                )}
-                            </div>
+                            {foreignLocationClock && (
+                                <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
+                            )}
                         </div>
                     </SheetHeader>
                     

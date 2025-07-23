@@ -8,12 +8,10 @@
  * GetRouteMapOutput - The return type for the function.
  */
 
-import { initializeAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { getShipmentById } from '@/lib/shipment';
 import { findPortByTerm } from '@/lib/ports';
-
-const ai = initializeAI();
 
 const LatLonSchema = z.object({
   lat: z.number().describe("Latitude"),
@@ -50,7 +48,6 @@ const getRouteMapFlow = ai.defineFlow(
       throw new Error(`Shipment with ID ${shipmentId} not found.`);
     }
     
-    // Simulate fetching coordinates for ports
     const originPort = findPortByTerm(shipment.origin);
     const destPort = findPortByTerm(shipment.destination);
 
@@ -58,7 +55,6 @@ const getRouteMapFlow = ai.defineFlow(
         throw new Error("Could not find coordinates for origin or destination port.");
     }
     
-    // Simulated coordinates from lib/ports
     const originCoords = { lat: originPort.lat, lon: originPort.lon };
     const destCoords = { lat: destPort.lat, lon: destPort.lon };
     

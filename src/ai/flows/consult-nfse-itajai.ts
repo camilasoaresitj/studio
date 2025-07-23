@@ -64,9 +64,6 @@ const consultNfseItajaiFlow = defineFlow(
         XML: `<![CDATA[${xmlPayload}`
       };
 
-      // The method name should match the one in the WSDL.
-      // Based on typical SOAP library behavior, the async method is what we want.
-      // Let's assume the method is `ConsultarNfseRecebidaAsync`.
       const [result] = await soapClient.ConsultarNfseRecebidaAsync(args);
       
       console.log('Successfully received response from NFS-e API.');
@@ -81,3 +78,4 @@ const consultNfseItajaiFlow = defineFlow(
     }
   }
 );
+]]>

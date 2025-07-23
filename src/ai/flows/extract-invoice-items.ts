@@ -111,7 +111,7 @@ const extractInvoiceItemsFlow = defineFlow(
         const response = await generate({
             prompt: extractInvoiceItemsPrompt,
             input: promptInput,
-            model: googleAI('gemini-pro'),
+            model: googleAI('gemini-pro-vision'), // Use vision model for images/PDFs
         });
         
         const output = response.output();

@@ -102,6 +102,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       paymentTerm: 30,
       exchangeRateAgio: 0,
+      demurrageAgreementDueDate: undefined,
       profitAgreements: [],
       commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL', commissionClients: [] },
       terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
@@ -565,8 +566,10 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             </Button>
                         </div>
                         {feeFields.map((field, index) => (
-                             <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-b pb-2">
+                             <div key={field.id} className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end border-b pb-2">
                                 <FormField control={form.control} name={`standardFees.${index}.name`} render={({ field }) => (<FormItem className="col-span-2"><FormLabel>Nome da Taxa</FormLabel><FormControl><Input placeholder="Ex: BL Fee" className="h-9" {...field} /></FormControl></FormItem>)}/>
+                                <FormField control={form.control} name={`standardFees.${index}.value`} render={({ field }) => (<FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" placeholder="150" className="h-9" {...field} /></FormControl></FormItem>)}/>
+                                <FormField control={form.control} name={`standardFees.${index}.currency`} render={({ field }) => (<FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="BRL">BRL</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent></Select></FormItem>)}/>
                                 <FormField control={form.control} name={`standardFees.${index}.unit`} render={({ field }) => (<FormItem><FormLabel>Unidade</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent>{unitOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>)}/>
                                 <FormField control={form.control} name={`standardFees.${index}.containerType`} render={({ field }) => (<FormItem><FormLabel>Tipo Cont.</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Todos">Todos</SelectItem><SelectItem value="Dry">Dry</SelectItem><SelectItem value="Reefer">Reefer</SelectItem><SelectItem value="Especiais">Especiais</SelectItem></SelectContent></Select></FormItem>)}/>
                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeFee(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

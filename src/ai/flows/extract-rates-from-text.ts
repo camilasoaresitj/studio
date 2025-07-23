@@ -10,6 +10,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { defineFlow } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 
 const ExtractRatesFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
@@ -61,12 +63,12 @@ export async function extractRatesFromText(input: ExtractRatesFromTextInput): Pr
   return extractRatesFromTextFlow(input);
 }
 
-const extractRatesFromTextPrompt = ai.definePrompt({
+const extractRatesFromTextPrompt = definePrompt({
   name: 'extractRatesFromTextPrompt',
-  input: { schema: ExtractRatesFromTextInputSchema },
+  inputSchema: ExtractRatesFromTextInputSchema,
   // Use the more lenient, partial schema for the prompt's output.
-  output: { schema: z.array(PartialRateSchemaForPrompt) },
-  prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the text below and return a valid JSON array of rate objects.
+  outputSchema: z.object({ rates: z.array(PartialRateSchemaForPrompt) }),
+  prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the text below and return a valid JSON object containing an array of rate objects. The final JSON must have a single key "rates".
 
 **Extraction Process & Rules:**
 
@@ -118,7 +120,7 @@ const normalizeContainerType = (containerStr: string | undefined): string => {
     return containerStr.toUpperCase().trim();
 };
 
-const extractRatesFromTextFlow = ai.defineFlow(
+const extractRatesFromTextFlow = defineFlow(
   {
     name: 'extractRatesFromTextFlow',
     inputSchema: ExtractRatesFromTextInputSchema,
@@ -130,9 +132,10 @@ const extractRatesFromTextFlow = ai.defineFlow(
     const response = await ai.generate({
       prompt: extractRatesFromTextPrompt,
       input,
+      model: 'gemini-pro',
     });
     
-    const output = response.output;
+    const output = response.output?.rates;
     
     // It's possible the AI returns nothing if the text is very unclear.
     if (!output || output.length === 0) {

@@ -10,6 +10,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { defineFlow } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 
 const MonitorEmailForTasksInputSchema = z.object({
   emailContent: z.string().describe('The content of the email to monitor.'),
@@ -31,10 +33,10 @@ export async function monitorEmailForTasks(input: MonitorEmailForTasksInput): Pr
   return monitorEmailForTasksFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const prompt = definePrompt({
   name: 'monitorEmailForTasksPrompt',
-  input: { schema: MonitorEmailForTasksInputSchema },
-  output: { schema: MonitorEmailForTasksOutputSchema },
+  inputSchema: MonitorEmailForTasksInputSchema,
+  outputSchema: MonitorEmailForTasksOutputSchema,
   prompt: `You are an AI assistant that monitors emails for operational or financial tasks.
 
   Analyze the email content and subject to identify potential tasks. Determine if a task is present, and if so, classify it as operational, financial, or both.
@@ -49,14 +51,18 @@ const prompt = ai.definePrompt({
   `,
 });
 
-const monitorEmailForTasksFlow = ai.defineFlow(
+const monitorEmailForTasksFlow = defineFlow(
   {
     name: 'monitorEmailForTasksFlow',
     inputSchema: MonitorEmailForTasksInputSchema,
     outputSchema: MonitorEmailForTasksOutputSchema,
   },
   async input => {
-    const { output } = await prompt(input);
+    const { output } = await ai.generate({
+      prompt: prompt,
+      input,
+      model: 'gemini-pro',
+    });
     if (!output) {
       throw new Error("AI failed to generate task analysis.");
     }

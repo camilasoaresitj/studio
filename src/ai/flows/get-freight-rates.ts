@@ -1,12 +1,12 @@
 
 'use server';
-import { defineFlow, defineTool, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { findPortByTerm } from '@/lib/ports';
 import type { Port } from '@/lib/ports';
 import { format, addDays } from 'date-fns';
-import { googleAI } from '@genkit-ai/googleai';
+import { defineFlow, defineTool } from '@genkit-ai/core';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
 

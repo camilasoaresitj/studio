@@ -8,11 +8,12 @@
  * - GetCourierRatesOutput - The return type for the function.
  */
 
-import { defineFlow, defineTool } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
 import { airPieceSchema } from '@/lib/schemas';
+import { defineFlow, defineTool } from '@genkit-ai/core';
 
 const GetCourierRatesInputSchema = z.object({
   customerId: z.string(),

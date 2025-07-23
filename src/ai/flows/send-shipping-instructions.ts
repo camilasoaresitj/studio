@@ -12,16 +12,18 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema } from '@/lib/schemas';
 import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
+import { defineFlow } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 
 
 export async function sendShippingInstructions(input: SendShippingInstructionsInput): Promise<SendShippingInstructionsOutput> {
   return sendShippingInstructionsFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const prompt = definePrompt({
   name: 'sendShippingInstructionsPrompt',
-  input: { schema: SendShippingInstructionsInputSchema },
-  output: { schema: SendShippingInstructionsOutputSchema },
+  inputSchema: SendShippingInstructionsInputSchema,
+  outputSchema: SendShippingInstructionsOutputSchema,
   prompt: `You are a logistics operations expert. Your task is to generate a professional and detailed "Shipping Instructions" email in English to a freight agent. The email must be in HTML format and resemble a draft Bill of Lading.
 
 **Crucial Formatting Rules:**
@@ -113,7 +115,7 @@ const prompt = ai.definePrompt({
 `,
 });
 
-const sendShippingInstructionsFlow = ai.defineFlow(
+const sendShippingInstructionsFlow = defineFlow(
   {
     name: 'sendShippingInstructionsFlow',
     inputSchema: SendShippingInstructionsInputSchema,
@@ -124,7 +126,11 @@ const sendShippingInstructionsFlow = ai.defineFlow(
     // We will just log the action to the console to simulate it.
     console.log(`SIMULATING sending Shipping Instructions to ${input.agentEmail}`);
 
-    const { output } = await prompt(input);
+    const { output } = await ai.generate({
+        prompt,
+        input,
+        model: 'gemini-pro',
+    });
 
     if (!output) {
       throw new Error("AI failed to generate shipping instructions.");

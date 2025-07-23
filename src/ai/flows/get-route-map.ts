@@ -8,10 +8,11 @@
  * GetRouteMapOutput - The return type for the function.
  */
 
-import { defineFlow } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { getShipmentById } from '@/lib/shipment';
 import { findPortByTerm } from '@/lib/ports';
+import { defineFlow } from '@genkit-ai/core';
 
 const LatLonSchema = z.object({
   lat: z.number().describe("Latitude"),
@@ -91,5 +92,5 @@ const getRouteMapFlow = defineFlow(
 
 
 export async function getRouteMap(shipmentId: string): Promise<GetRouteMapOutput> {
-  return getRouteMapFlow.run(shipmentId);
+  return getRouteMapFlow(shipmentId);
 }

@@ -66,6 +66,10 @@ const createCrmEntryFromEmailFlow = defineFlow(
           model: 'gemini-pro',
       });
       
-      return llmResponse.output()!;
+      const output = llmResponse.output();
+      if (!output) {
+        throw new Error("AI failed to generate CRM entry.");
+      }
+      return output;
   }
 );

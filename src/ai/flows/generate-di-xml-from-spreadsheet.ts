@@ -93,6 +93,7 @@ const generateDiXmlFromSpreadsheetFlow = defineFlow(
   async (input) => {
     const response = await generate({
       prompt: { ...generateDiXmlFromSpreadsheetPrompt, input },
+      model: 'gemini-pro',
     });
     
     const output = response.output();

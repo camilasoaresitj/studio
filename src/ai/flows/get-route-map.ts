@@ -91,5 +91,5 @@ const getRouteMapFlow = defineFlow(
 
 
 export async function getRouteMap(shipmentId: string): Promise<GetRouteMapOutput> {
-  return getRouteMapFlow(shipmentId);
+  return getRouteMapFlow.run(shipmentId);
 }

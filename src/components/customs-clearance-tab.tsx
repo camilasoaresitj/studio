@@ -188,11 +188,11 @@ const DueForm = ({ shipment, onDueRegistered }: { shipment: Shipment, onDueRegis
             })),
         });
 
-        if (response.success && response.data?.success) {
-            onDueRegistered(response.data);
-            toast({ title: 'DUE Registrada!', description: `Número da DUE: ${response.data.dueNumber}`, className: 'bg-success text-success-foreground' });
+        if (response.success) {
+            onDueRegistered(response);
+            toast({ title: 'DUE Registrada!', description: `Número da DUE: ${response.dueNumber}`, className: 'bg-success text-success-foreground' });
         } else {
-            toast({ variant: 'destructive', title: 'Erro ao Registrar DUE', description: response.error });
+            toast({ variant: 'destructive', title: 'Erro ao Registrar DUE', description: response.message });
         }
         setIsLoading(false);
     };

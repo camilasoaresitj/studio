@@ -14,8 +14,8 @@ import { createClientAsync, Client } from 'soap';
 
 const ConsultNfseItajaiInputSchema = z.object({
   cnpj: z.string().length(14).describe('The CNPJ of the service taker (Tomador) to consult for. Only numbers.'),
-  startDate: z.string().date().describe('The start date for the query in YYYY-MM-DD format.'),
-  endDate: z.string().date().describe('The end date for the query in YYYY-MM-DD format.'),
+  startDate: z.string().describe('The start date for the query in YYYY-MM-DD format.'),
+  endDate: z.string().describe('The end date for the query in YYYY-MM-DD format.'),
   page: z.number().int().positive().default(1).describe('The page number for pagination.'),
 });
 export type ConsultNfseItajaiInput = z.infer<typeof ConsultNfseItajaiInputSchema>;
@@ -64,18 +64,13 @@ const consultNfseItajaiFlow = defineFlow(
         XML: `<![CDATA[${xmlPayload}`
       };
 
-      // The method name should match the one in the WSDL, which is typically `ConsultarNfseRecebida` based on the SOAPAction.
-      // The `soap` library often creates method names like `ServiceName.PortName.MethodName`. We inspect the client to be sure.
-      // console.log(soapClient.describe()); // Useful for debugging available services and methods.
-      
-      // Let's assume the method is `ConsultarNfseRecebidaAsync` based on common patterns.
-      const result = await soapClient.ConsultarNfseRecebidaAsync(args);
-      
-      // The result is usually in the first element of the response array.
-      const responseData = result[0];
+      // The method name should match the one in the WSDL.
+      // Based on typical SOAP library behavior, the async method is what we want.
+      // Let's assume the method is `ConsultarNfseRecebidaAsync`.
+      const [result] = await soapClient.ConsultarNfseRecebidaAsync(args);
       
       console.log('Successfully received response from NFS-e API.');
-      return responseData;
+      return result;
 
     } catch (error: any) {
       console.error('SOAP Client Error:', error);

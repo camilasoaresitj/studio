@@ -58,10 +58,6 @@ const getRouteMapFlow = defineFlow(
     const originCoords = { lat: originPort.lat, lon: originPort.lon };
     const destCoords = { lat: destPort.lat, lon: destPort.lon };
     
-    if (!originCoords || !destCoords) {
-        throw new Error("Simulated coordinates for origin or destination not found.");
-    }
-
     const journeyStops: z.infer<typeof JourneyStopSchema>[] = [
       { name: originPort.name, type: 'ORIGIN_PORT', ...originCoords },
       { name: destPort.name, type: 'DESTINATION_HUB', ...destCoords },

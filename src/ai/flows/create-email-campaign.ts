@@ -132,13 +132,16 @@ const createEmailCampaignFlow = defineFlow(
         `
     });
 
-    const response = await generate({
-        prompt: emailPrompt,
+    const llmResponse = await generate({
+        prompt: emailPrompt.prompt,
         input: { instruction },
         model: googleAI('gemini-pro'),
+        output: {
+            schema: z.object({ emailSubject: z.string(), emailBody: z.string() })
+        }
     });
     
-    const output = response.output();
+    const output = llmResponse.output();
     if (!output) {
       throw new Error('AI failed to generate email content.');
     }

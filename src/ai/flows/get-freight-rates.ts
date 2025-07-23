@@ -6,6 +6,7 @@ import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { findPortByTerm } from '@/lib/ports';
 import type { Port } from '@/lib/ports';
 import { format, addDays } from 'date-fns';
+import { googleAI } from '@genkit-ai/googleai';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
 

@@ -60,13 +60,16 @@ const createCrmEntryFromEmailFlow = defineFlow(
     outputSchema: CreateCrmEntryFromEmailOutputSchema,
   },
   async (input) => {
-    const response = await generate({
-      prompt: createCrmEntryFromEmailPrompt,
-      input,
+    const llmResponse = await generate({
+      prompt: createCrmEntryFromEmailPrompt.prompt,
+      input: input,
       model: googleAI('gemini-pro'),
+      output: {
+        schema: CreateCrmEntryFromEmailOutputSchema,
+      },
     });
     
-    const output = response.output();
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate CRM entry.");
     }

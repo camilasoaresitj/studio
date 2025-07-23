@@ -8,7 +8,7 @@ import { dotprompt } from '@genkit-ai/dotprompt';
 export const ai = genkit({
   plugins: [
     googleAI(),
-    dotprompt(),
+    dotprompt,
   ],
   models: {
     'gemini-pro': {

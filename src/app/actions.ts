@@ -621,7 +621,7 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
 
 export async function runGenerateDiXml(input: GenerateDiXmlInput): Promise<{ success: boolean, data?: GenerateDiXmlOutput, error?: string }> {
     try {
-        const data = await generateDiXmlFlow(input);
+        const data = await generateDiXmlFlow.run(input);
         return { success: true, data };
     } catch (error: any) {
         console.error("Generate DI XML Action Failed", error);
@@ -630,7 +630,7 @@ export async function runGenerateDiXml(input: GenerateDiXmlInput): Promise<{ suc
 }
 
 export async function runRegisterDue(input: RegisterDueInput): Promise<RegisterDueOutput> {
-  return registerDueFlow(input);
+  return registerDueFlow.run(input);
 }
 
 export async function runGenerateDiXmlFromSpreadsheet(input: any) {
@@ -697,3 +697,5 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
+
+    

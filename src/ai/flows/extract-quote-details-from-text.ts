@@ -11,8 +11,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { baseFreightQuoteFormSchema, oceanContainerSchema } from '@/lib/schemas';
-import { defineFlow } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
 
 const ExtractQuoteDetailsFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight quote request information, like an email.'),
@@ -38,10 +36,10 @@ export async function extractQuoteDetailsFromText(input: ExtractQuoteDetailsFrom
   return extractQuoteDetailsFromTextFlow(input);
 }
 
-const extractQuoteDetailsFromTextPrompt = definePrompt({
+const extractQuoteDetailsFromTextPrompt = ai.definePrompt({
   name: 'extractQuoteDetailsFromTextPrompt',
-  inputSchema: ExtractQuoteDetailsFromTextInputSchema,
-  outputSchema: ExtractQuoteDetailsFromTextOutputSchema,
+  input: { schema: ExtractQuoteDetailsFromTextInputSchema },
+  output: { schema: ExtractQuoteDetailsFromTextOutputSchema },
   prompt: `You are a logistics operations expert. Your task is to extract freight quoting information from the unstructured text provided below and return a valid JSON object that partially matches the quoting form schema.
 
 **Extraction Rules:**
@@ -114,18 +112,14 @@ Now, analyze the following text and extract the quoting information:
 `,
 });
 
-const extractQuoteDetailsFromTextFlow = defineFlow(
+const extractQuoteDetailsFromTextFlow = ai.defineFlow(
   {
     name: 'extractQuoteDetailsFromTextFlow',
     inputSchema: ExtractQuoteDetailsFromTextInputSchema,
     outputSchema: ExtractQuoteDetailsFromTextOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
-      prompt: extractQuoteDetailsFromTextPrompt,
-      input,
-      model: 'gemini-pro',
-    });
+    const { output } = await extractQuoteDetailsFromTextPrompt(input);
     return output || {};
   }
 );

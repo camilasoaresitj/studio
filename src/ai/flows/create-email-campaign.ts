@@ -130,10 +130,7 @@ const createEmailCampaignFlow = ai.defineFlow(
         console.log("No specific clients found based on manual KPIs or quote history.");
     }
 
-    const { output } = await ai.generate({
-      prompt: emailPrompt,
-      input: { instruction },
-    });
+    const { output } = await emailPrompt({ instruction });
     
     if (!output) {
       throw new Error('AI failed to generate email content.');

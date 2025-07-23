@@ -10,8 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { defineFlow } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
 
 const SendDemurrageInvoiceInputSchema = z.object({
   customerName: z.string().describe('The name of the customer receiving the invoice.'),
@@ -34,10 +32,10 @@ export async function sendDemurrageInvoice(input: SendDemurrageInvoiceInput): Pr
   return sendDemurrageInvoiceFlow(input);
 }
 
-const sendDemurrageInvoicePrompt = definePrompt({
+const sendDemurrageInvoicePrompt = ai.definePrompt({
   name: 'sendDemurrageInvoicePrompt',
-  inputSchema: SendDemurrageInvoiceInputSchema,
-  outputSchema: SendDemurrageInvoiceOutputSchema,
+  input: { schema: SendDemurrageInvoiceInputSchema },
+  output: { schema: SendDemurrageInvoiceOutputSchema },
   prompt: `You are an expert financial assistant for a logistics company. Your task is to generate a professional and clear email in Portuguese to send a demurrage invoice to a client.
 
 **Instructions:**
@@ -65,18 +63,14 @@ const sendDemurrageInvoicePrompt = definePrompt({
 `,
 });
 
-const sendDemurrageInvoiceFlow = defineFlow(
+const sendDemurrageInvoiceFlow = ai.defineFlow(
   {
     name: 'sendDemurrageInvoiceFlow',
     inputSchema: SendDemurrageInvoiceInputSchema,
     outputSchema: SendDemurrageInvoiceOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
-      prompt: sendDemurrageInvoicePrompt,
-      input,
-      model: 'gemini-pro',
-    });
+    const { output } = await sendDemurrageInvoicePrompt(input);
     if (!output) {
       throw new Error("AI failed to generate demurrage invoice email.");
     }

@@ -8,7 +8,7 @@
  * GenerateDiXmlOutputSchema - The output Zod schema for the flow.
  */
 
-import { defineFlow } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { format } from 'date-fns';
 
@@ -38,7 +38,7 @@ export const GenerateDiXmlOutputSchema = z.object({
 });
 export type GenerateDiXmlOutput = z.infer<typeof GenerateDiXmlOutputSchema>;
 
-export const generateDiXmlFlow = defineFlow(
+export const generateDiXmlFlow = ai.defineFlow(
   {
     name: 'generateDiXmlFlow',
     inputSchema: GenerateDiXmlInputSchema,

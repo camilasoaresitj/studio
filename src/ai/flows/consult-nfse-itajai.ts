@@ -57,12 +57,10 @@ const consultNfseItajaiFlow = ai.defineFlow(
     try {
       const soapClient: Client = await createClientAsync(WSDL_URL);
       
-      const args = {
-        xml: xmlPayload
-      };
-
+      // In node-soap, the payload for a single XML string is passed directly
+      // to the method, not wrapped in a { xml: ... } object.
       // The method name from WSDL is `ConsultarNfseRecebidas`
-      const [result] = await soapClient.ConsultarNfseRecebidasAsync(args);
+      const [result] = await soapClient.ConsultarNfseRecebidasAsync({ ConsultarNfseRecebidasEnvio: xmlPayload });
       
       console.log('Successfully received response from NFS-e API.');
       return result;

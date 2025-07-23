@@ -12,7 +12,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { getShipmentById } from '@/lib/shipment';
 import { findPortByTerm } from '@/lib/ports';
-import { defineFlow } from '@genkit-ai/core';
 
 const LatLonSchema = z.object({
   lat: z.number().describe("Latitude"),
@@ -37,7 +36,7 @@ export type GetRouteMapOutput = z.infer<typeof GetRouteMapOutputSchema>;
 
 // This flow is a simulation. A real implementation would use a geolocation service
 // to get coordinates for ports and a vessel tracking API for the live route.
-const getRouteMapFlow = defineFlow(
+const getRouteMapFlow = ai.defineFlow(
   {
     name: 'getRouteMapFlow',
     inputSchema: z.string(), // Shipment ID

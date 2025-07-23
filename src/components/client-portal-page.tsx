@@ -83,30 +83,6 @@ export function ClientPortalPage({ id }: { id: string }) {
     const [shipment, setShipment] = useState<Shipment | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
-    
-    useEffect(() => {
-      setIsLoading(true);
-      const data = getShipmentById(id);
-      if (data) {
-        setShipment(data);
-      }
-      setIsLoading(false);
-    }, [id]);
-    
-    const foreignLocationClock = useMemo(() => {
-        if (!shipment) return null;
-        const originPort = findPortByTerm(shipment.origin);
-        const destPort = findPortByTerm(shipment.destination);
-
-        // Prioritize showing the foreign location's time.
-        if (originPort && originPort.country !== 'BR') {
-            return { label: originPort.name, timeZone: originPort.timeZone };
-        }
-        if (destPort && destPort.country !== 'BR') {
-            return { label: destPort.name, timeZone: destPort.timeZone };
-        }
-        return null; // Return null if both are in BR or not found
-    }, [shipment]);
 
     const sortedMilestones = useMemo(() => {
         if (!shipment) return [];
@@ -132,7 +108,30 @@ export function ClientPortalPage({ id }: { id: string }) {
             return dateA - dateB;
         });
     }, [shipment]);
+    
+    const foreignLocationClock = useMemo(() => {
+        if (!shipment) return null;
+        const originPort = findPortByTerm(shipment.origin);
+        const destPort = findPortByTerm(shipment.destination);
 
+        // Prioritize showing the foreign location's time.
+        if (originPort && originPort.country !== 'BR') {
+            return { label: originPort.name, timeZone: originPort.timeZone };
+        }
+        if (destPort && destPort.country !== 'BR') {
+            return { label: destPort.name, timeZone: destPort.timeZone };
+        }
+        return null; // Return null if both are in BR or not found
+    }, [shipment]);
+    
+    useEffect(() => {
+      setIsLoading(true);
+      const data = getShipmentById(id);
+      if (data) {
+        setShipment(data);
+      }
+      setIsLoading(false);
+    }, [id]);
 
     const handleUpdate = (updatedShipment: Shipment) => {
         setShipment(updatedShipment);
@@ -241,9 +240,8 @@ export function ClientPortalPage({ id }: { id: string }) {
                  {/* Main Content Area */}
                 <div className="lg:col-span-2 space-y-6">
                      <Tabs defaultValue={needsDraft ? "draft" : "timeline"} className="w-full">
-                        <TabsList className="grid w-full grid-cols-5">
-                            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                            <TabsTrigger value="map">Mapa</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-4">
+                            <TabsTrigger value="timeline">Timeline e Mapa</TabsTrigger>
                             <TabsTrigger value="draft" className="relative">
                                 Instruções de Embarque (Draft)
                                 {needsDraft && <span className="absolute top-1 right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-destructive"></span></span>}
@@ -254,7 +252,17 @@ export function ClientPortalPage({ id }: { id: string }) {
                                 Chat
                             </TabsTrigger>
                         </TabsList>
-                        <TabsContent value="timeline">
+                        <TabsContent value="timeline" className="mt-4 space-y-6">
+                            {shipment.bookingNumber ? (
+                                <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                            ) : (
+                                <Card>
+                                    <CardContent className="flex flex-col items-center justify-center h-96 text-center text-muted-foreground">
+                                        <MapIcon className="h-12 w-12 mb-4" />
+                                        <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                    </CardContent>
+                                </Card>
+                            )}
                             <Card>
                                 <CardHeader><CardTitle>Timeline do Processo</CardTitle></CardHeader>
                                 <CardContent>
@@ -289,18 +297,6 @@ export function ClientPortalPage({ id }: { id: string }) {
                                     </div>
                                 </CardContent>
                             </Card>
-                        </TabsContent>
-                         <TabsContent value="map">
-                            {shipment.bookingNumber ? (
-                                <ShipmentMap shipmentNumber={shipment.bookingNumber} />
-                            ) : (
-                                <Card>
-                                    <CardContent className="flex flex-col items-center justify-center h-96 text-center text-muted-foreground">
-                                        <MapIcon className="h-12 w-12 mb-4" />
-                                        <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
-                                    </CardContent>
-                                </Card>
-                            )}
                         </TabsContent>
                         <TabsContent value="draft">
                             <BLDraftForm shipment={shipment} onUpdate={handleUpdate} />

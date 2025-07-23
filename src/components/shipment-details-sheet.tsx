@@ -832,7 +832,21 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
     const sortedMilestones = useMemo(() => {
         if (!shipment) return [];
-        return [...(form.getValues('milestones') || [])].sort((a, b) => {
+        const uniqueMilestones = (form.getValues('milestones') || []).reduce((acc: Milestone[], current) => {
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            const x = acc.find(item => 
+                item.name === current.name && 
+                Math.abs(new Date(item.predictedDate).getTime() - new Date(current.predictedDate).getTime()) < twentyFourHours &&
+                item.details === current.details
+            );
+            if (!x) {
+                return acc.concat([current]);
+            } else {
+                return acc;
+            }
+        }, []);
+
+        return uniqueMilestones.sort((a, b) => {
             const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
             const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
             if (!dateA) return 1;
@@ -898,7 +912,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </Button>
                             </div>
                         </div>
-                         <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <Form {...form}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
                                     <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
@@ -943,7 +957,15 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                             </div>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="relative pl-4 space-y-6">
+                                            {shipment.bookingNumber ? (
+                                                <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                                            ) : (
+                                                <div className="text-center p-8 text-muted-foreground h-full flex flex-col justify-center items-center border rounded-lg bg-muted/50 mb-6">
+                                                    <MapIcon className="mx-auto h-12 w-12 mb-4" />
+                                                    <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                                </div>
+                                            )}
+                                            <div className="relative pl-4 space-y-6 mt-6">
                                                 <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
                                                 {sortedMilestones.map((milestone, index) => {
                                                     const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
@@ -964,6 +986,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                     <div>
                                                                         <p className={cn("font-semibold text-base", milestone.isTransshipment && "text-red-500", isCompleted && "text-success")}>{milestone.isTransshipment ? milestone.name.toUpperCase() : milestone.name}</p>
                                                                         <p className="text-sm text-muted-foreground -mt-1">{milestone.details}</p>
+                                                                         {(milestone.name.toLowerCase().includes('embarque') || milestone.name.toLowerCase().includes('chegada')) && shipment.vesselName && (
+                                                                            <p className="text-xs text-muted-foreground italic mt-1">
+                                                                                Navio: {shipment.vesselName}
+                                                                            </p>
+                                                                        )}
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
@@ -993,14 +1020,33 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         </CardContent>
                                     </Card>
                                     <div className="lg:col-span-1">
-                                        {shipment.bookingNumber ? (
-                                            <ShipmentMap shipmentNumber={shipment.bookingNumber} />
-                                        ) : (
-                                            <div className="text-center p-8 text-muted-foreground h-full flex flex-col justify-center items-center border rounded-lg">
-                                                <MapIcon className="mx-auto h-12 w-12 mb-4" />
-                                                <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
-                                            </div>
-                                        )}
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Logs de Aprovação</CardTitle>
+                                                <CardDescription>Histórico de alterações e aprovações de despesas.</CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <ScrollArea className="h-96">
+                                                <div className="space-y-4">
+                                                {(shipment.approvalLogs && shipment.approvalLogs.length > 0) ? shipment.approvalLogs.map((log, index) => (
+                                                    <div key={index} className="flex items-start gap-3 text-xs">
+                                                        <div>
+                                                             <Badge variant={log.status === 'approved' ? 'success' : 'destructive'} className="capitalize">{log.status}</Badge>
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p><span className="font-semibold">{log.user}</span> {log.status === 'approved' ? 'aprovou' : 'rejeitou'} a alteração em <span className="font-semibold">{log.chargeName}</span>.</p>
+                                                            <p className="text-muted-foreground">De {log.originalValue} para {log.newValue}.</p>
+                                                            <p className="text-muted-foreground italic">Justificativa: "{log.justification}"</p>
+                                                            <p className="text-muted-foreground/80">{format(log.timestamp, 'dd/MM/yy HH:mm')}</p>
+                                                        </div>
+                                                    </div>
+                                                )) : (
+                                                    <p className="text-sm text-muted-foreground text-center py-8">Nenhum log de aprovação.</p>
+                                                )}
+                                                </div>
+                                                </ScrollArea>
+                                            </CardContent>
+                                        </Card>
                                     </div>
                                 </div>
                                 </Form>

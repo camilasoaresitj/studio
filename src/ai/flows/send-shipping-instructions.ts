@@ -8,10 +8,11 @@
  * SendShippingInstructionsOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { initializeAI } from '@/ai/genkit';
 import { z } from 'zod';
 import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema, SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
 
+const ai = initializeAI();
 
 export async function sendShippingInstructions(input: SendShippingInstructionsInput): Promise<SendShippingInstructionsOutput> {
   return sendShippingInstructionsFlow(input);

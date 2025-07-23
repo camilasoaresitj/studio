@@ -8,9 +8,11 @@
  * ConsultNfseItajaiOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { initializeAI } from '@/ai/genkit';
 import { z } from 'zod';
 import { createClientAsync, Client } from 'soap';
+
+const ai = initializeAI();
 
 const ConsultNfseItajaiInputSchema = z.object({
   cnpj: z.string().length(14).describe('The CNPJ of the service taker (Tomador) to consult for. Only numbers.'),

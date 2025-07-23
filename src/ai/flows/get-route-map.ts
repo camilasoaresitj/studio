@@ -1,5 +1,4 @@
 
-
 'use server';
 /**
  * @fileOverview A Genkit flow to generate a visual route map for a shipment.
@@ -9,10 +8,12 @@
  * GetRouteMapOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { initializeAI } from '@/ai/genkit';
 import { z } from 'zod';
 import { getShipmentById } from '@/lib/shipment';
 import { findPortByTerm } from '@/lib/ports';
+
+const ai = initializeAI();
 
 const LatLonSchema = z.object({
   lat: z.number().describe("Latitude"),

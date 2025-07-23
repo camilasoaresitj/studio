@@ -8,9 +8,11 @@
  * GenerateDiXmlFromSpreadsheetOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { initializeAI } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Shipment } from '@/lib/shipment-data';
+
+const ai = initializeAI();
 
 const GenerateDiXmlFromSpreadsheetInputSchema = z.object({
   spreadsheetData: z.array(z.any()).describe("Data extracted from the CargoWise spreadsheet."),

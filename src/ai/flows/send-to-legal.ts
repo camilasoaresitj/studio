@@ -8,8 +8,10 @@
  * SendToLegalOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
+import {initializeAI} from '@/ai/genkit';
 import {z} from 'zod';
+
+const ai = initializeAI();
 
 const SendToLegalInputSchema = z.object({
   lawyerName: z.string().describe('The name of the lawyer receiving the case.'),

@@ -8,9 +8,11 @@
  * SendWhatsappMessageOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { initializeAI } from '@/ai/genkit';
 import { z } from 'zod';
 import { Twilio } from 'twilio';
+
+const ai = initializeAI();
 
 const SendWhatsappMessageInputSchema = z.object({
   to: z.string().describe('The recipient phone number in E.164 format (e.g., +5511999999999).'),

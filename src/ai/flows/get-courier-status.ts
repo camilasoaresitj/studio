@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview This file defines a Genkit flow to generate a simulated courier tracking status.
@@ -7,8 +8,10 @@
  * GetCourierStatusOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
+import {initializeAI} from '@/ai/genkit';
 import { GetCourierStatusInputSchema, GetCourierStatusOutputSchema, GetCourierStatusInput, GetCourierStatusOutput } from '@/lib/schemas';
+
+const ai = initializeAI();
 
 export async function getCourierStatus(input: GetCourierStatusInput): Promise<GetCourierStatusOutput> {
   return getCourierStatusFlow(input);

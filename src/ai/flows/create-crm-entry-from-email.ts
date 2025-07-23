@@ -8,8 +8,10 @@
  * CreateCrmEntryFromEmailOutput - The return type for the createCrmEntryFromEmail function.
  */
 
-import {ai} from '@/ai/genkit';
+import {initializeAI} from '@/ai/genkit';
 import {z} from 'zod';
+
+const ai = initializeAI();
 
 const CreateCrmEntryFromEmailInputSchema = z.object({
   emailContent: z.string().describe('The complete content of the email.'),

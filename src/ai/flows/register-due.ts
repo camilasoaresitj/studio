@@ -1,9 +1,13 @@
+
+'use server';
 /**
  * @fileOverview A Genkit flow to simulate the registration of a DUE with Portal Único.
  */
 
-import { ai } from '@/ai/genkit';
+import { initializeAI } from '@/ai/genkit';
 import { z } from 'zod';
+
+const ai = initializeAI();
 
 const DueItemSchema = z.object({
   ncm: z.string().describe('NCM code for the item.'),

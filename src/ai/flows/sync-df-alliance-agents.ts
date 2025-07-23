@@ -7,8 +7,10 @@
  * - DFAgent - The return type for a single agent.
  */
 
-import { ai } from '@/ai/genkit';
+import { initializeAI } from '@/ai/genkit';
 import { z } from 'zod';
+
+const ai = initializeAI();
 
 // This is a simplified schema for what we can reliably extract from the directory page.
 // The frontend will be responsible for mapping this to the full Partner schema.

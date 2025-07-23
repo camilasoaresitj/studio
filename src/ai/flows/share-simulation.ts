@@ -8,8 +8,10 @@
  * ShareSimulationOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { initializeAI } from '@/ai/genkit';
 import { z } from 'zod';
+
+const ai = initializeAI();
 
 const ShareSimulationInputSchema = z.object({
   customerName: z.string().describe('The name of the customer receiving the simulation.'),

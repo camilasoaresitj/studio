@@ -8,9 +8,11 @@
  * RequestAgentQuoteOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
+import {initializeAI} from '@/ai/genkit';
 import {z} from 'zod';
 import * as schemas from '@/lib/schemas';
+
+const ai = initializeAI();
 
 type RequestAgentQuoteInput = schemas.FreightQuoteFormData;
 

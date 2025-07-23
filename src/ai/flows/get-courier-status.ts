@@ -8,10 +8,9 @@
  * GetCourierStatusOutput - The return type for the function.
  */
 
-import {initializeAI} from '@/ai/genkit';
-import { GetCourierStatusInputSchema, GetCourierStatusOutputSchema, GetCourierStatusInput, GetCourierStatusOutput } from '@/lib/schemas';
-
-const ai = initializeAI();
+import {ai} from '@/ai/genkit';
+import { GetCourierStatusInputSchema, GetCourierStatusOutputSchema } from '@/lib/schemas';
+import type { GetCourierStatusInput, GetCourierStatusOutput } from '@/lib/schemas';
 
 export async function getCourierStatus(input: GetCourierStatusInput): Promise<GetCourierStatusOutput> {
   return getCourierStatusFlow(input);

@@ -8,10 +8,8 @@
  * SendDemurrageInvoiceOutput - The return type for the function.
  */
 
-import {initializeAI} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-
-const ai = initializeAI();
 
 const SendDemurrageInvoiceInputSchema = z.object({
   customerName: z.string().describe('The name of the customer receiving the invoice.'),
@@ -22,13 +20,13 @@ const SendDemurrageInvoiceInputSchema = z.object({
   totalAmountUSD: z.string().describe('The total amount due in USD (e.g., "USD 1,500.00").'),
   exchangeRate: z.string().describe('The exchange rate that will be used for conversion to BRL (e.g., "5.8644").'),
 });
-type SendDemurrageInvoiceInput = z.infer<typeof SendDemurrageInvoiceInputSchema>;
+export type SendDemurrageInvoiceInput = z.infer<typeof SendDemurrageInvoiceInputSchema>;
 
 const SendDemurrageInvoiceOutputSchema = z.object({
   emailSubject: z.string().describe("The subject line for the demurrage invoice email."),
   emailBody: z.string().describe("The HTML content for the body of the email."),
 });
-type SendDemurrageInvoiceOutput = z.infer<typeof SendDemurrageInvoiceOutputSchema>;
+export type SendDemurrageInvoiceOutput = z.infer<typeof SendDemurrageInvoiceOutputSchema>;
 
 export async function sendDemurrageInvoice(input: SendDemurrageInvoiceInput): Promise<SendDemurrageInvoiceOutput> {
   return sendDemurrageInvoiceFlow(input);

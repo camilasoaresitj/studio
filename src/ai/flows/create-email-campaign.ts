@@ -8,26 +8,24 @@
  * CreateEmailCampaignOutput - The return type for the function.
  */
 
-import { initializeAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from '@/components/customer-quotes-list';
-
-const ai = initializeAI();
 
 const CreateEmailCampaignInputSchema = z.object({
   instruction: z.string().describe('The natural language instruction for the email campaign.'),
   partners: z.array(z.any()).describe("A list of all partners (customers)."),
   quotes: z.array(z.any()).describe("A list of all past quotes."),
 });
-type CreateEmailCampaignInput = z.infer<typeof CreateEmailCampaignInputSchema>;
+export type CreateEmailCampaignInput = z.infer<typeof CreateEmailCampaignInputSchema>;
 
 const CreateEmailCampaignOutputSchema = z.object({
   clients: z.array(z.string()).describe('A list of client names that match the campaign criteria.'),
   emailSubject: z.string().describe('The generated subject line for the promotional email.'),
   emailBody: z.string().describe('The generated HTML body for the promotional email.'),
 });
-type CreateEmailCampaignOutput = z.infer<typeof CreateEmailCampaignOutputSchema>;
+export type CreateEmailCampaignOutput = z.infer<typeof CreateEmailCampaignOutputSchema>;
 
 export async function createEmailCampaign(input: CreateEmailCampaignInput): Promise<CreateEmailCampaignOutput> {
   return createEmailCampaignFlow(input);

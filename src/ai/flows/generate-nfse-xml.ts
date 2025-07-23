@@ -8,11 +8,9 @@
  * GenerateNfseXmlOutput - The return type for the function.
  */
 
-import { initializeAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { format } from 'date-fns';
-
-const ai = initializeAI();
 
 const TomadorSchema = z.object({
   cpfCnpj: z.string().describe('O CPF ou CNPJ do tomador do serviço.'),

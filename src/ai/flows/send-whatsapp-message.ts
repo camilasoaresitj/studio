@@ -8,23 +8,21 @@
  * SendWhatsappMessageOutput - The return type for the function.
  */
 
-import { initializeAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { Twilio } from 'twilio';
-
-const ai = initializeAI();
 
 const SendWhatsappMessageInputSchema = z.object({
   to: z.string().describe('The recipient phone number in E.164 format (e.g., +5511999999999).'),
   message: z.string().describe('The content of the message to send.'),
 });
-type SendWhatsappMessageInput = z.infer<typeof SendWhatsappMessageInputSchema>;
+export type SendWhatsappMessageInput = z.infer<typeof SendWhatsappMessageInputSchema>;
 
 const SendWhatsappMessageOutputSchema = z.object({
   sid: z.string().describe('The unique SID of the message from Twilio.'),
   status: z.string().describe('The status of the message sending process.'),
 });
-type SendWhatsappMessageOutput = z.infer<typeof SendWhatsappMessageOutputSchema>;
+export type SendWhatsappMessageOutput = z.infer<typeof SendWhatsappMessageOutputSchema>;
 
 export async function sendWhatsappMessage(input: SendWhatsappMessageInput): Promise<SendWhatsappMessageOutput> {
   return sendWhatsappMessageFlow(input);

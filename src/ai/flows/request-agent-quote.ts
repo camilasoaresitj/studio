@@ -8,11 +8,9 @@
  * RequestAgentQuoteOutput - The return type for the function.
  */
 
-import {initializeAI} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import * as schemas from '@/lib/schemas';
-
-const ai = initializeAI();
 
 type RequestAgentQuoteInput = schemas.FreightQuoteFormData;
 
@@ -20,7 +18,7 @@ const RequestAgentQuoteOutputSchema = z.object({
   emailSubject: z.string().describe("The subject line for the quote request email in English."),
   emailBody: z.string().describe("The HTML content for the body of the email. It must be in English and clearly list all shipment details."),
 });
-type RequestAgentQuoteOutput = z.infer<typeof RequestAgentQuoteOutputSchema>;
+export type RequestAgentQuoteOutput = z.infer<typeof RequestAgentQuoteOutputSchema>;
 
 export async function requestAgentQuote(input: RequestAgentQuoteInput): Promise<RequestAgentQuoteOutput> {
   return requestAgentQuoteFlow(input);
@@ -103,7 +101,7 @@ const requestAgentQuoteFlow = ai.defineFlow(
 
     const promptInput = {
         ...input,
-        departureDate: input.departureDate ? input.departureDate.toISOString().split('T')[0] : undefined,
+        departureDate: input.departureDate ? input.departureDate.toString().split('T')[0] : undefined,
         shipmentDetails: shipmentDetailsString
     };
 

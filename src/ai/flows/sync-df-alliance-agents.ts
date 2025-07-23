@@ -7,10 +7,8 @@
  * - DFAgent - The return type for a single agent.
  */
 
-import { initializeAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-
-const ai = initializeAI();
 
 // This is a simplified schema for what we can reliably extract from the directory page.
 // The frontend will be responsible for mapping this to the full Partner schema.
@@ -19,10 +17,10 @@ const DFAgentSchema = z.object({
   country: z.string().describe('The country where the agent is located.'),
   website: z.string().url().describe('The full URL of the agent\'s website.'),
 });
-type DFAgent = z.infer<typeof DFAgentSchema>;
+export type DFAgent = z.infer<typeof DFAgentSchema>;
 
 const SyncDFAgentsOutputSchema = z.array(DFAgentSchema);
-type SyncDFAgentsOutput = z.infer<typeof SyncDFAgentsOutputSchema>;
+export type SyncDFAgentsOutput = z.infer<typeof SyncDFAgentsOutputSchema>;
 
 // Tool to fetch the raw HTML content from the directory URL.
 const fetchDirectoryPageContent = ai.defineTool(

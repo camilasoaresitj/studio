@@ -8,11 +8,9 @@
  * GenerateDiXmlOutputSchema - The output Zod schema for the flow.
  */
 
-import { initializeAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { format } from 'date-fns';
-
-const ai = initializeAI();
 
 const DiAdditionItemSchema = z.object({
   ncm: z.string().describe('NCM code for the item.'),

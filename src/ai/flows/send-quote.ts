@@ -8,10 +8,8 @@
  * SendQuoteOutput - The return type for the function.
  */
 
-import {initializeAI} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-
-const ai = initializeAI();
 
 const RateDetailsSchema = z.object({
     origin: z.string().describe("The origin of the shipment."),

@@ -8,22 +8,20 @@
  * GenerateDiXmlFromSpreadsheetOutput - The return type for the function.
  */
 
-import { initializeAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Shipment } from '@/lib/shipment-data';
-
-const ai = initializeAI();
 
 const GenerateDiXmlFromSpreadsheetInputSchema = z.object({
   spreadsheetData: z.array(z.any()).describe("Data extracted from the CargoWise spreadsheet."),
   shipmentData: z.any().describe("Data from the current shipment process."),
 });
-type GenerateDiXmlFromSpreadsheetInput = z.infer<typeof GenerateDiXmlFromSpreadsheetInputSchema>;
+export type GenerateDiXmlFromSpreadsheetInput = z.infer<typeof GenerateDiXmlFromSpreadsheetInputSchema>;
 
 const GenerateDiXmlFromSpreadsheetOutputSchema = z.object({
   xml: z.string().describe('The generated XML string for the DI.'),
 });
-type GenerateDiXmlFromSpreadsheetOutput = z.infer<typeof GenerateDiXmlFromSpreadsheetOutputSchema>;
+export type GenerateDiXmlFromSpreadsheetOutput = z.infer<typeof GenerateDiXmlFromSpreadsheetOutputSchema>;
 
 export async function generateDiXmlFromSpreadsheet(input: GenerateDiXmlFromSpreadsheetInput): Promise<GenerateDiXmlFromSpreadsheetOutput> {
   return generateDiXmlFromSpreadsheetFlow(input);

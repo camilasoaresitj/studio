@@ -9,17 +9,15 @@
  * - MonitorEmailForTasksOutput - The return type for the monitorEmailForTasks function.
  */
 
-import {initializeAI} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-
-const ai = initializeAI();
 
 const MonitorEmailForTasksInputSchema = z.object({
   emailContent: z.string().describe('The content of the email to monitor.'),
   emailSubject: z.string().describe('The subject of the email.'),
   sender: z.string().email().describe('The email address of the sender.'),
 });
-type MonitorEmailForTasksInput = z.infer<typeof MonitorEmailForTasksInputSchema>;
+export type MonitorEmailForTasksInput = z.infer<typeof MonitorEmailForTasksInputSchema>;
 
 const MonitorEmailForTasksOutputSchema = z.object({
   taskDetected: z.boolean().describe('Whether a task was detected in the email.'),
@@ -28,7 +26,7 @@ const MonitorEmailForTasksOutputSchema = z.object({
   isFinancial: z.boolean().describe('Whether the task is financial.'),
   reminderNeeded: z.boolean().describe('Whether a reminder should be sent.'),
 });
-type MonitorEmailForTasksOutput = z.infer<typeof MonitorEmailForTasksOutputSchema>;
+export type MonitorEmailForTasksOutput = z.infer<typeof MonitorEmailForTasksOutputSchema>;
 
 export async function monitorEmailForTasks(input: MonitorEmailForTasksInput): Promise<MonitorEmailForTasksOutput> {
   return monitorEmailForTasksFlow(input);

@@ -8,10 +8,8 @@
  * SendDraftApprovalRequestOutput - The return type for the function.
  */
 
-import { initializeAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-
-const ai = initializeAI();
 
 const SendDraftApprovalRequestInputSchema = z.object({
   customerName: z.string().describe("The client's name."),

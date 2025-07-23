@@ -35,7 +35,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from './ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Loader2, Upload, X, CalendarIcon } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2, Upload, X, CalendarIcon, ChevronsUpDown, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
@@ -46,6 +46,8 @@ import { Label } from './ui/label';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import { getFees, Fee } from '@/lib/fees-data';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
 
@@ -57,6 +59,8 @@ interface PartnersRegistryProps {
 const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 const mainModalsEnum = ['Marítimo', 'Aéreo'];
 const unitOptions = ['Contêiner', 'BL', 'AWB', 'Processo', 'W/M', '/KG', 'Sobre o Frete', 'Sobre Valor Carga'];
+const incotermOptions = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
+
 
 const supplierTypes = [
     { id: 'ciaMaritima', label: 'Cia Marítima' },
@@ -83,8 +87,13 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [filters, setFilters] = useState({ name: '', country: '', state: '', type: '' });
   const [routeInput, setRouteInput] = useState('');
+  const [globalFees, setGlobalFees] = useState<Fee[]>([]);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setGlobalFees(getFees());
+  }, []);
 
   const form = useForm<PartnerFormData>({
     resolver: zodResolver(partnerSchema),
@@ -143,7 +152,6 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const watchedFornecedor = form.watch('tipoFornecedor');
   const isEmpresaNoExterior = form.watch('tipoCliente.empresaNoExterior');
   const isTerminal = form.watch('tipoFornecedor.terminal');
-  const isCarrierOrAgent = watchedRoles.fornecedor || watchedRoles.agente;
   const documentType = isEmpresaNoExterior ? 'vat' : 'cnpj';
   const documentLabel = isEmpresaNoExterior ? 'VAT / Tax ID' : 'CNPJ / CPF';
 
@@ -558,7 +566,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         {!watchedRoles.agente && <FormField control={form.control} name="exchangeRateAgio" render={({ field }) => ( <FormItem><FormLabel>Ágio sobre Câmbio (%)</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} /></FormControl><FormMessage /></FormItem> )} />}
                     </div>
                     
-                    {watchedRoles.fornecedor && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                    {(watchedRoles.fornecedor || watchedRoles.agente) && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <div className="flex justify-between items-center">
                             <h4 className="font-semibold text-sm">Taxas Padrão do Parceiro</h4>
                             <Button type="button" size="sm" variant="outline" onClick={() => appendFee({ name: '', value: 0, currency: 'USD', unit: 'BL', containerType: 'Todos' })}>
@@ -566,12 +574,14 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             </Button>
                         </div>
                         {feeFields.map((field, index) => (
-                             <div key={field.id} className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end border-b pb-2">
-                                <FormField control={form.control} name={`standardFees.${index}.name`} render={({ field }) => (<FormItem className="col-span-2"><FormLabel>Nome da Taxa</FormLabel><FormControl><Input placeholder="Ex: BL Fee" className="h-9" {...field} /></FormControl></FormItem>)}/>
+                             <div key={field.id} className="grid grid-cols-1 md:grid-cols-7 gap-2 items-end border-b pb-2">
+                                <FormField control={form.control} name={`standardFees.${index}.name`} render={({ field }) => (<FormItem className="col-span-2"><FormLabel>Nome da Taxa</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Selecione..."/></SelectTrigger></FormControl><SelectContent>{globalFees.map(f => <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>)}</SelectContent></Select>
+                                </FormItem>)}/>
                                 <FormField control={form.control} name={`standardFees.${index}.value`} render={({ field }) => (<FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" placeholder="150" className="h-9" {...field} /></FormControl></FormItem>)}/>
                                 <FormField control={form.control} name={`standardFees.${index}.currency`} render={({ field }) => (<FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="BRL">BRL</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent></Select></FormItem>)}/>
-                                <FormField control={form.control} name={`standardFees.${index}.unit`} render={({ field }) => (<FormItem><FormLabel>Unidade</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent>{unitOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>)}/>
                                 <FormField control={form.control} name={`standardFees.${index}.containerType`} render={({ field }) => (<FormItem><FormLabel>Tipo Cont.</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Todos">Todos</SelectItem><SelectItem value="Dry">Dry</SelectItem><SelectItem value="Reefer">Reefer</SelectItem><SelectItem value="Especiais">Especiais</SelectItem></SelectContent></Select></FormItem>)}/>
+                                {watchedRoles.agente && <FormField control={form.control} name={`standardFees.${index}.incoterm`} render={({ field }) => (<FormItem><FormLabel>Incoterm</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Todos"/></SelectTrigger></FormControl><SelectContent><SelectItem value="Todos">Todos</SelectItem>{incotermOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>)} />}
                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeFee(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                             </div>
                         ))}

@@ -14,8 +14,8 @@ const standardFeeSchema = z.object({
   name: z.string().min(1, 'Nome da taxa é obrigatório'),
   value: z.coerce.number().min(0, 'Valor deve ser positivo'),
   currency: z.enum(['USD', 'BRL', 'EUR']),
-  unit: z.string().min(1, 'Unidade é obrigatória'),
   containerType: z.enum(['Todos', 'Dry', 'Reefer', 'Especiais']).optional(),
+  incoterm: z.string().optional(),
 });
 
 export const partnerSchema = z.object({
@@ -114,7 +114,7 @@ export const partnerSchema = z.object({
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v10'; // Incremented version
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v11';
 
 function getInitialPartners(): Partner[] {
     return [
@@ -198,8 +198,8 @@ function getInitialPartners(): Partner[] {
             exchangeRateAgio: 0,
             demurrageAgreementDueDate: new Date('2024-10-31'),
             standardFees: [
-                { name: 'BL FEE', value: 150, currency: 'USD', unit: 'BL', containerType: 'Todos' },
-                { name: 'ISPS', value: 35, currency: 'USD', unit: 'Contêiner', containerType: 'Todos' },
+                { name: 'BL FEE', value: 150, currency: 'USD', containerType: 'Todos' },
+                { name: 'ISPS', value: 35, currency: 'USD', containerType: 'Todos' },
             ],
             address: {
                 street: "Wall Street",

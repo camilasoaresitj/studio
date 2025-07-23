@@ -4,13 +4,11 @@
  * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
 import type { ExtractInvoiceItemsInput, ExtractInvoiceItemsOutput } from '@/lib/schemas/invoice';
-import { googleAI } from '@genkit-ai/googleai';
 
 const extractFromXml = (dataUri: string): { textContent: string; media?: never } => {
     const base64 = dataUri.split(',')[1];
@@ -30,10 +28,10 @@ const extractFromMedia = (dataUri: string): { media: { url: string }; textConten
 };
 
 
-const extractInvoiceItemsPrompt = definePrompt({
+const extractInvoiceItemsPrompt = ai.definePrompt({
   name: 'extractInvoiceItemsPrompt',
-  inputSchema: z.object({ textContent: z.string().optional(), media: z.any().optional() }),
-  outputSchema: z.object({ data: z.array(InvoiceItemSchema) }),
+  input: { schema: z.object({ textContent: z.string().optional(), media: z.any().optional() }) },
+  output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) },
   prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided content, which could be from a CSV, XML, plain text, an image, or a PDF file.
 
 Analyze the content below and extract all product line items. For each item, you must find:
@@ -78,7 +76,7 @@ Now, analyze the following media content and return the JSON object:
 `,
 });
 
-const extractInvoiceItemsFlow = defineFlow(
+const extractInvoiceItemsFlow = ai.defineFlow(
   {
     name: 'extractInvoiceItemsFlow',
     inputSchema: ExtractInvoiceItemsInputSchema,
@@ -108,13 +106,13 @@ const extractInvoiceItemsFlow = defineFlow(
             throw new Error('The file appears to be empty or could not be read.');
         }
 
-        const response = await generate({
+        const response = await ai.generate({
             prompt: extractInvoiceItemsPrompt,
             input: promptInput,
-            model: googleAI('gemini-pro-vision'), // Use vision model for images/PDFs
+            model: 'gemini-pro-vision', // Use vision model for images/PDFs
         });
         
-        const output = response.output();
+        const output = response.output;
         if (!output || !output.data || output.data.length === 0) {
             throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo, o formato e se as colunas necessárias (descrição, quantidade, valor, ncm) estão presentes.");
         }

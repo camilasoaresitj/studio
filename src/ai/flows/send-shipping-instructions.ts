@@ -8,22 +8,20 @@
  * SendShippingInstructionsOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema } from '@/lib/schemas';
 import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
-import { googleAI } from '@genkit-ai/googleai';
 
 
 export async function sendShippingInstructions(input: SendShippingInstructionsInput): Promise<SendShippingInstructionsOutput> {
   return sendShippingInstructionsFlow(input);
 }
 
-const prompt = definePrompt({
+const prompt = ai.definePrompt({
   name: 'sendShippingInstructionsPrompt',
-  inputSchema: SendShippingInstructionsInputSchema,
-  outputSchema: SendShippingInstructionsOutputSchema,
+  input: { schema: SendShippingInstructionsInputSchema },
+  output: { schema: SendShippingInstructionsOutputSchema },
   prompt: `You are a logistics operations expert. Your task is to generate a professional and detailed "Shipping Instructions" email in English to a freight agent. The email must be in HTML format and resemble a draft Bill of Lading.
 
 **Crucial Formatting Rules:**
@@ -115,7 +113,7 @@ const prompt = definePrompt({
 `,
 });
 
-const sendShippingInstructionsFlow = defineFlow(
+const sendShippingInstructionsFlow = ai.defineFlow(
   {
     name: 'sendShippingInstructionsFlow',
     inputSchema: SendShippingInstructionsInputSchema,
@@ -126,13 +124,12 @@ const sendShippingInstructionsFlow = defineFlow(
     // We will just log the action to the console to simulate it.
     console.log(`SIMULATING sending Shipping Instructions to ${input.agentEmail}`);
 
-    const response = await generate({
+    const response = await ai.generate({
       prompt,
       input,
-      model: googleAI('gemini-pro'),
     });
     
-    const output = response.output();
+    const output = response.output;
     if (!output) {
       throw new Error("AI failed to generate shipping instructions.");
     }

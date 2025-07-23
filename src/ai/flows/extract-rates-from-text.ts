@@ -8,10 +8,8 @@
  * - ExtractRatesFromTextOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 
 const ExtractRatesFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
@@ -63,11 +61,11 @@ export async function extractRatesFromText(input: ExtractRatesFromTextInput): Pr
   return extractRatesFromTextFlow(input);
 }
 
-const extractRatesFromTextPrompt = definePrompt({
+const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
-  inputSchema: ExtractRatesFromTextInputSchema,
+  input: { schema: ExtractRatesFromTextInputSchema },
   // Use the more lenient, partial schema for the prompt's output.
-  outputSchema: z.array(PartialRateSchemaForPrompt),
+  output: { schema: z.array(PartialRateSchemaForPrompt) },
   prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the text below and return a valid JSON array of rate objects.
 
 **Extraction Process & Rules:**
@@ -120,7 +118,7 @@ const normalizeContainerType = (containerStr: string | undefined): string => {
     return containerStr.toUpperCase().trim();
 };
 
-const extractRatesFromTextFlow = defineFlow(
+const extractRatesFromTextFlow = ai.defineFlow(
   {
     name: 'extractRatesFromTextFlow',
     inputSchema: ExtractRatesFromTextInputSchema,
@@ -129,13 +127,12 @@ const extractRatesFromTextFlow = defineFlow(
   },
   async (input) => {
     // The prompt returns a list of potentially incomplete rate objects.
-    const response = await generate({
+    const response = await ai.generate({
       prompt: extractRatesFromTextPrompt,
       input,
-      model: googleAI('gemini-pro'),
     });
     
-    const output = response.output();
+    const output = response.output;
     
     // It's possible the AI returns nothing if the text is very unclear.
     if (!output || output.length === 0) {

@@ -8,11 +8,9 @@
  * RequestAgentQuoteOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import * as schemas from '@/lib/schemas';
-import { googleAI } from '@genkit-ai/googleai';
 
 type RequestAgentQuoteInput = schemas.FreightQuoteFormData;
 
@@ -31,10 +29,10 @@ const PromptInputSchema = schemas.baseFreightQuoteFormSchema.extend({
     departureDate: z.string().optional().describe('The formatted departure date.'),
 });
 
-const requestAgentQuotePrompt = definePrompt({
+const requestAgentQuotePrompt = ai.definePrompt({
   name: 'requestAgentQuotePrompt',
-  inputSchema: PromptInputSchema,
-  outputSchema: RequestAgentQuoteOutputSchema,
+  input: { schema: PromptInputSchema },
+  output: { schema: RequestAgentQuoteOutputSchema },
   prompt: `You are a freight forwarding operations assistant. Your task is to write a clear and professional email in English to a freight agent to request a quote for a shipment.
 
 Generate the following:
@@ -63,7 +61,7 @@ Generate the following:
 `,
 });
 
-const requestAgentQuoteFlow = defineFlow(
+const requestAgentQuoteFlow = ai.defineFlow(
   {
     name: 'requestAgentQuoteFlow',
     inputSchema: schemas.baseFreightQuoteFormSchema,
@@ -107,13 +105,12 @@ const requestAgentQuoteFlow = defineFlow(
         shipmentDetails: shipmentDetailsString
     };
 
-    const response = await generate({
+    const response = await ai.generate({
       prompt: requestAgentQuotePrompt,
       input: promptInput,
-      model: googleAI('gemini-pro'),
     });
     
-    const output = response.output();
+    const output = response.output;
     if (!output) {
       throw new Error("AI failed to generate agent quote request.");
     }

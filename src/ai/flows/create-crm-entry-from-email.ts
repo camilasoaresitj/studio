@@ -8,10 +8,8 @@
  * CreateCrmEntryFromEmailOutput - The return type for the createCrmEntryFromEmail function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 
 const CreateCrmEntryFromEmailInputSchema = z.object({
   emailContent: z.string().describe('The complete content of the email.'),
@@ -31,10 +29,10 @@ export async function createCrmEntryFromEmail(input: CreateCrmEntryFromEmailInpu
   return createCrmEntryFromEmailFlow(input);
 }
 
-const createCrmEntryFromEmailPrompt = definePrompt({
+const createCrmEntryFromEmailPrompt = ai.definePrompt({
   name: 'createCrmEntryFromEmailPrompt',
-  inputSchema: CreateCrmEntryFromEmailInputSchema,
-  outputSchema: CreateCrmEntryFromEmailOutputSchema,
+  input: { schema: CreateCrmEntryFromEmailInputSchema },
+  output: { schema: CreateCrmEntryFromEmailOutputSchema },
   prompt: `You are an AI assistant tasked with analyzing email content and creating CRM entries.
   Your goal is to extract key information from the email and structure it into a CRM entry.
 
@@ -53,23 +51,19 @@ const createCrmEntryFromEmailPrompt = definePrompt({
   If some information is not available return "unknown".`,
 });
 
-const createCrmEntryFromEmailFlow = defineFlow(
+const createCrmEntryFromEmailFlow = ai.defineFlow(
   {
     name: 'createCrmEntryFromEmailFlow',
     inputSchema: CreateCrmEntryFromEmailInputSchema,
     outputSchema: CreateCrmEntryFromEmailOutputSchema,
   },
   async (input) => {
-    const llmResponse = await generate({
-      prompt: createCrmEntryFromEmailPrompt.prompt,
+    const llmResponse = await ai.generate({
+      prompt: createCrmEntryFromEmailPrompt,
       input: input,
-      model: googleAI('gemini-pro'),
-      output: {
-        schema: CreateCrmEntryFromEmailOutputSchema,
-      },
     });
     
-    const output = llmResponse.output();
+    const output = llmResponse.output;
     if (!output) {
       throw new Error("AI failed to generate CRM entry.");
     }

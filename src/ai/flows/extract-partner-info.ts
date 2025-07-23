@@ -8,10 +8,8 @@
  * - ExtractPartnerInfoOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 
 const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
 
@@ -51,10 +49,10 @@ export async function extractPartnerInfo(input: ExtractPartnerInfoInput): Promis
   return extractPartnerInfoFlow(input);
 }
 
-const extractPartnerInfoPrompt = definePrompt({
+const extractPartnerInfoPrompt = ai.definePrompt({
   name: 'extractPartnerInfoPrompt',
-  inputSchema: ExtractPartnerInfoInputSchema,
-  outputSchema: ExtractPartnerInfoOutputSchema,
+  input: { schema: ExtractPartnerInfoInputSchema },
+  output: { schema: ExtractPartnerInfoOutputSchema },
   prompt: `You are an expert data entry assistant for a logistics company. Your task is to extract company and contact information from the unstructured text provided below and return a valid JSON object.
 
 **Extraction Rules:**
@@ -103,19 +101,18 @@ Now, analyze the following text and extract the partner information:
 `,
 });
 
-const extractPartnerInfoFlow = defineFlow(
+const extractPartnerInfoFlow = ai.defineFlow(
   {
     name: 'extractPartnerInfoFlow',
     inputSchema: ExtractPartnerInfoInputSchema,
     outputSchema: ExtractPartnerInfoOutputSchema,
   },
   async (input) => {
-    const response = await generate({
+    const response = await ai.generate({
       prompt: extractPartnerInfoPrompt,
       input,
-      model: googleAI('gemini-pro'),
     });
-    const output = response.output();
+    const output = response.output;
     if (!output) {
       throw new Error("A IA não conseguiu extrair nenhuma informação do texto.");
     }

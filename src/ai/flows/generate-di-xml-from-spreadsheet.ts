@@ -8,11 +8,8 @@
  * GenerateDiXmlFromSpreadsheetOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Shipment } from '@/lib/shipment-data';
-import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateDiXmlFromSpreadsheetInputSchema = z.object({
   spreadsheetData: z.array(z.any()).describe("Data extracted from the CargoWise spreadsheet."),
@@ -29,10 +26,10 @@ export async function generateDiXmlFromSpreadsheet(input: GenerateDiXmlFromSprea
   return generateDiXmlFromSpreadsheetFlow(input);
 }
 
-const generateDiXmlFromSpreadsheetPrompt = definePrompt({
+const generateDiXmlFromSpreadsheetPrompt = ai.definePrompt({
   name: 'generateDiXmlFromSpreadsheetPrompt',
-  inputSchema: GenerateDiXmlFromSpreadsheetInputSchema,
-  outputSchema: GenerateDiXmlFromSpreadsheetOutputSchema,
+  input: { schema: GenerateDiXmlFromSpreadsheetInputSchema },
+  output: { schema: GenerateDiXmlFromSpreadsheetOutputSchema },
   prompt: `You are an expert system for generating Brazilian Customs Declaration XML (Declaração de Importação - DI).
 Your task is to convert the provided JSON data (extracted from a CargoWise spreadsheet) and shipment data into a valid DI XML format.
 Carefully map the fields from the JSON to the corresponding XML tags based on the provided example.
@@ -87,20 +84,19 @@ Now, generate the complete XML based on the provided data.
 `,
 });
 
-const generateDiXmlFromSpreadsheetFlow = defineFlow(
+const generateDiXmlFromSpreadsheetFlow = ai.defineFlow(
   {
     name: 'generateDiXmlFromSpreadsheetFlow',
     inputSchema: GenerateDiXmlFromSpreadsheetInputSchema,
     outputSchema: GenerateDiXmlFromSpreadsheetOutputSchema,
   },
   async (input) => {
-    const response = await generate({
+    const response = await ai.generate({
       prompt: generateDiXmlFromSpreadsheetPrompt,
       input,
-      model: googleAI('gemini-pro'),
     });
     
-    const output = response.output();
+    const output = response.output;
     if (!output?.xml) {
       throw new Error("A IA não conseguiu gerar o XML. Verifique os dados da planilha e do processo.");
     }

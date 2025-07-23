@@ -1,5 +1,4 @@
 
-// src/ai/flows/monitor-email-for-tasks.ts
 'use server';
 /**
  * @fileOverview Monitors emails for operational or financial tasks and sends reminders until completion.
@@ -9,10 +8,8 @@
  * - MonitorEmailForTasksOutput - The return type for the monitorEmailForTasks function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 
 const MonitorEmailForTasksInputSchema = z.object({
   emailContent: z.string().describe('The content of the email to monitor.'),
@@ -34,10 +31,10 @@ export async function monitorEmailForTasks(input: MonitorEmailForTasksInput): Pr
   return monitorEmailForTasksFlow(input);
 }
 
-const prompt = definePrompt({
+const prompt = ai.definePrompt({
   name: 'monitorEmailForTasksPrompt',
-  inputSchema: MonitorEmailForTasksInputSchema,
-  outputSchema: MonitorEmailForTasksOutputSchema,
+  input: { schema: MonitorEmailForTasksInputSchema },
+  output: { schema: MonitorEmailForTasksOutputSchema },
   prompt: `You are an AI assistant that monitors emails for operational or financial tasks.
 
   Analyze the email content and subject to identify potential tasks. Determine if a task is present, and if so, classify it as operational, financial, or both.
@@ -52,19 +49,18 @@ const prompt = definePrompt({
   `,
 });
 
-const monitorEmailForTasksFlow = defineFlow(
+const monitorEmailForTasksFlow = ai.defineFlow(
   {
     name: 'monitorEmailForTasksFlow',
     inputSchema: MonitorEmailForTasksInputSchema,
     outputSchema: MonitorEmailForTasksOutputSchema,
   },
   async input => {
-    const response = await generate({
+    const response = await ai.generate({
       prompt: prompt,
       input,
-      model: googleAI('gemini-pro'),
     });
-    const output = response.output();
+    const output = response.output;
     if (!output) {
       throw new Error("AI failed to generate task analysis.");
     }

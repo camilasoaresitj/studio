@@ -8,12 +8,10 @@
  * CreateEmailCampaignOutput - The return type for the function.
  */
 
-import { defineFlow, generate } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/ai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from '@/components/customer-quotes-list';
-import { googleAI } from '@genkit-ai/googleai';
 
 const CreateEmailCampaignInputSchema = z.object({
   instruction: z.string().describe('The natural language instruction for the email campaign.'),
@@ -96,7 +94,7 @@ const findRelevantClients = (instruction: string, partners: Partner[], quotes: Q
 }
 
 
-const createEmailCampaignFlow = defineFlow(
+const createEmailCampaignFlow = ai.defineFlow(
   {
     name: 'createEmailCampaignFlow',
     inputSchema: CreateEmailCampaignInputSchema,
@@ -110,10 +108,10 @@ const createEmailCampaignFlow = defineFlow(
         console.log("No specific clients found based on manual KPIs or quote history.");
     }
     
-    const emailPrompt = definePrompt({
+    const emailPrompt = ai.definePrompt({
         name: 'generateCampaignEmailPrompt',
-        inputSchema: z.object({ instruction: z.string() }),
-        outputSchema: z.object({ emailSubject: z.string(), emailBody: z.string() }),
+        input: { schema: z.object({ instruction: z.string() }) },
+        output: { schema: z.object({ emailSubject: z.string(), emailBody: z.string() }) },
         prompt: `You are a marketing expert for a freight forwarding company called "CargaInteligente".
         
         Based on the following instruction, generate a professional and persuasive promotional email in Brazilian Portuguese.
@@ -132,16 +130,12 @@ const createEmailCampaignFlow = defineFlow(
         `
     });
 
-    const llmResponse = await generate({
-        prompt: emailPrompt.prompt,
+    const llmResponse = await ai.generate({
+        prompt: emailPrompt,
         input: { instruction },
-        model: googleAI('gemini-pro'),
-        output: {
-            schema: z.object({ emailSubject: z.string(), emailBody: z.string() })
-        }
     });
     
-    const output = llmResponse.output();
+    const output = llmResponse.output;
     if (!output) {
       throw new Error('AI failed to generate email content.');
     }

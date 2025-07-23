@@ -26,9 +26,6 @@ export type ConsultNfseItajaiOutput = z.infer<typeof ConsultNfseItajaiOutputSche
 
 const WSDL_URL = 'http://nfse-teste.publica.inf.br/homologa_nfse_integracao/Consultas?wsdl';
 
-export async function consultNfseItajai(input: ConsultNfseItajaiInput): Promise<ConsultNfseItajaiOutput> {
-  return consultNfseItajaiFlow(input);
-}
 
 const consultNfseItajaiFlow = defineFlow(
   {
@@ -48,10 +45,10 @@ const consultNfseItajaiFlow = defineFlow(
               <Cnpj>${cnpj}</Cnpj>
             </CpfCnpj>
           </IdentificacaoTomador>
-          <DataNfse>
-            <Inicial>${startDate}</Inicial>
-            <Final>${endDate}</Final>
-          </DataNfse>
+          <PeriodoEmissao>
+            <DataInicial>${startDate}</DataInicial>
+            <DataFinal>${endDate}</DataFinal>
+          </PeriodoEmissao>
           <Pagina>${page}</Pagina>
         </ConsultaNfseRecebida>
       </ConsultaNfseRecebidaEnvio>
@@ -61,10 +58,11 @@ const consultNfseItajaiFlow = defineFlow(
       const soapClient: Client = await createClientAsync(WSDL_URL);
       
       const args = {
-        XML: `<![CDATA[${xmlPayload}`
+        xml: xmlPayload
       };
 
-      const [result] = await soapClient.ConsultarNfseRecebidaAsync(args);
+      // The method name from WSDL is `ConsultarNfseRecebidas`
+      const [result] = await soapClient.ConsultarNfseRecebidasAsync(args);
       
       console.log('Successfully received response from NFS-e API.');
       return result;
@@ -78,3 +76,8 @@ const consultNfseItajaiFlow = defineFlow(
     }
   }
 );
+
+export async function consultNfseItajai(input: ConsultNfseItajaiInput): Promise<ConsultNfseItajaiOutput> {
+  // Use .run() to execute the flow
+  return await consultNfseItajaiFlow.run(input);
+}

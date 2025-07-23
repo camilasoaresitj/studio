@@ -7,7 +7,7 @@ import { getShipmentById, Shipment, Milestone, DocumentStatus } from '@/lib/ship
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare, Wallet, Info, Anchor, Clock } from 'lucide-react';
+import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare, Wallet, Info, Anchor, Clock, Map as MapIcon } from 'lucide-react';
 import { format, isValid, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
@@ -20,7 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2 } from 'lucide-react';
 import { findPortByTerm } from '@/lib/ports';
 import React, { useMemo } from 'react';
-import { ShipmentMap } from '../shipment-map';
+import { ShipmentMap } from './shipment-map';
 
 const MilestoneIcon = ({ status, predictedDate, isTransshipment }: { status: Milestone['status'], predictedDate?: Date | null, isTransshipment?: boolean }) => {
     if (!predictedDate || !isValid(predictedDate)) {
@@ -136,13 +136,30 @@ export function ClientPortalPage({ id }: { id: string }) {
         );
     }
     
-    const sortedMilestones = [...(shipment.milestones || [])].sort((a, b) => {
-        const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
-        const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return dateA - dateB;
-    });
+     const sortedMilestones = useMemo(() => {
+        if (!shipment) return [];
+        const uniqueMilestones = (shipment.milestones || []).reduce((acc: Milestone[], current) => {
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            const x = acc.find(item => 
+                item.name === current.name && 
+                Math.abs(new Date(item.predictedDate).getTime() - new Date(current.predictedDate).getTime()) < twentyFourHours &&
+                item.details === current.details
+            );
+            if (!x) {
+                return acc.concat([current]);
+            } else {
+                return acc;
+            }
+        }, []);
+
+        return uniqueMilestones.sort((a, b) => {
+            const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
+            const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return dateA - dateB;
+        });
+    }, [shipment]);
 
     // Filter out operational-only milestones for the client view
     const clientVisibleMilestones = sortedMilestones.filter(m => 
@@ -222,8 +239,9 @@ export function ClientPortalPage({ id }: { id: string }) {
                  {/* Main Content Area */}
                 <div className="lg:col-span-2 space-y-6">
                      <Tabs defaultValue={needsDraft ? "draft" : "timeline"} className="w-full">
-                        <TabsList className="grid w-full grid-cols-4">
+                        <TabsList className="grid w-full grid-cols-5">
                             <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                            <TabsTrigger value="map">Mapa</TabsTrigger>
                             <TabsTrigger value="draft" className="relative">
                                 Instruções de Embarque (Draft)
                                 {needsDraft && <span className="absolute top-1 right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-destructive"></span></span>}
@@ -248,14 +266,19 @@ export function ClientPortalPage({ id }: { id: string }) {
                                                 )}>
                                                     <MilestoneIcon status={milestone.status} predictedDate={milestone.predictedDate ? new Date(milestone.predictedDate) : null} isTransshipment={milestone.isTransshipment} />
                                                 </div>
-                                                <div className="pt-1.5">
+                                                <div className="pt-1.5 ml-8">
                                                     <p className={`font-semibold ${milestone.isTransshipment ? 'text-blue-600' : (milestone.status !== 'completed' ? 'text-foreground' : 'text-success')}`}>{milestone.name}</p>
                                                     <p className="text-sm text-muted-foreground">
                                                         {milestone.status === 'completed' && milestone.effectiveDate ? `Concluído em: ${format(new Date(milestone.effectiveDate), 'dd/MM/yyyy')}` : `Previsto para: ${milestone.predictedDate ? format(new Date(milestone.predictedDate), 'dd/MM/yyyy') : 'N/A'}`}
                                                     </p>
-                                                    {milestone.details && (
+                                                     {milestone.details && (
                                                         <p className="text-xs text-muted-foreground italic mt-1">
                                                             {milestone.details}
+                                                        </p>
+                                                    )}
+                                                     {(milestone.name.toLowerCase().includes('embarque') || milestone.name.toLowerCase().includes('chegada')) && shipment.vesselName && (
+                                                        <p className="text-xs text-muted-foreground italic mt-1">
+                                                            Navio: {shipment.vesselName}
                                                         </p>
                                                     )}
                                                 </div>
@@ -264,6 +287,18 @@ export function ClientPortalPage({ id }: { id: string }) {
                                     </div>
                                 </CardContent>
                             </Card>
+                        </TabsContent>
+                         <TabsContent value="map">
+                            {shipment.bookingNumber ? (
+                                <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                            ) : (
+                                <Card>
+                                    <CardContent className="flex flex-col items-center justify-center h-96 text-center text-muted-foreground">
+                                        <MapIcon className="h-12 w-12 mb-4" />
+                                        <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </TabsContent>
                         <TabsContent value="draft">
                             <BLDraftForm shipment={shipment} onUpdate={handleUpdate} />

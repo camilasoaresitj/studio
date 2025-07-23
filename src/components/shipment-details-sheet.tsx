@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -79,7 +80,7 @@ import { Label } from './ui/label';
 import { addFinancialEntries, getFinancialEntries } from '@/lib/financials-data';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { CustomsClearanceTab } from './customs-clearance-tab';
-
+import { findPortByTerm } from '@/lib/ports';
 
 const containerDetailSchema = z.object({
   id: z.string(),
@@ -305,6 +306,40 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
     );
 }
 
+const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string }) => {
+    const [time, setTime] = useState('');
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            try {
+                const newTime = new Date().toLocaleTimeString('pt-BR', {
+                    timeZone,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                });
+                setTime(newTime);
+            } catch (error) {
+                console.error(`Invalid time zone: ${timeZone}`);
+                setTime('Inválido');
+                clearInterval(timer);
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [timeZone]);
+
+    return (
+        <div className="flex items-center gap-2 text-xs">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <div>
+                <span className="font-semibold">{label}:</span>
+                <span className="font-mono ml-1">{time}</span>
+            </div>
+        </div>
+    );
+};
+
 const milestoneMapping: { [key: string]: string[] } = {
     'Confirmação de Embarque': ['vessel departure', 'gate out', 'saída do navio', 'departed'],
     'Chegada ao Destino': ['vessel arrival', 'discharged', 'unloaded from vessel', 'chegada do navio', 'arrived'],
@@ -347,6 +382,16 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
     const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
     const carrierPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && (p.tipoFornecedor?.ciaMaritima || p.tipoFornecedor?.ciaAerea) && p.scac), [partners]);
+
+    const { originTimeZone, destinationTimeZone } = useMemo(() => {
+        if (!shipment) return { originTimeZone: null, destinationTimeZone: null };
+        const originPort = findPortByTerm(shipment.origin);
+        const destPort = findPortByTerm(shipment.destination);
+        return {
+            originTimeZone: originPort?.timeZone || null,
+            destinationTimeZone: destPort?.timeZone || null,
+        };
+    }, [shipment]);
 
     const newMilestoneForm = useForm<NewMilestoneFormData>({
         resolver: zodResolver(newMilestoneSchema),
@@ -850,7 +895,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </Button>
                             </div>
                         </div>
-                        <div className="pt-4">
+                        <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center">
                             <Form {...form}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
                                     <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
@@ -859,6 +904,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                     <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
                                 </div>
                             </Form>
+                            <div className="flex gap-4 mt-2 md:mt-0">
+                                {originTimeZone && <TimeZoneClock label="Horário na Origem" timeZone={originTimeZone} />}
+                                {destinationTimeZone && <TimeZoneClock label="Horário no Destino" timeZone={destinationTimeZone} />}
+                            </div>
                         </div>
                     </SheetHeader>
                     
@@ -942,8 +991,13 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         </CardContent>
                                     </Card>
                                     <div className="lg:col-span-1">
-                                        {shipment.bookingNumber && (
+                                        {shipment.bookingNumber ? (
                                             <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                                        ) : (
+                                            <div className="text-center p-8 text-muted-foreground h-full flex flex-col justify-center items-center border rounded-lg">
+                                                <MapIcon className="mx-auto h-12 w-12 mb-4" />
+                                                <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                            </div>
                                         )}
                                     </div>
                                 </div>

@@ -7,7 +7,7 @@ import { getShipmentById, Shipment, Milestone, DocumentStatus } from '@/lib/ship
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare, Wallet, Info, Anchor } from 'lucide-react';
+import { ArrowLeft, Ship, CheckCircle2, Circle, Hourglass, AlertTriangle, FileText, Download, CalendarCheck2, FileWarning, MessageSquare, Wallet, Info, Anchor, Clock } from 'lucide-react';
 import { format, isValid, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
@@ -18,6 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShipmentChat } from '@/components/shipment-chat';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
+import { findPortByTerm } from '@/lib/ports';
 
 const MilestoneIcon = ({ status, predictedDate, isTransshipment }: { status: Milestone['status'], predictedDate?: Date | null, isTransshipment?: boolean }) => {
     if (!predictedDate || !isValid(predictedDate)) {
@@ -42,6 +43,39 @@ const MilestoneIcon = ({ status, predictedDate, isTransshipment }: { status: Mil
     return <Circle className="h-6 w-6 text-muted-foreground" />;
 };
 
+const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string }) => {
+    const [time, setTime] = useState('');
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            try {
+                const newTime = new Date().toLocaleTimeString('pt-BR', {
+                    timeZone,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                });
+                setTime(newTime);
+            } catch (error) {
+                console.error(`Invalid time zone: ${timeZone}`);
+                setTime('Inválido');
+                clearInterval(timer);
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [timeZone]);
+
+    return (
+        <div className="flex items-center gap-2 text-sm">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <div>
+                <span className="font-semibold">{label}:</span>
+                <span className="font-mono ml-1">{time}</span>
+            </div>
+        </div>
+    );
+};
 
 export function ClientPortalPage({ id }: { id: string }) {
     const [shipment, setShipment] = useState<Shipment | null>(null);
@@ -57,6 +91,16 @@ export function ClientPortalPage({ id }: { id: string }) {
       setIsLoading(false);
     }, [id]);
     
+    const { originTimeZone, destinationTimeZone } = useMemo(() => {
+        if (!shipment) return { originTimeZone: null, destinationTimeZone: null };
+        const originPort = findPortByTerm(shipment.origin);
+        const destPort = findPortByTerm(shipment.destination);
+        return {
+            originTimeZone: originPort?.timeZone || null,
+            destinationTimeZone: destPort?.timeZone || null,
+        };
+    }, [shipment]);
+
     const handleUpdate = (updatedShipment: Shipment) => {
         setShipment(updatedShipment);
     }
@@ -130,13 +174,19 @@ export function ClientPortalPage({ id }: { id: string }) {
                 <Button variant="outline" onClick={() => router.push('/portal')} className="mb-4">
                     <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para Meus Embarques
                 </Button>
-                <div className="flex items-center gap-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                        <Ship className="h-8 w-8 text-primary"/>
+                <div className="flex flex-col sm:flex-row justify-between items-start">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-primary/10 p-3 rounded-full">
+                            <Ship className="h-8 w-8 text-primary"/>
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold text-foreground">Processo #{shipment.id}</h1>
+                            <p className="text-muted-foreground">De {shipment.origin} para {shipment.destination}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">Processo #{shipment.id}</h1>
-                        <p className="text-muted-foreground">De {shipment.origin} para {shipment.destination}</p>
+                     <div className="flex gap-4 mt-2 sm:mt-0">
+                        {originTimeZone && <TimeZoneClock label="Origem" timeZone={originTimeZone} />}
+                        {destinationTimeZone && <TimeZoneClock label="Destino" timeZone={destinationTimeZone} />}
                     </div>
                 </div>
             </header>

@@ -98,14 +98,41 @@ export function ClientPortalPage({ id }: { id: string }) {
         const originPort = findPortByTerm(shipment.origin);
         const destPort = findPortByTerm(shipment.destination);
 
+        // Prioritize showing the foreign location's time.
         if (originPort && originPort.country !== 'BR') {
             return { label: originPort.name, timeZone: originPort.timeZone };
         }
         if (destPort && destPort.country !== 'BR') {
             return { label: destPort.name, timeZone: destPort.timeZone };
         }
-        return null;
+        return null; // Return null if both are in BR or not found
     }, [shipment]);
+
+    const sortedMilestones = useMemo(() => {
+        if (!shipment) return [];
+        const uniqueMilestones = (shipment.milestones || []).reduce((acc: Milestone[], current) => {
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            const x = acc.find(item => 
+                item.name === current.name && 
+                Math.abs(new Date(item.predictedDate).getTime() - new Date(current.predictedDate).getTime()) < twentyFourHours &&
+                item.details === current.details
+            );
+            if (!x) {
+                return acc.concat([current]);
+            } else {
+                return acc;
+            }
+        }, []);
+
+        return uniqueMilestones.sort((a, b) => {
+            const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
+            const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return dateA - dateB;
+        });
+    }, [shipment]);
+
 
     const handleUpdate = (updatedShipment: Shipment) => {
         setShipment(updatedShipment);
@@ -136,31 +163,6 @@ export function ClientPortalPage({ id }: { id: string }) {
         );
     }
     
-     const sortedMilestones = useMemo(() => {
-        if (!shipment) return [];
-        const uniqueMilestones = (shipment.milestones || []).reduce((acc: Milestone[], current) => {
-            const twentyFourHours = 24 * 60 * 60 * 1000;
-            const x = acc.find(item => 
-                item.name === current.name && 
-                Math.abs(new Date(item.predictedDate).getTime() - new Date(current.predictedDate).getTime()) < twentyFourHours &&
-                item.details === current.details
-            );
-            if (!x) {
-                return acc.concat([current]);
-            } else {
-                return acc;
-            }
-        }, []);
-
-        return uniqueMilestones.sort((a, b) => {
-            const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
-            const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
-            if (!dateA) return 1;
-            if (!dateB) return -1;
-            return dateA - dateB;
-        });
-    }, [shipment]);
-
     // Filter out operational-only milestones for the client view
     const clientVisibleMilestones = sortedMilestones.filter(m => 
         !m.name.toLowerCase().includes('enviar draft mbl ao armador')

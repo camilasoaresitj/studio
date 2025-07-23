@@ -1,11 +1,12 @@
 
 'use server';
 
-import { genkit } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
 import { dotprompt } from '@genkit-ai/dotprompt';
+import { genkit } from '@genkit-ai/core';
 
-export const ai = genkit({
+export const ai = configureGenkit({
   plugins: [
     googleAI(),
     dotprompt,

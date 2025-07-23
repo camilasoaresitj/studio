@@ -89,12 +89,7 @@ const sendQuoteFlow = ai.defineFlow(
   async input => {
     console.log(`Simulating generating communication for ${input.customerName}`);
     
-    const response = await ai.generate({
-      prompt: sendQuotePrompt,
-      input,
-    });
-    
-    const output = response.output;
+    const { output } = await sendQuotePrompt(input);
 
     if (!output) {
       throw new Error("AI failed to generate communication content.");

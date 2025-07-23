@@ -56,11 +56,7 @@ const monitorEmailForTasksFlow = ai.defineFlow(
     outputSchema: MonitorEmailForTasksOutputSchema,
   },
   async input => {
-    const response = await ai.generate({
-      prompt: prompt,
-      input,
-    });
-    const output = response.output;
+    const { output } = await prompt(input);
     if (!output) {
       throw new Error("AI failed to generate task analysis.");
     }

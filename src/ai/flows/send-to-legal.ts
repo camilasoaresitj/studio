@@ -68,12 +68,8 @@ const sendToLegalFlow = ai.defineFlow(
     outputSchema: SendToLegalOutputSchema,
   },
   async (input) => {
-    const response = await ai.generate({
-      prompt: sendToLegalPrompt,
-      input,
-    });
+    const { output } = await sendToLegalPrompt(input);
     
-    const output = response.output;
     if (!output) {
       throw new Error("AI failed to generate legal email.");
     }

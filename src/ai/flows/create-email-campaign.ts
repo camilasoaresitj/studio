@@ -93,6 +93,28 @@ const findRelevantClients = (instruction: string, partners: Partner[], quotes: Q
     return Array.from(clientSet);
 }
 
+const emailPrompt = ai.definePrompt({
+    name: 'generateCampaignEmailPrompt',
+    input: { schema: z.object({ instruction: z.string() }) },
+    output: { schema: z.object({ emailSubject: z.string(), emailBody: z.string() }) },
+    prompt: `You are a marketing expert for a freight forwarding company called "CargaInteligente".
+    
+    Based on the following instruction, generate a professional and persuasive promotional email in Brazilian Portuguese.
+    The email should be friendly, clear, and highlight the special offer.
+    Start with a generic greeting like "Olá," as this will be sent in bulk.
+    Make sure the body is valid HTML.
+
+    **Instruction:**
+    {{{instruction}}}
+
+    **Example Output:**
+    {
+        "emailSubject": "Oferta Especial: Frete de Shanghai para Santos!",
+        "emailBody": "<p>Olá,</p><p>Temos uma excelente notícia para suas importações da China! Recebemos uma tarifa especial e por tempo limitado para a rota <strong>Shanghai x Santos</strong>.</p><p><strong>Apenas USD 5200.00 por contêiner de 40'HC!</strong></p><p>Esta é uma oportunidade única para garantir um frete competitivo para suas próximas cargas. Entre em contato conosco para mais detalhes e para garantir sua reserva.</p><p>Atenciosamente,<br>Equipe CargaInteligente</p>"
+    }
+    `
+});
+
 
 const createEmailCampaignFlow = ai.defineFlow(
   {
@@ -107,35 +129,9 @@ const createEmailCampaignFlow = ai.defineFlow(
     if (targetClients.length === 0) {
         console.log("No specific clients found based on manual KPIs or quote history.");
     }
+
+    const { output } = await emailPrompt({ instruction });
     
-    const emailPrompt = ai.definePrompt({
-        name: 'generateCampaignEmailPrompt',
-        input: { schema: z.object({ instruction: z.string() }) },
-        output: { schema: z.object({ emailSubject: z.string(), emailBody: z.string() }) },
-        prompt: `You are a marketing expert for a freight forwarding company called "CargaInteligente".
-        
-        Based on the following instruction, generate a professional and persuasive promotional email in Brazilian Portuguese.
-        The email should be friendly, clear, and highlight the special offer.
-        Start with a generic greeting like "Olá," as this will be sent in bulk.
-        Make sure the body is valid HTML.
-
-        **Instruction:**
-        {{{instruction}}}
-
-        **Example Output:**
-        {
-            "emailSubject": "Oferta Especial: Frete de Shanghai para Santos!",
-            "emailBody": "<p>Olá,</p><p>Temos uma excelente notícia para suas importações da China! Recebemos uma tarifa especial e por tempo limitado para a rota <strong>Shanghai x Santos</strong>.</p><p><strong>Apenas USD 5200.00 por contêiner de 40'HC!</strong></p><p>Esta é uma oportunidade única para garantir um frete competitivo para suas próximas cargas. Entre em contato conosco para mais detalhes e para garantir sua reserva.</p><p>Atenciosamente,<br>Equipe CargaInteligente</p>"
-        }
-        `
-    });
-
-    const llmResponse = await ai.generate({
-        prompt: emailPrompt,
-        input: { instruction },
-    });
-    
-    const output = llmResponse.output;
     if (!output) {
       throw new Error('AI failed to generate email content.');
     }

@@ -51,18 +51,12 @@ const fetchDirectoryPageContent = ai.defineTool(
 );
 
 
-const syncDFAgentsFlow = ai.defineFlow(
-  {
-    name: 'syncDFAgentsFlow',
-    inputSchema: z.void(),
-    outputSchema: SyncDFAgentsOutputSchema,
-  },
-  async () => {
-    // Define a prompt that uses the tool to get the page content and then parses it.
-    const syncPrompt = ai.definePrompt({
-        name: 'syncDFAgentsPrompt',
-        output: { schema: SyncDFAgentsOutputSchema },
-        prompt: `You are an expert data extraction AI. Your task is to extract all freight forwarder agent details from the provided HTML content of the DF Alliance directory.
+// Define a prompt that uses the tool to get the page content and then parses it.
+const syncPrompt = ai.definePrompt({
+    name: 'syncDFAgentsPrompt',
+    output: { schema: SyncDFAgentsOutputSchema },
+    tools: [fetchDirectoryPageContent],
+    prompt: `You are an expert data extraction AI. Your task is to extract all freight forwarder agent details from the provided HTML content of the DF Alliance directory.
 
 First, call the \`fetchDirectoryPageContent\` tool to get the HTML.
 
@@ -91,14 +85,16 @@ Return a JSON array where each object represents one agent and contains the extr
 
 Return an empty array [] if no agents can be extracted.
 `,
-    });
+});
 
-    const response = await ai.generate({
-        prompt: syncPrompt,
-        tools: [fetchDirectoryPageContent]
-    });
-
-    const output = response.output;
+const syncDFAgentsFlow = ai.defineFlow(
+  {
+    name: 'syncDFAgentsFlow',
+    inputSchema: z.void(),
+    outputSchema: SyncDFAgentsOutputSchema,
+  },
+  async () => {
+    const { output } = await syncPrompt();
     if (!output) {
       throw new Error('AI failed to extract any agent information from the directory.');
     }

@@ -59,11 +59,7 @@ const sendDraftApprovalRequestFlow = ai.defineFlow(
     outputSchema: SendDraftApprovalRequestOutputSchema,
   },
   async (input) => {
-    const response = await ai.generate({
-      prompt: sendDraftApprovalRequestPrompt,
-      input,
-    });
-    const output = response.output;
+    const { output } = await sendDraftApprovalRequestPrompt(input);
     if (!output) {
       throw new Error("AI failed to generate draft approval request.");
     }

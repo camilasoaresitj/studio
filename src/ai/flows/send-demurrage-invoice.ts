@@ -70,11 +70,7 @@ const sendDemurrageInvoiceFlow = ai.defineFlow(
     outputSchema: SendDemurrageInvoiceOutputSchema,
   },
   async (input) => {
-    const response = await ai.generate({
-      prompt: sendDemurrageInvoicePrompt,
-      input,
-    });
-    const output = response.output;
+    const { output } = await sendDemurrageInvoicePrompt(input);
     if (!output) {
       throw new Error("AI failed to generate demurrage invoice email.");
     }

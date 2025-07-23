@@ -119,10 +119,7 @@ const extractQuoteDetailsFromTextFlow = ai.defineFlow(
     outputSchema: ExtractQuoteDetailsFromTextOutputSchema,
   },
   async (input) => {
-    const response = await ai.generate({
-      prompt: extractQuoteDetailsFromTextPrompt,
-      input,
-    });
-    return response.output || {};
+    const { output } = await extractQuoteDetailsFromTextPrompt(input);
+    return output || {};
   }
 );

@@ -105,12 +105,8 @@ const requestAgentQuoteFlow = ai.defineFlow(
         shipmentDetails: shipmentDetailsString
     };
 
-    const response = await ai.generate({
-      prompt: requestAgentQuotePrompt,
-      input: promptInput,
-    });
+    const { output } = await requestAgentQuotePrompt(promptInput);
     
-    const output = response.output;
     if (!output) {
       throw new Error("AI failed to generate agent quote request.");
     }

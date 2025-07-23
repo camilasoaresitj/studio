@@ -71,12 +71,8 @@ const shareSimulationFlow = ai.defineFlow(
         totalCostBRL: input.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     };
 
-    const response = await ai.generate({
-      prompt: shareSimulationPrompt,
-      input: formattedInput,
-    });
+    const { output } = await shareSimulationPrompt(formattedInput);
     
-    const output = response.output;
     if (!output) {
       throw new Error("A IA não conseguiu gerar o conteúdo para compartilhamento.");
     }

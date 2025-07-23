@@ -7,8 +7,8 @@
  * - DFAgent - The return type for a single agent.
  */
 
-import { defineFlow, definePrompt, defineTool } from '@genkit-ai/ai';
-import { generate } from '@genkit-ai/core';
+import { defineFlow, defineTool, generate } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 import { z } from 'zod';
 import { googleAI } from '@genkit-ai/googleai';
 

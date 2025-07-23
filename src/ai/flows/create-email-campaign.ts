@@ -8,8 +8,8 @@
  * CreateEmailCampaignOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/ai';
-import { generate } from '@genkit-ai/core';
+import { defineFlow, generate } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 import { z } from 'zod';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from '@/components/customer-quotes-list';

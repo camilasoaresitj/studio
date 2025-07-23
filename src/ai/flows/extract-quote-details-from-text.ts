@@ -8,8 +8,8 @@
  * - ExtractQuoteDetailsFromTextOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/ai';
-import { generate } from '@genkit-ai/core';
+import { defineFlow, generate } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 import { z } from 'zod';
 import { baseFreightQuoteFormSchema, oceanContainerSchema } from '@/lib/schemas';
 import { googleAI } from '@genkit-ai/googleai';

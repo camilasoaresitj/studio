@@ -8,8 +8,8 @@
  * SendShippingInstructionsOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/ai';
-import { generate } from '@genkit-ai/core';
+import { defineFlow, generate } from '@genkit-ai/core';
+import { definePrompt } from '@genkit-ai/ai';
 import { z } from 'zod';
 import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema } from '@/lib/schemas';
 import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';

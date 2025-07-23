@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -964,11 +963,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                     <div>
                                                                         <p className={cn("font-semibold text-base", milestone.isTransshipment && "text-red-500", isCompleted && "text-success")}>{milestone.isTransshipment ? milestone.name.toUpperCase() : milestone.name}</p>
                                                                         <p className="text-sm text-muted-foreground -mt-1">{milestone.details}</p>
-                                                                         {(milestone.name.toLowerCase().includes('embarque') || milestone.name.toLowerCase().includes('chegada')) && shipment.vesselName && (
-                                                                            <p className="text-xs text-muted-foreground italic mt-1">
-                                                                                Navio: {shipment.vesselName}
-                                                                            </p>
-                                                                        )}
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (

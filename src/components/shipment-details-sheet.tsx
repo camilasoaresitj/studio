@@ -311,6 +311,40 @@ const milestoneMapping: { [key: string]: string[] } = {
     'Container Gate In (Entregue no Porto)': ['gate in', 'container received', 'container entregue no porto'],
 };
 
+const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string }) => {
+    const [time, setTime] = useState('');
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            try {
+                const newTime = new Date().toLocaleTimeString('pt-BR', {
+                    timeZone,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                });
+                setTime(newTime);
+            } catch (error) {
+                console.error(`Invalid time zone: ${timeZone}`);
+                setTime('Inválido');
+                clearInterval(timer);
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [timeZone]);
+
+    return (
+        <div className="flex items-center gap-2 text-sm p-2 rounded-md bg-secondary">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <div>
+                <span className="font-semibold">{label}:</span>
+                <span className="font-mono ml-1 font-bold text-primary">{time}</span>
+            </div>
+        </div>
+    );
+};
+
 function mapEventToMilestone(eventName: string): string | null {
     const lowerEventName = eventName.toLowerCase();
     for (const milestoneName in milestoneMapping) {
@@ -352,6 +386,20 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         resolver: zodResolver(newMilestoneSchema),
         defaultValues: { name: '', details: '' }
     });
+
+    const foreignLocationClock = useMemo(() => {
+        if (!shipment) return null;
+        const originPort = findPortByTerm(shipment.origin);
+        const destPort = findPortByTerm(shipment.destination);
+
+        if (originPort && originPort.country !== 'BR') {
+            return { label: originPort.name, timeZone: originPort.timeZone };
+        }
+        if (destPort && destPort.country !== 'BR') {
+            return { label: destPort.name, timeZone: destPort.timeZone };
+        }
+        return null;
+    }, [shipment]);
     
     useEffect(() => {
         if (shipment) {
@@ -784,28 +832,14 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
     const sortedMilestones = useMemo(() => {
         if (!shipment) return [];
-        const uniqueMilestones = (form.getValues('milestones') || []).reduce((acc: Milestone[], current) => {
-            const twentyFourHours = 24 * 60 * 60 * 1000;
-            const x = acc.find(item => 
-                item.name === current.name && 
-                Math.abs(new Date(item.predictedDate).getTime() - new Date(current.predictedDate).getTime()) < twentyFourHours &&
-                item.details === current.details
-            );
-            if (!x) {
-                return acc.concat([current]);
-            } else {
-                return acc;
-            }
-        }, []);
-
-        return uniqueMilestones.sort((a, b) => {
+        return [...(form.getValues('milestones') || [])].sort((a, b) => {
             const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
             const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
             if (!dateA) return 1;
             if (!dateB) return -1;
             return dateA - dateB;
         });
-    }, [shipment, form.watch('milestones')]);
+    }, [shipment, form.watch('milestones')]); // Re-sort when milestones change
 
     if (!shipment) {
         return (
@@ -930,11 +964,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                     <div>
                                                                         <p className={cn("font-semibold text-base", milestone.isTransshipment && "text-red-500", isCompleted && "text-success")}>{milestone.isTransshipment ? milestone.name.toUpperCase() : milestone.name}</p>
                                                                         <p className="text-sm text-muted-foreground -mt-1">{milestone.details}</p>
-                                                                         {(milestone.name.toLowerCase().includes('embarque') || milestone.name.toLowerCase().includes('chegada')) && shipment.vesselName && (
-                                                                            <p className="text-xs text-muted-foreground italic mt-1">
-                                                                                Navio: {shipment.vesselName}
-                                                                            </p>
-                                                                        )}
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (

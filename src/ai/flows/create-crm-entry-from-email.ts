@@ -39,7 +39,7 @@ const createCrmEntryFromEmailPrompt = definePrompt({
   Your goal is to extract key information from the email and structure it into a CRM entry.
 
   Analyze the following email content:
-  {{emailContent}}
+  {{{emailContent}}}
 
   Extract the following information:
   - Contact Name: The name of the person who sent the email.

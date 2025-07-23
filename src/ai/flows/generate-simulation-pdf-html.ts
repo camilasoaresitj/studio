@@ -116,7 +116,7 @@ const generateSimulationPdfHtmlFlow = defineFlow(
                 <th style="text-align: right;">V. Aduaneiro</th>
                 <th style="text-align: right;">Impostos</th>
                 <th style="text-align: right;">Despesas</th>
-                <th style="text-align: right;">Custo Unit. Final</th>
+                <th style="text-align: right; font-weight: bold;">Custo Unit. Final</th>
               </tr>
             </thead>
             <tbody>

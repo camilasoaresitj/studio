@@ -8,18 +8,8 @@
  * GetNcmRatesOutput - The return type for the function.
  */
 
-import { genkit } from '@genkit-ai/core';
-import { googleAI } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-
-const ai = genkit({
-  plugins: [googleAI()],
-  models: {
-    'gemini-pro': {
-      model: 'gemini-1.5-flash-latest',
-    },
-  },
-});
 
 const GetNcmRatesInputSchema = z.object({
   ncm: z.string().describe('The NCM code (8 digits).'),
@@ -82,10 +72,8 @@ const getNcmRatesFlow = ai.defineFlow(
     console.log(`Simulating NCM rate lookup for ${input.ncm}`);
     const { output } = await ai.generate({
       model: 'gemini-pro',
-      prompt: {
-        ...getNcmRatesPrompt,
-        input,
-      }
+      prompt: getNcmRatesPrompt,
+      input,
     });
     
     if (!output) {

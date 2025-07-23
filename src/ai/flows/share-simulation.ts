@@ -8,18 +8,8 @@
  * ShareSimulationOutput - The return type for the function.
  */
 
-import { genkit } from '@genkit-ai/core';
-import { googleAI } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-
-const ai = genkit({
-  plugins: [googleAI()],
-  models: {
-    'gemini-pro': {
-      model: 'gemini-1.5-flash-latest',
-    },
-  },
-});
 
 const ShareSimulationInputSchema = z.object({
   customerName: z.string().describe('The name of the customer receiving the simulation.'),
@@ -82,7 +72,8 @@ const shareSimulationFlow = ai.defineFlow(
     };
 
     const { output } = await ai.generate({
-      prompt: { ...shareSimulationPrompt, input: formattedInput },
+      prompt: shareSimulationPrompt,
+      input: formattedInput,
       model: 'gemini-pro',
     });
     

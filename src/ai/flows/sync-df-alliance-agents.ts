@@ -97,7 +97,7 @@ const syncDFAgentsFlow = ai.defineFlow(
   },
   async () => {
     const { output } = await ai.generate({
-      prompt: { ...syncPrompt },
+      prompt: syncPrompt,
       model: 'gemini-pro',
     });
     

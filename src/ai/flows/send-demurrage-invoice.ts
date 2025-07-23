@@ -8,18 +8,8 @@
  * SendDemurrageInvoiceOutput - The return type for the function.
  */
 
-import { genkit } from '@genkit-ai/core';
-import { googleAI } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-
-const ai = genkit({
-  plugins: [googleAI()],
-  models: {
-    'gemini-pro': {
-      model: 'gemini-1.5-flash-latest',
-    },
-  },
-});
 
 const SendDemurrageInvoiceInputSchema = z.object({
   customerName: z.string().describe('The name of the customer receiving the invoice.'),
@@ -81,7 +71,8 @@ const sendDemurrageInvoiceFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await ai.generate({
-      prompt: { ...sendDemurrageInvoicePrompt, input },
+      prompt: sendDemurrageInvoicePrompt,
+      input,
       model: 'gemini-pro',
     });
     

@@ -8,18 +8,8 @@
  * - ExtractPartnerInfoOutput - The return type for the function.
  */
 
-import { genkit } from '@genkit-ai/core';
-import { googleAI } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-
-const ai = genkit({
-  plugins: [googleAI()],
-  models: {
-    'gemini-pro': {
-      model: 'gemini-1.5-flash-latest',
-    },
-  },
-});
 
 const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
 
@@ -120,10 +110,8 @@ const extractPartnerInfoFlow = ai.defineFlow(
   async (input) => {
     const { output } = await ai.generate({
       model: 'gemini-pro',
-      prompt: {
-        ...extractPartnerInfoPrompt,
-        input,
-      }
+      prompt: extractPartnerInfoPrompt,
+      input,
     });
     
     if (!output) {

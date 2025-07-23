@@ -93,16 +93,18 @@ export function ClientPortalPage({ id }: { id: string }) {
       setIsLoading(false);
     }, [id]);
     
-    const { originTimeZone, destinationTimeZone, originCity, destinationCity } = useMemo(() => {
-        if (!shipment) return { originTimeZone: null, destinationTimeZone: null, originCity: null, destinationCity: null };
+    const foreignLocationClock = useMemo(() => {
+        if (!shipment) return null;
         const originPort = findPortByTerm(shipment.origin);
         const destPort = findPortByTerm(shipment.destination);
-        return {
-            originTimeZone: originPort?.timeZone || null,
-            destinationTimeZone: destPort?.timeZone || null,
-            originCity: originPort?.name || null,
-            destinationCity: destPort?.name || null,
-        };
+
+        if (originPort && originPort.country !== 'BR') {
+            return { label: originPort.name, timeZone: originPort.timeZone };
+        }
+        if (destPort && destPort.country !== 'BR') {
+            return { label: destPort.name, timeZone: destPort.timeZone };
+        }
+        return null;
     }, [shipment]);
 
     const handleUpdate = (updatedShipment: Shipment) => {
@@ -189,8 +191,9 @@ export function ClientPortalPage({ id }: { id: string }) {
                         </div>
                     </div>
                      <div className="flex gap-4 mt-2 sm:mt-0">
-                        {originTimeZone && originCity && <TimeZoneClock label={originCity} timeZone={originTimeZone} />}
-                        {destinationTimeZone && destinationCity && <TimeZoneClock label={destinationCity} timeZone={destinationTimeZone} />}
+                        {foreignLocationClock && (
+                            <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
+                        )}
                     </div>
                 </div>
             </header>

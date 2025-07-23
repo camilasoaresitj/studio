@@ -330,11 +330,11 @@ const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string })
     }, [timeZone]);
 
     return (
-        <div className="flex items-center gap-2 text-xs">
-            <Clock className="h-3 w-3 text-muted-foreground" />
+        <div className="flex items-center gap-2 text-sm p-2 rounded-md bg-secondary">
+            <Clock className="h-4 w-4 text-muted-foreground" />
             <div>
                 <span className="font-semibold">{label}:</span>
-                <span className="font-mono ml-1">{time}</span>
+                <span className="font-mono ml-1 font-bold text-primary">{time}</span>
             </div>
         </div>
     );
@@ -383,14 +383,18 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
     const carrierPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && (p.tipoFornecedor?.ciaMaritima || p.tipoFornecedor?.ciaAerea) && p.scac), [partners]);
 
-    const { originTimeZone, destinationTimeZone } = useMemo(() => {
-        if (!shipment) return { originTimeZone: null, destinationTimeZone: null };
+    const foreignLocationClock = useMemo(() => {
+        if (!shipment) return null;
         const originPort = findPortByTerm(shipment.origin);
         const destPort = findPortByTerm(shipment.destination);
-        return {
-            originTimeZone: originPort?.timeZone || null,
-            destinationTimeZone: destPort?.timeZone || null,
-        };
+
+        if (originPort && originPort.country !== 'BR') {
+            return { label: originPort.name, timeZone: originPort.timeZone };
+        }
+        if (destPort && destPort.country !== 'BR') {
+            return { label: destPort.name, timeZone: destPort.timeZone };
+        }
+        return null;
     }, [shipment]);
 
     const newMilestoneForm = useForm<NewMilestoneFormData>({
@@ -905,8 +909,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </div>
                             </Form>
                             <div className="flex gap-4 mt-2 md:mt-0">
-                                {originTimeZone && <TimeZoneClock label="Horário na Origem" timeZone={originTimeZone} />}
-                                {destinationTimeZone && <TimeZoneClock label="Horário no Destino" timeZone={destinationTimeZone} />}
+                                {foreignLocationClock && (
+                                    <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
+                                )}
                             </div>
                         </div>
                     </SheetHeader>

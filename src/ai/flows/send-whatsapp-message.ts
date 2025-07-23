@@ -8,7 +8,7 @@
  * SendWhatsappMessageOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 import { Twilio } from 'twilio';
 
@@ -28,7 +28,7 @@ export async function sendWhatsappMessage(input: SendWhatsappMessageInput): Prom
   return sendWhatsappMessageFlow(input);
 }
 
-const sendWhatsappMessageFlow = ai.defineFlow(
+const sendWhatsappMessageFlow = defineFlow(
   {
     name: 'sendWhatsappMessageFlow',
     inputSchema: SendWhatsappMessageInputSchema,

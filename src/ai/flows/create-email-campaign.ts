@@ -8,7 +8,7 @@
  * CreateEmailCampaignOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from '@/components/customer-quotes-list';
@@ -94,7 +94,7 @@ const findRelevantClients = (instruction: string, partners: Partner[], quotes: Q
 }
 
 
-const createEmailCampaignFlow = ai.defineFlow(
+const createEmailCampaignFlow = defineFlow(
   {
     name: 'createEmailCampaignFlow',
     inputSchema: CreateEmailCampaignInputSchema,
@@ -108,7 +108,7 @@ const createEmailCampaignFlow = ai.defineFlow(
         console.log("No specific clients found based on manual KPIs or quote history.");
     }
     
-    const emailPrompt = ai.definePrompt({
+    const emailPrompt = definePrompt({
         name: 'generateCampaignEmailPrompt',
         input: { schema: z.object({ instruction: z.string() }) },
         output: { schema: z.object({ emailSubject: z.string(), emailBody: z.string() }) },
@@ -130,8 +130,13 @@ const createEmailCampaignFlow = ai.defineFlow(
         `
     });
 
-    const { output } = await emailPrompt({ instruction });
-
+    const response = await generate({
+        prompt: emailPrompt,
+        input: { instruction },
+        model: 'googleai/gemini-pro',
+    });
+    
+    const output = response.output();
     if (!output) {
       throw new Error('AI failed to generate email content.');
     }

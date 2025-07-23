@@ -8,7 +8,7 @@
  * ConsultNfseItajaiOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 import { createClientAsync, Client } from 'soap';
 
@@ -30,7 +30,7 @@ export async function consultNfseItajai(input: ConsultNfseItajaiInput): Promise<
   return consultNfseItajaiFlow(input);
 }
 
-const consultNfseItajaiFlow = ai.defineFlow(
+const consultNfseItajaiFlow = defineFlow(
   {
     name: 'consultNfseItajaiFlow',
     inputSchema: ConsultNfseItajaiInputSchema,

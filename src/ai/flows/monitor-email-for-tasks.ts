@@ -9,8 +9,8 @@
  * - MonitorEmailForTasksOutput - The return type for the monitorEmailForTasks function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { z } from 'zod';
 
 const MonitorEmailForTasksInputSchema = z.object({
   emailContent: z.string().describe('The content of the email to monitor.'),
@@ -32,7 +32,7 @@ export async function monitorEmailForTasks(input: MonitorEmailForTasksInput): Pr
   return monitorEmailForTasksFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const prompt = definePrompt({
   name: 'monitorEmailForTasksPrompt',
   input: {schema: MonitorEmailForTasksInputSchema},
   output: {schema: MonitorEmailForTasksOutputSchema},
@@ -50,14 +50,22 @@ const prompt = ai.definePrompt({
   `,
 });
 
-const monitorEmailForTasksFlow = ai.defineFlow(
+const monitorEmailForTasksFlow = defineFlow(
   {
     name: 'monitorEmailForTasksFlow',
     inputSchema: MonitorEmailForTasksInputSchema,
     outputSchema: MonitorEmailForTasksOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    const response = await generate({
+      prompt: prompt,
+      input,
+      model: 'googleai/gemini-pro',
+    });
+    const output = response.output();
+    if (!output) {
+      throw new Error("AI failed to generate task analysis.");
+    }
+    return output;
   }
 );

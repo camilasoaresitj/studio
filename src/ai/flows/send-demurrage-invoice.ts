@@ -8,8 +8,8 @@
  * SendDemurrageInvoiceOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { z } from 'zod';
 
 const SendDemurrageInvoiceInputSchema = z.object({
   customerName: z.string().describe('The name of the customer receiving the invoice.'),
@@ -32,7 +32,7 @@ export async function sendDemurrageInvoice(input: SendDemurrageInvoiceInput): Pr
   return sendDemurrageInvoiceFlow(input);
 }
 
-const sendDemurrageInvoicePrompt = ai.definePrompt({
+const sendDemurrageInvoicePrompt = definePrompt({
   name: 'sendDemurrageInvoicePrompt',
   input: {schema: SendDemurrageInvoiceInputSchema},
   output: {schema: SendDemurrageInvoiceOutputSchema},
@@ -63,14 +63,22 @@ const sendDemurrageInvoicePrompt = ai.definePrompt({
 `,
 });
 
-const sendDemurrageInvoiceFlow = ai.defineFlow(
+const sendDemurrageInvoiceFlow = defineFlow(
   {
     name: 'sendDemurrageInvoiceFlow',
     inputSchema: SendDemurrageInvoiceInputSchema,
     outputSchema: SendDemurrageInvoiceOutputSchema,
   },
   async (input) => {
-    const {output} = await sendDemurrageInvoicePrompt(input);
-    return output!;
+    const response = await generate({
+      prompt: sendDemurrageInvoicePrompt,
+      input,
+      model: 'googleai/gemini-pro',
+    });
+    const output = response.output();
+    if (!output) {
+      throw new Error("AI failed to generate demurrage invoice email.");
+    }
+    return output;
   }
 );

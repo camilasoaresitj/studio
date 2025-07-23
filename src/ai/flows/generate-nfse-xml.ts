@@ -8,7 +8,7 @@
  * GenerateNfseXmlOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 import { format } from 'date-fns';
 
@@ -60,7 +60,7 @@ export async function generateNfseXml(input: GenerateNfseXmlInput): Promise<Gene
   return generateNfseXmlFlow(input);
 }
 
-const generateNfseXmlFlow = ai.defineFlow(
+const generateNfseXmlFlow = defineFlow(
   {
     name: 'generateNfseXmlFlow',
     inputSchema: GenerateNfseXmlInputSchema,

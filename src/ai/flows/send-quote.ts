@@ -8,8 +8,8 @@
  * SendQuoteOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { z } from 'zod';
 
 const RateDetailsSchema = z.object({
     origin: z.string().describe("The origin of the shipment."),
@@ -41,7 +41,7 @@ export async function sendQuote(input: SendQuoteInput): Promise<SendQuoteOutput>
   return sendQuoteFlow(input);
 }
 
-const sendQuotePrompt = ai.definePrompt({
+const sendQuotePrompt = definePrompt({
   name: 'sendQuotePrompt',
   input: {schema: SendQuoteInputSchema},
   output: {schema: SendQuoteOutputSchema},
@@ -80,7 +80,7 @@ Generate the following based on the input data, language rule, and whether it's 
 `,
 });
 
-const sendQuoteFlow = ai.defineFlow(
+const sendQuoteFlow = defineFlow(
   {
     name: 'sendQuoteFlow',
     inputSchema: SendQuoteInputSchema,
@@ -89,11 +89,21 @@ const sendQuoteFlow = ai.defineFlow(
   async input => {
     console.log(`Simulating generating communication for ${input.customerName}`);
     
-    const {output} = await sendQuotePrompt(input);
+    const response = await generate({
+      prompt: sendQuotePrompt,
+      input,
+      model: 'googleai/gemini-pro',
+    });
+    
+    const output = response.output();
 
-    console.log('Generated Email Subject:', output?.emailSubject);
-    console.log('Generated WhatsApp Message:', output?.whatsappMessage);
+    if (!output) {
+      throw new Error("AI failed to generate communication content.");
+    }
+    
+    console.log('Generated Email Subject:', output.emailSubject);
+    console.log('Generated WhatsApp Message:', output.whatsappMessage);
 
-    return output!;
+    return output;
   }
 );

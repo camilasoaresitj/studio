@@ -8,7 +8,7 @@
  * SendShippingInstructionsOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema } from '@/lib/schemas';
 import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
@@ -18,7 +18,7 @@ export async function sendShippingInstructions(input: SendShippingInstructionsIn
   return sendShippingInstructionsFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const prompt = definePrompt({
   name: 'sendShippingInstructionsPrompt',
   input: { schema: SendShippingInstructionsInputSchema },
   output: { schema: SendShippingInstructionsOutputSchema },
@@ -113,7 +113,7 @@ const prompt = ai.definePrompt({
 `,
 });
 
-const sendShippingInstructionsFlow = ai.defineFlow(
+const sendShippingInstructionsFlow = defineFlow(
   {
     name: 'sendShippingInstructionsFlow',
     inputSchema: SendShippingInstructionsInputSchema,
@@ -124,14 +124,23 @@ const sendShippingInstructionsFlow = ai.defineFlow(
     // We will just log the action to the console to simulate it.
     console.log(`SIMULATING sending Shipping Instructions to ${input.agentEmail}`);
 
-    const { output } = await prompt(input);
+    const response = await generate({
+      prompt,
+      input,
+      model: 'googleai/gemini-pro',
+    });
+    
+    const output = response.output();
+    if (!output) {
+      throw new Error("AI failed to generate shipping instructions.");
+    }
 
     console.log('--- GENERATED SHIPPING INSTRUCTIONS (SIMULATED) ---');
-    console.log('SUBJECT:', output?.emailSubject);
-    console.log('BODY (HTML):', output?.emailBody);
+    console.log('SUBJECT:', output.emailSubject);
+    console.log('BODY (HTML):', output.emailBody);
     console.log('--- END SIMULATION ---');
 
     // The flow returns the content to be used by the frontend or a backend email service.
-    return output!;
+    return output;
   }
 );

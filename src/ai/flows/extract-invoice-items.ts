@@ -4,7 +4,7 @@
  * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
@@ -29,7 +29,7 @@ const extractFromMedia = (dataUri: string): { media: { url: string }; textConten
 };
 
 
-const extractInvoiceItemsPrompt = ai.definePrompt({
+const extractInvoiceItemsPrompt = definePrompt({
   name: 'extractInvoiceItemsPrompt',
   input: { schema: z.object({ textContent: z.string().optional(), media: z.any().optional() }) },
   output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) },
@@ -77,7 +77,7 @@ Now, analyze the following media content and return the JSON object:
 `,
 });
 
-const extractInvoiceItemsFlow = ai.defineFlow(
+const extractInvoiceItemsFlow = defineFlow(
   {
     name: 'extractInvoiceItemsFlow',
     inputSchema: ExtractInvoiceItemsInputSchema,
@@ -107,8 +107,13 @@ const extractInvoiceItemsFlow = ai.defineFlow(
             throw new Error('The file appears to be empty or could not be read.');
         }
 
-        const { output } = await extractInvoiceItemsPrompt(promptInput);
+        const response = await generate({
+            prompt: extractInvoiceItemsPrompt,
+            input: promptInput,
+            model: 'googleai/gemini-pro',
+        });
         
+        const output = response.output();
         if (!output || !output.data || output.data.length === 0) {
             throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo, o formato e se as colunas necessárias (descrição, quantidade, valor, ncm) estão presentes.");
         }

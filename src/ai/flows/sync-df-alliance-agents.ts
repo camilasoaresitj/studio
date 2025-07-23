@@ -7,7 +7,7 @@
  * - DFAgent - The return type for a single agent.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, defineTool, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 
 // This is a simplified schema for what we can reliably extract from the directory page.
@@ -23,7 +23,7 @@ const SyncDFAgentsOutputSchema = z.array(DFAgentSchema);
 export type SyncDFAgentsOutput = z.infer<typeof SyncDFAgentsOutputSchema>;
 
 // Tool to fetch the raw HTML content from the directory URL.
-const fetchDirectoryPageContent = ai.defineTool(
+const fetchDirectoryPageContent = defineTool(
     {
         name: 'fetchDirectoryPageContent',
         description: 'Fetches the HTML content of the DF Alliance directory page. The directory URL is fixed and known.',
@@ -51,7 +51,7 @@ const fetchDirectoryPageContent = ai.defineTool(
 );
 
 
-const syncDFAgentsFlow = ai.defineFlow(
+const syncDFAgentsFlow = defineFlow(
   {
     name: 'syncDFAgentsFlow',
     inputSchema: z.void(),
@@ -59,9 +59,8 @@ const syncDFAgentsFlow = ai.defineFlow(
   },
   async () => {
     // Define a prompt that uses the tool to get the page content and then parses it.
-    const syncPrompt = ai.definePrompt({
+    const syncPrompt = definePrompt({
         name: 'syncDFAgentsPrompt',
-        tools: [fetchDirectoryPageContent],
         output: { schema: SyncDFAgentsOutputSchema },
         prompt: `You are an expert data extraction AI. Your task is to extract all freight forwarder agent details from the provided HTML content of the DF Alliance directory.
 
@@ -94,7 +93,13 @@ Return an empty array [] if no agents can be extracted.
 `,
     });
 
-    const { output } = await syncPrompt();
+    const response = await generate({
+        prompt: syncPrompt,
+        model: 'googleai/gemini-pro',
+        tools: [fetchDirectoryPageContent]
+    });
+
+    const output = response.output();
     if (!output) {
       throw new Error('AI failed to extract any agent information from the directory.');
     }

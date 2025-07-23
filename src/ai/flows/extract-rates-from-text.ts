@@ -8,7 +8,7 @@
  * - ExtractRatesFromTextOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
 import { z } from 'zod';
 
 const ExtractRatesFromTextInputSchema = z.object({
@@ -61,7 +61,7 @@ export async function extractRatesFromText(input: ExtractRatesFromTextInput): Pr
   return extractRatesFromTextFlow(input);
 }
 
-const extractRatesFromTextPrompt = ai.definePrompt({
+const extractRatesFromTextPrompt = definePrompt({
   name: 'extractRatesFromTextPrompt',
   input: { schema: ExtractRatesFromTextInputSchema },
   // Use the more lenient, partial schema for the prompt's output.
@@ -118,7 +118,7 @@ const normalizeContainerType = (containerStr: string | undefined): string => {
     return containerStr.toUpperCase().trim();
 };
 
-const extractRatesFromTextFlow = ai.defineFlow(
+const extractRatesFromTextFlow = defineFlow(
   {
     name: 'extractRatesFromTextFlow',
     inputSchema: ExtractRatesFromTextInputSchema,
@@ -127,7 +127,13 @@ const extractRatesFromTextFlow = ai.defineFlow(
   },
   async (input) => {
     // The prompt returns a list of potentially incomplete rate objects.
-    const { output } = await extractRatesFromTextPrompt(input);
+    const response = await generate({
+      prompt: extractRatesFromTextPrompt,
+      input,
+      model: 'googleai/gemini-pro',
+    });
+    
+    const output = response.output();
     
     // It's possible the AI returns nothing if the text is very unclear.
     if (!output || output.length === 0) {

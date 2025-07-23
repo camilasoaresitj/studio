@@ -1,4 +1,5 @@
-import { ai } from './genkit';
+
+import { definePrompt } from '@genkit-ai/core';
 import { z } from 'zod';
 
 const SendQuoteInputSchema = z.object({
@@ -21,7 +22,7 @@ const SendQuoteOutputSchema = z.object({
     whatsappMessage: z.string(),
 });
 
-export const sendQuotePrompt = ai.definePrompt({
+export const sendQuotePrompt = definePrompt({
   name: 'send-quote',
   input: { schema: SendQuoteInputSchema },
   output: { schema: SendQuoteOutputSchema },
@@ -135,7 +136,7 @@ const GenerateQuotePdfHtmlOutputSchema = z.object({
     html: z.string(),
 });
 
-export const generateQuotePdfHtmlPrompt = ai.definePrompt({
+export const generateQuotePdfHtmlPrompt = definePrompt({
   name: 'generate-quote-pdf-html',
   input: { schema: GenerateQuotePdfHtmlInputSchema },
   output: { schema: GenerateQuotePdfHtmlOutputSchema },
@@ -361,7 +362,7 @@ const ExtractPartnerInfoOutputSchema = z.object({
     })).optional(),
 });
 
-export const extractPartnerInfoPrompt = ai.definePrompt({
+export const extractPartnerInfoPrompt = definePrompt({
     name: 'extract-partner-info',
     input: { schema: ExtractPartnerInfoInputSchema },
     output: { schema: ExtractPartnerInfoOutputSchema },

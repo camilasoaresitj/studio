@@ -8,8 +8,8 @@
  * RequestAgentQuoteOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { z } from 'zod';
 import * as schemas from '@/lib/schemas';
 
 type RequestAgentQuoteInput = schemas.FreightQuoteFormData;
@@ -29,7 +29,7 @@ const PromptInputSchema = schemas.baseFreightQuoteFormSchema.extend({
     departureDate: z.string().optional().describe('The formatted departure date.'),
 });
 
-const requestAgentQuotePrompt = ai.definePrompt({
+const requestAgentQuotePrompt = definePrompt({
   name: 'requestAgentQuotePrompt',
   input: {schema: PromptInputSchema},
   output: {schema: RequestAgentQuoteOutputSchema},
@@ -61,7 +61,7 @@ Generate the following:
 `,
 });
 
-const requestAgentQuoteFlow = ai.defineFlow(
+const requestAgentQuoteFlow = defineFlow(
   {
     name: 'requestAgentQuoteFlow',
     inputSchema: schemas.baseFreightQuoteFormSchema,
@@ -105,7 +105,16 @@ const requestAgentQuoteFlow = ai.defineFlow(
         shipmentDetails: shipmentDetailsString
     };
 
-    const {output} = await requestAgentQuotePrompt(promptInput);
-    return output!;
+    const response = await generate({
+      prompt: requestAgentQuotePrompt,
+      input: promptInput,
+      model: 'googleai/gemini-pro',
+    });
+    
+    const output = response.output();
+    if (!output) {
+      throw new Error("AI failed to generate agent quote request.");
+    }
+    return output;
   }
 );

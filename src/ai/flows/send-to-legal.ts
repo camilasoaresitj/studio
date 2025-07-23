@@ -8,8 +8,8 @@
  * SendToLegalOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { z } from 'zod';
 
 const SendToLegalInputSchema = z.object({
   lawyerName: z.string().describe('The name of the lawyer receiving the case.'),
@@ -31,7 +31,7 @@ export async function sendToLegal(input: SendToLegalInput): Promise<SendToLegalO
   return sendToLegalFlow(input);
 }
 
-const sendToLegalPrompt = ai.definePrompt({
+const sendToLegalPrompt = definePrompt({
   name: 'sendToLegalPrompt',
   input: {schema: SendToLegalInputSchema},
   output: {schema: SendToLegalOutputSchema},
@@ -61,14 +61,23 @@ const sendToLegalPrompt = ai.definePrompt({
 `,
 });
 
-const sendToLegalFlow = ai.defineFlow(
+const sendToLegalFlow = defineFlow(
   {
     name: 'sendToLegalFlow',
     inputSchema: SendToLegalInputSchema,
     outputSchema: SendToLegalOutputSchema,
   },
   async (input) => {
-    const {output} = await sendToLegalPrompt(input);
-    return output!;
+    const response = await generate({
+      prompt: sendToLegalPrompt,
+      input,
+      model: 'googleai/gemini-pro',
+    });
+    
+    const output = response.output();
+    if (!output) {
+      throw new Error("AI failed to generate legal email.");
+    }
+    return output;
   }
 );

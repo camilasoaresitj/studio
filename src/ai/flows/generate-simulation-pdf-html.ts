@@ -8,7 +8,7 @@
  * GenerateSimulationPdfHtmlOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { defineFlow } from '@genkit-ai/core';
 import { z } from 'zod';
 import type { SimulationResult, SimulationFormData } from '@/app/simulador-di/page';
 
@@ -31,7 +31,7 @@ export async function generateSimulationPdfHtml(input: GenerateSimulationPdfHtml
   return generateSimulationPdfHtmlFlow(input);
 }
 
-const generateSimulationPdfHtmlFlow = ai.defineFlow(
+const generateSimulationPdfHtmlFlow = defineFlow(
   {
     name: 'generateSimulationPdfHtmlFlow',
     inputSchema: GenerateSimulationPdfHtmlInputSchema,

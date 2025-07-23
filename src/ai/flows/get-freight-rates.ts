@@ -255,5 +255,3 @@ const getAirFreightRatesFlow = ai.defineFlow(
 export async function getAirFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {
   return getAirFreightRatesFlow(input);
 }
-
-    

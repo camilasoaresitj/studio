@@ -29,40 +29,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-
-export type Fee = {
-    id: number;
-    name: string;
-    value: string;
-    currency: 'BRL' | 'USD' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
-    type: 'Fixo' | 'Percentual' | 'W/M' | 'Opcional' | 'KG';
-    unit: string;
-    modal: 'Marítimo' | 'Aéreo' | 'Ambos';
-    direction: 'Importação' | 'Exportação' | 'Ambos';
-    chargeType?: 'FCL' | 'LCL' | 'Aéreo';
-    minValue?: number;
-};
-
-const feeSchema = z.object({
-  id: z.number().optional(),
-  name: z.string().min(1, 'Nome é obrigatório'),
-  value: z.string().min(1, 'Valor é obrigatório'),
-  currency: z.enum(['BRL', 'USD', 'EUR', 'JPY', 'CHF', 'GBP']),
-  type: z.enum(['Fixo', 'Percentual', 'W/M', 'Opcional', 'KG']),
-  unit: z.string().min(1, 'Unidade é obrigatória'),
-  modal: z.enum(['Marítimo', 'Aéreo', 'Ambos']),
-  direction: z.enum(['Importação', 'Exportação', 'Ambos']),
-  chargeType: z.enum(['FCL', 'LCL', 'Aéreo', 'NONE']).optional(),
-  minValue: z.coerce.number().optional(),
-});
-
-type FeeFormData = z.infer<typeof feeSchema>;
+import { feeSchema, type Fee } from '@/lib/fees-data';
 
 interface FeesRegistryProps {
     fees: Fee[];
     onSave: (fee: Fee) => void;
 }
+
+const unitOptions = ['Contêiner', 'BL', 'AWB', 'Processo', 'W/M', '/KG', 'Sobre o Frete', 'Sobre Valor Carga'];
 
 export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -71,7 +45,7 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
   const [directionFilter, setDirectionFilter] = useState('Todos');
   const { toast } = useToast();
 
-  const form = useForm<FeeFormData>({
+  const form = useForm<Fee>({
     resolver: zodResolver(feeSchema),
   });
 
@@ -80,6 +54,7 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
     form.reset(fee ? {
         ...fee,
         chargeType: fee.chargeType || 'NONE',
+        containerType: fee.containerType || 'Todos',
         value: String(fee.value),
         minValue: fee.minValue || undefined
     } : {
@@ -91,12 +66,13 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
         modal: 'Marítimo',
         direction: 'Importação',
         chargeType: 'FCL',
+        containerType: 'Todos',
         minValue: undefined,
     });
     setIsDialogOpen(true);
   };
 
-  const onSubmit = (data: FeeFormData) => {
+  const onSubmit = (data: Fee) => {
     const feeNameToSave = data.name.toUpperCase();
     onSave({
       ...data,
@@ -161,7 +137,8 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                     <TableRow>
                         <TableHead>Nome da Taxa</TableHead>
                         <TableHead>Valor</TableHead>
-                        <TableHead>Tipo</TableHead>
+                        <TableHead>Unidade</TableHead>
+                        <TableHead>Tipo de Contêiner</TableHead>
                         <TableHead>Modal</TableHead>
                         <TableHead>Direção</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
@@ -173,7 +150,8 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                             <TableRow key={fee.id}>
                                 <TableCell className="font-medium">{fee.name}</TableCell>
                                 <TableCell>{fee.currency} {fee.value}</TableCell>
-                                <TableCell>{fee.type}</TableCell>
+                                <TableCell>{fee.unit}</TableCell>
+                                <TableCell>{fee.containerType || 'N/A'}</TableCell>
                                 <TableCell>{fee.modal}</TableCell>
                                 <TableCell>{fee.direction}</TableCell>
                                 <TableCell className="text-right">
@@ -185,7 +163,7 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
+                            <TableCell colSpan={7} className="h-24 text-center">
                                 Nenhuma taxa encontrada com os filtros selecionados.
                             </TableCell>
                         </TableRow>
@@ -244,7 +222,14 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                         <FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="unit" render={({ field }) => (
-                        <FormItem><FormLabel>Unidade</FormLabel><FormControl><Input placeholder="Ex: Contêiner" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Unidade de Cobrança</FormLabel>
+                             <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                {unitOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
                     )} />
                 </div>
                 <FormField control={form.control} name="minValue" render={({ field }) => (
@@ -278,19 +263,34 @@ export function FeesRegistry({ fees, onSave }: FeesRegistryProps) {
                     )} />
                 </div>
 
-                <FormField control={form.control} name="chargeType" render={({ field }) => (
-                    <FormItem><FormLabel>Tipo de Carga (Opcional)</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value || 'NONE'}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger></FormControl>
-                          <SelectContent>
-                              <SelectItem value="NONE">Nenhum</SelectItem>
-                              <SelectItem value="FCL">FCL</SelectItem>
-                              <SelectItem value="LCL">LCL</SelectItem>
-                              <SelectItem value="Aéreo">Aéreo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                    <FormMessage /></FormItem>
-                )} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="chargeType" render={({ field }) => (
+                        <FormItem><FormLabel>Tipo de Carga (Opcional)</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || 'NONE'}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="NONE">Todos</SelectItem>
+                                <SelectItem value="FCL">FCL</SelectItem>
+                                <SelectItem value="LCL">LCL</SelectItem>
+                                <SelectItem value="Aéreo">Aéreo</SelectItem>
+                            </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="containerType" render={({ field }) => (
+                        <FormItem><FormLabel>Tipo de Contêiner (Opcional)</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || 'Todos'}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="Todos">Todos</SelectItem>
+                                <SelectItem value="Dry">Dry</SelectItem>
+                                <SelectItem value="Reefer">Reefer</SelectItem>
+                                <SelectItem value="Especiais">Especiais (OT/FR)</SelectItem>
+                            </SelectContent>
+                            </Select>
+                        <FormMessage /></FormItem>
+                    )} />
+                </div>
                 
                 <DialogFooter className="pt-4">
                     <DialogClose asChild>

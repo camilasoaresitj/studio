@@ -13,37 +13,38 @@ export const feeSchema = z.object({
   modal: z.enum(['Marítimo', 'Aéreo', 'Ambos']),
   direction: z.enum(['Importação', 'Exportação', 'Ambos']),
   chargeType: z.enum(['FCL', 'LCL', 'Aéreo', 'NONE']).optional(),
+  containerType: z.enum(['Todos', 'Dry', 'Reefer', 'Especiais']).optional(),
   minValue: z.coerce.number().optional(),
 });
 
 export type Fee = z.infer<typeof feeSchema>;
 
-const FEES_STORAGE_KEY = 'cargaInteligente_fees_v2';
+const FEES_STORAGE_KEY = 'cargaInteligente_fees_v3';
 
 const initialFeesData: Fee[] = [
     // Importação Marítima FCL
-    { id: 1, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-    { id: 2, name: 'BL FEE', value: '600', currency: 'BRL', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-    { id: 3, name: 'ISPS', value: '35', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-    { id: 4, name: 'DESCONSOLIDAÇÃO', value: '150', currency: 'BRL', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL' },
-    { id: 20, name: 'IMPORT FEE (DEV CTNR)', value: '35', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL'},
-    { id: 21, name: 'LOGISTIC FEE', value: '55', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL'},
-    { id: 22, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL'},
+    { id: 1, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL', containerType: 'Dry' },
+    { id: 2, name: 'BL FEE', value: '600', currency: 'BRL', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL', containerType: 'Todos' },
+    { id: 3, name: 'ISPS', value: '35', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL', containerType: 'Todos' },
+    { id: 4, name: 'DESCONSOLIDAÇÃO', value: '150', currency: 'BRL', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL', containerType: 'Todos' },
+    { id: 20, name: 'IMPORT FEE (DEV CTNR)', value: '35', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL', containerType: 'Todos'},
+    { id: 21, name: 'LOGISTIC FEE', value: '55', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL', containerType: 'Todos'},
+    { id: 22, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL', containerType: 'Todos'},
     
     // Importação Marítima LCL
-    { id: 5, name: 'THC', value: '50', currency: 'BRL', type: 'W/M', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
-    { id: 6, name: 'DESOVA', value: '50', currency: 'BRL', type: 'W/M', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50 },
-    { id: 7, name: 'BL FEE', value: '200', currency: 'BRL', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL' },
-    { id: 23, name: 'DESCONSOLIDAÇÃO', value: '100', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
-    { id: 24, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
-    { id: 25, name: 'ISPS', value: '10', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL'},
+    { id: 5, name: 'THC', value: '50', currency: 'BRL', type: 'W/M', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50, containerType: 'Todos' },
+    { id: 6, name: 'DESOVA', value: '50', currency: 'BRL', type: 'W/M', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50, containerType: 'Todos' },
+    { id: 7, name: 'BL FEE', value: '200', currency: 'BRL', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', containerType: 'Todos' },
+    { id: 23, name: 'DESCONSOLIDAÇÃO', value: '100', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', containerType: 'Todos'},
+    { id: 24, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', containerType: 'Todos'},
+    { id: 25, name: 'ISPS', value: '10', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', containerType: 'Todos'},
 
     // Exportação Marítima FCL
-    { id: 8, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-    { id: 9, name: 'BL FEE', value: '600', currency: 'BRL', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-    { id: 10, name: 'LACRE', value: '20', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-    { id: 11, name: 'VGM', value: '20', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
-    { id: 26, name: 'ISPS', value: '35', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL' },
+    { id: 8, name: 'THC', value: '1350', currency: 'BRL', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL', containerType: 'Dry' },
+    { id: 9, name: 'BL FEE', value: '600', currency: 'BRL', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL', containerType: 'Todos' },
+    { id: 10, name: 'LACRE', value: '20', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL', containerType: 'Todos' },
+    { id: 11, name: 'VGM', value: '20', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL', containerType: 'Todos' },
+    { id: 26, name: 'ISPS', value: '35', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Exportação', chargeType: 'FCL', containerType: 'Todos' },
     
     // Importação Aérea
     { id: 12, name: 'DESCONSOLIDAÇÃO', value: '80', currency: 'USD', type: 'Fixo', unit: 'AWB', modal: 'Aéreo', direction: 'Importação' },

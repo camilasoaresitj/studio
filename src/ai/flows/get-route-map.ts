@@ -1,4 +1,5 @@
 
+
 'use server';
 /**
  * @fileOverview A Genkit flow to generate a visual route map for a shipment.
@@ -56,20 +57,9 @@ const getRouteMapFlow = ai.defineFlow(
         throw new Error("Could not find coordinates for origin or destination port.");
     }
     
-    // Simulated coordinates
-    const portCoords: Record<string, { lat: number; lon: number }> = {
-        'BRSSZ': { lat: -23.98, lon: -46.3 },
-        'NLRTM': { lat: 51.9, lon: 4.47 },
-        'DEHAM': { lat: 53.55, lon: 9.99 },
-        'CNSHA': { lat: 31.23, lon: 121.47 },
-        'USMIA': { lat: 25.76, lon: -80.19 },
-        'USLAX': { lat: 33.73, lon: -118.26 },
-        'SGSIN': { lat: 1.29, lon: 103.85 },
-        'BEANR': { lat: 51.22, lon: 4.40 },
-    };
-    
-    const originCoords = portCoords[originPort.unlocode];
-    const destCoords = portCoords[destPort.unlocode];
+    // Simulated coordinates from lib/ports
+    const originCoords = { lat: originPort.lat, lon: originPort.lon };
+    const destCoords = { lat: destPort.lat, lon: destPort.lon };
     
     if (!originCoords || !destCoords) {
         throw new Error("Simulated coordinates for origin or destination not found.");
@@ -81,10 +71,11 @@ const getRouteMapFlow = ai.defineFlow(
     ];
 
     // Simulate a transshipment point for longer routes
-    const transshipmentPoint = portCoords['SGSIN'];
+    const singaporePort = findPortByTerm('Singapore');
     let portToPort = [originCoords, destCoords];
 
-    if (shipment.origin.includes('CN') && shipment.destination.includes('BR')) {
+    if (shipment.origin.includes('CN') && shipment.destination.includes('BR') && singaporePort) {
+        const transshipmentPoint = { lat: singaporePort.lat, lon: singaporePort.lon };
         journeyStops.push({ name: 'Port of Singapore', type: 'TRANSSHIPMENT_PORT', ...transshipmentPoint});
         portToPort = [originCoords, transshipmentPoint, destCoords];
     }

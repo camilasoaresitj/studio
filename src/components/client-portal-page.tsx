@@ -19,6 +19,8 @@ import { ShipmentChat } from '@/components/shipment-chat';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
 import { findPortByTerm } from '@/lib/ports';
+import React, { useMemo } from 'react';
+import { ShipmentMap } from '../shipment-map';
 
 const MilestoneIcon = ({ status, predictedDate, isTransshipment }: { status: Milestone['status'], predictedDate?: Date | null, isTransshipment?: boolean }) => {
     if (!predictedDate || !isValid(predictedDate)) {
@@ -67,11 +69,11 @@ const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string })
     }, [timeZone]);
 
     return (
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm p-2 rounded-md bg-secondary">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <div>
                 <span className="font-semibold">{label}:</span>
-                <span className="font-mono ml-1">{time}</span>
+                <span className="font-mono ml-1 font-bold text-primary">{time}</span>
             </div>
         </div>
     );
@@ -91,13 +93,15 @@ export function ClientPortalPage({ id }: { id: string }) {
       setIsLoading(false);
     }, [id]);
     
-    const { originTimeZone, destinationTimeZone } = useMemo(() => {
-        if (!shipment) return { originTimeZone: null, destinationTimeZone: null };
+    const { originTimeZone, destinationTimeZone, originCity, destinationCity } = useMemo(() => {
+        if (!shipment) return { originTimeZone: null, destinationTimeZone: null, originCity: null, destinationCity: null };
         const originPort = findPortByTerm(shipment.origin);
         const destPort = findPortByTerm(shipment.destination);
         return {
             originTimeZone: originPort?.timeZone || null,
             destinationTimeZone: destPort?.timeZone || null,
+            originCity: originPort?.name || null,
+            destinationCity: destPort?.name || null,
         };
     }, [shipment]);
 
@@ -185,8 +189,8 @@ export function ClientPortalPage({ id }: { id: string }) {
                         </div>
                     </div>
                      <div className="flex gap-4 mt-2 sm:mt-0">
-                        {originTimeZone && <TimeZoneClock label="Origem" timeZone={originTimeZone} />}
-                        {destinationTimeZone && <TimeZoneClock label="Destino" timeZone={destinationTimeZone} />}
+                        {originTimeZone && originCity && <TimeZoneClock label={originCity} timeZone={originTimeZone} />}
+                        {destinationTimeZone && destinationCity && <TimeZoneClock label={destinationCity} timeZone={destinationTimeZone} />}
                     </div>
                 </div>
             </header>

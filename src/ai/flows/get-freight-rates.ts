@@ -1,11 +1,11 @@
 
+
 'use server';
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { findPortByTerm } from '@/lib/ports';
 import type { Port } from '@/lib/ports';
-import axios from 'axios';
 import { format, addDays } from 'date-fns';
 
 export type GetFreightRatesInput = FreightQuoteFormData;
@@ -71,40 +71,37 @@ const cargoFiveRateTool = ai.defineTool(
     try {
       console.log('Enviando para CargoFive v2 (POST) com payload:', JSON.stringify(payload, null, 2));
       
-      const response = await axios.post(API_URL, payload, {
+      const response = await fetch(API_URL, {
+          method: 'POST',
           headers: {
             'x-api-key': apiKey,
             'Content-Type': 'application/json'
           },
-          timeout: 30000
+          body: JSON.stringify(payload),
         }
       );
 
-      console.log('Resposta da CargoFive v2:', JSON.stringify(response.data, null, 2));
-      return response.data;
+      if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Erro na API CargoFive v2:', {
+              url: API_URL,
+              payload,
+              status: response.status,
+              errorData,
+          });
+          const errorMessage = errorData.message || JSON.stringify(errorData);
+          throw new Error(errorMessage);
+      }
+      
+      const responseData = await response.json();
+      console.log('Resposta da CargoFive v2:', JSON.stringify(responseData, null, 2));
+      return responseData;
 
     } catch (error: any) {
-      const errorDetails = {
-        url: API_URL,
-        payload,
-        status: error.response?.status,
-        errorData: error.response?.data,
-        message: error.message
-      };
-      
-      console.error('Erro na API CargoFive v2:', errorDetails);
-      
       let errorMessage = 'Erro ao consultar tarifas';
-      if (error.response?.data) {
-          errorMessage = error.response.data.message || JSON.stringify(error.response.data);
-      } else {
+      if (error.message) {
           errorMessage = error.message;
       }
-      
-      if (axios.isCancel(error) || error.code === 'ECONNABORTED') {
-        errorMessage = 'A consulta à API excedeu o tempo limite. Tente novamente.';
-      }
-
       throw new Error(errorMessage);
     }
   }

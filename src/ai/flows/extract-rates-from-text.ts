@@ -8,8 +8,18 @@
  * - ExtractRatesFromTextOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { genkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
+
+const ai = genkit({
+  plugins: [googleAI()],
+  models: {
+    'gemini-pro': {
+      model: 'gemini-1.5-flash-latest',
+    },
+  },
+});
 
 const ExtractRatesFromTextInputSchema = z.object({
   textInput: z.string().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),

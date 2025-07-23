@@ -7,9 +7,19 @@
  * GetCourierStatusInput - The input type for the function.
  * GetCourierStatusOutput - The return type for the function.
  */
-import { ai } from '@/ai/genkit';
+import { genkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
 import { GetCourierStatusInputSchema, GetCourierStatusOutputSchema } from '@/lib/schemas';
 import type { GetCourierStatusInput, GetCourierStatusOutput } from '@/lib/schemas';
+
+const ai = genkit({
+  plugins: [googleAI()],
+  models: {
+    'gemini-pro': {
+      model: 'gemini-1.5-flash-latest',
+    },
+  },
+});
 
 export async function getCourierStatus(input: GetCourierStatusInput): Promise<GetCourierStatusOutput> {
   return getCourierStatusFlow(input);

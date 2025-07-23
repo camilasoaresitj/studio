@@ -8,8 +8,18 @@
  * - MonitorEmailForTasksOutput - The return type for the monitorEmailForTasks function.
  */
 
-import { ai } from '@/ai/genkit';
+import { genkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
+
+const ai = genkit({
+  plugins: [googleAI()],
+  models: {
+    'gemini-pro': {
+      model: 'gemini-1.5-flash-latest',
+    },
+  },
+});
 
 const MonitorEmailForTasksInputSchema = z.object({
   emailContent: z.string().describe('The content of the email to monitor.'),

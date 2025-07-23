@@ -4,11 +4,21 @@
  * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
  */
 
-import { ai } from '@/ai/genkit';
+import { genkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
 import type { ExtractInvoiceItemsInput, ExtractInvoiceItemsOutput } from '@/lib/schemas/invoice';
+
+const ai = genkit({
+  plugins: [googleAI()],
+  models: {
+    'gemini-pro-vision': {
+      model: 'gemini-1.5-pro-latest',
+    },
+  },
+});
 
 const extractFromXml = (dataUri: string): { textContent: string; media?: never } => {
     const base64 = dataUri.split(',')[1];

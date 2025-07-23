@@ -8,7 +8,7 @@
  * ConsultNfseItajaiOutput - The return type for the function.
  */
 
-import { defineFlow } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { createClientAsync, Client } from 'soap';
 
@@ -27,7 +27,7 @@ export type ConsultNfseItajaiOutput = z.infer<typeof ConsultNfseItajaiOutputSche
 const WSDL_URL = 'http://nfse-teste.publica.inf.br/homologa_nfse_integracao/Consultas?wsdl';
 
 
-const consultNfseItajaiFlow = defineFlow(
+const consultNfseItajaiFlow = ai.defineFlow(
   {
     name: 'consultNfseItajaiFlow',
     inputSchema: ConsultNfseItajaiInputSchema,

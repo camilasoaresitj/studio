@@ -8,7 +8,7 @@
  * SendShippingInstructionsOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema } from '@/lib/schemas';
 import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
@@ -18,7 +18,7 @@ export async function sendShippingInstructions(input: SendShippingInstructionsIn
   return sendShippingInstructionsFlow(input);
 }
 
-const prompt = definePrompt({
+const prompt = ai.definePrompt({
   name: 'sendShippingInstructionsPrompt',
   inputSchema: SendShippingInstructionsInputSchema,
   outputSchema: SendShippingInstructionsOutputSchema,
@@ -113,7 +113,7 @@ const prompt = definePrompt({
 `,
 });
 
-const sendShippingInstructionsFlow = defineFlow(
+const sendShippingInstructionsFlow = ai.defineFlow(
   {
     name: 'sendShippingInstructionsFlow',
     inputSchema: SendShippingInstructionsInputSchema,
@@ -124,7 +124,7 @@ const sendShippingInstructionsFlow = defineFlow(
     // We will just log the action to the console to simulate it.
     console.log(`SIMULATING sending Shipping Instructions to ${input.agentEmail}`);
 
-    const { output } = await generate({
+    const { output } = await ai.generate({
       prompt: { ...prompt, input },
       model: 'gemini-pro',
     });

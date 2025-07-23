@@ -8,7 +8,7 @@
  * ShareSimulationOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const ShareSimulationInputSchema = z.object({
@@ -30,7 +30,7 @@ export async function shareSimulation(input: ShareSimulationInput): Promise<Shar
   return shareSimulationFlow(input);
 }
 
-const shareSimulationPrompt = definePrompt({
+const shareSimulationPrompt = ai.definePrompt({
   name: 'shareSimulationPrompt',
   inputSchema: ShareSimulationInputSchema,
   outputSchema: ShareSimulationOutputSchema,
@@ -58,7 +58,7 @@ Generate the following based on the input data:
 `,
 });
 
-const shareSimulationFlow = defineFlow(
+const shareSimulationFlow = ai.defineFlow(
   {
     name: 'shareSimulationFlow',
     inputSchema: ShareSimulationInputSchema,
@@ -71,7 +71,7 @@ const shareSimulationFlow = defineFlow(
         totalCostBRL: input.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     };
 
-    const { output } = await generate({
+    const { output } = await ai.generate({
       prompt: { ...shareSimulationPrompt, input: formattedInput },
       model: 'gemini-pro',
     });

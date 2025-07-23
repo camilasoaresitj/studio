@@ -7,7 +7,7 @@
  * GetCourierStatusInput - The input type for the function.
  * GetCourierStatusOutput - The return type for the function.
  */
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { GetCourierStatusInputSchema, GetCourierStatusOutputSchema } from '@/lib/schemas';
 import type { GetCourierStatusInput, GetCourierStatusOutput } from '@/lib/schemas';
 
@@ -15,7 +15,7 @@ export async function getCourierStatus(input: GetCourierStatusInput): Promise<Ge
   return getCourierStatusFlow(input);
 }
 
-const getCourierStatusPrompt = definePrompt({
+const getCourierStatusPrompt = ai.definePrompt({
   name: 'getCourierStatusPrompt',
   inputSchema: GetCourierStatusInputSchema,
   outputSchema: GetCourierStatusOutputSchema,
@@ -41,14 +41,14 @@ Given a courier name and a tracking number, generate a single, plausible, and re
 `,
 });
 
-const getCourierStatusFlow = defineFlow(
+const getCourierStatusFlow = ai.defineFlow(
   {
     name: 'getCourierStatusFlow',
     inputSchema: GetCourierStatusInputSchema,
     outputSchema: GetCourierStatusOutputSchema,
   },
   async input => {
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: 'gemini-pro',
       prompt: {
         ...getCourierStatusPrompt,

@@ -8,7 +8,7 @@
  * - ExtractPartnerInfoOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
@@ -49,7 +49,7 @@ export async function extractPartnerInfo(input: ExtractPartnerInfoInput): Promis
   return extractPartnerInfoFlow(input);
 }
 
-const extractPartnerInfoPrompt = definePrompt({
+const extractPartnerInfoPrompt = ai.definePrompt({
   name: 'extractPartnerInfoPrompt',
   inputSchema: ExtractPartnerInfoInputSchema,
   outputSchema: ExtractPartnerInfoOutputSchema,
@@ -101,14 +101,14 @@ Now, analyze the following text and extract the partner information:
 `,
 });
 
-const extractPartnerInfoFlow = defineFlow(
+const extractPartnerInfoFlow = ai.defineFlow(
   {
     name: 'extractPartnerInfoFlow',
     inputSchema: ExtractPartnerInfoInputSchema,
     outputSchema: ExtractPartnerInfoOutputSchema,
   },
   async (input) => {
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: 'gemini-pro',
       prompt: {
         ...extractPartnerInfoPrompt,

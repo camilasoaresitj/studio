@@ -8,7 +8,7 @@
  * - GetCourierRatesOutput - The return type for the function.
  */
 
-import { defineFlow, defineTool, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
@@ -41,7 +41,7 @@ export async function getCourierRates(input: GetCourierRatesInput): Promise<GetC
 }
 
 // Tool to call the ShipEngine API
-const shipEngineRateTool = defineTool(
+const shipEngineRateTool = ai.defineTool(
   {
     name: 'getShipEngineRates',
     description: 'Fetches real-time courier rates from the ShipEngine API.',
@@ -75,7 +75,7 @@ const shipEngineRateTool = defineTool(
 );
 
 
-const getCourierRatesFlow = defineFlow(
+const getCourierRatesFlow = ai.defineFlow(
   {
     name: 'getCourierRatesFlow',
     inputSchema: GetCourierRatesInputSchema,

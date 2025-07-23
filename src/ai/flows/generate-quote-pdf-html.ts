@@ -8,7 +8,7 @@
  * GenerateQuotePdfHtmlOutput - The return type for the function.
  */
 
-import { defineFlow } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const ChargeSchema = z.object({
@@ -49,7 +49,7 @@ export async function generateQuotePdfHtml(input: GenerateQuotePdfHtmlInput): Pr
   return generateQuotePdfHtmlFlow(input);
 }
 
-const generateQuotePdfHtmlFlow = defineFlow(
+const generateQuotePdfHtmlFlow = ai.defineFlow(
   {
     name: 'generateQuotePdfHtmlFlow',
     inputSchema: GenerateQuotePdfHtmlInputSchema,

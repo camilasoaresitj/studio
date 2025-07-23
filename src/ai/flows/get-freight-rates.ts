@@ -1,6 +1,6 @@
 
 'use server';
-import { defineFlow, defineTool, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import { findPortByTerm } from '@/lib/ports';
@@ -50,7 +50,7 @@ const CONTAINER_TYPE_MAPPING_V2: Record<string, string> = {
   "40'NOR": "40NOR",
 };
 
-const cargoFiveRateTool = defineTool(
+const cargoFiveRateTool = ai.defineTool(
   {
     name: 'createCargoFiveQuote',
     description: 'Creates a quote on the CargoFive v2 API using a POST request.',
@@ -106,7 +106,7 @@ const cargoFiveRateTool = defineTool(
   }
 );
 
-const getFreightRatesFlow = defineFlow(
+const getFreightRatesFlow = ai.defineFlow(
   {
     name: 'getFreightRatesFlow',
     inputSchema: freightQuoteFormSchema,
@@ -144,7 +144,7 @@ const getFreightRatesFlow = defineFlow(
             })),
         };
 
-        const response = await cargoFiveRateTool(payload);
+        const response = await cargoFiveRateTool({ payload });
         
         const rates = response?.rates;
         if (!rates || rates.length === 0) {
@@ -220,7 +220,7 @@ export async function getFreightRates(input: GetFreightRatesInput): Promise<GetF
   }
 }
 
-const getAirFreightRatesFlow = defineFlow(
+const getAirFreightRatesFlow = ai.defineFlow(
   {
     name: 'getAirFreightRatesFlow',
     inputSchema: freightQuoteFormSchema,

@@ -8,7 +8,7 @@
  * SendQuoteOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const RateDetailsSchema = z.object({
@@ -41,7 +41,7 @@ export async function sendQuote(input: SendQuoteInput): Promise<SendQuoteOutput>
   return sendQuoteFlow(input);
 }
 
-const sendQuotePrompt = definePrompt({
+const sendQuotePrompt = ai.definePrompt({
   name: 'sendQuotePrompt',
   inputSchema: SendQuoteInputSchema,
   outputSchema: SendQuoteOutputSchema,
@@ -80,7 +80,7 @@ Generate the following based on the input data, language rule, and whether it's 
 `,
 });
 
-const sendQuoteFlow = defineFlow(
+const sendQuoteFlow = ai.defineFlow(
   {
     name: 'sendQuoteFlow',
     inputSchema: SendQuoteInputSchema,
@@ -89,7 +89,7 @@ const sendQuoteFlow = defineFlow(
   async input => {
     console.log(`Simulating generating communication for ${input.customerName}`);
     
-    const { output } = await generate({
+    const { output } = await ai.generate({
         model: 'gemini-pro',
         prompt: {
           ...sendQuotePrompt,

@@ -8,7 +8,7 @@
  * GenerateHblHtmlOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const GenerateHblHtmlInputSchema = z.object({
@@ -45,7 +45,7 @@ export async function generateHblHtml(input: GenerateHblHtmlInput): Promise<Gene
   return generateHblHtmlFlow(input);
 }
 
-const generateHblHtmlPrompt = definePrompt({
+const generateHblHtmlPrompt = ai.definePrompt({
   name: 'generateHblHtmlPrompt',
   inputSchema: GenerateHblHtmlInputSchema,
   outputSchema: GenerateHblHtmlOutputSchema,
@@ -182,14 +182,14 @@ Your task is to generate the HTML for a House Bill of Lading (HBL) based on the 
 `,
 });
 
-const generateHblHtmlFlow = defineFlow(
+const generateHblHtmlFlow = ai.defineFlow(
   {
     name: 'generateHblHtmlFlow',
     inputSchema: GenerateHblHtmlInputSchema,
     outputSchema: GenerateHblHtmlOutputSchema,
   },
   async (input) => {
-    const response = await generate({
+    const response = await ai.generate({
       prompt: { ...generateHblHtmlPrompt, input },
       model: 'gemini-pro',
     });

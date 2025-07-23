@@ -8,7 +8,7 @@
  * RequestAgentQuoteOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import * as schemas from '@/lib/schemas';
 
@@ -29,7 +29,7 @@ const PromptInputSchema = schemas.baseFreightQuoteFormSchema.extend({
     departureDate: z.string().optional().describe('The formatted departure date.'),
 });
 
-const requestAgentQuotePrompt = definePrompt({
+const requestAgentQuotePrompt = ai.definePrompt({
   name: 'requestAgentQuotePrompt',
   inputSchema: PromptInputSchema,
   outputSchema: RequestAgentQuoteOutputSchema,
@@ -61,7 +61,7 @@ Generate the following:
 `,
 });
 
-const requestAgentQuoteFlow = defineFlow(
+const requestAgentQuoteFlow = ai.defineFlow(
   {
     name: 'requestAgentQuoteFlow',
     inputSchema: schemas.baseFreightQuoteFormSchema,
@@ -105,7 +105,7 @@ const requestAgentQuoteFlow = defineFlow(
         shipmentDetails: shipmentDetailsString
     };
 
-    const { output } = await generate({
+    const { output } = await ai.generate({
         prompt: { ...requestAgentQuotePrompt, input: promptInput },
         model: 'gemini-pro',
     });

@@ -8,7 +8,7 @@
  * - ExtractQuoteDetailsFromTextOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt, generate } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { baseFreightQuoteFormSchema, oceanContainerSchema } from '@/lib/schemas';
 
@@ -36,7 +36,7 @@ export async function extractQuoteDetailsFromText(input: ExtractQuoteDetailsFrom
   return extractQuoteDetailsFromTextFlow(input);
 }
 
-const extractQuoteDetailsFromTextPrompt = definePrompt({
+const extractQuoteDetailsFromTextPrompt = ai.definePrompt({
   name: 'extractQuoteDetailsFromTextPrompt',
   inputSchema: ExtractQuoteDetailsFromTextInputSchema,
   outputSchema: ExtractQuoteDetailsFromTextOutputSchema,
@@ -112,14 +112,14 @@ Now, analyze the following text and extract the quoting information:
 `,
 });
 
-const extractQuoteDetailsFromTextFlow = defineFlow(
+const extractQuoteDetailsFromTextFlow = ai.defineFlow(
   {
     name: 'extractQuoteDetailsFromTextFlow',
     inputSchema: ExtractQuoteDetailsFromTextInputSchema,
     outputSchema: ExtractQuoteDetailsFromTextOutputSchema,
   },
   async (input) => {
-    const { output } = await generate({
+    const { output } = await ai.generate({
       model: 'gemini-pro',
       prompt: {
         ...extractQuoteDetailsFromTextPrompt,

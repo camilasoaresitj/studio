@@ -18,6 +18,7 @@ import Image from 'next/image';
 import { Badge } from './ui/badge';
 import { getProfitSettings } from '@/lib/profit-settings-data';
 import { useRouter } from 'next/navigation';
+import { portsAndAirports } from '@/lib/ports';
 
 type FreightRate = {
     id: string;
@@ -81,6 +82,14 @@ export function ClientQuoteForm() {
   });
   
   const modal = form.watch('modal');
+
+  const portList = useMemo(() => {
+    const portType = modal === 'ocean' ? 'port' : 'airport';
+    return portsAndAirports
+        .filter(p => p.type === portType)
+        .sort((a, b) => a.name.localeCompare(b.name));
+  }, [modal]);
+
 
   async function onSubmit(values: ClientQuoteFormData) {
     setIsLoading(true);
@@ -163,12 +172,38 @@ export function ClientQuoteForm() {
                         </Tabs>
 
                         <div className="grid md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="origin" render={({ field }) => (
-                                <FormItem><FormLabel>Origem (Porto/Aeroporto)</FormLabel><FormControl><Input placeholder="Ex: Santos, BR" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name="destination" render={({ field }) => (
-                                <FormItem><FormLabel>Destino (Porto/Aeroporto)</FormLabel><FormControl><Input placeholder="Ex: Rotterdam, NL" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
+                            <FormField
+                                control={form.control}
+                                name="origin"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Origem</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione um local..." /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {portList.map(port => <SelectItem key={port.unlocode} value={port.name}>{port.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="destination"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Destino</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione um local..." /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {portList.map(port => <SelectItem key={port.unlocode} value={port.name}>{port.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
                         
                         {modal === 'ocean' && (

@@ -96,12 +96,11 @@ const syncDFAgentsFlow = ai.defineFlow(
     outputSchema: z.array(DFAgentSchema),
   },
   async () => {
-    const llmResponse = await ai.generate({
+    const { output } = await ai.generate({
       prompt: { ...syncPrompt },
       model: 'gemini-pro',
     });
     
-    const output = llmResponse.output();
     if (!output?.agents) {
       throw new Error('AI failed to extract any agent information from the directory.');
     }

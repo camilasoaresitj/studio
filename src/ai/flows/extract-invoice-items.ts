@@ -106,7 +106,7 @@ const extractInvoiceItemsFlow = ai.defineFlow(
             throw new Error('The file appears to be empty or could not be read.');
         }
 
-        const llmResponse = await ai.generate({
+        const { output } = await ai.generate({
           model: 'gemini-pro-vision',
           prompt: {
             ...extractInvoiceItemsPrompt,
@@ -114,8 +114,6 @@ const extractInvoiceItemsFlow = ai.defineFlow(
           },
         });
         
-        const output = llmResponse.output();
-
         if (!output || !output.data || output.data.length === 0) {
             throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo, o formato e se as colunas necessárias (descrição, quantidade, valor, ncm) estão presentes.");
         }

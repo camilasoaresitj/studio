@@ -127,7 +127,7 @@ const extractRatesFromTextFlow = ai.defineFlow(
   },
   async (input) => {
     // The prompt returns a list of potentially incomplete rate objects.
-    const response = await ai.generate({
+    const { output } = await ai.generate({
       model: 'gemini-pro',
       prompt: {
         ...extractRatesFromTextPrompt,
@@ -135,15 +135,15 @@ const extractRatesFromTextFlow = ai.defineFlow(
       }
     });
     
-    const output = response.output()?.rates;
+    const partialRates = output?.rates;
     
     // It's possible the AI returns nothing if the text is very unclear.
-    if (!output || output.length === 0) {
+    if (!partialRates || partialRates.length === 0) {
       throw new Error("A IA não conseguiu extrair nenhuma tarifa válida do texto. Tente ajustar o texto ou cole um trecho mais claro.");
     }
     
     // Clean up and normalize the data, providing fallbacks for any optional fields the AI might have missed.
-    const completeRates = output
+    const completeRates = partialRates
       // First, filter out any rate that is fundamentally useless (e.g., missing a price or a route).
       .filter(partialRate => partialRate.rate && partialRate.origin && partialRate.destination)
       // Then, map the remaining partial rates to the full, strict schema.

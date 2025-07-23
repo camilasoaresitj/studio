@@ -130,7 +130,7 @@ const createEmailCampaignFlow = ai.defineFlow(
             console.log("No specific clients found based on manual KPIs or quote history.");
         }
 
-        const llmResponse = await ai.generate({
+        const { output } = await ai.generate({
             prompt: {
                 ...emailPrompt,
                 input: { instruction },
@@ -138,7 +138,6 @@ const createEmailCampaignFlow = ai.defineFlow(
             model: 'gemini-pro',
         });
         
-        const output = llmResponse.output();
         if (!output) {
         throw new Error('AI failed to generate email content.');
         }

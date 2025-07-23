@@ -531,8 +531,9 @@ export async function runApproveQuote(
     uploadedDocs: UploadedDocument[]
 ): Promise<{ success: boolean, error?: string}> {
     try {
+        const plainQuote = JSON.parse(JSON.stringify(quote));
         await createShipment({
-            ...quote,
+            ...plainQuote,
             notifyName,
             responsibleUser,
             terminalRedestinacaoId: terminalId,

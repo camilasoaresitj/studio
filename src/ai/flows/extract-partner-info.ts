@@ -108,7 +108,7 @@ const extractPartnerInfoFlow = ai.defineFlow(
     outputSchema: ExtractPartnerInfoOutputSchema,
   },
   async (input) => {
-    const llmResponse = await ai.generate({
+    const { output } = await ai.generate({
       model: 'gemini-pro',
       prompt: {
         ...extractPartnerInfoPrompt,
@@ -116,7 +116,6 @@ const extractPartnerInfoFlow = ai.defineFlow(
       }
     });
     
-    const output = llmResponse.output();
     if (!output) {
       throw new Error("A IA não conseguiu extrair nenhuma informação do texto.");
     }

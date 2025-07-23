@@ -56,6 +56,7 @@ interface PartnersRegistryProps {
 
 const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
 const mainModalsEnum = ['Marítimo', 'Aéreo'];
+const unitOptions = ['Contêiner', 'BL', 'AWB', 'Processo', 'W/M', '/KG', 'Sobre o Frete', 'Sobre Valor Carga'];
 
 const supplierTypes = [
     { id: 'ciaMaritima', label: 'Cia Marítima' },
@@ -556,6 +557,23 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         {!watchedRoles.agente && <FormField control={form.control} name="exchangeRateAgio" render={({ field }) => ( <FormItem><FormLabel>Ágio sobre Câmbio (%)</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} /></FormControl><FormMessage /></FormItem> )} />}
                     </div>
                     
+                    {watchedRoles.fornecedor && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                        <div className="flex justify-between items-center">
+                            <h4 className="font-semibold text-sm">Taxas Padrão do Parceiro</h4>
+                            <Button type="button" size="sm" variant="outline" onClick={() => appendFee({ name: '', value: 0, currency: 'USD', unit: 'BL', containerType: 'Todos' })}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
+                            </Button>
+                        </div>
+                        {feeFields.map((field, index) => (
+                             <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-b pb-2">
+                                <FormField control={form.control} name={`standardFees.${index}.name`} render={({ field }) => (<FormItem className="col-span-2"><FormLabel>Nome da Taxa</FormLabel><FormControl><Input placeholder="Ex: BL Fee" className="h-9" {...field} /></FormControl></FormItem>)}/>
+                                <FormField control={form.control} name={`standardFees.${index}.unit`} render={({ field }) => (<FormItem><FormLabel>Unidade</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent>{unitOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>)}/>
+                                <FormField control={form.control} name={`standardFees.${index}.containerType`} render={({ field }) => (<FormItem><FormLabel>Tipo Cont.</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Todos">Todos</SelectItem><SelectItem value="Dry">Dry</SelectItem><SelectItem value="Reefer">Reefer</SelectItem><SelectItem value="Especiais">Especiais</SelectItem></SelectContent></Select></FormItem>)}/>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeFee(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            </div>
+                        ))}
+                    </div>}
+
                     {watchedRoles.agente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <div className="flex justify-between items-center">
                             <h4 className="font-semibold text-sm">Acordo de Lucro (Profit Share)</h4>
@@ -570,23 +588,6 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                                 <FormField control={form.control} name={`profitAgreements.${index}.amount`} render={({ field }) => (<FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" className="h-9" {...field} /></FormControl></FormItem>)}/>
                                 <FormField control={form.control} name={`profitAgreements.${index}.unit`} render={({ field }) => (<FormItem><FormLabel>Unidade</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="por_container">Por Contêiner</SelectItem><SelectItem value="por_bl">Por BL/AWB</SelectItem><SelectItem value="porcentagem_lucro">% Lucro</SelectItem></SelectContent></Select></FormItem>)}/>
                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeProfit(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            </div>
-                        ))}
-                    </div>}
-
-                    {isCarrierOrAgent && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
-                        <div className="flex justify-between items-center">
-                            <h4 className="font-semibold text-sm">Taxas Padrão do Parceiro</h4>
-                            <Button type="button" size="sm" variant="outline" onClick={() => appendFee({ name: '', value: 0, currency: 'USD' })}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
-                            </Button>
-                        </div>
-                        {feeFields.map((field, index) => (
-                             <div key={field.id} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end border-b pb-2">
-                                <FormField control={form.control} name={`standardFees.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Nome da Taxa</FormLabel><FormControl><Input placeholder="Ex: BL Fee" className="h-9" {...field} /></FormControl></FormItem>)}/>
-                                <FormField control={form.control} name={`standardFees.${index}.value`} render={({ field }) => (<FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" className="h-9" {...field} /></FormControl></FormItem>)}/>
-                                <FormField control={form.control} name={`standardFees.${index}.currency`} render={({ field }) => (<FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="BRL">BRL</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent></Select></FormItem>)}/>
-                                <Button type="button" variant="ghost" size="icon" onClick={() => removeFee(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                             </div>
                         ))}
                     </div>}

@@ -14,6 +14,8 @@ const standardFeeSchema = z.object({
   name: z.string().min(1, 'Nome da taxa é obrigatório'),
   value: z.coerce.number().min(0, 'Valor deve ser positivo'),
   currency: z.enum(['USD', 'BRL', 'EUR']),
+  unit: z.string().min(1, 'Unidade é obrigatória'),
+  containerType: z.enum(['Todos', 'Dry', 'Reefer', 'Especiais']).optional(),
 });
 
 export const partnerSchema = z.object({
@@ -196,8 +198,8 @@ function getInitialPartners(): Partner[] {
             exchangeRateAgio: 0,
             demurrageAgreementDueDate: new Date('2024-10-31'),
             standardFees: [
-                { name: 'BL FEE', value: 150, currency: 'USD' },
-                { name: 'ISPS', value: 35, currency: 'USD' },
+                { name: 'BL FEE', value: 150, currency: 'USD', unit: 'BL', containerType: 'Todos' },
+                { name: 'ISPS', value: 35, currency: 'USD', unit: 'Contêiner', containerType: 'Todos' },
             ],
             address: {
                 street: "Wall Street",

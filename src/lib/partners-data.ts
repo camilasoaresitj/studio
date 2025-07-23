@@ -2,6 +2,20 @@
 'use client';
 import { z } from 'zod';
 
+const profitAgreementSchema = z.object({
+    modal: z.enum(['FCL', 'LCL', 'AIR']),
+    direction: z.enum(['IMPORTACAO', 'EXPORTACAO']),
+    amount: z.coerce.number().optional(),
+    unit: z.enum(['por_container', 'por_bl', 'porcentagem_lucro']).optional(),
+    currency: z.enum(['USD', 'BRL']).default('USD').optional(),
+});
+
+const standardFeeSchema = z.object({
+  name: z.string().min(1, 'Nome da taxa é obrigatório'),
+  value: z.coerce.number().min(0, 'Valor deve ser positivo'),
+  currency: z.enum(['USD', 'BRL', 'EUR']),
+});
+
 export const partnerSchema = z.object({
   id: z.number().optional(), // Optional for new partners
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
@@ -47,11 +61,8 @@ export const partnerSchema = z.object({
   scac: z.string().optional(), // SCAC Code field
   paymentTerm: z.coerce.number().optional(),
   exchangeRateAgio: z.coerce.number().optional().default(0),
-  profitAgreement: z.object({
-      amount: z.coerce.number().optional(),
-      unit: z.enum(['por_container', 'por_bl', 'porcentagem_lucro']).optional(),
-      currency: z.enum(['USD', 'BRL']).default('USD').optional(),
-  }).optional(),
+  demurrageAgreementDueDate: z.date().optional(),
+  profitAgreements: z.array(profitAgreementSchema).optional(),
   commissionAgreement: z.object({
       amount: z.coerce.number().optional(),
       unit: z.enum(['porcentagem_lucro', 'por_container', 'por_bl']).optional(),
@@ -62,6 +73,7 @@ export const partnerSchema = z.object({
     amount: z.coerce.number().optional(),
     unit: z.enum(['porcentagem_armazenagem', 'por_container']).optional(),
   }).optional(),
+  standardFees: z.array(standardFeeSchema).optional(),
   address: z.object({
     street: z.string().optional(),
     number: z.string().optional(),
@@ -100,7 +112,7 @@ export const partnerSchema = z.object({
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v9'; // Incremented version
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v10'; // Incremented version
 
 function getInitialPartners(): Partner[] {
     return [
@@ -114,6 +126,7 @@ function getInitialPartners(): Partner[] {
             cnpj: "12.345.678/0001-90",
             paymentTerm: 30,
             exchangeRateAgio: 2.5,
+            demurrageAgreementDueDate: new Date('2025-12-31'),
             address: {
                 street: "Rua da Carga",
                 number: "123",
@@ -148,11 +161,10 @@ function getInitialPartners(): Partner[] {
             cnpj: "98.765.432/0001-09",
             paymentTerm: 45,
             exchangeRateAgio: 0,
-            profitAgreement: {
-                amount: 50,
-                unit: 'por_container',
-                currency: "USD"
-            },
+            profitAgreements: [
+                { modal: 'FCL', direction: 'IMPORTACAO', amount: 50, unit: 'por_container', currency: 'USD' },
+                { modal: 'AIR', direction: 'EXPORTACAO', amount: 25, unit: 'por_bl', currency: 'USD' },
+            ],
             address: {
                 street: "Av. Atlântica",
                 number: "987",
@@ -182,6 +194,11 @@ function getInitialPartners(): Partner[] {
             scac: "MAEU",
             paymentTerm: 60,
             exchangeRateAgio: 0,
+            demurrageAgreementDueDate: new Date('2024-10-31'),
+            standardFees: [
+                { name: 'BL FEE', value: 150, currency: 'USD' },
+                { name: 'ISPS', value: 35, currency: 'USD' },
+            ],
             address: {
                 street: "Wall Street",
                 number: "100",
@@ -281,6 +298,7 @@ export function getPartners(): Partner[] {
     return parsed.map((p: any) => ({
         ...p,
         createdAt: p.createdAt ? new Date(p.createdAt) : undefined,
+        demurrageAgreementDueDate: p.demurrageAgreementDueDate ? new Date(p.demurrageAgreementDueDate) : undefined,
     }));
   } catch (error) {
     console.error("Failed to parse partners from localStorage", error);
@@ -298,5 +316,3 @@ export function savePartners(partners: Partner[]): void {
     console.error("Failed to save partners to localStorage", error);
   }
 }
-
-    

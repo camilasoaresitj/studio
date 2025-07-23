@@ -35,7 +35,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from './ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Loader2, Upload, X } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2, Upload, X, CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
@@ -43,6 +43,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import { cn } from '@/lib/utils';
 import { Label } from './ui/label';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
 
@@ -98,9 +101,10 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
       paymentTerm: 30,
       exchangeRateAgio: 0,
-      profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
+      profitAgreements: [],
       commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL', commissionClients: [] },
       terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
+      standardFees: [],
       observations: '',
       kpi: {
         manual: {
@@ -121,11 +125,23 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     name: "kpi.manual.mainRoutes",
   });
 
+  const { fields: profitFields, append: appendProfit, remove: removeProfit } = useFieldArray({
+      control: form.control,
+      name: "profitAgreements",
+  });
+
+  const { fields: feeFields, append: appendFee, remove: removeFee } = useFieldArray({
+    control: form.control,
+    name: "standardFees",
+  });
+
+
   const watchedCnpj = form.watch('cnpj');
   const watchedRoles = form.watch('roles');
   const watchedFornecedor = form.watch('tipoFornecedor');
   const isEmpresaNoExterior = form.watch('tipoCliente.empresaNoExterior');
   const isTerminal = form.watch('tipoFornecedor.terminal');
+  const isCarrierOrAgent = watchedRoles.fornecedor || watchedRoles.agente;
   const documentType = isEmpresaNoExterior ? 'vat' : 'cnpj';
   const documentLabel = isEmpresaNoExterior ? 'VAT / Tax ID' : 'CNPJ / CPF';
 
@@ -133,8 +149,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const handleOpenDialog = (partner: Partner | null) => {
     setEditingPartner(partner);
-    form.reset(
-      partner || {
+    const defaultData = {
         name: '',
         nomeFantasia: '',
         cnpj: '',
@@ -148,13 +163,15 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         tipoAgente: { fcl: false, lcl: false, air: false, projects: false },
         paymentTerm: 30,
         exchangeRateAgio: 0,
-        profitAgreement: { amount: 50, unit: 'por_container', currency: 'USD' },
+        demurrageAgreementDueDate: undefined,
+        profitAgreements: [],
         commissionAgreement: { amount: 0, unit: 'porcentagem_lucro', currency: 'BRL', commissionClients: [] },
         terminalCommission: { amount: 0, unit: 'porcentagem_armazenagem' },
+        standardFees: [],
         observations: '',
         kpi: { manual: { mainRoutes: [], mainModals: [] } }
-      }
-    );
+    };
+    form.reset(partner ? { ...defaultData, ...partner } : defaultData);
     setIsDialogOpen(true);
   };
   
@@ -319,7 +336,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const handleAddRoute = () => {
     if (routeInput.trim()) {
-        appendRoute({ value: routeInput.trim() });
+        appendRoute(routeInput.trim());
         setRouteInput('');
     }
   };
@@ -446,10 +463,11 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
                     {watchedRoles.cliente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <h4 className="font-semibold text-sm">Tipo de Cliente</h4>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 items-center">
                              <FormField control={form.control} name="tipoCliente.importacao" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Importação</FormLabel></FormItem> )} />
                              <FormField control={form.control} name="tipoCliente.exportacao" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Exportação</FormLabel></FormItem> )} />
                              <FormField control={form.control} name="tipoCliente.empresaNoExterior" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Empresa no Exterior</FormLabel></FormItem> )} />
+                              <FormField control={form.control} name="demurrageAgreementDueDate" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Venc. Termo Demurrage</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-auto h-4 w-4 opacity-50" />{field.value ? format(field.value, "dd/MM/yy") : <span>Selecione</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem> )} />
                         </div>
                     </div>}
 
@@ -460,6 +478,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                                  <FormField key={type.id} control={form.control} name={`tipoFornecedor.${type.id as keyof PartnerFormData['tipoFornecedor']}`} render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">{type.label}</FormLabel></FormItem> )} />
                             ))}
                         </div>
+                         {(watchedFornecedor.ciaMaritima || watchedFornecedor.ciaAerea) && <FormField control={form.control} name="demurrageAgreementDueDate" render={({ field }) => ( <FormItem className="flex flex-col mt-4"><FormLabel>Venc. Termo Demurrage</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-9 w-48", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-auto h-4 w-4 opacity-50" />{field.value ? format(field.value, "dd/MM/yy") : <span>Selecione</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem> )} />}
                     </div>}
                     
                     {watchedRoles.agente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
@@ -538,24 +557,40 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                     </div>
                     
                     {watchedRoles.agente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
-                        <h4 className="font-semibold text-sm">Acordo de Lucro (Profit Share)</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                             <FormField control={form.control} name="profitAgreement.unit" render={({ field }) => (
-                                <FormItem><FormLabel>Unidade</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
-                                    <SelectItem value="por_container">Por Contêiner</SelectItem>
-                                    <SelectItem value="por_bl">Por BL/AWB</SelectItem>
-                                    <SelectItem value="porcentagem_lucro">Porcentagem do Lucro</SelectItem>
-                                </SelectContent></Select><FormMessage /></FormItem>
-                             )}/>
-                             <FormField control={form.control} name="profitAgreement.amount" render={({ field }) => ( <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" placeholder="50" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                             <FormField control={form.control} name="profitAgreement.currency" render={({ field }) => (
-                                <FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
-                                    <SelectItem value="USD">USD</SelectItem>
-                                    <SelectItem value="BRL">BRL</SelectItem>
-                                </SelectContent></Select><FormMessage /></FormItem>
-                             )}/>
+                        <div className="flex justify-between items-center">
+                            <h4 className="font-semibold text-sm">Acordo de Lucro (Profit Share)</h4>
+                            <Button type="button" size="sm" variant="outline" onClick={() => appendProfit({ modal: 'FCL', direction: 'IMPORTACAO', amount: 50, unit: 'por_container', currency: 'USD' })}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Acordo
+                            </Button>
                         </div>
+                        {profitFields.map((field, index) => (
+                            <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-b pb-2">
+                                <FormField control={form.control} name={`profitAgreements.${index}.modal`} render={({ field }) => (<FormItem><FormLabel>Modal</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="FCL">FCL</SelectItem><SelectItem value="LCL">LCL</SelectItem><SelectItem value="AIR">Aéreo</SelectItem></SelectContent></Select></FormItem>)}/>
+                                <FormField control={form.control} name={`profitAgreements.${index}.direction`} render={({ field }) => (<FormItem><FormLabel>Direção</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="IMPORTACAO">Importação (Pagamos)</SelectItem><SelectItem value="EXPORTACAO">Exportação (Cobramos)</SelectItem></SelectContent></Select></FormItem>)}/>
+                                <FormField control={form.control} name={`profitAgreements.${index}.amount`} render={({ field }) => (<FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" className="h-9" {...field} /></FormControl></FormItem>)}/>
+                                <FormField control={form.control} name={`profitAgreements.${index}.unit`} render={({ field }) => (<FormItem><FormLabel>Unidade</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="por_container">Por Contêiner</SelectItem><SelectItem value="por_bl">Por BL/AWB</SelectItem><SelectItem value="porcentagem_lucro">% Lucro</SelectItem></SelectContent></Select></FormItem>)}/>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeProfit(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            </div>
+                        ))}
                     </div>}
+
+                    {isCarrierOrAgent && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                        <div className="flex justify-between items-center">
+                            <h4 className="font-semibold text-sm">Taxas Padrão do Parceiro</h4>
+                            <Button type="button" size="sm" variant="outline" onClick={() => appendFee({ name: '', value: 0, currency: 'USD' })}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
+                            </Button>
+                        </div>
+                        {feeFields.map((field, index) => (
+                             <div key={field.id} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end border-b pb-2">
+                                <FormField control={form.control} name={`standardFees.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Nome da Taxa</FormLabel><FormControl><Input placeholder="Ex: BL Fee" className="h-9" {...field} /></FormControl></FormItem>)}/>
+                                <FormField control={form.control} name={`standardFees.${index}.value`} render={({ field }) => (<FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" className="h-9" {...field} /></FormControl></FormItem>)}/>
+                                <FormField control={form.control} name={`standardFees.${index}.currency`} render={({ field }) => (<FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="BRL">BRL</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent></Select></FormItem>)}/>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeFee(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            </div>
+                        ))}
+                    </div>}
+
 
                     {watchedRoles.comissionado && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <h4 className="font-semibold text-sm">Acordo de Comissão</h4>

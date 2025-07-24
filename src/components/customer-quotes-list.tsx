@@ -258,32 +258,13 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         setQuoteToDetail(updatedQuote); 
     };
 
-    const handleApprovalConfirmed = (
-        quote: Quote, 
-        shipper: Partner, 
-        consignee: Partner, 
-        agent: Partner | undefined, 
-        notifyName: string,
-        terminalId: string | undefined,
-        responsibleUser: string,
-        invoiceNumber: string,
-        poNumber: string,
-        uploadedDocs: UploadedDocument[]
-    ) => {
-        // This function will now be called by the dialog
-        // and we can assume the server action was successful.
-        if (!partners.some(p => p.id === shipper.id)) {
-            onPartnerSaved(shipper);
-        }
-        if (!partners.some(p => p.id === consignee.id)) {
-            onPartnerSaved(consignee);
-        }
+    const handleApprovalConfirmed = () => {
+        if (!quoteToApprove) return;
         
-        const approvedQuote = { ...quote, status: 'Aprovada' as const, shipper, consignee, agent };
-        onQuoteUpdate(approvedQuote);
+        onQuoteUpdate({ ...quoteToApprove, status: 'Aprovada' });
 
         toast({
-            title: `Cotação ${quote.id.replace('-DRAFT', '')} Aprovada!`,
+            title: `Cotação ${quoteToApprove.id.replace('-DRAFT', '')} Aprovada!`,
             description: `Embarque criado no Módulo Operacional.`,
             className: 'bg-success text-success-foreground'
         });
@@ -438,13 +419,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         quote={quoteToApprove}
         partners={partners}
         onClose={() => setQuoteToApprove(null)}
-        onApprovalConfirmed={() => {
-            if (quoteToApprove) {
-                // Simplified call, as the dialog now handles the complex logic
-                handleStatusChange(quoteToApprove, 'Aprovada');
-                setQuoteToApprove(null); // Close the dialog on success
-            }
-        }}
+        onApprovalConfirmed={handleApprovalConfirmed}
         onPartnerSaved={onPartnerSaved}
     />
     </>

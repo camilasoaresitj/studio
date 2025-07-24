@@ -8,10 +8,11 @@ import { dotprompt } from '@genkit-ai/dotprompt';
 export const ai = genkit({
   plugins: [
     googleAI(),
-    dotprompt({
-      model: googleAI('gemini-1.5-flash-latest'),
-    }),
+    dotprompt(),
   ],
+  dotprompt: {
+    model: 'googleai/gemini-1.5-flash-latest',
+  },
   models: {
     'gemini-pro': {
       model: 'gemini-1.5-flash-latest',

@@ -1,6 +1,3 @@
-
-'use server';
-
 import { configureGenkit } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
 import { genkit as ai } from '@genkit-ai/core';

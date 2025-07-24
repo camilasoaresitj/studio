@@ -71,7 +71,7 @@ export function ImportantTasks({ onTaskClick }: ImportantTasksProps) {
     return (
         <Card>
             <CardContent className="p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-3">
                     {tasks.length > 0 ? tasks.map(task => (
                         <div key={task.id} 
                              className={cn(

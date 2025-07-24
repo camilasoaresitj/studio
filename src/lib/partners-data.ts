@@ -19,6 +19,16 @@ const standardFeeSchema = z.object({
   incoterm: z.string().optional(),
 });
 
+const contactSchema = z.object({
+    name: z.string().min(1, 'Nome do contato é obrigatório'),
+    email: z.string().email('E-mail inválido'),
+    phone: z.string().min(10, 'Telefone inválido'),
+    departments: z.array(z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Despachante', 'Outro'])).min(1, 'Selecione pelo menos um departamento'),
+    loginEmail: z.string().email('E-mail de login inválido').optional().or(z.literal('')),
+    password: z.string().optional(),
+});
+
+
 export const partnerSchema = z.object({
   id: z.number().optional(), // Optional for new partners
   name: z.string().min(2, 'O nome do parceiro é obrigatório'),
@@ -87,12 +97,7 @@ export const partnerSchema = z.object({
     zip: z.string().optional(),
     country: z.string().optional(),
   }),
-  contacts: z.array(z.object({
-    name: z.string().min(1, 'Nome do contato é obrigatório'),
-    email: z.string().email('E-mail inválido'),
-    phone: z.string().min(10, 'Telefone inválido'),
-    departments: z.array(z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'])).min(1, 'Selecione pelo menos um departamento'),
-  })).min(1, 'Adicione pelo menos um contato'),
+  contacts: z.array(contactSchema).min(1, 'Adicione pelo menos um contato'),
   observations: z.string().optional(),
   kpi: z.object({
     manual: z.object({
@@ -115,7 +120,7 @@ export const partnerSchema = z.object({
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v11';
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v12';
 
 function getInitialPartners(): Partner[] {
     return [
@@ -144,7 +149,9 @@ function getInitialPartners(): Partner[] {
                 name: "João da Silva",
                 email: "joao@nexus.com",
                 phone: "+55 11 91234-5678",
-                departments: ["Comercial", "Operacional"]
+                departments: ["Comercial", "Operacional"],
+                loginEmail: "joao@nexus.com",
+                password: "senha_cliente_123"
             }],
             kpi: {
                 manual: {

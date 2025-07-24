@@ -35,7 +35,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from './ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Loader2, Upload, X, CalendarIcon, ChevronsUpDown, Check } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2, Upload, X, CalendarIcon, ChevronsUpDown, Check, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
@@ -56,7 +56,7 @@ interface PartnersRegistryProps {
   onPartnerSaved: (partner: Partner) => void;
 }
 
-const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'];
+const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Despachante', 'Outro'];
 const mainModalsEnum = ['Marítimo', 'Aéreo'];
 const unitOptions = ['Contêiner', 'BL', 'AWB', 'Processo', 'W/M', '/KG', 'Sobre o Frete', 'Sobre Valor Carga'];
 const incotermOptions = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
@@ -166,7 +166,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         vat: '',
         scac: '',
         roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
-        contacts: [{ name: '', email: '', phone: '', departments: [] }],
+        contacts: [{ name: '', email: '', phone: '', departments: [], loginEmail: '', password: '' }],
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
         tipoCliente: { importacao: false, exportacao: false, empresaNoExterior: false },
         tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
@@ -350,6 +350,14 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         setRouteInput('');
     }
   };
+  
+  const handleSendAccess = (contactEmail: string | undefined) => {
+      if (!contactEmail) {
+           toast({ variant: "destructive", title: "E-mail de Acesso Inválido", description: "O contato precisa ter um e-mail de acesso válido." });
+           return;
+      }
+      toast({ title: "Acesso Enviado (Simulação)", description: `Um e-mail com as credenciais foi enviado para ${contactEmail}.` });
+  }
 
   return (
     <div className="space-y-4">
@@ -741,6 +749,16 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             </FormItem>
                             )} />
                         </div>
+                        {watchedRoles.cliente && (
+                            <div className="p-3 border rounded-lg bg-secondary/50">
+                                <h5 className="text-sm font-semibold mb-2">Acesso ao Portal do Cliente</h5>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                    <FormField control={form.control} name={`contacts.${index}.loginEmail`} render={({ field }) => (<FormItem className="col-span-1"><FormLabel>E-mail de Acesso</FormLabel><FormControl><Input type="email" placeholder="login@cliente.com" {...field}/></FormControl><FormMessage/></FormItem>)} />
+                                    <FormField control={form.control} name={`contacts.${index}.password`} render={({ field }) => (<FormItem className="col-span-1"><FormLabel>Senha</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <Button type="button" size="sm" onClick={() => handleSendAccess(form.getValues(`contacts.${index}.loginEmail`))} className="mb-1"><Send className="mr-2 h-4 w-4"/> Enviar Acesso</Button>
+                                </div>
+                            </div>
+                        )}
                         </div>
                     ))}
                     

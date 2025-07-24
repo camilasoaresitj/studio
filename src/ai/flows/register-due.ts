@@ -32,7 +32,11 @@ export const RegisterDueOutputSchema = z.object({
 });
 export type RegisterDueOutput = z.infer<typeof RegisterDueOutputSchema>;
 
-export const registerDueFlow = ai.defineFlow(
+export async function registerDue(input: RegisterDueInput): Promise<RegisterDueOutput> {
+    return registerDueFlow(input);
+}
+
+const registerDueFlow = ai.defineFlow(
   {
     name: 'registerDueFlow',
     inputSchema: RegisterDueInputSchema,

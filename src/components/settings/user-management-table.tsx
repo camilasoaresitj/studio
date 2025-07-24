@@ -226,8 +226,10 @@ export function UserManagementTable() {
                                         variant={"outline"}
                                         className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}
                                         >
-                                        {field.value ? (format(field.value, "PPP")) : (<span>Selecione a data</span>)}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        <span>
+                                            {field.value ? (format(field.value, "PPP")) : (<span>Selecione a data</span>)}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </span>
                                         </Button>
                                     </FormControl>
                                     </PopoverTrigger>

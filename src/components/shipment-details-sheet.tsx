@@ -923,7 +923,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     
                     <div className="flex-grow overflow-y-auto">
                         <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
                         <Tabs value={activeTab} onValueChange={setActiveTab}>
                             <div className="p-4 border-b">
                             <TabsList>
@@ -971,9 +970,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                         <div className="flex justify-between items-center">
                                                                             <p className="font-semibold text-sm">{milestone.name}</p>
                                                                             <div className="flex items-center gap-2">
-                                                                                 <Popover>
+                                                                                <Popover>
                                                                                     <PopoverTrigger asChild>
-                                                                                         <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+                                                                                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
                                                                                             <CalendarIcon className="mr-2 h-3 w-3" />
                                                                                             {milestone.effectiveDate ? format(new Date(milestone.effectiveDate), 'dd/MM/yy') : (milestone.predictedDate ? format(new Date(milestone.predictedDate), 'dd/MM/yy') : 'N/A')}
                                                                                         </Button>
@@ -1161,34 +1160,36 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                         return (
                                                             <TableRow key={field.id}>
                                                                 <TableCell className="p-1 align-top">
-                                                                    <FeeCombobox fees={availableFees} value={charge.name} onValueChange={(value) => handleFeeSelection(value, index)} />
+                                                                    <FormField control={control} name={`charges.${index}.name`} render={({ field: formField }) => (
+                                                                        <FeeCombobox fees={availableFees} value={formField.value} onValueChange={(value) => handleFeeSelection(value, index)} />
+                                                                    )} />
                                                                 </TableCell>
                                                                 <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.type`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
+                                                                    <FormField control={control} name={`charges.${index}.type`} render={({ field: formField }) => ( <Select onValueChange={formField.onChange} value={formField.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
                                                                 </TableCell>
                                                                 <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.containerType`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
+                                                                    <FormField control={control} name={`charges.${index}.containerType`} render={({ field: formField }) => ( <Select onValueChange={formField.onChange} value={formField.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
                                                                 </TableCell>
                                                                 <TableCell className="text-right p-1 align-top min-w-[250px]">
                                                                     <div className="flex items-center gap-1">
-                                                                        <FormField control={control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                        <FormField control={control} name={`charges.${index}.cost`} render={({ field }) => (<Input type="number" {...field} onChange={e => handleValueChange(index, 'cost', e.target.value)} className="w-full h-8" />)} />
+                                                                        <FormField control={control} name={`charges.${index}.costCurrency`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                        <FormField control={control} name={`charges.${index}.cost`} render={({ field: formField }) => (<Input type="number" {...formField} onChange={e => handleValueChange(index, 'cost', e.target.value)} className="w-full h-8" />)} />
                                                                     </div>
                                                                 </TableCell>
                                                                 <TableCell className="text-right p-1 align-top min-w-[250px]">
                                                                     <div className="flex items-center gap-1">
-                                                                        <FormField control={control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                        <FormField control={control} name={`charges.${index}.sale`} render={({ field }) => (<Input type="number" {...field} onChange={e => handleValueChange(index, 'sale', e.target.value)} className="w-full h-8" />)} />
+                                                                        <FormField control={control} name={`charges.${index}.saleCurrency`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                        <FormField control={control} name={`charges.${index}.sale`} render={({ field: formField }) => (<Input type="number" {...formField} onChange={e => handleValueChange(index, 'sale', e.target.value)} className="w-full h-8" />)} />
                                                                     </div>
                                                                 </TableCell>
                                                                 <TableCell className={cn('font-semibold text-right p-1 align-top', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
                                                                     {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
                                                                 </TableCell>
                                                                 <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.supplier`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
+                                                                    <FormField control={control} name={`charges.${index}.supplier`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
                                                                 </TableCell>
                                                                 <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.sacado`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
+                                                                    <FormField control={control} name={`charges.${index}.sacado`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
                                                                 </TableCell>
                                                                 <TableCell className="p-1 align-top"><Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
                                                             </TableRow>
@@ -1267,7 +1268,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             
                             </div>
                         </Tabs>
-                        </form>
                         </Form>
                     </div>
                 </div>

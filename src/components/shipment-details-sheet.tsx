@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -104,6 +104,7 @@ const quoteChargeSchemaForSheet = z.object({
     id: z.string(),
     name: z.string().min(1, 'Obrigatório'),
     type: z.string(),
+    containerType: z.string().optional(),
     localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
     cost: z.coerce.number().default(0),
     costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
@@ -353,6 +354,8 @@ function mapEventToMilestone(eventName: string): string | null {
     }
     return null;
 }
+
+const containerTypes = ["20'GP", "40'GP", "40'HC", "20'RF", "40'RF", "40'NOR", "20'OT", "40'OT", "20'FR", "40'FR"];
 
 export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
@@ -1178,6 +1181,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                     <TableRow>
                                                         <TableHead className="w-[180px]">Taxa</TableHead>
                                                         <TableHead className="w-[180px]">Tipo Cobrança</TableHead>
+                                                        <TableHead className="w-[150px]">Tipo Contêiner</TableHead>
                                                         <TableHead className="w-[180px]">Fornecedor</TableHead>
                                                         <TableHead className="w-[200px]">Custo</TableHead>
                                                         <TableHead className="w-[180px]">Sacado</TableHead>
@@ -1212,6 +1216,21 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                             </SelectContent>
                                                                         </Select>
                                                                     )} />
+                                                                </TableCell>
+                                                                 <TableCell className="p-1 align-top">
+                                                                    <FormField
+                                                                        control={form.control}
+                                                                        name={`charges.${index}.containerType`}
+                                                                        render={({ field }) => (
+                                                                            <Select onValueChange={field.onChange} value={field.value} disabled={isBilled}>
+                                                                                <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    <SelectItem value="N/A">N/A</SelectItem>
+                                                                                    {containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        )}
+                                                                    />
                                                                 </TableCell>
                                                                 <TableCell className="p-1 align-top">
                                                                     <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (

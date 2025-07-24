@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -926,7 +927,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 <TabsTrigger value="details">Detalhes</TabsTrigger>
                                 <TabsTrigger value="financials">Financeiro</TabsTrigger>
                                 <TabsTrigger value="documents">Documentos</TabsTrigger>
-                                {!isImport && <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>}
+                                {isImport && <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>}
                                 <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                             </TabsList>
                             </div>
@@ -966,17 +967,17 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                         <div className="flex justify-between items-center">
                                                                             <p className="font-semibold text-sm">{milestone.name}</p>
                                                                             <div className="flex items-center gap-2">
-                                                                                 <FormField
+                                                                                <Controller
                                                                                     control={form.control}
                                                                                     name={`milestones.${index}.effectiveDate`}
                                                                                     render={({ field }) => (
                                                                                         <Popover>
                                                                                             <PopoverTrigger asChild>
                                                                                                 <FormControl>
-                                                                                                <Button variant="outline" size="sm" className="h-7 text-xs">
-                                                                                                    <CalendarIcon className="mr-2 h-3 w-3" />
-                                                                                                    {field.value ? format(field.value, 'dd/MM/yy') : (milestone.predictedDate ? format(milestone.predictedDate, 'dd/MM/yy') : 'N/A')}
-                                                                                                </Button>
+                                                                                                    <Button variant="outline" size="sm" className="h-7 text-xs">
+                                                                                                        <CalendarIcon className="mr-2 h-3 w-3" />
+                                                                                                        {field.value ? format(field.value, 'dd/MM/yy') : (milestone.predictedDate ? format(milestone.predictedDate, 'dd/MM/yy') : 'N/A')}
+                                                                                                    </Button>
                                                                                                 </FormControl>
                                                                                             </PopoverTrigger>
                                                                                             <PopoverContent className="w-auto p-0">
@@ -1145,7 +1146,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                     <TableRow>
                                                         <TableHead className="w-[150px]">Taxa</TableHead>
                                                         <TableHead className="w-[120px]">Tipo Cobrança</TableHead>
-                                                         <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
+                                                        <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
                                                         <TableHead className="text-right min-w-[250px]">Compra</TableHead>
                                                         <TableHead className="text-right min-w-[250px]">Venda</TableHead>
                                                         <TableHead className="w-[120px] text-right">Lucro</TableHead>
@@ -1176,32 +1177,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                     <FeeCombobox fees={availableFees} value={charge.name} onValueChange={(value) => handleFeeSelection(value, index)} />
                                                                 </TableCell>
                                                                 <TableCell className="p-1 align-top">
-                                                                    <FormField
-                                                                        control={form.control}
-                                                                        name={`charges.${index}.type`}
-                                                                        render={({ field }) => (
-                                                                             <Select onValueChange={field.onChange} value={field.value}>
-                                                                                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                                                                                <SelectContent>
-                                                                                    {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                                                                </SelectContent>
-                                                                            </Select>
-                                                                        )}
-                                                                    />
+                                                                    <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
                                                                 </TableCell>
                                                                  <TableCell className="p-1 align-top">
-                                                                    <FormField
-                                                                        control={form.control}
-                                                                        name={`charges.${index}.containerType`}
-                                                                        render={({ field }) => (
-                                                                             <Select onValueChange={field.onChange} value={field.value}>
-                                                                                <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger>
-                                                                                <SelectContent>
-                                                                                    <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                                                                </SelectContent>
-                                                                            </Select>
-                                                                        )}
-                                                                    />
+                                                                    <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
                                                                 </TableCell>
                                                                 <TableCell className="text-right p-1 align-top min-w-[250px]">
                                                                     <div className="flex items-center gap-1">
@@ -1289,7 +1268,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </Card>
                             </TabsContent>
 
-                            {!isImport && (
+                            {isImport && (
                                 <TabsContent value="bl_draft">
                                     <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                                 </TabsContent>

@@ -10,10 +10,10 @@ export const ai = genkit({
   ],
   models: {
     'gemini-pro': {
-      model: 'gemini-1.5-flash-latest',
+      model: 'gemini-2.5-flash-lite',
     },
     'gemini-pro-vision': {
-      model: 'gemini-1.5-pro-latest',
+      model: 'gemini-2.5-pro',
     },
   },
   logLevel: 'debug',

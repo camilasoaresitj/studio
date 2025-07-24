@@ -1,2 +1,2 @@
-# Contact information for reporting security vulnerabilities
+# Please send security reports to security@example.com
 Contact: mailto:security@example.com

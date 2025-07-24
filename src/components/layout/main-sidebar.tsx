@@ -15,6 +15,7 @@ import {
   Ship,
   Users,
   BookUser,
+  FileCode,
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ const menuItems = [
   { href: '/gerencial/rh', label: 'RH', icon: Users },
   { href: '/gerencial/demurrage', label: 'Demurrage', icon: Clock },
   { href: '/gerencial/simulador-di', label: 'Simulador DI', icon: Calculator },
+  { href: '/gerencial/di', label: 'Declaração de Importação', icon: FileCode },
 ];
 
 const bottomMenuItems = [

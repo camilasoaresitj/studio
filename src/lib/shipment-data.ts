@@ -15,6 +15,7 @@ export type QuoteCharge = {
   id: string;
   name: string;
   type: string;
+  containerType?: string;
   localPagamento?: 'Origem' | 'Frete' | 'Destino';
   cost: number;
   costCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
@@ -36,7 +37,7 @@ export type QuoteDetails = {
 };
 
 export type UploadedDocument = {
-    name: 'Invoice' | 'Packing List' | 'Negociação NET' | 'Outro';
+    name: 'Invoice' | 'Packing List' | 'Negociação NET' | 'Outro' | 'Draft HBL' | 'Draft MBL' | 'Original MBL' | 'Original HBL' | 'Extrato DUE';
     file: File;
 };
 

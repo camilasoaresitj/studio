@@ -3,9 +3,9 @@
 /**
  * @fileOverview A Genkit flow to generate a simplified XML for a DI (Declaração de Importação).
  *
- * generateDiXmlFlow - The Genkit flow that creates the XML string for a DI.
- * GenerateDiXmlInputSchema - The input Zod schema for the flow.
- * GenerateDiXmlOutputSchema - The output Zod schema for the flow.
+ * generateDiXml - The async function that creates the XML string for a DI.
+ * GenerateDiXmlInput - The input type for the flow.
+ * GenerateDiXmlOutput - The output type for the flow.
  */
 
 import { ai } from '@/ai/genkit';
@@ -20,7 +20,7 @@ const DiAdditionItemSchema = z.object({
   value: z.number().describe('Total value of the items in this addition (FOB USD).'),
 });
 
-export const GenerateDiXmlInputSchema = z.object({
+const GenerateDiXmlInputSchema = z.object({
   diNumber: z.string().describe('The DI number (e.g., "24/1234567-8").'),
   importerCnpj: z.string().describe('CNPJ of the importer.'),
   representativeCnpj: z.string().describe('CNPJ of the customs broker/representative.'),
@@ -33,12 +33,12 @@ export const GenerateDiXmlInputSchema = z.object({
 });
 export type GenerateDiXmlInput = z.infer<typeof GenerateDiXmlInputSchema>;
 
-export const GenerateDiXmlOutputSchema = z.object({
+const GenerateDiXmlOutputSchema = z.object({
   xml: z.string().describe('The generated XML string for the DI.'),
 });
 export type GenerateDiXmlOutput = z.infer<typeof GenerateDiXmlOutputSchema>;
 
-export const generateDiXmlFlow = ai.defineFlow(
+const generateDiXmlFlow = ai.defineFlow(
   {
     name: 'generateDiXmlFlow',
     inputSchema: GenerateDiXmlInputSchema,
@@ -88,3 +88,7 @@ export const generateDiXmlFlow = ai.defineFlow(
         };
     },
 );
+
+export async function generateDiXml(input: GenerateDiXmlInput): Promise<GenerateDiXmlOutput> {
+    return generateDiXmlFlow(input);
+}

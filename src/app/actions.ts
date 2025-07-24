@@ -28,7 +28,7 @@ import { getPartners } from "@/lib/partners-data";
 import type { Quote } from "@/components/customer-quotes-list";
 import { getShipments, saveShipments } from "@/lib/shipment-data";
 import { isPast, format, addDays } from "date-fns";
-import { generateDiXmlFlow } from '@/ai/flows/generate-di-xml';
+import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
 import { registerDueFlow } from '@/ai/flows/register-due';
 import type { RegisterDueInput, RegisterDueOutput } from '@/ai/flows/register-due';
@@ -621,7 +621,7 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
 
 export async function runGenerateDiXml(input: GenerateDiXmlInput): Promise<{ success: boolean, data?: GenerateDiXmlOutput, error?: string }> {
     try {
-        const data = await generateDiXmlFlow(input);
+        const data = await generateDiXml(input);
         return { success: true, data };
     } catch (error: any) {
         console.error("Generate DI XML Action Failed", error);

@@ -967,41 +967,31 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                         <div className="flex justify-between items-center">
                                                                             <p className="font-semibold text-sm">{milestone.name}</p>
                                                                             <div className="flex items-center gap-2">
-                                                                                <Controller
-                                                                                    control={form.control}
-                                                                                    name={`milestones.${index}.effectiveDate`}
-                                                                                    render={({ field }) => (
-                                                                                        <Popover>
-                                                                                            <PopoverTrigger asChild>
-                                                                                                <FormControl>
-                                                                                                    <Button variant="outline" size="sm" className="h-7 text-xs">
-                                                                                                        <CalendarIcon className="mr-2 h-3 w-3" />
-                                                                                                        {field.value ? format(field.value, 'dd/MM/yy') : (milestone.predictedDate ? format(milestone.predictedDate, 'dd/MM/yy') : 'N/A')}
-                                                                                                    </Button>
-                                                                                                </FormControl>
-                                                                                            </PopoverTrigger>
-                                                                                            <PopoverContent className="w-auto p-0">
-                                                                                                <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} />
-                                                                                            </PopoverContent>
-                                                                                        </Popover>
-                                                                                    )}
-                                                                                />
-                                                                                 <FormField
-                                                                                    control={form.control}
-                                                                                    name={`milestones.${index}.status`}
-                                                                                    render={({ field }) => (
-                                                                                        <Checkbox
-                                                                                            checked={field.value === 'completed'}
-                                                                                            onCheckedChange={(checked) => {
-                                                                                                const newStatus = checked ? 'completed' : 'pending';
-                                                                                                const newEffectiveDate = checked ? new Date() : null;
-                                                                                                const milestones = form.getValues('milestones') || [];
-                                                                                                milestones[index].status = newStatus;
-                                                                                                milestones[index].effectiveDate = newEffectiveDate;
-                                                                                                form.setValue('milestones', [...milestones]);
-                                                                                            }}
-                                                                                        />
-                                                                                    )}
+                                                                                <Popover>
+                                                                                    <PopoverTrigger asChild>
+                                                                                        <Button variant="outline" size="sm" className="h-7 text-xs">
+                                                                                            <CalendarIcon className="mr-2 h-3 w-3" />
+                                                                                            {milestone.effectiveDate ? format(new Date(milestone.effectiveDate), 'dd/MM/yy') : (milestone.predictedDate ? format(new Date(milestone.predictedDate), 'dd/MM/yy') : 'N/A')}
+                                                                                        </Button>
+                                                                                    </PopoverTrigger>
+                                                                                    <PopoverContent className="w-auto p-0">
+                                                                                        <Calendar mode="single" selected={milestone.effectiveDate ?? undefined} onSelect={(date) => {
+                                                                                            const milestones = form.getValues('milestones') || [];
+                                                                                            milestones[index].effectiveDate = date || null;
+                                                                                            form.setValue('milestones', [...milestones]);
+                                                                                        }} />
+                                                                                    </PopoverContent>
+                                                                                </Popover>
+                                                                                 <Checkbox
+                                                                                    checked={milestone.status === 'completed'}
+                                                                                    onCheckedChange={(checked) => {
+                                                                                        const newStatus = checked ? 'completed' : 'pending';
+                                                                                        const newEffectiveDate = checked ? new Date() : null;
+                                                                                        const milestones = form.getValues('milestones') || [];
+                                                                                        milestones[index].status = newStatus;
+                                                                                        milestones[index].effectiveDate = newEffectiveDate;
+                                                                                        form.setValue('milestones', [...milestones]);
+                                                                                    }}
                                                                                 />
                                                                             </div>
                                                                         </div>
@@ -1159,7 +1149,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                         </TableHeader>
                                                         <TableBody>
                                                             {chargesFields.map((field, index) => {
-                                                                const charge = watchedCharges[index];
+                                                                const charge = watchedCharges?.[index];
                                                                 if (!charge) return null;
                                                                 const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
                                                                 const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
@@ -1174,10 +1164,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                             <FeeCombobox fees={availableFees} value={charge.name} onValueChange={(value) => handleFeeSelection(value, index)} />
                                                                         </TableCell>
                                                                         <TableCell className="p-1 align-top">
-                                                                            <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
+                                                                            <FormField control={control} name={`charges.${index}.type`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
                                                                         </TableCell>
                                                                         <TableCell className="p-1 align-top">
-                                                                            <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
+                                                                            <FormField control={control} name={`charges.${index}.containerType`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
                                                                         </TableCell>
                                                                         <TableCell className="text-right p-1 align-top min-w-[250px]">
                                                                             <div className="flex items-center gap-1">

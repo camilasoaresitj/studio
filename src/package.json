@@ -54,8 +54,8 @@
     "zod-to-json-schema": "^3.23.1",
     "soap": "^1.0.0",
     "twilio": "^5.2.2",
-    "@genkit-ai/core": "latest",
-    "@genkit-ai/googleai": "latest",
+    "@genkit-ai/core": "1.0.0",
+    "@genkit-ai/googleai": "1.0.0",
     "@opentelemetry/exporter-jaeger": "^1.25.1"
   },
   "devDependencies": {

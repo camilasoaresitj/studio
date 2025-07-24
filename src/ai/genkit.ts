@@ -6,8 +6,8 @@ export const ai = genkit({
     googleAI(),
   ],
   models: {
-    'gemini-pro': 'gemini-2.5-flash-lite',
-    'gemini-pro-vision': 'gemini-2.5-pro',
+    'gemini-pro': 'googleai/gemini-1.5-flash-latest',
+    'gemini-pro-vision': 'googleai/gemini-1.5-pro-latest',
   },
   logLevel: 'debug',
   enableTracingAndMetrics: true,

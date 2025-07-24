@@ -3,7 +3,11 @@
 const nextConfig = {
   reactStrictMode: true,
   trailingSlash: true,
-  skipTrailingSlashRedirect: true
+  skipTrailingSlashRedirect: true,
+  transpilePackages: [
+    '@genkit-ai/core',
+    '@genkit-ai/googleai',
+  ],
 }
 
 module.exports = nextConfig

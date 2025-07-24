@@ -966,33 +966,39 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                         <div className="flex justify-between items-center">
                                                                             <p className="font-semibold text-sm">{milestone.name}</p>
                                                                             <div className="flex items-center gap-2">
-                                                                                <Popover>
-                                                                                    <PopoverTrigger asChild>
-                                                                                        <Button variant="outline" size="sm" className="h-7 text-xs">
-                                                                                            <CalendarIcon className="mr-2 h-3 w-3" />
-                                                                                            {milestone.effectiveDate ? format(milestone.effectiveDate, 'dd/MM/yy') : (milestone.predictedDate ? format(milestone.predictedDate, 'dd/MM/yy') : 'N/A')}
-                                                                                        </Button>
-                                                                                    </PopoverTrigger>
-                                                                                    <PopoverContent className="w-auto p-0">
-                                                                                        <Calendar mode="single" selected={milestone.effectiveDate || milestone.predictedDate} onSelect={(date) => {
-                                                                                            const milestones = form.getValues('milestones') || [];
-                                                                                            milestones[index].effectiveDate = date || null;
-                                                                                            form.setValue('milestones', milestones);
-                                                                                        }}/>
-                                                                                    </PopoverContent>
-                                                                                </Popover>
-                                                                                 <Checkbox
-                                                                                    checked={milestone.status === 'completed'}
-                                                                                    onCheckedChange={(checked) => {
-                                                                                        const milestones = form.getValues('milestones') || [];
-                                                                                        milestones[index].status = checked ? 'completed' : 'pending';
-                                                                                        if (checked) {
-                                                                                            milestones[index].effectiveDate = new Date();
-                                                                                        } else {
-                                                                                            milestones[index].effectiveDate = null;
-                                                                                        }
-                                                                                        form.setValue('milestones', milestones);
-                                                                                    }}
+                                                                                 <FormField
+                                                                                    control={form.control}
+                                                                                    name={`milestones.${index}.effectiveDate`}
+                                                                                    render={({ field }) => (
+                                                                                        <Popover>
+                                                                                            <PopoverTrigger asChild>
+                                                                                                <Button variant="outline" size="sm" className="h-7 text-xs">
+                                                                                                    <CalendarIcon className="mr-2 h-3 w-3" />
+                                                                                                    {field.value ? format(field.value, 'dd/MM/yy') : (milestone.predictedDate ? format(milestone.predictedDate, 'dd/MM/yy') : 'N/A')}
+                                                                                                </Button>
+                                                                                            </PopoverTrigger>
+                                                                                            <PopoverContent className="w-auto p-0">
+                                                                                                <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} />
+                                                                                            </PopoverContent>
+                                                                                        </Popover>
+                                                                                    )}
+                                                                                />
+                                                                                 <FormField
+                                                                                    control={form.control}
+                                                                                    name={`milestones.${index}.status`}
+                                                                                    render={({ field }) => (
+                                                                                        <Checkbox
+                                                                                            checked={field.value === 'completed'}
+                                                                                            onCheckedChange={(checked) => {
+                                                                                                const newStatus = checked ? 'completed' : 'pending';
+                                                                                                const newEffectiveDate = checked ? new Date() : null;
+                                                                                                const milestones = form.getValues('milestones') || [];
+                                                                                                milestones[index].status = newStatus;
+                                                                                                milestones[index].effectiveDate = newEffectiveDate;
+                                                                                                form.setValue('milestones', [...milestones]);
+                                                                                            }}
+                                                                                        />
+                                                                                    )}
                                                                                 />
                                                                             </div>
                                                                         </div>

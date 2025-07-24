@@ -656,16 +656,31 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             toast({ variant: 'destructive', title: 'Erro', description: response.error });
         }
     });
+
+    const handleDocTypeChange = (value: UploadedDocument['name'], index: number) => {
+        const newDocs = [...uploadedFiles];
+        newDocs[index].name = value;
+        setUploadedFiles(newDocs);
+    };
     
-    const handleDocumentUpload = (event: React.ChangeEvent<HTMLInputElement>, name: DocumentStatus['name']) => {
+    const addDocumentSlot = () => {
+        setUploadedFiles(prev => [...prev, { name: 'Outros', file: null as any }]);
+    };
+
+    const removeDocumentSlot = (index: number) => {
+        setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+    
+    const handleDocumentUpload = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
         const file = event.target.files?.[0];
         if (file) {
-          const newDoc: UploadedDocument = { name, file };
-          setUploadedFiles(prev => [...prev.filter(d => d.name !== name), newDoc]);
+          const newDocs = [...uploadedFiles];
+          newDocs[index].file = file;
+          setUploadedFiles(newDocs);
           
           const reader = new FileReader();
           reader.onload = (e) => {
-              setDocumentPreviews(prev => ({ ...prev, [name]: e.target?.result as string }));
+              setDocumentPreviews(prev => ({ ...prev, [newDocs[index].name]: e.target?.result as string }));
           };
           reader.readAsDataURL(file);
         }
@@ -918,15 +933,15 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
                             <div className="p-4">
                             <TabsContent value="timeline">
-                                Conteúdo da Timeline aqui...
+                                { /* Timeline Content was here */ }
                             </TabsContent>
                             
                             <TabsContent value="details">
-                                Conteúdo dos Detalhes aqui...
+                                { /* Details Content was here */ }
                             </TabsContent>
 
                             <TabsContent value="financials">
-                              Conteúdo do Financeiro aqui...
+                              { /* Financials Content was here */ }
                             </TabsContent>
                             
                             <TabsContent value="documents">
@@ -1002,5 +1017,3 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
-
-    

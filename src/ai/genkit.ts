@@ -1,6 +1,6 @@
 import { configureGenkit } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
-import { genkit as ai } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 
 configureGenkit({
   plugins: [
@@ -18,4 +18,4 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-export { ai };
+export const ai = genkit;

@@ -5,3 +5,27 @@ runConfig:
   concurrency: 80
   cpu: 1
   memoryMiB: 512
+
+# Environment variables and secrets
+# env:
+#   - variable: STORAGE_BUCKET
+#     value: mybucket.firebasestorage.app
+#     availability:
+#       - BUILD
+#       - RUNTIME
+#   - variable: API_KEY
+#     secret: myApiKeySecret
+#   - variable: PINNED_API_KEY
+#     secret: myApiKeySecret@5
+
+# Override build and run commands
+# scripts:
+#   buildCommand: next build --no-lint
+#   runCommand: node dist/index.js
+
+# VPC Access configuration
+# vpcAccess:
+#   egress: PRIVATE_RANGES_ONLY
+#   networkInterfaces:
+#     - network: my-network-id
+#       subnetwork: my-subnetwork-id

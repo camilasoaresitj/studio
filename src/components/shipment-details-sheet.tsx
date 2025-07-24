@@ -932,8 +932,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         <TabsTrigger value="details">Detalhes</TabsTrigger>
                                         <TabsTrigger value="financials">Financeiro</TabsTrigger>
                                         <TabsTrigger value="documents">Documentos</TabsTrigger>
-                                        {!isImport && <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>}
-                                        <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
+                                        {isImport ? (
+                                            <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
+                                        ) : (
+                                            <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>
+                                        )}
                                     </TabsList>
                                     </div>
 
@@ -1256,11 +1259,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         </Card>
                                     </TabsContent>
 
-                                    {!isImport && (
-                                        <TabsContent value="bl_draft">
-                                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                        </TabsContent>
-                                    )}
+                                    <TabsContent value="bl_draft">
+                                        <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                                    </TabsContent>
                                     
                                     <TabsContent value="desembaraco">
                                        <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />

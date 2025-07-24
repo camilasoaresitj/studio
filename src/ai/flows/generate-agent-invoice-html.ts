@@ -8,8 +8,7 @@
  * GenerateAgentInvoiceHtmlOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const AgentChargeSchema = z.object({
@@ -44,10 +43,10 @@ export async function generateAgentInvoiceHtml(input: GenerateAgentInvoiceHtmlIn
   return generateAgentInvoiceHtmlFlow(input);
 }
 
-const generateAgentInvoiceHtmlPrompt = definePrompt({
+const generateAgentInvoiceHtmlPrompt = ai.definePrompt({
   name: 'generateAgentInvoiceHtmlPrompt',
-  inputSchema: GenerateAgentInvoiceHtmlInputSchema,
-  outputSchema: GenerateAgentInvoiceHtmlOutputSchema,
+  input: { schema: GenerateAgentInvoiceHtmlInputSchema },
+  output: { schema: GenerateAgentInvoiceHtmlOutputSchema },
   prompt: `You are an expert in creating professional, clean, and well-structured HTML for generating PDF invoices for logistics agents.
 Your task is to generate the HTML for an invoice based on the provided JSON data, closely matching the provided visual template (orange and dark theme).
 
@@ -167,19 +166,19 @@ Your task is to generate the HTML for an invoice based on the provided JSON data
 `,
 });
 
-const generateAgentInvoiceHtmlFlow = defineFlow(
+const generateAgentInvoiceHtmlFlow = ai.defineFlow(
   {
     name: 'generateAgentInvoiceHtmlFlow',
     inputSchema: GenerateAgentInvoiceHtmlInputSchema,
     outputSchema: GenerateAgentInvoiceHtmlOutputSchema,
   },
   async (input) => {
-    const response = await generate({
-      prompt: { ...generateAgentInvoiceHtmlPrompt, input },
+    const { output } = await ai.generate({
+      prompt: generateAgentInvoiceHtmlPrompt,
+      input,
       model: 'gemini-pro',
     });
     
-    const output = response.output();
     if (!output) {
       throw new Error("AI failed to generate agent invoice HTML.");
     }

@@ -5,7 +5,7 @@ const nextConfig = {
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
   transpilePackages: [
-    '@genkit-ai/core',
+    'genkit',
     '@genkit-ai/googleai',
   ],
 }

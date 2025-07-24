@@ -8,7 +8,7 @@
  * GenerateDiXmlOutputSchema - The output Zod schema for the flow.
  */
 
-import { defineFlow } from '@genkit-ai/core';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { format } from 'date-fns';
 
@@ -38,12 +38,13 @@ export const GenerateDiXmlOutputSchema = z.object({
 });
 export type GenerateDiXmlOutput = z.infer<typeof GenerateDiXmlOutputSchema>;
 
-export const generateDiXmlFlow = defineFlow(
+export const generateDiXmlFlow = ai.defineFlow(
   {
     name: 'generateDiXmlFlow',
     inputSchema: GenerateDiXmlInputSchema,
     outputSchema: GenerateDiXmlOutputSchema,
-    run: async (input) => {
+  },
+  async (input) => {
         const additionsXml = input.additions.map((item, index) => `
         <adicao numero="${index + 1}">
             <ncm>${item.ncm}</ncm>
@@ -86,5 +87,4 @@ export const generateDiXmlFlow = defineFlow(
         xml: xmlContent,
         };
     },
-  }
 );

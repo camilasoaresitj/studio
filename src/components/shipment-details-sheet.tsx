@@ -1036,50 +1036,18 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                         </Select>
                                                     </FormItem>
                                                 )}/>
-                                                <FormField control={form.control} name="vesselName" render={({ field }) => (
-                                                    <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
-                                                 <FormField control={form.control} name="voyageNumber" render={({ field }) => (
-                                                    <FormItem><FormLabel>Viagem / Voo nº</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
-                                                <FormField control={form.control} name="bookingNumber" render={({ field }) => (
-                                                    <FormItem><FormLabel>Booking Number</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
-                                                <FormField control={form.control} name="masterBillNumber" render={({ field }) => (
-                                                    <FormItem><FormLabel>Master BL / AWB</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
-                                                <FormField control={form.control} name="houseBillNumber" render={({ field }) => (
-                                                    <FormItem><FormLabel>House BL / AWB</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
-                                                 <FormField control={form.control} name="etd" render={({ field }) => (
-                                                    <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
-                                                    <Popover><PopoverTrigger asChild><FormControl>
-                                                        <Button variant="outline" className="h-10"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button>
-                                                    </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover>
-                                                    </FormItem>
-                                                )}/>
-                                                <FormField control={form.control} name="eta" render={({ field }) => (
-                                                    <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
-                                                    <Popover><PopoverTrigger asChild><FormControl>
-                                                        <Button variant="outline" className="h-10"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button>
-                                                    </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover>
-                                                    </FormItem>
-                                                )}/>
-                                                <FormField control={form.control} name="origin" render={({ field }) => (
-                                                    <FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
-                                                <FormField control={form.control} name="destination" render={({ field }) => (
-                                                    <FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
-                                                 <FormField control={form.control} name="ceMaster" render={({ field }) => (
-                                                    <FormItem><FormLabel>CE Master</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
-                                                 <FormField control={form.control} name="ceHouse" render={({ field }) => (
-                                                    <FormItem><FormLabel>CE House</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
-                                                 <FormField control={form.control} name="manifesto" render={({ field }) => (
-                                                    <FormItem><FormLabel>Manifesto</FormLabel><FormControl><Input {...field}/></FormControl></FormItem>
-                                                )}/>
+                                                <FormField control={form.control} name="vesselName" render={({ field }) => ( <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                <FormField control={form.control} name="voyageNumber" render={({ field }) => ( <FormItem><FormLabel>Viagem / Voo nº</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                <FormField control={form.control} name="bookingNumber" render={({ field }) => ( <FormItem><FormLabel>Booking Number</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                <FormField control={form.control} name="masterBillNumber" render={({ field }) => ( <FormItem><FormLabel>Master BL / AWB</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                <FormField control={form.control} name="houseBillNumber" render={({ field }) => ( <FormItem><FormLabel>House BL / AWB</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                <FormField control={form.control} name="etd" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel> <Popover><PopoverTrigger asChild><FormControl> <Button variant="outline" className="h-10"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover> </FormItem> )}/>
+                                                <FormField control={form.control} name="eta" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel> <Popover><PopoverTrigger asChild><FormControl> <Button variant="outline" className="h-10"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover> </FormItem> )}/>
+                                                <FormField control={form.control} name="origin" render={({ field }) => ( <FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                <FormField control={form.control} name="destination" render={({ field }) => ( <FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                <FormField control={form.control} name="ceMaster" render={({ field }) => ( <FormItem><FormLabel>CE Master</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                <FormField control={form.control} name="ceHouse" render={({ field }) => ( <FormItem><FormLabel>CE House</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                <FormField control={form.control} name="manifesto" render={({ field }) => ( <FormItem><FormLabel>Manifesto</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
                                             </CardContent>
                                         </Card>
                                         <Card>
@@ -1087,15 +1055,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                             <CardContent className="space-y-4">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field}/></FormControl></FormItem>)}/>
-                                                    <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel>Observações Operacionais</FormLabel><FormControl><Textarea {...field}/></FormControl></FormItem>)}/>
+                                                    <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs (separados por vírgula)</FormLabel><FormControl><Textarea {...field} onChange={e => field.onChange(e.target.value.split(',').map(n => n.trim()))} value={field.value?.join(', ')} /></FormControl></FormItem>)}/>
                                                 </div>
                                                 <div className="border rounded-lg">
                                                     <Table>
-                                                        <TableHeader>
-                                                            <TableRow>
-                                                                <TableHead>Contêiner</TableHead><TableHead>Lacre</TableHead><TableHead>Tara</TableHead><TableHead>Peso Bruto</TableHead><TableHead>Volumes</TableHead><TableHead>CBM</TableHead><TableHead>Ação</TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
+                                                        <TableHeader> <TableRow> <TableHead>Contêiner</TableHead><TableHead>Lacre</TableHead><TableHead>Tara</TableHead><TableHead>Peso Bruto</TableHead><TableHead>Volumes</TableHead><TableHead>CBM</TableHead><TableHead>Free Time</TableHead><TableHead>Ação</TableHead> </TableRow> </TableHeader>
                                                         <TableBody>
                                                             {containerFields.map((field, index) => (
                                                                 <TableRow key={field.id}>
@@ -1105,6 +1069,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                     <TableCell><FormField control={control} name={`containers.${index}.grossWeight`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
                                                                     <TableCell><FormField control={control} name={`containers.${index}.volumes`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
                                                                     <TableCell><FormField control={control} name={`containers.${index}.measurement`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                    <TableCell><FormField control={control} name={`containers.${index}.freeTime`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
                                                                     <TableCell><Button variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
                                                                 </TableRow>
                                                             ))}
@@ -1172,7 +1137,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                     <TableRow>
                                                         <TableHead className="w-[150px]">Taxa</TableHead>
                                                         <TableHead className="w-[120px]">Tipo Cobrança</TableHead>
-                                                        <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
+                                                         <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
                                                         <TableHead className="text-right min-w-[250px]">Compra</TableHead>
                                                         <TableHead className="text-right min-w-[250px]">Venda</TableHead>
                                                         <TableHead className="w-[120px] text-right">Lucro</TableHead>
@@ -1230,13 +1195,13 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                         )}
                                                                     />
                                                                 </TableCell>
-                                                                <TableCell className="text-right p-1 align-top">
+                                                                <TableCell className="text-right p-1 align-top min-w-[250px]">
                                                                     <div className="flex items-center gap-1">
                                                                         <FormField control={control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
                                                                         <FormField control={control} name={`charges.${index}.cost`} render={({ field }) => (<Input type="number" {...field} onChange={e => handleValueChange(index, 'cost', parseFloat(e.target.value) || 0)} className="w-full h-8" />)} />
                                                                     </div>
                                                                 </TableCell>
-                                                                <TableCell className="text-right p-1 align-top">
+                                                                <TableCell className="text-right p-1 align-top min-w-[250px]">
                                                                     <div className="flex items-center gap-1">
                                                                         <FormField control={control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
                                                                         <FormField control={control} name={`charges.${index}.sale`} render={({ field }) => (<Input type="number" {...field} onChange={e => handleValueChange(index, 'sale', parseFloat(e.target.value) || 0)} className="w-full h-8" />)} />
@@ -1436,5 +1401,3 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
-
-    

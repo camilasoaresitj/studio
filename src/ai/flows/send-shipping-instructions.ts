@@ -8,8 +8,7 @@
  * SendShippingInstructionsOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema } from '@/lib/schemas';
 import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
@@ -19,10 +18,10 @@ export async function sendShippingInstructions(input: SendShippingInstructionsIn
   return sendShippingInstructionsFlow(input);
 }
 
-const prompt = definePrompt({
+const prompt = ai.definePrompt({
   name: 'sendShippingInstructionsPrompt',
-  inputSchema: SendShippingInstructionsInputSchema,
-  outputSchema: SendShippingInstructionsOutputSchema,
+  input: { schema: SendShippingInstructionsInputSchema },
+  output: { schema: SendShippingInstructionsOutputSchema },
   prompt: `You are a logistics operations expert. Your task is to generate a professional and detailed "Shipping Instructions" email in English to a freight agent. The email must be in HTML format and resemble a draft Bill of Lading.
 
 **Crucial Formatting Rules:**
@@ -114,7 +113,7 @@ const prompt = definePrompt({
 `,
 });
 
-const sendShippingInstructionsFlow = defineFlow(
+const sendShippingInstructionsFlow = ai.defineFlow(
   {
     name: 'sendShippingInstructionsFlow',
     inputSchema: SendShippingInstructionsInputSchema,
@@ -125,11 +124,13 @@ const sendShippingInstructionsFlow = defineFlow(
     // We will just log the action to the console to simulate it.
     console.log(`SIMULATING sending Shipping Instructions to ${input.agentEmail}`);
 
-    const { output } = await generate({
-      prompt: { ...prompt, input },
+    const llmResponse = await ai.generate({
+      prompt: prompt,
+      input,
       model: 'gemini-pro',
     });
 
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate shipping instructions.");
     }

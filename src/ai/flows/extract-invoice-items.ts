@@ -4,8 +4,7 @@
  * @fileOverview A Genkit flow to extract structured invoice items from a file (XLSX, CSV, XML, PDF, JPG, PNG).
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 import { InvoiceItemSchema, ExtractInvoiceItemsInputSchema, ExtractInvoiceItemsOutputSchema } from '@/lib/schemas/invoice';
@@ -29,10 +28,10 @@ const extractFromMedia = (dataUri: string): { media: { url: string }; textConten
 };
 
 
-const extractInvoiceItemsPrompt = definePrompt({
+const extractInvoiceItemsPrompt = ai.definePrompt({
   name: 'extractInvoiceItemsPrompt',
-  inputSchema: z.object({ textContent: z.string().optional(), media: z.any().optional() }),
-  outputSchema: z.object({ data: z.array(InvoiceItemSchema) }),
+  input: { schema: z.object({ textContent: z.string().optional(), media: z.any().optional() }) },
+  output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) },
   prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided content, which could be from a CSV, XML, plain text, an image, or a PDF file.
 
 Analyze the content below and extract all product line items. For each item, you must find:
@@ -77,7 +76,7 @@ Now, analyze the following media content and return the JSON object:
 `,
 });
 
-const extractInvoiceItemsFlow = defineFlow(
+const extractInvoiceItemsFlow = ai.defineFlow(
   {
     name: 'extractInvoiceItemsFlow',
     inputSchema: ExtractInvoiceItemsInputSchema,
@@ -107,14 +106,13 @@ const extractInvoiceItemsFlow = defineFlow(
             throw new Error('The file appears to be empty or could not be read.');
         }
 
-        const { output } = await generate({
+        const llmResponse = await ai.generate({
           model: 'gemini-pro-vision',
-          prompt: {
-            ...extractInvoiceItemsPrompt,
-            input: promptInput,
-          },
+          prompt: extractInvoiceItemsPrompt,
+          input: promptInput,
         });
         
+        const output = llmResponse.output();
         if (!output || !output.data || output.data.length === 0) {
             throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo, o formato e se as colunas necessárias (descrição, quantidade, valor, ncm) estão presentes.");
         }

@@ -7,8 +7,7 @@
  * GetCourierStatusInput - The input type for the function.
  * GetCourierStatusOutput - The return type for the function.
  */
-import { defineFlow, definePrompt } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { GetCourierStatusInputSchema, GetCourierStatusOutputSchema } from '@/lib/schemas';
 import type { GetCourierStatusInput, GetCourierStatusOutput } from '@/lib/schemas';
 
@@ -16,10 +15,10 @@ export async function getCourierStatus(input: GetCourierStatusInput): Promise<Ge
   return getCourierStatusFlow(input);
 }
 
-const getCourierStatusPrompt = definePrompt({
+const getCourierStatusPrompt = ai.definePrompt({
   name: 'getCourierStatusPrompt',
-  inputSchema: GetCourierStatusInputSchema,
-  outputSchema: GetCourierStatusOutputSchema,
+  input: { schema: GetCourierStatusInputSchema },
+  output: { schema: GetCourierStatusOutputSchema },
   prompt: `You are a logistics AI assistant that simulates real-time courier tracking.
 Given a courier name and a tracking number, generate a single, plausible, and realistic last known status for the shipment.
 
@@ -42,19 +41,20 @@ Given a courier name and a tracking number, generate a single, plausible, and re
 `,
 });
 
-const getCourierStatusFlow = defineFlow(
+const getCourierStatusFlow = ai.defineFlow(
   {
     name: 'getCourierStatusFlow',
     inputSchema: GetCourierStatusInputSchema,
     outputSchema: GetCourierStatusOutputSchema,
   },
   async input => {
-    const { output } = await generate({
+    const llmResponse = await ai.generate({
       model: 'gemini-pro',
       prompt: getCourierStatusPrompt,
       input
     });
     
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate status.");
     }

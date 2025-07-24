@@ -1,13 +1,15 @@
 'use server';
 
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
 import { dotprompt } from '@genkit-ai/dotprompt';
 
-configureGenkit({
+export const ai = genkit({
   plugins: [
     googleAI(),
-    dotprompt,
+    dotprompt({
+      model: 'googleai/gemini-1.5-flash-latest',
+    }),
   ],
   models: {
     'gemini-pro': {

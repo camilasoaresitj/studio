@@ -7,8 +7,7 @@
  * - DFAgent - The return type for a single agent.
  */
 
-import { defineFlow, definePrompt, defineTool } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 // This is a simplified schema for what we can reliably extract from the directory page.
@@ -24,7 +23,7 @@ const SyncDFAgentsOutputSchema = z.object({ agents: z.array(DFAgentSchema) });
 export type SyncDFAgentsOutput = z.infer<typeof SyncDFAgentsOutputSchema>;
 
 // Tool to fetch the raw HTML content from the directory URL.
-const fetchDirectoryPageContent = defineTool(
+const fetchDirectoryPageContent = ai.defineTool(
     {
         name: 'fetchDirectoryPageContent',
         description: 'Fetches the HTML content of the DF Alliance directory page. The directory URL is fixed and known.',
@@ -53,9 +52,9 @@ const fetchDirectoryPageContent = defineTool(
 
 
 // Define a prompt that uses the tool to get the page content and then parses it.
-const syncPrompt = definePrompt({
+const syncPrompt = ai.definePrompt({
     name: 'syncDFAgentsPrompt',
-    outputSchema: SyncDFAgentsOutputSchema,
+    output: { schema: SyncDFAgentsOutputSchema },
     tools: [fetchDirectoryPageContent],
     prompt: `You are an expert data extraction AI. Your task is to extract all freight forwarder agent details from the provided HTML content of the DF Alliance directory.
 
@@ -90,18 +89,19 @@ Return an empty array [] in the "agents" key if no agents can be extracted.
 `,
 });
 
-const syncDFAgentsFlow = defineFlow(
+const syncDFAgentsFlow = ai.defineFlow(
   {
     name: 'syncDFAgentsFlow',
     inputSchema: z.void(),
     outputSchema: z.array(DFAgentSchema),
   },
   async () => {
-    const { output } = await generate({
+    const llmResponse = await ai.generate({
       prompt: syncPrompt,
       model: 'gemini-pro',
     });
     
+    const output = llmResponse.output();
     if (!output?.agents) {
       throw new Error('AI failed to extract any agent information from the directory.');
     }

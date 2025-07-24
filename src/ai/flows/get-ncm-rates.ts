@@ -8,8 +8,7 @@
  * GetNcmRatesOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const GetNcmRatesInputSchema = z.object({
@@ -31,10 +30,10 @@ export async function getNcmRates(input: GetNcmRatesInput): Promise<GetNcmRatesO
   return getNcmRatesFlow(input);
 }
 
-const getNcmRatesPrompt = definePrompt({
+const getNcmRatesPrompt = ai.definePrompt({
   name: 'getNcmRatesPrompt',
-  inputSchema: GetNcmRatesInputSchema,
-  outputSchema: GetNcmRatesOutputSchema,
+  input: { schema: GetNcmRatesInputSchema },
+  output: { schema: GetNcmRatesOutputSchema },
   prompt: `You are a Brazilian customs expert AI. Your task is to provide the standard tax rates for a given NCM code.
 You must return the standard, most common ad valorem rates for II, IPI, PIS, and COFINS.
 
@@ -61,7 +60,7 @@ Now, provide the rates for the requested NCM.
 `,
 });
 
-const getNcmRatesFlow = defineFlow(
+const getNcmRatesFlow = ai.defineFlow(
   {
     name: 'getNcmRatesFlow',
     inputSchema: GetNcmRatesInputSchema,
@@ -71,12 +70,13 @@ const getNcmRatesFlow = defineFlow(
     // This is a simulation. A real implementation would require a dedicated, paid API for NCM rates.
     // The AI will generate a plausible response based on its training data.
     console.log(`Simulating NCM rate lookup for ${input.ncm}`);
-    const { output } = await generate({
+    const llmResponse = await ai.generate({
       model: 'gemini-pro',
       prompt: getNcmRatesPrompt,
       input,
     });
     
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate NCM rate information.");
     }

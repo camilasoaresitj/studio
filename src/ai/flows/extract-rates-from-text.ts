@@ -8,8 +8,7 @@
  * - ExtractRatesFromTextOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const ExtractRatesFromTextInputSchema = z.object({
@@ -62,11 +61,11 @@ export async function extractRatesFromText(input: ExtractRatesFromTextInput): Pr
   return extractRatesFromTextFlow(input);
 }
 
-const extractRatesFromTextPrompt = definePrompt({
+const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
-  inputSchema: ExtractRatesFromTextInputSchema,
+  input: { schema: ExtractRatesFromTextInputSchema },
   // Use the more lenient, partial schema for the prompt's output.
-  outputSchema: z.object({ rates: z.array(PartialRateSchemaForPrompt) }),
+  output: { schema: z.object({ rates: z.array(PartialRateSchemaForPrompt) }) },
   prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the text below and return a valid JSON object containing an array of rate objects. The final JSON must have a single key "rates".
 
 **Extraction Process & Rules:**
@@ -119,7 +118,7 @@ const normalizeContainerType = (containerStr: string | undefined): string => {
     return containerStr.toUpperCase().trim();
 };
 
-const extractRatesFromTextFlow = defineFlow(
+const extractRatesFromTextFlow = ai.defineFlow(
   {
     name: 'extractRatesFromTextFlow',
     inputSchema: ExtractRatesFromTextInputSchema,
@@ -128,13 +127,13 @@ const extractRatesFromTextFlow = defineFlow(
   },
   async (input) => {
     // The prompt returns a list of potentially incomplete rate objects.
-    const { output } = await generate({
+    const llmResponse = await ai.generate({
       model: 'gemini-pro',
       prompt: extractRatesFromTextPrompt,
       input
     });
     
-    const partialRates = output?.rates;
+    const partialRates = llmResponse.output()?.rates;
     
     // It's possible the AI returns nothing if the text is very unclear.
     if (!partialRates || partialRates.length === 0) {

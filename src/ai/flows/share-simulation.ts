@@ -8,8 +8,7 @@
  * ShareSimulationOutput - The return type for the function.
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const ShareSimulationInputSchema = z.object({
@@ -31,10 +30,10 @@ export async function shareSimulation(input: ShareSimulationInput): Promise<Shar
   return shareSimulationFlow(input);
 }
 
-const shareSimulationPrompt = definePrompt({
+const shareSimulationPrompt = ai.definePrompt({
   name: 'shareSimulationPrompt',
-  inputSchema: ShareSimulationInputSchema,
-  outputSchema: ShareSimulationOutputSchema,
+  input: { schema: ShareSimulationInputSchema },
+  output: { schema: ShareSimulationOutputSchema },
   prompt: `You are an expert logistics assistant. Your task is to create a professional communication to a client sharing a cost simulation. The language must be in Portuguese.
 
 Generate the following based on the input data:
@@ -59,7 +58,7 @@ Generate the following based on the input data:
 `,
 });
 
-const shareSimulationFlow = defineFlow(
+const shareSimulationFlow = ai.defineFlow(
   {
     name: 'shareSimulationFlow',
     inputSchema: ShareSimulationInputSchema,
@@ -72,12 +71,13 @@ const shareSimulationFlow = defineFlow(
         totalCostBRL: input.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     };
 
-    const { output } = await generate({
+    const llmResponse = await ai.generate({
       prompt: shareSimulationPrompt,
       input: formattedInput,
       model: 'gemini-pro',
     });
     
+    const output = llmResponse.output();
     if (!output) {
       throw new Error("A IA não conseguiu gerar o conteúdo para compartilhamento.");
     }

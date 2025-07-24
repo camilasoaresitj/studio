@@ -8,8 +8,7 @@
  * CreateCrmEntryFromEmailOutput - The return type for the createCrmEntryFromEmail function.
  */
 
-import { defineFlow, definePrompt } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/googleai';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const CreateCrmEntryFromEmailInputSchema = z.object({
@@ -30,10 +29,10 @@ export async function createCrmEntryFromEmail(input: CreateCrmEntryFromEmailInpu
   return createCrmEntryFromEmailFlow(input);
 }
 
-const createCrmEntryFromEmailPrompt = definePrompt({
+const createCrmEntryFromEmailPrompt = ai.definePrompt({
   name: 'createCrmEntryFromEmailPrompt',
-  inputSchema: CreateCrmEntryFromEmailInputSchema,
-  outputSchema: CreateCrmEntryFromEmailOutputSchema,
+  input: { schema: CreateCrmEntryFromEmailInputSchema },
+  output: { schema: CreateCrmEntryFromEmailOutputSchema },
   prompt: `You are an AI assistant tasked with analyzing email content and creating CRM entries.
   Your goal is to extract key information from the email and structure it into a CRM entry.
 
@@ -52,19 +51,20 @@ const createCrmEntryFromEmailPrompt = definePrompt({
   If some information is not available return "unknown".`,
 });
 
-const createCrmEntryFromEmailFlow = defineFlow(
+const createCrmEntryFromEmailFlow = ai.defineFlow(
   {
     name: 'createCrmEntryFromEmailFlow',
     inputSchema: CreateCrmEntryFromEmailInputSchema,
     outputSchema: CreateCrmEntryFromEmailOutputSchema,
   },
   async (input) => {
-      const { output } = await generate({
+      const llmResponse = await ai.generate({
           prompt: createCrmEntryFromEmailPrompt,
           input,
           model: 'gemini-pro',
       });
       
+      const output = llmResponse.output();
       if (!output) {
         throw new Error("AI failed to generate CRM entry.");
       }

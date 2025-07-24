@@ -24,8 +24,8 @@ const SendQuoteOutputSchema = z.object({
 
 export const sendQuotePrompt = ai.definePrompt({
   name: 'send-quote',
-  inputSchema: SendQuoteInputSchema,
-  outputSchema: SendQuoteOutputSchema,
+  input: { schema: SendQuoteInputSchema },
+  output: { schema: SendQuoteOutputSchema },
   prompt: `You are an expert logistics communication AI, skilled in creating professional and persuasive messages for sending rate quotes to clients.
 
 **Instructions:**
@@ -138,8 +138,8 @@ const GenerateQuotePdfHtmlOutputSchema = z.object({
 
 export const generateQuotePdfHtmlPrompt = ai.definePrompt({
   name: 'generate-quote-pdf-html',
-  inputSchema: GenerateQuotePdfHtmlInputSchema,
-  outputSchema: GenerateQuotePdfHtmlOutputSchema,
+  input: { schema: GenerateQuotePdfHtmlInputSchema },
+  output: { schema: GenerateQuotePdfHtmlOutputSchema },
   prompt: `You are an expert in generating HTML content for a shipping quote PDF.
 You will receive data about the quote and must return a complete, well-structured HTML document that is ready to be converted into a PDF.
 
@@ -364,8 +364,8 @@ const ExtractPartnerInfoOutputSchema = z.object({
 
 export const extractPartnerInfoPrompt = ai.definePrompt({
     name: 'extract-partner-info',
-    inputSchema: ExtractPartnerInfoInputSchema,
-    outputSchema: ExtractPartnerInfoOutputSchema,
+    input: { schema: ExtractPartnerInfoInputSchema },
+    output: { schema: ExtractPartnerInfoOutputSchema },
     prompt: `You are an expert AI in extracting partner information from unstructured text.
 Given a text containing information about a partner (customer, supplier, agent, etc.), you will extract the partner's name, CNPJ (if available), address, and contact information.
 

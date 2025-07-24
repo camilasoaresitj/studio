@@ -371,6 +371,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const [justificationData, setJustificationData] = useState<{ chargeIndex: number; field: 'cost' | 'sale'; newValue: number } | null>(null);
     const [financialEntries, setFinancialEntries] = useState(getFinancialEntries());
     const [detailsEntry, setDetailsEntry] = useState<any>(null); // State for finance details dialog
+    const [isFaturarDialogOpen, setIsFaturarDialogOpen] = useState(false);
+    const [chargesToFaturar, setChargesToFaturar] = useState<Set<string>>(new Set());
 
     const blDraftFormRef = useRef<{ submit: () => void }>(null);
 
@@ -655,29 +657,20 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
     });
     
-    const handleDocumentUpload = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const handleDocumentUpload = (event: React.ChangeEvent<HTMLInputElement>, name: DocumentStatus['name']) => {
         const file = event.target.files?.[0];
         if (file) {
-          const newDocs = [...uploadedFiles];
-          newDocs[index] = { ...uploadedFiles[index], file: file };
-          setUploadedFiles(newDocs);
+          const newDoc: UploadedDocument = { name, file };
+          setUploadedFiles(prev => [...prev.filter(d => d.name !== name), newDoc]);
+          
+          const reader = new FileReader();
+          reader.onload = (e) => {
+              setDocumentPreviews(prev => ({ ...prev, [name]: e.target?.result as string }));
+          };
+          reader.readAsDataURL(file);
         }
     };
     
-    const addDocumentSlot = () => {
-        setUploadedFiles([...uploadedFiles, { name: 'Outros', file: null as any }]);
-    };
-    
-    const removeDocumentSlot = (index: number) => {
-        setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
-    };
-
-    const handleDocTypeChange = (value: UploadedDocument['name'], index: number) => {
-        const newDocs = [...uploadedFiles];
-        newDocs[index].name = value;
-        setUploadedFiles(newDocs);
-    };
-
     const watchedContainers = form.watch('containers');
     const containerTotals = React.useMemo(() => {
         if (!watchedContainers) return { qty: 0, weight: 0, volumes: 0, cbm: 0 };
@@ -692,21 +685,22 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const handleFaturarProcesso = () => {
         if (!shipment) return;
     
-        const chargesToProcess = watchedCharges.filter(c => !c.financialEntryId);
-        if (chargesToProcess.length === 0) {
-            toast({ title: 'Nenhuma taxa nova para faturar.' });
+        const chargesToFaturarNow = watchedCharges.filter(c => chargesToFaturar.has(c.id));
+        if (chargesToFaturarNow.length === 0) {
+            toast({ title: 'Nenhuma taxa selecionada para faturar.' });
+            setIsFaturarDialogOpen(false);
             return;
         }
     
         const groupedCredits: { [partner: string]: QuoteCharge[] } = {};
         const groupedDebits: { [partner: string]: QuoteCharge[] } = {};
     
-        chargesToProcess.forEach(charge => {
-            if (charge.sacado) { // Contas a Receber
+        chargesToFaturarNow.forEach(charge => {
+            if (charge.sacado) {
                 if (!groupedCredits[charge.sacado]) groupedCredits[charge.sacado] = [];
                 groupedCredits[charge.sacado].push(charge);
             }
-            if (charge.supplier) { // Contas a Pagar
+            if (charge.supplier) {
                 if (!groupedDebits[charge.supplier]) groupedDebits[charge.supplier] = [];
                 groupedDebits[charge.supplier].push(charge);
             }
@@ -727,7 +721,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             }, 0);
         };
     
-        // Process Credits (Contas a Receber)
         for (const partnerName in groupedCredits) {
             const charges = groupedCredits[partnerName];
             const totalBRL = calculateTotalInBRL(charges, partnerName, 'sale');
@@ -744,7 +737,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             });
         }
     
-        // Process Debits (Contas a Pagar)
         for (const partnerName in groupedDebits) {
             const charges = groupedDebits[partnerName];
             const totalBRL = calculateTotalInBRL(charges, partnerName, 'cost');
@@ -763,11 +755,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     
         const createdEntries = addFinancialEntries(newFinancialEntries);
         
-        // Link charges to financial entries
         const updatedCharges = form.getValues('charges').map(charge => {
             const entryForCharge = createdEntries.find(entry => 
-                (entry.type === 'credit' && entry.partner === charge.sacado) ||
-                (entry.type === 'debit' && entry.partner === charge.supplier)
+                (entry.type === 'credit' && entry.partner === charge.sacado && chargesToFaturar.has(charge.id)) ||
+                (entry.type === 'debit' && entry.partner === charge.supplier && chargesToFaturar.has(charge.id))
             );
             return entryForCharge ? { ...charge, financialEntryId: entryForCharge.id } : charge;
         });
@@ -775,6 +766,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         form.setValue('charges', updatedCharges);
         onMainFormSubmit(form.getValues());
         setFinancialEntries(getFinancialEntries());
+        setIsFaturarDialogOpen(false);
+        setChargesToFaturar(new Set());
     
         toast({
             title: 'Processo Faturado!',
@@ -803,12 +796,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 justification,
             };
             updateCharge(chargeIndex, updatedCharge);
-            // Salvar o estado do formulário para persistir a alteração pendente
             onMainFormSubmit(form.getValues());
         }
         setJustificationData(null);
     };
-
     
     const handleFeeSelection = (feeName: string, index: number) => {
         const fee = fees.find(f => f.name === feeName);
@@ -836,7 +827,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             if (!dateB) return -1;
             return dateA - dateB;
         });
-    }, [shipment, form.watch('milestones')]); // Re-sort when milestones change
+    }, [shipment, form.watch('milestones')]);
 
     if (!shipment) {
         return (
@@ -927,15 +918,15 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
                             <div className="p-4">
                             <TabsContent value="timeline">
-                                {/* O conteúdo da timeline continua aqui... */}
+                                Conteúdo da Timeline aqui...
                             </TabsContent>
                             
                             <TabsContent value="details">
-                                {/* O conteúdo dos detalhes continua aqui... */}
+                                Conteúdo dos Detalhes aqui...
                             </TabsContent>
 
                             <TabsContent value="financials">
-                              {/* O conteúdo do financeiro continua aqui... */}
+                              Conteúdo do Financeiro aqui...
                             </TabsContent>
                             
                             <TabsContent value="documents">
@@ -958,7 +949,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                     <Button variant="ghost" size="icon" onClick={() => removeDocumentSlot(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                                 </div>
                                             ))}
-                                            <Button variant="outline" size="sm" onClick={addDocumentSlot}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar Documento</Button>
+                                            <Button variant="outline" size="sm" onClick={addDocumentSlot}><PlusCircle className="mr-2 h-4 w-4" /> Anexar Documento</Button>
                                         </div>
 
                                         <Separator />
@@ -1011,3 +1002,5 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
+
+    

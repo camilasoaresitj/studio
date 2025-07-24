@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -346,7 +346,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const handleAddRoute = () => {
     if (routeInput.trim()) {
-        appendRoute({ value: routeInput.trim() });
+        appendRoute(routeInput.trim() as any);
         setRouteInput('');
     }
   };

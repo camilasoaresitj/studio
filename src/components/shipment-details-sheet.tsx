@@ -972,10 +972,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                                     render={({ field }) => (
                                                                                         <Popover>
                                                                                             <PopoverTrigger asChild>
+                                                                                                <FormControl>
                                                                                                 <Button variant="outline" size="sm" className="h-7 text-xs">
                                                                                                     <CalendarIcon className="mr-2 h-3 w-3" />
                                                                                                     {field.value ? format(field.value, 'dd/MM/yy') : (milestone.predictedDate ? format(milestone.predictedDate, 'dd/MM/yy') : 'N/A')}
                                                                                                 </Button>
+                                                                                                </FormControl>
                                                                                             </PopoverTrigger>
                                                                                             <PopoverContent className="w-auto p-0">
                                                                                                 <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} />
@@ -1388,7 +1390,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                 <TableCell>{partner}</TableCell>
                                                 <TableCell className="text-right font-mono">
                                                     {type === 'credit' ? charge.saleCurrency : charge.costCurrency}{' '}
-                                                    {type === 'credit' ? charge.sale.toFixed(2) : charge.cost.toFixed(2)}
+                                                    {type === 'credit' ? (Number(charge.sale) || 0).toFixed(2) : (Number(charge.cost) || 0).toFixed(2)}
                                                 </TableCell>
                                             </TableRow>
                                         ))}

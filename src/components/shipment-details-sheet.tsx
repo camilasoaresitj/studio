@@ -586,7 +586,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     .filter(c => c.sacado === shipment.customer)
                     .map(c => ({
                         description: c.name,
-                        value: c.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                        value: (Number(c.sale) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
                         currency: c.saleCurrency
                     }));
 
@@ -730,7 +730,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             const agio = partner?.exchangeRateAgio ?? 0;
             return charges.reduce((total, charge) => {
                 const currency = type === 'sale' ? charge.saleCurrency : charge.costCurrency;
-                const value = type === 'sale' ? charge.sale : charge.cost;
+                const value = type === 'sale' ? Number(charge.sale) || 0 : Number(charge.cost) || 0;
                 const ptax = exchangeRates[currency] || 1;
                 const finalRate = currency === 'BRL' ? 1 : ptax * (1 + agio / 100);
                 return total + (value * finalRate);
@@ -927,7 +927,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 <TabsTrigger value="details">Detalhes</TabsTrigger>
                                 <TabsTrigger value="financials">Financeiro</TabsTrigger>
                                 <TabsTrigger value="documents">Documentos</TabsTrigger>
-                                {isImport && <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>}
+                                {!isImport && <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>}
                                 <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                             </TabsList>
                             </div>
@@ -1129,7 +1129,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             </TabsContent>
 
                             <TabsContent value="financials">
-                               <Card>
+                                <Card>
                                     <CardHeader>
                                         <div className="flex justify-between items-center">
                                             <div>
@@ -1140,76 +1140,75 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         </div>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="border rounded-lg">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="w-[150px]">Taxa</TableHead>
-                                                        <TableHead className="w-[120px]">Tipo Cobrança</TableHead>
-                                                        <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
-                                                        <TableHead className="text-right min-w-[250px]">Compra</TableHead>
-                                                        <TableHead className="text-right min-w-[250px]">Venda</TableHead>
-                                                        <TableHead className="w-[120px] text-right">Lucro</TableHead>
-                                                        <TableHead className="w-[180px]">Fornecedor</TableHead>
-                                                        <TableHead className="w-[180px]">Sacado</TableHead>
-                                                        <TableHead className="w-[50px]">Ação</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {chargesFields.map((field, index) => {
-                                                        const charge = watchedCharges[index];
-                                                         if (!charge) {
-                                                            return null; // or a loading skeleton
-                                                        }
-                                                        const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
-                                                        const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
-                                                        const profitCurrency = charge.saleCurrency;
-                                                        const isLoss = canCalculateProfit && profit < 0;
-
-                                                        const usedFeeNames = new Set(watchedCharges.map(c => c.name));
-                                                        const availableFees = fees.filter(
-                                                            fee => !usedFeeNames.has(fee.name) || fee.name === charge.name
-                                                        );
-                                                        
-                                                        return (
-                                                            <TableRow key={field.id}>
-                                                                <TableCell className="p-1 align-top">
-                                                                    <FeeCombobox fees={availableFees} value={charge.name} onValueChange={(value) => handleFeeSelection(value, index)} />
-                                                                </TableCell>
-                                                                <TableCell className="p-1 align-top">
-                                                                    <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
-                                                                </TableCell>
-                                                                 <TableCell className="p-1 align-top">
-                                                                    <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
-                                                                </TableCell>
-                                                                <TableCell className="text-right p-1 align-top min-w-[250px]">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <FormField control={control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                        <FormField control={control} name={`charges.${index}.cost`} render={({ field }) => (<Input type="number" {...field} onChange={e => handleValueChange(index, 'cost', parseFloat(e.target.value) || 0)} className="w-full h-8" />)} />
-                                                                    </div>
-                                                                </TableCell>
-                                                                <TableCell className="text-right p-1 align-top min-w-[250px]">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <FormField control={control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                        <FormField control={control} name={`charges.${index}.sale`} render={({ field }) => (<Input type="number" {...field} onChange={e => handleValueChange(index, 'sale', parseFloat(e.target.value) || 0)} className="w-full h-8" />)} />
-                                                                    </div>
-                                                                </TableCell>
-                                                                <TableCell className={cn('font-semibold text-right p-1 align-top', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
-                                                                    {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
-                                                                </TableCell>
-                                                                <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.supplier`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
-                                                                </TableCell>
-                                                                <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.sacado`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
-                                                                </TableCell>
-                                                                <TableCell className="p-1 align-top"><Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                                        <Form {...form}>
+                                            <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
+                                                <div className="border rounded-lg">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead className="w-[150px]">Taxa</TableHead>
+                                                                <TableHead className="w-[120px]">Tipo Cobrança</TableHead>
+                                                                <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
+                                                                <TableHead className="text-right min-w-[250px]">Compra</TableHead>
+                                                                <TableHead className="text-right min-w-[250px]">Venda</TableHead>
+                                                                <TableHead className="w-[120px] text-right">Lucro</TableHead>
+                                                                <TableHead className="w-[180px]">Fornecedor</TableHead>
+                                                                <TableHead className="w-[180px]">Sacado</TableHead>
+                                                                <TableHead className="w-[50px]">Ação</TableHead>
                                                             </TableRow>
-                                                        )
-                                                    })}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {chargesFields.map((field, index) => {
+                                                                const charge = watchedCharges[index];
+                                                                if (!charge) return null;
+                                                                const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
+                                                                const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
+                                                                const profitCurrency = charge.saleCurrency;
+                                                                const isLoss = canCalculateProfit && profit < 0;
+                                                                const usedFeeNames = new Set(watchedCharges.map(c => c.name));
+                                                                const availableFees = fees.filter(fee => !usedFeeNames.has(fee.name) || fee.name === charge.name);
+
+                                                                return (
+                                                                    <TableRow key={field.id}>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FeeCombobox fees={availableFees} value={charge.name} onValueChange={(value) => handleFeeSelection(value, index)} />
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right p-1 align-top min-w-[250px]">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <FormField control={control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                                <FormField control={control} name={`charges.${index}.cost`} render={({ field }) => (<Input type="number" {...field} onChange={e => handleValueChange(index, 'cost', parseFloat(e.target.value) || 0)} className="w-full h-8" />)} />
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right p-1 align-top min-w-[250px]">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <FormField control={control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                                <FormField control={control} name={`charges.${index}.sale`} render={({ field }) => (<Input type="number" {...field} onChange={e => handleValueChange(index, 'sale', parseFloat(e.target.value) || 0)} className="w-full h-8" />)} />
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell className={cn('font-semibold text-right p-1 align-top', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
+                                                                            {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FormField control={control} name={`charges.${index}.supplier`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FormField control={control} name={`charges.${index}.sacado`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top"><Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                                                                    </TableRow>
+                                                                );
+                                                            })}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </form>
+                                        </Form>
                                     </CardContent>
                                 </Card>
                             </TabsContent>
@@ -1268,7 +1267,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </Card>
                             </TabsContent>
 
-                            {isImport && (
+                            {!isImport && (
                                 <TabsContent value="bl_draft">
                                     <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                                 </TabsContent>

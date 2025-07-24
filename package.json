@@ -56,7 +56,6 @@
     "twilio": "^5.2.2",
     "@genkit-ai/core": "latest",
     "@genkit-ai/googleai": "latest",
-    "@genkit-ai/dotprompt": "latest",
     "@opentelemetry/exporter-jaeger": "^1.25.1"
   },
   "devDependencies": {

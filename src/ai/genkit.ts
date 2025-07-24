@@ -1,3 +1,4 @@
+
 'use server';
 
 import { genkit } from '@genkit-ai/core';
@@ -8,7 +9,7 @@ export const ai = genkit({
   plugins: [
     googleAI(),
     dotprompt({
-      model: 'googleai/gemini-1.5-flash-latest',
+      model: googleAI('gemini-1.5-flash-latest'),
     }),
   ],
   models: {

@@ -26,6 +26,7 @@ const contactSchema = z.object({
     departments: z.array(z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Despachante', 'Outro'])).min(1, 'Selecione pelo menos um departamento'),
     loginEmail: z.string().email('E-mail de login inválido').optional().or(z.literal('')),
     password: z.string().optional(),
+    despachanteId: z.number().optional().nullable(),
 });
 
 
@@ -116,11 +117,12 @@ export const partnerSchema = z.object({
         })).optional(),
     }).optional(),
   }).optional(),
+  clientsLinked: z.array(z.string()).optional(),
 });
 
 export type Partner = z.infer<typeof partnerSchema>;
 
-const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v12';
+const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v13';
 
 function getInitialPartners(): Partner[] {
     return [
@@ -251,6 +253,29 @@ function getInitialPartners(): Partner[] {
             }],
             observations: "Especializado em cobrança de demurrage. Enviar e-mail com fatura e HBL em anexo.",
         },
+        {
+            id: 5,
+            name: "Despachante Eficaz",
+            nomeFantasia: "Despachante Eficaz",
+            createdAt: new Date('2023-08-10'),
+            roles: { cliente: false, fornecedor: true, agente: false, comissionado: false },
+            tipoFornecedor: { despachante: true },
+            cnpj: "22.334.455/0001-66",
+            paymentTerm: 15,
+            address: {
+                street: "Rua do Despacho",
+                number: "789",
+                city: "Santos",
+                state: "SP",
+                country: "Brasil",
+            },
+            contacts: [{
+                name: "Ana Pereira",
+                email: "ana.pereira@despachanteeficaz.com",
+                phone: "+55 13 99999-8888",
+                departments: ["Despachante"],
+            }],
+        },
         // Terminals
         { id: 101, name: 'PORTO DE FORTALEZA - CE', createdAt: new Date(), nomeFantasia: 'BRFOR001', roles: { fornecedor: true, cliente: false, agente: false, comissionado: false }, tipoFornecedor: { terminal: true }, contacts: [], address: { city: 'Fortaleza', state: 'CE', country: 'Brasil' } },
         { id: 102, name: 'CAIS TECOM - IMBITUBA-SC', createdAt: new Date(), nomeFantasia: 'BRIBB002', roles: { fornecedor: true, cliente: false, agente: false, comissionado: false }, tipoFornecedor: { terminal: true }, contacts: [], address: { city: 'Imbituba', state: 'SC', country: 'Brasil' } },
@@ -321,7 +346,28 @@ export function savePartners(partners: Partner[]): void {
     return;
   }
   try {
-    localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(partners));
+    
+    const allPartners = [...partners];
+    
+    // Logic to update the `clientsLinked` field for despachantes
+    const despachantes = allPartners.filter(p => p.tipoFornecedor?.despachante);
+    
+    despachantes.forEach(despachante => {
+        const linkedClients: string[] = [];
+        allPartners.forEach(client => {
+            if (client.roles.cliente && client.contacts) {
+                const isLinked = client.contacts.some(contact => 
+                    contact.departments?.includes('Despachante') && contact.despachanteId === despachante.id
+                );
+                if (isLinked) {
+                    linkedClients.push(client.name);
+                }
+            }
+        });
+        despachante.clientsLinked = linkedClients;
+    });
+
+    localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(allPartners));
   } catch (error) {
     console.error("Failed to save partners to localStorage", error);
   }

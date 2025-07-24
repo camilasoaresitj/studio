@@ -35,7 +35,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from './ui/checkbox';
-import { PlusCircle, Edit, Trash2, Search, Loader2, Upload, X, CalendarIcon, ChevronsUpDown, Check, Send } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Loader2, Upload, X, CalendarIcon, ChevronsUpDown, Check, Send, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
@@ -156,6 +156,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const documentLabel = isEmpresaNoExterior ? 'VAT / Tax ID' : 'CNPJ / CPF';
 
   const clientPartners = useMemo(() => partners.filter(p => p.roles.cliente), [partners]);
+  const despachantePartners = useMemo(() => partners.filter(p => p.tipoFornecedor?.despachante), [partners]);
 
   const handleOpenDialog = (partner: Partner | null) => {
     setEditingPartner(partner);
@@ -509,6 +510,17 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         </div>
                     </div>}
                     
+                    {watchedRoles.fornecedor && watchedFornecedor?.despachante && editingPartner?.clientsLinked && editingPartner.clientsLinked.length > 0 && (
+                        <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                            <h4 className="font-semibold text-sm flex items-center gap-2"><LinkIcon className="h-4 w-4"/> Clientes Vinculados</h4>
+                            <div className="flex flex-wrap gap-2">
+                                {editingPartner.clientsLinked.map(clientName => (
+                                    <Badge key={clientName} variant="secondary">{clientName}</Badge>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
                     <Separator className="my-4"/>
 
                     <h4 className="text-md font-semibold">Informações de KPI (Manual)</h4>
@@ -522,7 +534,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             <div className="flex flex-wrap gap-2">
                                 {mainRoutes.map((route, index) => (
                                     <Badge key={route.id} variant="secondary">
-                                        {route.value}
+                                        {(route as any).value}
                                         <button type="button" onClick={() => removeRoute(index)} className="ml-2 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2">
                                             <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                                         </button>
@@ -704,7 +716,11 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         </Button>
                     </div>
 
-                    {fields.map((field, index) => (
+                    {fields.map((field, index) => {
+                        const contact = form.watch(`contacts.${index}`);
+                        const isDespachante = contact.departments?.includes('Despachante');
+
+                        return (
                         <div key={field.id} className="p-4 border rounded-lg space-y-4 relative">
                         {fields.length > 1 && (
                             <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 text-destructive" onClick={() => remove(index)}>
@@ -749,6 +765,26 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             </FormItem>
                             )} />
                         </div>
+                         {isDespachante && (
+                                <div className="animate-in fade-in-50">
+                                <FormField
+                                    control={form.control}
+                                    name={`contacts.${index}.despachanteId`}
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Vincular Despachante Cadastrado</FormLabel>
+                                        <Select onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} value={field.value?.toString()}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione o despachante..." /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {despachantePartners.map(d => <SelectItem key={d.id} value={d.id!.toString()}>{d.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                </div>
+                            )}
                         {watchedRoles.cliente && (
                             <div className="p-3 border rounded-lg bg-secondary/50">
                                 <h5 className="text-sm font-semibold mb-2">Acesso ao Portal do Cliente</h5>
@@ -760,7 +796,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             </div>
                         )}
                         </div>
-                    ))}
+                    )})}
                     
                     <Separator className="my-4"/>
 

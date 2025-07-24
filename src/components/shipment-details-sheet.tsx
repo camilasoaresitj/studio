@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -922,352 +923,352 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </SheetHeader>
                     
                     <div className="flex-grow overflow-y-auto">
-                        <Form {...form}>
-                        <Tabs value={activeTab} onValueChange={setActiveTab}>
-                            <div className="p-4 border-b">
-                            <TabsList>
-                                <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                                <TabsTrigger value="details">Detalhes</TabsTrigger>
-                                <TabsTrigger value="financials">Financeiro</TabsTrigger>
-                                <TabsTrigger value="documents">Documentos</TabsTrigger>
-                                {isImport ? null : <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>}
-                                <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
-                            </TabsList>
-                            </div>
+                         <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
+                                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                                    <div className="p-4 border-b">
+                                    <TabsList>
+                                        <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                                        <TabsTrigger value="details">Detalhes</TabsTrigger>
+                                        <TabsTrigger value="financials">Financeiro</TabsTrigger>
+                                        <TabsTrigger value="documents">Documentos</TabsTrigger>
+                                        {!isImport && <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>}
+                                        <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
+                                    </TabsList>
+                                    </div>
 
-                            <div className="p-4">
-                            <TabsContent value="timeline">
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    <div className="lg:col-span-2">
+                                    <div className="p-4">
+                                    <TabsContent value="timeline">
+                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                            <div className="lg:col-span-2">
+                                                <Card>
+                                                    <CardHeader>
+                                                        <div className="flex justify-between items-center">
+                                                        <CardTitle>Timeline do Processo</CardTitle>
+                                                        <div className="flex gap-2">
+                                                            <Button type="button" variant="outline" size="sm" onClick={handleRefreshTracking} disabled={isUpdating}>
+                                                                {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4"/>}
+                                                                Rastrear
+                                                            </Button>
+                                                            <Button type="button" variant="outline" size="sm" onClick={() => setIsManualMilestoneOpen(true)}>
+                                                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                                                Adicionar Tarefa
+                                                            </Button>
+                                                        </div>
+                                                        </div>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <ScrollArea className="h-[60vh]">
+                                                            <div className="relative pl-6">
+                                                                <div className="absolute left-3 top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
+                                                                {sortedMilestones.map((milestone, index) => {
+                                                                    const isOverdue = !milestone.effectiveDate && isPast(new Date(milestone.predictedDate));
+                                                                    return (
+                                                                        <div key={index} className="relative mb-6 flex items-start gap-4">
+                                                                             <div className={cn("absolute left-0 top-1 flex h-6 w-6 items-center justify-center rounded-full -translate-x-1/2", milestone.status === 'completed' ? 'bg-success' : (isOverdue ? 'bg-destructive' : 'bg-muted'))}>
+                                                                                {milestone.status === 'completed' ? <CheckCircle className="h-4 w-4 text-white"/> : (isOverdue ? <AlertTriangle className="h-4 w-4 text-white"/> : <Circle className="h-4 w-4 text-muted-foreground"/>)}
+                                                                            </div>
+                                                                            <div className="pt-1.5 ml-8 w-full">
+                                                                                <div className="flex justify-between items-center">
+                                                                                    <p className="font-semibold text-sm">{milestone.name}</p>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                       <Popover>
+                                                                                            <PopoverTrigger asChild>
+                                                                                                <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+                                                                                                    <CalendarIcon className="mr-2 h-3 w-3" />
+                                                                                                    {milestone.effectiveDate ? format(new Date(milestone.effectiveDate), 'dd/MM/yy') : (milestone.predictedDate ? format(new Date(milestone.predictedDate), 'dd/MM/yy') : 'N/A')}
+                                                                                                </Button>
+                                                                                            </PopoverTrigger>
+                                                                                            <PopoverContent className="w-auto p-0">
+                                                                                                <Calendar mode="single" selected={milestone.effectiveDate ?? undefined} onSelect={(date) => {
+                                                                                                    const milestones = form.getValues('milestones') || [];
+                                                                                                    milestones[index].effectiveDate = date || null;
+                                                                                                    form.setValue('milestones', [...milestones]);
+                                                                                                }} />
+                                                                                            </PopoverContent>
+                                                                                        </Popover>
+                                                                                         <Checkbox
+                                                                                            checked={milestone.status === 'completed'}
+                                                                                            onCheckedChange={(checked) => {
+                                                                                                const newStatus = checked ? 'completed' : 'pending';
+                                                                                                const newEffectiveDate = checked ? new Date() : null;
+                                                                                                const milestones = form.getValues('milestones') || [];
+                                                                                                milestones[index].status = newStatus;
+                                                                                                milestones[index].effectiveDate = newEffectiveDate;
+                                                                                                form.setValue('milestones', [...milestones]);
+                                                                                            }}
+                                                                                        />
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    )
+                                                                })}
+                                                            </div>
+                                                        </ScrollArea>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                            <div className="lg:col-span-1">
+                                                {shipment.bookingNumber ? (
+                                                    <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                                                ) : (
+                                                    <Card>
+                                                        <CardContent className="flex flex-col items-center justify-center h-96 text-center text-muted-foreground">
+                                                            <MapIcon className="h-12 w-12 mb-4" />
+                                                            <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                                        </CardContent>
+                                                    </Card>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </TabsContent>
+                                    
+                                    <TabsContent value="details">
+                                        <div className="space-y-4">
+                                            <Card>
+                                                <CardHeader><CardTitle className="text-base">Dados Mestres</CardTitle></CardHeader>
+                                                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                    <FormField control={form.control} name="carrier" render={({ field }) => (
+                                                        <FormItem><FormLabel>Transportadora</FormLabel>
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione..."/></SelectTrigger></FormControl>
+                                                                <SelectContent>
+                                                                    {carrierPartners.map(c => <SelectItem key={c.id} value={c.name}>{c.name} ({c.scac})</SelectItem>)}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </FormItem>
+                                                    )}/>
+                                                    <FormField control={form.control} name="vesselName" render={({ field }) => ( <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                    <FormField control={form.control} name="voyageNumber" render={({ field }) => ( <FormItem><FormLabel>Viagem / Voo nº</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                    <FormField control={form.control} name="bookingNumber" render={({ field }) => ( <FormItem><FormLabel>Booking Number</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                    <FormField control={form.control} name="masterBillNumber" render={({ field }) => ( <FormItem><FormLabel>Master BL / AWB</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                    <FormField control={form.control} name="houseBillNumber" render={({ field }) => ( <FormItem><FormLabel>House BL / AWB</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                    <FormField control={form.control} name="etd" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel> <Popover><PopoverTrigger asChild><FormControl> <Button type="button" variant="outline" className="h-10"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover> </FormItem> )}/>
+                                                    <FormField control={form.control} name="eta" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel> <Popover><PopoverTrigger asChild><FormControl> <Button type="button" variant="outline" className="h-10"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover> </FormItem> )}/>
+                                                    <FormField control={form.control} name="origin" render={({ field }) => ( <FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                    <FormField control={form.control} name="destination" render={({ field }) => ( <FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                    <FormField control={form.control} name="ceMaster" render={({ field }) => ( <FormItem><FormLabel>CE Master</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                    <FormField control={form.control} name="ceHouse" render={({ field }) => ( <FormItem><FormLabel>CE House</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                    <FormField control={form.control} name="manifesto" render={({ field }) => ( <FormItem><FormLabel>Manifesto</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
+                                                </CardContent>
+                                            </Card>
+                                            <Card>
+                                                <CardHeader><CardTitle className="text-base">Detalhes da Carga</CardTitle></CardHeader>
+                                                <CardContent className="space-y-4">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field}/></FormControl></FormItem>)}/>
+                                                        <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs (separados por vírgula)</FormLabel><FormControl><Textarea {...field} onChange={e => field.onChange(e.target.value.split(',').map(n => n.trim()))} value={field.value?.join(', ')} /></FormControl></FormItem>)}/>
+                                                    </div>
+                                                    <div className="border rounded-lg">
+                                                        <Table>
+                                                            <TableHeader> <TableRow> <TableHead>Contêiner</TableHead><TableHead>Lacre</TableHead><TableHead>Tara</TableHead><TableHead>Peso Bruto</TableHead><TableHead>Volumes</TableHead><TableHead>CBM</TableHead><TableHead>Free Time</TableHead><TableHead>Ação</TableHead> </TableRow> </TableHeader>
+                                                            <TableBody>
+                                                                {containerFields.map((field, index) => (
+                                                                    <TableRow key={field.id}>
+                                                                        <TableCell><FormField control={control} name={`containers.${index}.number`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                        <TableCell><FormField control={control} name={`containers.${index}.seal`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                        <TableCell><FormField control={control} name={`containers.${index}.tare`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                        <TableCell><FormField control={control} name={`containers.${index}.grossWeight`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                        <TableCell><FormField control={control} name={`containers.${index}.volumes`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                        <TableCell><FormField control={control} name={`containers.${index}.measurement`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                        <TableCell><FormField control={control} name={`containers.${index}.freeTime`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                        <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                        <div className="p-2 flex justify-between items-center bg-secondary">
+                                                            <Button type="button" size="sm" variant="ghost" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '' })}>
+                                                                <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Contêiner
+                                                            </Button>
+                                                            <div className="text-sm font-semibold flex gap-4 pr-4">
+                                                                <span>Total Qtd: {containerTotals.qty}</span>
+                                                                <span>Total Peso: {containerTotals.weight.toFixed(2)} KG</span>
+                                                                <span>Total Volumes: {containerTotals.volumes}</span>
+                                                                <span>Total CBM: {containerTotals.cbm.toFixed(3)}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                             <Card>
+                                                <CardHeader><CardTitle className="text-base">Detalhes de Transbordo</CardTitle></CardHeader>
+                                                <CardContent>
+                                                    <div className="border rounded-lg">
+                                                         <Table>
+                                                            <TableHeader><TableRow><TableHead>Porto</TableHead><TableHead>Navio</TableHead><TableHead>ETD</TableHead><TableHead>ETA</TableHead><TableHead>Ação</TableHead></TableRow></TableHeader>
+                                                            <TableBody>
+                                                                {transshipmentFields.map((field, index) => (
+                                                                    <TableRow key={field.id}>
+                                                                        <TableCell><FormField control={control} name={`transshipments.${index}.port`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                        <TableCell><FormField control={control} name={`transshipments.${index}.vessel`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
+                                                                        <TableCell><FormField control={control} name={`transshipments.${index}.etd`} render={({field}) => <Popover><PopoverTrigger asChild><FormControl> <Button type="button" variant="outline" className="h-8 text-xs"><CalendarIcon className="mr-2 h-3 w-3"/>{field.value ? format(field.value, 'dd/MM/yy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent className="p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover>}/></TableCell>
+                                                                        <TableCell><FormField control={control} name={`transshipments.${index}.eta`} render={({field}) => <Popover><PopoverTrigger asChild><FormControl> <Button type="button" variant="outline" className="h-8 text-xs"><CalendarIcon className="mr-2 h-3 w-3"/>{field.value ? format(field.value, 'dd/MM/yy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent className="p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover>}/></TableCell>
+                                                                        <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeTransshipment(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                        <div className="p-2 flex justify-start items-center bg-secondary">
+                                                            <Button type="button" size="sm" variant="ghost" onClick={() => appendTransshipment({ id: `trans-${Date.now()}`, port: '', vessel: '' })}>
+                                                                <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Transbordo
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="financials">
                                         <Card>
                                             <CardHeader>
                                                 <div className="flex justify-between items-center">
-                                                <CardTitle>Timeline do Processo</CardTitle>
-                                                <div className="flex gap-2">
-                                                    <Button type="button" variant="outline" size="sm" onClick={handleRefreshTracking} disabled={isUpdating}>
-                                                        {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4"/>}
-                                                        Rastrear
-                                                    </Button>
-                                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsManualMilestoneOpen(true)}>
-                                                        <PlusCircle className="mr-2 h-4 w-4"/>
-                                                        Adicionar Tarefa
-                                                    </Button>
-                                                </div>
+                                                    <div>
+                                                        <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/> Demonstrativo Financeiro</CardTitle>
+                                                        <CardDescription>Gerencie custos, vendas e lucro do processo.</CardDescription>
+                                                    </div>
+                                                    <Button type="button" onClick={() => setIsFaturarDialogOpen(true)}>Faturar Processo</Button>
                                                 </div>
                                             </CardHeader>
                                             <CardContent>
-                                                <ScrollArea className="h-[60vh]">
-                                                    <div className="relative pl-6">
-                                                        <div className="absolute left-3 top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
-                                                        {sortedMilestones.map((milestone, index) => {
-                                                            const isOverdue = !milestone.effectiveDate && isPast(new Date(milestone.predictedDate));
-                                                            return (
-                                                                <div key={index} className="relative mb-6 flex items-start gap-4">
-                                                                     <div className={cn("absolute left-0 top-1 flex h-6 w-6 items-center justify-center rounded-full -translate-x-1/2", milestone.status === 'completed' ? 'bg-success' : (isOverdue ? 'bg-destructive' : 'bg-muted'))}>
-                                                                        {milestone.status === 'completed' ? <CheckCircle className="h-4 w-4 text-white"/> : (isOverdue ? <AlertTriangle className="h-4 w-4 text-white"/> : <Circle className="h-4 w-4 text-muted-foreground"/>)}
-                                                                    </div>
-                                                                    <div className="pt-1.5 ml-8 w-full">
-                                                                        <div className="flex justify-between items-center">
-                                                                            <p className="font-semibold text-sm">{milestone.name}</p>
-                                                                            <div className="flex items-center gap-2">
-                                                                                <Popover>
-                                                                                    <PopoverTrigger asChild>
-                                                                                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
-                                                                                            <CalendarIcon className="mr-2 h-3 w-3" />
-                                                                                            {milestone.effectiveDate ? format(new Date(milestone.effectiveDate), 'dd/MM/yy') : (milestone.predictedDate ? format(new Date(milestone.predictedDate), 'dd/MM/yy') : 'N/A')}
-                                                                                        </Button>
-                                                                                    </PopoverTrigger>
-                                                                                    <PopoverContent className="w-auto p-0">
-                                                                                        <Calendar mode="single" selected={milestone.effectiveDate ?? undefined} onSelect={(date) => {
-                                                                                            const milestones = form.getValues('milestones') || [];
-                                                                                            milestones[index].effectiveDate = date || null;
-                                                                                            form.setValue('milestones', [...milestones]);
-                                                                                        }} />
-                                                                                    </PopoverContent>
-                                                                                </Popover>
-                                                                                 <Checkbox
-                                                                                    checked={milestone.status === 'completed'}
-                                                                                    onCheckedChange={(checked) => {
-                                                                                        const newStatus = checked ? 'completed' : 'pending';
-                                                                                        const newEffectiveDate = checked ? new Date() : null;
-                                                                                        const milestones = form.getValues('milestones') || [];
-                                                                                        milestones[index].status = newStatus;
-                                                                                        milestones[index].effectiveDate = newEffectiveDate;
-                                                                                        form.setValue('milestones', [...milestones]);
-                                                                                    }}
-                                                                                />
+                                                <div className="border rounded-lg">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead className="w-[150px]">Taxa</TableHead>
+                                                                <TableHead className="w-[120px]">Tipo Cobrança</TableHead>
+                                                                <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
+                                                                <TableHead className="text-right min-w-[250px]">Compra</TableHead>
+                                                                <TableHead className="text-right min-w-[250px]">Venda</TableHead>
+                                                                <TableHead className="w-[120px] text-right">Lucro</TableHead>
+                                                                <TableHead className="w-[180px]">Fornecedor</TableHead>
+                                                                <TableHead className="w-[180px]">Sacado</TableHead>
+                                                                <TableHead className="w-[50px]">Ação</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {chargesFields.map((field, index) => {
+                                                                const charge = watchedCharges?.[index];
+                                                                if (!charge) return null;
+                                                                const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
+                                                                const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
+                                                                const profitCurrency = charge.saleCurrency;
+                                                                const isLoss = canCalculateProfit && profit < 0;
+                                                                const usedFeeNames = new Set(watchedCharges.map(c => c.name));
+                                                                const availableFees = fees.filter(fee => !usedFeeNames.has(fee.name) || fee.name === charge.name);
+
+                                                                return (
+                                                                    <TableRow key={field.id}>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FeeCombobox fees={availableFees} value={charge.name} onValueChange={(value) => handleFeeSelection(value, index)} />
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FormField control={control} name={`charges.${index}.type`} render={({ field: formField }) => ( <Select onValueChange={formField.onChange} value={formField.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FormField control={control} name={`charges.${index}.containerType`} render={({ field: formField }) => ( <Select onValueChange={formField.onChange} value={formField.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right p-1 align-top min-w-[250px]">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <FormField control={control} name={`charges.${index}.costCurrency`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                                <FormField control={control} name={`charges.${index}.cost`} render={({ field: formField }) => (<Input type="number" {...formField} onChange={e => handleValueChange(index, 'cost', e.target.value)} className="w-full h-8" />)} />
                                                                             </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                </ScrollArea>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right p-1 align-top min-w-[250px]">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <FormField control={control} name={`charges.${index}.saleCurrency`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                                <FormField control={control} name={`charges.${index}.sale`} render={({ field: formField }) => (<Input type="number" {...formField} onChange={e => handleValueChange(index, 'sale', e.target.value)} className="w-full h-8" />)} />
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell className={cn('font-semibold text-right p-1 align-top', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
+                                                                            {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FormField control={control} name={`charges.${index}.supplier`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top">
+                                                                            <FormField control={control} name={`charges.${index}.sacado`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
+                                                                        </TableCell>
+                                                                        <TableCell className="p-1 align-top"><Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                                                                    </TableRow>
+                                                                );
+                                                            })}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
                                             </CardContent>
                                         </Card>
+                                    </TabsContent>
+                                    
+                                    <TabsContent value="documents">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Gestão de Documentos</CardTitle>
+                                                <CardDescription>Anexe, aprove e gerencie os documentos do processo.</CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                <div className="space-y-3">
+                                                    {uploadedFiles.map((doc, index) => (
+                                                        <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                                                            <Select value={doc.name} onValueChange={(value) => handleDocTypeChange(value as UploadedDocument['name'], index)}>
+                                                                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                                                                <SelectContent>
+                                                                    {['Invoice', 'Packing List', 'Negociação NET', 'Draft HBL', 'Draft MBL', 'Original MBL', 'Original HBL', 'Extrato DUE', 'Outros'].map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <Input type="file" onChange={(e) => handleDocumentUpload(e, index)} className="flex-grow"/>
+                                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeDocumentSlot(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                        </div>
+                                                    ))}
+                                                    <Button type="button" variant="outline" size="sm" onClick={handleAddDocumentSlot}><PlusCircle className="mr-2 h-4 w-4" /> Anexar Documento</Button>
+                                                </div>
+
+                                                <Separator />
+                                                
+                                                <h4 className="font-semibold">Documentos Anexados ao Processo</h4>
+                                                <div className="border rounded-lg">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Documento</TableHead>
+                                                                <TableHead>Arquivo</TableHead>
+                                                                <TableHead>Status</TableHead>
+                                                                <TableHead>Data de Upload</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {(shipment.documents || []).length > 0 ? (shipment.documents || []).map((doc, index) => (
+                                                                <TableRow key={index}>
+                                                                    <TableCell className="font-medium">{doc.name}</TableCell>
+                                                                    <TableCell className="text-primary hover:underline cursor-pointer">{doc.fileName}</TableCell>
+                                                                    <TableCell><Badge variant={doc.status === 'approved' ? 'success' : (doc.status === 'uploaded' ? 'default' : 'secondary')}>{doc.status}</Badge></TableCell>
+                                                                    <TableCell>{doc.uploadedAt ? format(new Date(doc.uploadedAt), 'dd/MM/yyyy HH:mm') : 'N/A'}</TableCell>
+                                                                </TableRow>
+                                                            )) : (
+                                                                <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum documento anexado.</TableCell></TableRow>
+                                                            )}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </TabsContent>
+
+                                    {!isImport && (
+                                        <TabsContent value="bl_draft">
+                                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                                        </TabsContent>
+                                    )}
+                                    
+                                    <TabsContent value="desembaraco">
+                                       <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
+                                    </TabsContent>
+                                    
                                     </div>
-                                    <div className="lg:col-span-1">
-                                        {shipment.bookingNumber ? (
-                                            <ShipmentMap shipmentNumber={shipment.bookingNumber} />
-                                        ) : (
-                                            <Card>
-                                                <CardContent className="flex flex-col items-center justify-center h-96 text-center text-muted-foreground">
-                                                    <MapIcon className="h-12 w-12 mb-4" />
-                                                    <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
-                                                </CardContent>
-                                            </Card>
-                                        )}
-                                    </div>
-                                </div>
-                            </TabsContent>
-                            
-                            <TabsContent value="details">
-                                <div className="space-y-4">
-                                    <Card>
-                                        <CardHeader><CardTitle className="text-base">Dados Mestres</CardTitle></CardHeader>
-                                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                            <FormField control={form.control} name="carrier" render={({ field }) => (
-                                                <FormItem><FormLabel>Transportadora</FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione..."/></SelectTrigger></FormControl>
-                                                        <SelectContent>
-                                                            {carrierPartners.map(c => <SelectItem key={c.id} value={c.name}>{c.name} ({c.scac})</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </FormItem>
-                                            )}/>
-                                            <FormField control={form.control} name="vesselName" render={({ field }) => ( <FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                            <FormField control={form.control} name="voyageNumber" render={({ field }) => ( <FormItem><FormLabel>Viagem / Voo nº</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                            <FormField control={form.control} name="bookingNumber" render={({ field }) => ( <FormItem><FormLabel>Booking Number</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                            <FormField control={form.control} name="masterBillNumber" render={({ field }) => ( <FormItem><FormLabel>Master BL / AWB</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                            <FormField control={form.control} name="houseBillNumber" render={({ field }) => ( <FormItem><FormLabel>House BL / AWB</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                            <FormField control={form.control} name="etd" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel> <Popover><PopoverTrigger asChild><FormControl> <Button type="button" variant="outline" className="h-10"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover> </FormItem> )}/>
-                                            <FormField control={form.control} name="eta" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel> <Popover><PopoverTrigger asChild><FormControl> <Button type="button" variant="outline" className="h-10"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover> </FormItem> )}/>
-                                            <FormField control={form.control} name="origin" render={({ field }) => ( <FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                            <FormField control={form.control} name="destination" render={({ field }) => ( <FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                            <FormField control={form.control} name="ceMaster" render={({ field }) => ( <FormItem><FormLabel>CE Master</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                            <FormField control={form.control} name="ceHouse" render={({ field }) => ( <FormItem><FormLabel>CE House</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                            <FormField control={form.control} name="manifesto" render={({ field }) => ( <FormItem><FormLabel>Manifesto</FormLabel><FormControl><Input {...field}/></FormControl></FormItem> )}/>
-                                        </CardContent>
-                                    </Card>
-                                    <Card>
-                                        <CardHeader><CardTitle className="text-base">Detalhes da Carga</CardTitle></CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field}/></FormControl></FormItem>)}/>
-                                                <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs (separados por vírgula)</FormLabel><FormControl><Textarea {...field} onChange={e => field.onChange(e.target.value.split(',').map(n => n.trim()))} value={field.value?.join(', ')} /></FormControl></FormItem>)}/>
-                                            </div>
-                                            <div className="border rounded-lg">
-                                                <Table>
-                                                    <TableHeader> <TableRow> <TableHead>Contêiner</TableHead><TableHead>Lacre</TableHead><TableHead>Tara</TableHead><TableHead>Peso Bruto</TableHead><TableHead>Volumes</TableHead><TableHead>CBM</TableHead><TableHead>Free Time</TableHead><TableHead>Ação</TableHead> </TableRow> </TableHeader>
-                                                    <TableBody>
-                                                        {containerFields.map((field, index) => (
-                                                            <TableRow key={field.id}>
-                                                                <TableCell><FormField control={control} name={`containers.${index}.number`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
-                                                                <TableCell><FormField control={control} name={`containers.${index}.seal`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
-                                                                <TableCell><FormField control={control} name={`containers.${index}.tare`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
-                                                                <TableCell><FormField control={control} name={`containers.${index}.grossWeight`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
-                                                                <TableCell><FormField control={control} name={`containers.${index}.volumes`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
-                                                                <TableCell><FormField control={control} name={`containers.${index}.measurement`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
-                                                                <TableCell><FormField control={control} name={`containers.${index}.freeTime`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
-                                                                <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                                <div className="p-2 flex justify-between items-center bg-secondary">
-                                                    <Button type="button" size="sm" variant="ghost" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '' })}>
-                                                        <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Contêiner
-                                                    </Button>
-                                                    <div className="text-sm font-semibold flex gap-4 pr-4">
-                                                        <span>Total Qtd: {containerTotals.qty}</span>
-                                                        <span>Total Peso: {containerTotals.weight.toFixed(2)} KG</span>
-                                                        <span>Total Volumes: {containerTotals.volumes}</span>
-                                                        <span>Total CBM: {containerTotals.cbm.toFixed(3)}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                     <Card>
-                                        <CardHeader><CardTitle className="text-base">Detalhes de Transbordo</CardTitle></CardHeader>
-                                        <CardContent>
-                                            <div className="border rounded-lg">
-                                                 <Table>
-                                                    <TableHeader><TableRow><TableHead>Porto</TableHead><TableHead>Navio</TableHead><TableHead>ETD</TableHead><TableHead>ETA</TableHead><TableHead>Ação</TableHead></TableRow></TableHeader>
-                                                    <TableBody>
-                                                        {transshipmentFields.map((field, index) => (
-                                                            <TableRow key={field.id}>
-                                                                <TableCell><FormField control={control} name={`transshipments.${index}.port`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
-                                                                <TableCell><FormField control={control} name={`transshipments.${index}.vessel`} render={({field}) => <Input {...field} className="h-8"/>}/></TableCell>
-                                                                <TableCell><FormField control={control} name={`transshipments.${index}.etd`} render={({field}) => <Popover><PopoverTrigger asChild><FormControl> <Button type="button" variant="outline" className="h-8 text-xs"><CalendarIcon className="mr-2 h-3 w-3"/>{field.value ? format(field.value, 'dd/MM/yy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent className="p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover>}/></TableCell>
-                                                                <TableCell><FormField control={control} name={`transshipments.${index}.eta`} render={({field}) => <Popover><PopoverTrigger asChild><FormControl> <Button type="button" variant="outline" className="h-8 text-xs"><CalendarIcon className="mr-2 h-3 w-3"/>{field.value ? format(field.value, 'dd/MM/yy') : 'Selecione'}</Button> </FormControl></PopoverTrigger><PopoverContent className="p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover>}/></TableCell>
-                                                                <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeTransshipment(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                                <div className="p-2 flex justify-start items-center bg-secondary">
-                                                    <Button type="button" size="sm" variant="ghost" onClick={() => appendTransshipment({ id: `trans-${Date.now()}`, port: '', vessel: '' })}>
-                                                        <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Transbordo
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="financials">
-                                <Card>
-                                    <CardHeader>
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5"/> Demonstrativo Financeiro</CardTitle>
-                                                <CardDescription>Gerencie custos, vendas e lucro do processo.</CardDescription>
-                                            </div>
-                                            <Button type="button" onClick={() => setIsFaturarDialogOpen(true)}>Faturar Processo</Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="border rounded-lg">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="w-[150px]">Taxa</TableHead>
-                                                        <TableHead className="w-[120px]">Tipo Cobrança</TableHead>
-                                                        <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
-                                                        <TableHead className="text-right min-w-[250px]">Compra</TableHead>
-                                                        <TableHead className="text-right min-w-[250px]">Venda</TableHead>
-                                                        <TableHead className="w-[120px] text-right">Lucro</TableHead>
-                                                        <TableHead className="w-[180px]">Fornecedor</TableHead>
-                                                        <TableHead className="w-[180px]">Sacado</TableHead>
-                                                        <TableHead className="w-[50px]">Ação</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {chargesFields.map((field, index) => {
-                                                        const charge = watchedCharges?.[index];
-                                                        if (!charge) return null;
-                                                        const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
-                                                        const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
-                                                        const profitCurrency = charge.saleCurrency;
-                                                        const isLoss = canCalculateProfit && profit < 0;
-                                                        const usedFeeNames = new Set(watchedCharges.map(c => c.name));
-                                                        const availableFees = fees.filter(fee => !usedFeeNames.has(fee.name) || fee.name === charge.name);
-
-                                                        return (
-                                                            <TableRow key={field.id}>
-                                                                <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.name`} render={({ field: formField }) => (
-                                                                        <FeeCombobox fees={availableFees} value={formField.value} onValueChange={(value) => handleFeeSelection(value, index)} />
-                                                                    )} />
-                                                                </TableCell>
-                                                                <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.type`} render={({ field: formField }) => ( <Select onValueChange={formField.onChange} value={formField.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
-                                                                </TableCell>
-                                                                <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.containerType`} render={({ field: formField }) => ( <Select onValueChange={formField.onChange} value={formField.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
-                                                                </TableCell>
-                                                                <TableCell className="text-right p-1 align-top min-w-[250px]">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <FormField control={control} name={`charges.${index}.costCurrency`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                        <FormField control={control} name={`charges.${index}.cost`} render={({ field: formField }) => (<Input type="number" {...formField} onChange={e => handleValueChange(index, 'cost', e.target.value)} className="w-full h-8" />)} />
-                                                                    </div>
-                                                                </TableCell>
-                                                                <TableCell className="text-right p-1 align-top min-w-[250px]">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <FormField control={control} name={`charges.${index}.saleCurrency`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                                        <FormField control={control} name={`charges.${index}.sale`} render={({ field: formField }) => (<Input type="number" {...formField} onChange={e => handleValueChange(index, 'sale', e.target.value)} className="w-full h-8" />)} />
-                                                                    </div>
-                                                                </TableCell>
-                                                                <TableCell className={cn('font-semibold text-right p-1 align-top', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
-                                                                    {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
-                                                                </TableCell>
-                                                                <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.supplier`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
-                                                                </TableCell>
-                                                                <TableCell className="p-1 align-top">
-                                                                    <FormField control={control} name={`charges.${index}.sacado`} render={({ field: formField }) => (<Select onValueChange={formField.onChange} value={formField.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} />
-                                                                </TableCell>
-                                                                <TableCell className="p-1 align-top"><Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
-                                                            </TableRow>
-                                                        );
-                                                    })}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-                            
-                            <TabsContent value="documents">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Gestão de Documentos</CardTitle>
-                                        <CardDescription>Anexe, aprove e gerencie os documentos do processo.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="space-y-3">
-                                            {uploadedFiles.map((doc, index) => (
-                                                <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
-                                                    <Select value={doc.name} onValueChange={(value) => handleDocTypeChange(value as UploadedDocument['name'], index)}>
-                                                        <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {['Invoice', 'Packing List', 'Negociação NET', 'Draft HBL', 'Draft MBL', 'Original MBL', 'Original HBL', 'Extrato DUE', 'Outros'].map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <Input type="file" onChange={(e) => handleDocumentUpload(e, index)} className="flex-grow"/>
-                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeDocumentSlot(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                                </div>
-                                            ))}
-                                            <Button type="button" variant="outline" size="sm" onClick={handleAddDocumentSlot}><PlusCircle className="mr-2 h-4 w-4" /> Anexar Documento</Button>
-                                        </div>
-
-                                        <Separator />
-                                        
-                                        <h4 className="font-semibold">Documentos Anexados ao Processo</h4>
-                                        <div className="border rounded-lg">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Documento</TableHead>
-                                                        <TableHead>Arquivo</TableHead>
-                                                        <TableHead>Status</TableHead>
-                                                        <TableHead>Data de Upload</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {(shipment.documents || []).length > 0 ? (shipment.documents || []).map((doc, index) => (
-                                                        <TableRow key={index}>
-                                                            <TableCell className="font-medium">{doc.name}</TableCell>
-                                                            <TableCell className="text-primary hover:underline cursor-pointer">{doc.fileName}</TableCell>
-                                                            <TableCell><Badge variant={doc.status === 'approved' ? 'success' : (doc.status === 'uploaded' ? 'default' : 'secondary')}>{doc.status}</Badge></TableCell>
-                                                            <TableCell>{doc.uploadedAt ? format(new Date(doc.uploadedAt), 'dd/MM/yyyy HH:mm') : 'N/A'}</TableCell>
-                                                        </TableRow>
-                                                    )) : (
-                                                        <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum documento anexado.</TableCell></TableRow>
-                                                    )}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-
-                            {!isImport && (
-                                <TabsContent value="bl_draft">
-                                    <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                </TabsContent>
-                            )}
-                            
-                            <TabsContent value="desembaraco">
-                               <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
-                            </TabsContent>
-                            
-                            </div>
-                        </Tabs>
+                                </Tabs>
+                            </form>
                         </Form>
                     </div>
                 </div>

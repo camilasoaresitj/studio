@@ -937,39 +937,32 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                     </div>
 
                                     <div className="p-4">
-                                    <TabsContent value="timeline">
-                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                            <div className="lg:col-span-2">
-                                                {/* Conteúdo da Timeline aqui */}
-                                            </div>
-                                            <div className="lg:col-span-1">
-                                                {/* Conteúdo do Mapa aqui */}
-                                            </div>
-                                        </div>
-                                    </TabsContent>
-                                    
-                                    <TabsContent value="details">
-                                        <Card><CardContent className="p-4">Conteúdo Detalhes</CardContent></Card>
-                                    </TabsContent>
+                                        <TabsContent value="timeline">
+                                            {/* Conteúdo da Timeline aqui */}
+                                        </TabsContent>
+                                        
+                                        <TabsContent value="details">
+                                            {/* Conteúdo de Detalhes aqui */}
+                                        </TabsContent>
 
-                                    <TabsContent value="financials">
-                                       <Card><CardContent className="p-4">Conteúdo Financeiro</CardContent></Card>
-                                    </TabsContent>
-                                    
-                                    <TabsContent value="documents">
-                                       <Card><CardContent className="p-4">Conteúdo Documentos</CardContent></Card>
-                                    </TabsContent>
-                                    
-                                    <TabsContent value="bl_draft">
-                                        <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                    </TabsContent>
+                                        <TabsContent value="financials">
+                                        {/* Conteúdo Financeiro aqui */}
+                                        </TabsContent>
+                                        
+                                        <TabsContent value="documents">
+                                            {/* Conteúdo de Documentos aqui */}
+                                        </TabsContent>
+                                        
+                                        <TabsContent value="bl_draft">
+                                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                                        </TabsContent>
 
-                                    <TabsContent value="desembaraco">
-                                       {isImport 
-                                            ? <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> 
-                                            : <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                        }
-                                    </TabsContent>
+                                        <TabsContent value="desembaraco">
+                                            {isImport 
+                                                ? <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> 
+                                                : <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                                            }
+                                        </TabsContent>
                                     
                                     </div>
                                 </Tabs>
@@ -1083,3 +1076,5 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
+
+    

@@ -935,16 +935,16 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             </div>
                             <div className="flex-grow p-4 overflow-y-auto">
                                 <TabsContent value="timeline" className="mt-0">
-                                    {/* O conteúdo da timeline será renderizado aqui */}
+                                    <p>Timeline Content</p>
                                 </TabsContent>
                                 <TabsContent value="details" className="mt-0">
-                                    {/* O conteúdo de detalhes será renderizado aqui */}
+                                    <p>Details Content</p>
                                 </TabsContent>
                                 <TabsContent value="financials" className="mt-0">
-                                    {/* O conteúdo financeiro será renderizado aqui */}
+                                    <p>Financials Content</p>
                                 </TabsContent>
                                 <TabsContent value="documents" className="mt-0">
-                                    {/* O conteúdo de documentos será renderizado aqui */}
+                                    <p>Documents Content</p>
                                 </TabsContent>
                                 <TabsContent value="bl_draft" className="mt-0">
                                     <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />

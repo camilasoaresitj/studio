@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -73,7 +72,7 @@ import { Textarea } from './ui/textarea';
 import { BLDraftForm } from './bl-draft-form';
 import { ShipmentMap } from './shipment-map';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from './ui/switch';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { Label } from './ui/label';
 import { addFinancialEntries, getFinancialEntries } from '@/lib/financials-data';
@@ -932,11 +931,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         <TabsTrigger value="details">Detalhes</TabsTrigger>
                                         <TabsTrigger value="financials">Financeiro</TabsTrigger>
                                         <TabsTrigger value="documents">Documentos</TabsTrigger>
-                                        {isImport ? (
-                                            <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
-                                        ) : (
-                                            <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>
-                                        )}
+                                        <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                                     </TabsList>
                                     </div>
 
@@ -1142,7 +1137,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                             <TableRow>
                                                                 <TableHead className="w-[150px]">Taxa</TableHead>
                                                                 <TableHead className="w-[120px]">Tipo Cobrança</TableHead>
-                                                                <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
+                                                                 <TableHead className="w-[120px]">Tipo Contêiner</TableHead>
                                                                 <TableHead className="text-right min-w-[250px]">Compra</TableHead>
                                                                 <TableHead className="text-right min-w-[250px]">Venda</TableHead>
                                                                 <TableHead className="w-[120px] text-right">Lucro</TableHead>
@@ -1170,7 +1165,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                                         <TableCell className="p-1 align-top">
                                                                             <FormField control={control} name={`charges.${index}.type`} render={({ field: formField }) => ( <Select onValueChange={formField.onChange} value={formField.value}> <SelectTrigger className="h-8"><SelectValue /></SelectTrigger> <SelectContent> {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
                                                                         </TableCell>
-                                                                        <TableCell className="p-1 align-top">
+                                                                         <TableCell className="p-1 align-top">
                                                                             <FormField control={control} name={`charges.${index}.containerType`} render={({ field: formField }) => ( <Select onValueChange={formField.onChange} value={formField.value}> <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger> <SelectContent> <SelectItem value="Todos">Todos</SelectItem>{containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)} </SelectContent> </Select> )}/>
                                                                         </TableCell>
                                                                         <TableCell className="text-right p-1 align-top min-w-[250px]">
@@ -1259,12 +1254,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         </Card>
                                     </TabsContent>
 
-                                    <TabsContent value="bl_draft">
-                                        <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                    </TabsContent>
-                                    
                                     <TabsContent value="desembaraco">
-                                       <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
+                                       {isImport ? <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> : <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />}
                                     </TabsContent>
                                     
                                     </div>

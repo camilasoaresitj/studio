@@ -922,52 +922,42 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </SheetHeader>
                     
                     <div className="flex-grow overflow-y-auto">
-                         <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onMainFormSubmit)}>
-                                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                                    <div className="p-4 border-b">
-                                    <TabsList>
-                                        <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                                        <TabsTrigger value="details">Detalhes</TabsTrigger>
-                                        <TabsTrigger value="financials">Financeiro</TabsTrigger>
-                                        <TabsTrigger value="documents">Documentos</TabsTrigger>
-                                        <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
-                                        <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
-                                    </TabsList>
-                                    </div>
-
-                                    <div className="p-4">
-                                        <TabsContent value="timeline">
-                                            {/* Conteúdo da Timeline aqui */}
-                                        </TabsContent>
-                                        
-                                        <TabsContent value="details">
-                                            {/* Conteúdo de Detalhes aqui */}
-                                        </TabsContent>
-
-                                        <TabsContent value="financials">
-                                        {/* Conteúdo Financeiro aqui */}
-                                        </TabsContent>
-                                        
-                                        <TabsContent value="documents">
-                                            {/* Conteúdo de Documentos aqui */}
-                                        </TabsContent>
-                                        
-                                        <TabsContent value="bl_draft">
-                                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                        </TabsContent>
-
-                                        <TabsContent value="desembaraco">
-                                            {isImport
-                                                ? <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> 
-                                                : <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                            }
-                                        </TabsContent>
-                                    
-                                    </div>
-                                </Tabs>
-                            </form>
-                        </Form>
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+                            <div className="p-4 border-b">
+                                <TabsList>
+                                    <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                                    <TabsTrigger value="details">Detalhes</TabsTrigger>
+                                    <TabsTrigger value="financials">Financeiro</TabsTrigger>
+                                    <TabsTrigger value="documents">Documentos</TabsTrigger>
+                                    <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
+                                    <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
+                                </TabsList>
+                            </div>
+                            <div className="flex-grow p-4 overflow-y-auto">
+                                <TabsContent value="timeline" className="mt-0">
+                                    {/* O conteúdo da timeline será renderizado aqui */}
+                                </TabsContent>
+                                <TabsContent value="details" className="mt-0">
+                                    {/* O conteúdo de detalhes será renderizado aqui */}
+                                </TabsContent>
+                                <TabsContent value="financials" className="mt-0">
+                                    {/* O conteúdo financeiro será renderizado aqui */}
+                                </TabsContent>
+                                <TabsContent value="documents" className="mt-0">
+                                    {/* O conteúdo de documentos será renderizado aqui */}
+                                </TabsContent>
+                                <TabsContent value="bl_draft" className="mt-0">
+                                    <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                                </TabsContent>
+                                <TabsContent value="desembaraco" className="mt-0">
+                                    {isImport ? (
+                                        <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> 
+                                    ) : (
+                                        <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                                    )}
+                                </TabsContent>
+                            </div>
+                        </Tabs>
                     </div>
                 </div>
                 

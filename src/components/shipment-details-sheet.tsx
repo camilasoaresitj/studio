@@ -958,7 +958,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         </TabsContent>
 
                                         <TabsContent value="desembaraco">
-                                            {isImport 
+                                            {isImport
                                                 ? <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> 
                                                 : <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                                             }
@@ -1076,5 +1076,3 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
-
-    

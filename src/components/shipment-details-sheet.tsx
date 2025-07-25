@@ -917,40 +917,38 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         </div>
                     </SheetHeader>
                     
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col">
-                        <div className="p-4 border-b">
-                            <TabsList>
-                                <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                                <TabsTrigger value="details">Detalhes</TabsTrigger>
-                                <TabsTrigger value="financials">Financeiro</TabsTrigger>
-                                <TabsTrigger value="documents">Documentos</TabsTrigger>
-                                <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
-                                <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
-                            </TabsList>
-                        </div>
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-hidden">
+                        <TabsList className="shrink-0 border-b p-2 h-auto">
+                            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                            <TabsTrigger value="details">Detalhes</TabsTrigger>
+                            <TabsTrigger value="financials">Financeiro</TabsTrigger>
+                            <TabsTrigger value="documents">Documentos</TabsTrigger>
+                            <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
+                            <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
+                        </TabsList>
                         <div className="flex-grow overflow-y-auto">
-                            <TabsContent value="timeline" className="mt-0 p-4">
-                                <p>Timeline Content</p>
-                            </TabsContent>
-                            <TabsContent value="details" className="mt-0 p-4">
-                                <p>Details Content</p>
-                            </TabsContent>
-                            <TabsContent value="financials" className="mt-0 p-4">
-                                <p>Financials Content</p>
-                            </TabsContent>
-                            <TabsContent value="documents" className="mt-0 p-4">
-                                <p>Documents Content</p>
-                            </TabsContent>
-                            <TabsContent value="bl_draft" className="mt-0 p-4">
-                                <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                            </TabsContent>
-                            <TabsContent value="desembaraco" className="mt-0 p-4">
-                                {isImport ? (
-                                    <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> 
-                                ) : (
-                                    <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                )}
-                            </TabsContent>
+                           <TabsContent value="timeline" className="mt-0 p-4">
+                               <p>Timeline Content</p>
+                           </TabsContent>
+                           <TabsContent value="details" className="mt-0 p-4">
+                               <p>Details Content</p>
+                           </TabsContent>
+                           <TabsContent value="financials" className="mt-0 p-4">
+                               <p>Financials Content</p>
+                           </TabsContent>
+                           <TabsContent value="documents" className="mt-0 p-4">
+                               <p>Documents Content</p>
+                           </TabsContent>
+                           <TabsContent value="bl_draft" className="mt-0 p-4">
+                               <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                           </TabsContent>
+                           <TabsContent value="desembaraco" className="mt-0 p-4">
+                               {isImport ? (
+                                   <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> 
+                               ) : (
+                                   <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                               )}
+                           </TabsContent>
                         </div>
                     </Tabs>
                 </div>

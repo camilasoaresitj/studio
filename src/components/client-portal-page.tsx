@@ -406,5 +406,3 @@ export function ClientPortalPage({ id }: { id: string }) {
         </div>
     );
 }
-
-    

@@ -8,6 +8,7 @@ import type { GetRouteMapOutput } from '@/ai/flows/get-route-map';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { cn } from '@/lib/utils';
 
 interface ShipmentMapProps {
   shipmentNumber: string;

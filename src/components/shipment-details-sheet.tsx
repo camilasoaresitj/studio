@@ -829,7 +829,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
     };
 
-
     const sortedMilestones = useMemo(() => {
         if (!shipment) return [];
         return [...(form.getValues('milestones') || [])].sort((a, b) => {
@@ -852,7 +851,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     }
     
     const isImport = shipment.destination.toUpperCase().includes('BR');
-
+    
     return (
         <>
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -917,7 +916,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </div>
                 </SheetHeader>
                 
-                 <Tabs defaultValue="timeline" className="flex-grow flex flex-col overflow-hidden">
+                <Tabs defaultValue="timeline" className="flex-grow flex flex-col overflow-hidden">
                     <TabsList className="shrink-0 border-b px-4">
                         <TabsTrigger value="timeline">Timeline</TabsTrigger>
                         <TabsTrigger value="details">Detalhes</TabsTrigger>
@@ -927,26 +926,58 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                     </TabsList>
                     
-                    <ScrollArea className="flex-grow">
-                        <TabsContent value="timeline" className="m-0 p-4">
-                           {/* Content restored in this correction */}
+                    <div className="flex-1 overflow-y-auto">
+                        <TabsContent value="timeline" className="mt-0 p-4">
+                           <Card>
+                                <CardHeader>
+                                    <CardTitle>Linha do Tempo</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p>Funcionalidade em desenvolvimento...</p>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
-                        <TabsContent value="details" className="m-0 p-4">
-                             {/* Content restored in this correction */}
+                        <TabsContent value="details" className="mt-0 p-4">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Detalhes Operacionais</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p>Informações detalhadas do processo aparecerão aqui...</p>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
-                        <TabsContent value="financials" className="m-0 p-4">
-                             {/* Content restored in this correction */}
+                        <TabsContent value="financials" className="mt-0 p-4">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Gestão Financeira</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p>Dados financeiros e custos operacionais serão exibidos aqui...</p>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
-                        <TabsContent value="documents" className="m-0 p-4">
-                            {/* Content restored in this correction */}
+                        <TabsContent value="documents" className="mt-0 p-4">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Documentos do Processo</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p>Gerenciamento de documentos será implementado aqui...</p>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
-                        <TabsContent value="bl_draft" className="m-0 p-4">
+                        <TabsContent value="bl_draft" className="mt-0 p-4">
                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                         </TabsContent>
-                       <TabsContent value="desembaraco" className="m-0 p-4">
-                            <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
+                       <TabsContent value="desembaraco" className="mt-0 p-4">
+                           {isImport ? (
+                                <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
+                            ) : (
+                                <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                            )}
                        </TabsContent>
-                    </ScrollArea>
+                    </div>
                 </Tabs>
             
                  <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>

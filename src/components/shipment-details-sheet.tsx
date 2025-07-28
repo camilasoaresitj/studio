@@ -360,7 +360,6 @@ const containerTypes = ["20'GP", "40'GP", "40'HC", "20'RF", "40'RF", "40'NOR", "
 
 export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
-    const [activeTab, setActiveTab] = useState('timeline');
     const [isUpdating, setIsUpdating] = useState(false);
     const [isFetchingCourier, setIsFetchingCourier] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -454,7 +453,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
 
     const handleMasterSave = async () => {
-        if (activeTab === 'bl_draft' && blDraftFormRef.current) {
+        if (form.getValues('activeTab') === 'bl_draft' && blDraftFormRef.current) {
             blDraftFormRef.current.submit();
         } else {
             await form.handleSubmit(onMainFormSubmit)();
@@ -917,7 +916,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </div>
                 </SheetHeader>
                 
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-hidden">
+                <Tabs defaultValue="timeline" className="flex-grow flex flex-col overflow-hidden">
                     <TabsList className="shrink-0 border-b px-2 h-auto">
                         <TabsTrigger value="timeline">Timeline</TabsTrigger>
                         <TabsTrigger value="details">Detalhes</TabsTrigger>
@@ -927,7 +926,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                     </TabsList>
                     
-                    <div className="flex-grow overflow-y-auto">
+                    <ScrollArea className="flex-grow">
                         <TabsContent value="timeline" className="mt-0 p-4">
                             <p>Timeline Content</p>
                         </TabsContent>
@@ -950,7 +949,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                             )}
                        </TabsContent>
-                    </div>
+                    </ScrollArea>
                 </Tabs>
             
                  <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>

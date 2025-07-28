@@ -927,13 +927,13 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </TabsList>
                     
                     <div className="flex-1 overflow-y-auto">
-                        <TabsContent value="timeline" className="mt-0 p-4">
+                         <TabsContent value="timeline" className="mt-0 p-4">
                            <Card>
                                 <CardHeader>
                                     <CardTitle>Linha do Tempo</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <p>Funcionalidade em desenvolvimento...</p>
+                                  <p>Funcionalidade em desenvolvimento...</p>
                                 </CardContent>
                             </Card>
                         </TabsContent>

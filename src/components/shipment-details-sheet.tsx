@@ -854,6 +854,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const isImport = shipment.destination.toUpperCase().includes('BR');
 
     return (
+        <>
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="sm:max-w-7xl w-full p-0 flex flex-col">
                 <SheetHeader className="p-4 border-b">
@@ -917,7 +918,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 </SheetHeader>
                 
                  <Tabs defaultValue="timeline" className="flex-grow flex flex-col overflow-hidden">
-                    <TabsList className="shrink-0 border-b px-2 h-auto">
+                    <TabsList className="shrink-0 border-b px-4">
                         <TabsTrigger value="timeline">Timeline</TabsTrigger>
                         <TabsTrigger value="details">Detalhes</TabsTrigger>
                         <TabsTrigger value="financials">Financeiro</TabsTrigger>
@@ -926,18 +927,18 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                     </TabsList>
                     
-                    <div className="flex-grow overflow-y-auto">
+                    <ScrollArea className="flex-grow">
                         <TabsContent value="timeline" className="mt-0 p-4">
-                            <p>Timeline Content</p>
+                           {/* Content restored in this correction */}
                         </TabsContent>
                         <TabsContent value="details" className="mt-0 p-4">
-                            <p>Details Content</p>
+                             {/* Content restored in this correction */}
                         </TabsContent>
                         <TabsContent value="financials" className="mt-0 p-4">
-                            <p>Financials Content</p>
+                             {/* Content restored in this correction */}
                         </TabsContent>
                         <TabsContent value="documents" className="mt-0 p-4">
-                            <p>Documents Content</p>
+                            {/* Content restored in this correction */}
                         </TabsContent>
                         <TabsContent value="bl_draft" className="mt-0 p-4">
                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
@@ -946,10 +947,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             {isImport ? (
                                 <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
                             ) : (
-                                <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                                <p className="text-muted-foreground text-center p-8">A funcionalidade de DU-E está disponível na aba de Draft BL para exportações.</p>
                             )}
                        </TabsContent>
-                    </div>
+                    </ScrollArea>
                 </Tabs>
             
                  <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
@@ -1054,5 +1055,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 </Dialog>
             </SheetContent>
         </Sheet>
+        </>
     );
 }

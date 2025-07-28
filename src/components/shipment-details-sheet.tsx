@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -855,104 +856,103 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="sm:max-w-7xl w-full p-0">
-                <div className="flex flex-col h-full">
-                    <SheetHeader className="p-4 border-b">
-                        <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-primary/10 p-3 rounded-full">
-                                    <GanttChart className="h-8 w-8 text-primary"/>
-                                </div>
-                                <div>
-                                    <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
-                                    <Form {...form}>
-                                    <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
-                                        <div className="flex items-center gap-1">
-                                            <Label htmlFor="po-header">Ref. Cliente:</Label>
-                                            <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
-                                                <Input id="po-header" {...field} className="h-6 text-xs w-24"/>
-                                            )}/>
-                                        </div>
-                                        <Separator orientation="vertical" className="h-4"/>
-                                        <div className="flex items-center gap-1">
-                                            <Label htmlFor="inv-header">Invoice:</Label>
-                                            <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                                <Input id="inv-header" {...field} className="h-6 text-xs w-24"/>
-                                            )}/>
-                                        </div>
+            <SheetContent className="sm:max-w-7xl w-full p-0 flex flex-col">
+                <SheetHeader className="p-4 border-b">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-primary/10 p-3 rounded-full">
+                                <GanttChart className="h-8 w-8 text-primary"/>
+                            </div>
+                            <div>
+                                <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
+                                <Form {...form}>
+                                <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
+                                    <div className="flex items-center gap-1">
+                                        <Label htmlFor="po-header">Ref. Cliente:</Label>
+                                        <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                                            <Input id="po-header" {...field} className="h-6 text-xs w-24"/>
+                                        )}/>
                                     </div>
-                                    </Form>
+                                    <Separator orientation="vertical" className="h-4"/>
+                                    <div className="flex items-center gap-1">
+                                        <Label htmlFor="inv-header">Invoice:</Label>
+                                        <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                            <Input id="inv-header" {...field} className="h-6 text-xs w-24"/>
+                                        )}/>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" disabled={isGenerating}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuItem onClick={() => generatePdf('client')}>Fatura do Cliente</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => generatePdf('agent')}>Invoice do Agente</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => generatePdf('hbl')}>HBL</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                 </DropdownMenu>
-                                <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
-                                <Button type="button" onClick={handleMasterSave} disabled={isUpdating}>
-                                    {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                                    Salvar Alterações
-                                </Button>
+                                </Form>
                             </div>
                         </div>
-                        <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <Form {...form}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
-                                    <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
-                                    <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
-                                    <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
-                                    <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
-                                </div>
-                            </Form>
-                            {foreignLocationClock && (
-                                <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
-                            )}
+                        <div className="flex items-center gap-2">
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" disabled={isGenerating}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={() => generatePdf('client')}>Fatura do Cliente</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => generatePdf('agent')}>Invoice do Agente</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => generatePdf('hbl')}>HBL</DropdownMenuItem>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
+                            <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
+                            <Button type="button" onClick={handleMasterSave} disabled={isUpdating}>
+                                {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                                Salvar Alterações
+                            </Button>
                         </div>
-                    </SheetHeader>
-                    
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-hidden">
-                        <TabsList className="shrink-0 border-b px-2 h-auto">
-                            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                            <TabsTrigger value="details">Detalhes</TabsTrigger>
-                            <TabsTrigger value="financials">Financeiro</TabsTrigger>
-                            <TabsTrigger value="documents">Documentos</TabsTrigger>
-                            <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
-                            <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
-                        </TabsList>
-                        <div className="flex-grow overflow-y-auto">
-                            <TabsContent value="timeline" className="mt-0 p-4">
-                                <p>Timeline Content</p>
-                            </TabsContent>
-                            <TabsContent value="details" className="mt-0 p-4">
-                                <p>Details Content</p>
-                            </TabsContent>
-                            <TabsContent value="financials" className="mt-0 p-4">
-                                <p>Financials Content</p>
-                            </TabsContent>
-                            <TabsContent value="documents" className="mt-0 p-4">
-                                <p>Documents Content</p>
-                            </TabsContent>
-                            <TabsContent value="bl_draft" className="mt-0 p-4">
-                               <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                            </TabsContent>
-                           <TabsContent value="desembaraco" className="mt-0 p-4">
-                                {isImport ? (
-                                    <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
-                                ) : (
-                                    <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                )}
-                           </TabsContent>
-                        </div>
-                    </Tabs>
-                </div>
+                    </div>
+                    <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <Form {...form}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
+                                <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
+                                <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
+                                <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
+                                <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
+                            </div>
+                        </Form>
+                        {foreignLocationClock && (
+                            <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
+                        )}
+                    </div>
+                </SheetHeader>
                 
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-hidden">
+                    <TabsList className="shrink-0 border-b px-2 h-auto">
+                        <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                        <TabsTrigger value="details">Detalhes</TabsTrigger>
+                        <TabsTrigger value="financials">Financeiro</TabsTrigger>
+                        <TabsTrigger value="documents">Documentos</TabsTrigger>
+                        <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
+                        <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
+                    </TabsList>
+                    
+                    <div className="flex-grow overflow-y-auto">
+                        <TabsContent value="timeline" className="mt-0 p-4">
+                            <p>Timeline Content</p>
+                        </TabsContent>
+                        <TabsContent value="details" className="mt-0 p-4">
+                            <p>Details Content</p>
+                        </TabsContent>
+                        <TabsContent value="financials" className="mt-0 p-4">
+                            <p>Financials Content</p>
+                        </TabsContent>
+                        <TabsContent value="documents" className="mt-0 p-4">
+                            <p>Documents Content</p>
+                        </TabsContent>
+                        <TabsContent value="bl_draft" className="mt-0 p-4">
+                           <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                        </TabsContent>
+                       <TabsContent value="desembaraco" className="mt-0 p-4">
+                            {isImport ? (
+                                <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
+                            ) : (
+                                <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                            )}
+                       </TabsContent>
+                    </div>
+                </Tabs>
+            
                  <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
                     <DialogContent>
                         <DialogHeader>
@@ -1053,10 +1053,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-
             </SheetContent>
         </Sheet>
     );
 }
-
-    

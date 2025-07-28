@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -16,7 +15,8 @@ import { Button } from '@/components/ui/button';
 import { MoreHorizontal, PlusCircle, Search } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Shipment, getShipments, saveShipments } from '@/lib/shipment';
+import { getShipments, saveShipments } from '@/lib/shipment-data';
+import type { Shipment } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
@@ -27,12 +27,7 @@ export default function OperacionalPage() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    id: '',
-    customer: '',
-    bl: '',
-    route: '',
-  });
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const allShipments = getShipments();
@@ -82,20 +77,15 @@ export default function OperacionalPage() {
   
     return { text: `Aguardando Embarque`, variant: 'secondary' };
   };
-  
-  const handleFilterChange = (field: keyof typeof filters, value: string) => {
-    setFilters(prev => ({ ...prev, [field]: value }));
-  };
 
-  const filteredShipments = shipments.filter(s => {
-      const route = `${s.origin} -> ${s.destination}`;
-      return (
-          s.id.toLowerCase().includes(filters.id.toLowerCase()) &&
-          s.customer.toLowerCase().includes(filters.customer.toLowerCase()) &&
-          (s.masterBillNumber?.toLowerCase().includes(filters.bl.toLowerCase()) || s.houseBillNumber?.toLowerCase().includes(filters.bl.toLowerCase())) &&
-          route.toLowerCase().includes(filters.route.toLowerCase())
-      );
-  });
+  const filteredShipments = shipments.filter(s => 
+    s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.masterBillNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.houseBillNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.destination.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-8">
@@ -115,19 +105,19 @@ export default function OperacionalPage() {
               <CardTitle>Processos de Embarque</CardTitle>
               <CardDescription>Visualize e gerencie todos os processos de importação e exportação.</CardDescription>
             </div>
-             <Button disabled>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Novo Processo
-            </Button>
+            <div className="flex items-center gap-2">
+                <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Buscar processo..." className="pl-8" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                </div>
+                <Button disabled>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Novo Processo
+                </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <Input placeholder="Buscar por ID..." value={filters.id} onChange={e => handleFilterChange('id', e.target.value)} />
-              <Input placeholder="Buscar por Cliente..." value={filters.customer} onChange={e => handleFilterChange('customer', e.target.value)} />
-              <Input placeholder="Buscar por MBL/HBL..." value={filters.bl} onChange={e => handleFilterChange('bl', e.target.value)} />
-              <Input placeholder="Buscar por Rota..." value={filters.route} onChange={e => handleFilterChange('route', e.target.value)} />
-          </div>
           <div className="border rounded-lg">
             <Table>
               <TableHeader>

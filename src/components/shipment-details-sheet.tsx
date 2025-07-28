@@ -917,7 +917,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         </div>
                     </SheetHeader>
                     
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-y-hidden">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-hidden">
                         <TabsList className="shrink-0 border-b px-2 h-auto">
                             <TabsTrigger value="timeline">Timeline</TabsTrigger>
                             <TabsTrigger value="details">Detalhes</TabsTrigger>
@@ -926,30 +926,30 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
                             <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                         </TabsList>
-                        <ScrollArea className="flex-grow">
-                           <TabsContent value="timeline" className="mt-0 p-4">
-                               <p>Timeline Content</p>
-                           </TabsContent>
-                           <TabsContent value="details" className="mt-0 p-4">
-                               <p>Details Content</p>
-                           </TabsContent>
-                           <TabsContent value="financials" className="mt-0 p-4">
-                               <p>Financials Content</p>
-                           </TabsContent>
-                           <TabsContent value="documents" className="mt-0 p-4">
-                               <p>Documents Content</p>
-                           </TabsContent>
-                           <TabsContent value="bl_draft" className="mt-0 p-4">
+                        <div className="flex-grow overflow-y-auto">
+                            <TabsContent value="timeline" className="mt-0 p-4">
+                                <p>Timeline Content</p>
+                            </TabsContent>
+                            <TabsContent value="details" className="mt-0 p-4">
+                                <p>Details Content</p>
+                            </TabsContent>
+                            <TabsContent value="financials" className="mt-0 p-4">
+                                <p>Financials Content</p>
+                            </TabsContent>
+                            <TabsContent value="documents" className="mt-0 p-4">
+                                <p>Documents Content</p>
+                            </TabsContent>
+                            <TabsContent value="bl_draft" className="mt-0 p-4">
                                <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                           </TabsContent>
+                            </TabsContent>
                            <TabsContent value="desembaraco" className="mt-0 p-4">
                                 {isImport ? (
-                                    <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> 
+                                    <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
                                 ) : (
-                                    <p className="text-center text-muted-foreground p-8">A funcionalidade de DU-E está localizada na aba "Draft BL" para processos de exportação.</p>
+                                    <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                                 )}
                            </TabsContent>
-                        </ScrollArea>
+                        </div>
                     </Tabs>
                 </div>
                 

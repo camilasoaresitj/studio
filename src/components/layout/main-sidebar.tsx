@@ -16,6 +16,7 @@ import {
   Users,
   BookUser,
   FileCode,
+  FlaskConical,
 } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ const menuItems = [
 const bottomMenuItems = [
   { href: '/portal', label: 'Portal Cliente', icon: User },
   { href: '/gerencial/cadastros', label: 'Cadastros', icon: BookUser },
+  { href: '/gerencial/tabs-test', label: 'Teste de Abas', icon: FlaskConical }, // Link de teste adicionado
 ];
 
 export function MainSidebar() {

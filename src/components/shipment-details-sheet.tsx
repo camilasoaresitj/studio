@@ -928,27 +928,23 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </TabsList>
                     
                     <ScrollArea className="flex-grow">
-                        <TabsContent value="timeline" className="mt-0 p-4">
+                        <TabsContent value="timeline" className="m-0 p-4">
                            {/* Content restored in this correction */}
                         </TabsContent>
-                        <TabsContent value="details" className="mt-0 p-4">
+                        <TabsContent value="details" className="m-0 p-4">
                              {/* Content restored in this correction */}
                         </TabsContent>
-                        <TabsContent value="financials" className="mt-0 p-4">
+                        <TabsContent value="financials" className="m-0 p-4">
                              {/* Content restored in this correction */}
                         </TabsContent>
-                        <TabsContent value="documents" className="mt-0 p-4">
+                        <TabsContent value="documents" className="m-0 p-4">
                             {/* Content restored in this correction */}
                         </TabsContent>
-                        <TabsContent value="bl_draft" className="mt-0 p-4">
+                        <TabsContent value="bl_draft" className="m-0 p-4">
                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                         </TabsContent>
-                       <TabsContent value="desembaraco" className="mt-0 p-4">
-                            {isImport ? (
-                                <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
-                            ) : (
-                                <p className="text-muted-foreground text-center p-8">A funcionalidade de DU-E está disponível na aba de Draft BL para exportações.</p>
-                            )}
+                       <TabsContent value="desembaraco" className="m-0 p-4">
+                            <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
                        </TabsContent>
                     </ScrollArea>
                 </Tabs>

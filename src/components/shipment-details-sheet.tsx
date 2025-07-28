@@ -917,8 +917,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         </div>
                     </SheetHeader>
                     
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-hidden">
-                        <TabsList className="shrink-0 border-b p-2 h-auto">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-y-hidden">
+                        <TabsList className="shrink-0 border-b px-2 h-auto">
                             <TabsTrigger value="timeline">Timeline</TabsTrigger>
                             <TabsTrigger value="details">Detalhes</TabsTrigger>
                             <TabsTrigger value="financials">Financeiro</TabsTrigger>
@@ -926,7 +926,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
                             <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                         </TabsList>
-                        <div className="flex-grow overflow-y-auto">
+                        <ScrollArea className="flex-grow">
                            <TabsContent value="timeline" className="mt-0 p-4">
                                <p>Timeline Content</p>
                            </TabsContent>
@@ -946,10 +946,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 {isImport ? (
                                     <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} /> 
                                 ) : (
-                                    <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                                    <p className="text-center text-muted-foreground p-8">A funcionalidade de DU-E está localizada na aba "Draft BL" para processos de exportação.</p>
                                 )}
                            </TabsContent>
-                        </div>
+                        </ScrollArea>
                     </Tabs>
                 </div>
                 
@@ -1058,3 +1058,5 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
+
+    

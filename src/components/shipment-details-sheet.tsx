@@ -927,45 +927,118 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </TabsList>
                     
                     <div className="flex-1 overflow-y-auto">
-                         <TabsContent value="timeline" className="mt-0 p-4">
+                        <TabsContent value="timeline" className="mt-0 p-4">
                            <Card>
                                 <CardHeader>
                                     <CardTitle>Linha do Tempo</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                  <p>Funcionalidade em desenvolvimento...</p>
+                                  {sortedMilestones.map((m, idx) => (
+                                    <div key={idx} className="mb-4 p-2 border rounded">
+                                      <strong>{m.name}</strong>
+                                      <p>Previsto: {m.predictedDate && format(new Date(m.predictedDate), 'dd/MM/yyyy')}</p>
+                                      {m.effectiveDate && <p>Realizado: {format(new Date(m.effectiveDate), 'dd/MM/yyyy')}</p>}
+                                      {m.details && <p>Detalhes: {m.details}</p>}
+                                    </div>
+                                  ))}
                                 </CardContent>
                             </Card>
                         </TabsContent>
                         <TabsContent value="details" className="mt-0 p-4">
-                             <Card>
-                                <CardHeader>
-                                    <CardTitle>Detalhes Operacionais</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p>Informações detalhadas do processo aparecerão aqui...</p>
-                                </CardContent>
-                            </Card>
+                            <Form {...form}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <FormField control={form.control} name="carrier" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Transportadora</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="vesselName" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Navio</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="voyageNumber" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Viagem</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="bookingNumber" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Booking</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
+                                    </FormItem>
+                                )} />
+                                </div>
+                            </Form>
                         </TabsContent>
                         <TabsContent value="financials" className="mt-0 p-4">
-                             <Card>
-                                <CardHeader>
-                                    <CardTitle>Gestão Financeira</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p>Dados financeiros e custos operacionais serão exibidos aqui...</p>
-                                </CardContent>
-                            </Card>
+                           <Table>
+                                <TableHeader>
+                                <TableRow>
+                                    <TableHead>Taxa</TableHead>
+                                    <TableHead>Tipo</TableHead>
+                                    <TableHead>Fornecedor</TableHead>
+                                    <TableHead className="text-right">Custo</TableHead>
+                                    <TableHead className="text-right">Venda</TableHead>
+                                </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                {watchedCharges.map((charge, index) => (
+                                    <TableRow key={charge.id}>
+                                    <TableCell>{charge.name}</TableCell>
+                                    <TableCell>{charge.type}</TableCell>
+                                    <TableCell>{charge.supplier}</TableCell>
+                                    <TableCell className="text-right">
+                                        {charge.costCurrency} {(Number(charge.cost) || 0).toFixed(2)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {charge.saleCurrency} {(Number(charge.sale) || 0).toFixed(2)}
+                                    </TableCell>
+                                    </TableRow>
+                                ))}
+                                </TableBody>
+                            </Table>
                         </TabsContent>
                         <TabsContent value="documents" className="mt-0 p-4">
-                             <Card>
-                                <CardHeader>
-                                    <CardTitle>Documentos do Processo</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p>Gerenciamento de documentos será implementado aqui...</p>
-                                </CardContent>
-                            </Card>
+                            {uploadedFiles.map((doc, index) => (
+                                <div key={index} className="mb-4 border p-4 rounded-md">
+                                <FormLabel>Tipo do Documento</FormLabel>
+                                <Select
+                                    value={doc.name}
+                                    onValueChange={(value) => handleDocTypeChange(value as any, index)}
+                                >
+                                    <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Selecione um tipo..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Draft HBL">Draft HBL</SelectItem>
+                                        <SelectItem value="Draft MBL">Draft MBL</SelectItem>
+                                        <SelectItem value="Invoice">Invoice</SelectItem>
+                                        <SelectItem value="Outros">Outros</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <Input
+                                    type="file"
+                                    onChange={(e) => handleDocumentUpload(e, index)}
+                                    className="mt-2"
+                                />
+
+                                {documentPreviews[doc.name] && (
+                                    <div className="mt-2">
+                                    <p className="text-xs text-muted-foreground">Pré-visualização:</p>
+                                    <Image src={documentPreviews[doc.name]} alt={doc.name} width={200} height={282} className="w-full max-w-md mt-1 border" />
+                                    </div>
+                                )}
+                                </div>
+                            ))}
+                            <Button onClick={handleAddDocumentSlot} variant="outline" className="mt-4">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Adicionar Documento
+                            </Button>
                         </TabsContent>
                         <TabsContent value="bl_draft" className="mt-0 p-4">
                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />

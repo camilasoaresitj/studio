@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -453,7 +452,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
 
     const handleMasterSave = async () => {
-        if (form.getValues('activeTab') === 'bl_draft' && blDraftFormRef.current) {
+        const activeTab = document.querySelector('[data-state="active"]')?.getAttribute('data-value');
+        if (activeTab === 'bl_draft' && blDraftFormRef.current) {
             blDraftFormRef.current.submit();
         } else {
             await form.handleSubmit(onMainFormSubmit)();
@@ -916,7 +916,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </div>
                 </SheetHeader>
                 
-                <Tabs defaultValue="timeline" className="flex-grow flex flex-col overflow-hidden">
+                 <Tabs defaultValue="timeline" className="flex-grow flex flex-col overflow-hidden">
                     <TabsList className="shrink-0 border-b px-2 h-auto">
                         <TabsTrigger value="timeline">Timeline</TabsTrigger>
                         <TabsTrigger value="details">Detalhes</TabsTrigger>
@@ -926,7 +926,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                     </TabsList>
                     
-                    <ScrollArea className="flex-grow">
+                    <div className="flex-grow overflow-y-auto">
                         <TabsContent value="timeline" className="mt-0 p-4">
                             <p>Timeline Content</p>
                         </TabsContent>
@@ -949,7 +949,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                             )}
                        </TabsContent>
-                    </ScrollArea>
+                    </div>
                 </Tabs>
             
                  <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>

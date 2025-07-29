@@ -25,7 +25,7 @@ import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import type { Partner } from "@/lib/partners-data";
-import { getPartners } from "@/lib/partners-data";
+import { getPartners, savePartners } from "@/lib/partners-data";
 import type { Quote } from "@/components/customer-quotes-list";
 import { getShipments, saveShipments } from "@/lib/shipment-data";
 import { isPast, format, addDays } from "date-fns";

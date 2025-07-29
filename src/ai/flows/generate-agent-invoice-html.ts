@@ -173,11 +173,7 @@ const generateAgentInvoiceHtmlFlow = ai.defineFlow(
     outputSchema: GenerateAgentInvoiceHtmlOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
-      prompt: generateAgentInvoiceHtmlPrompt,
-      input,
-      model: 'gemini-pro',
-    });
+    const { output } = await generateAgentInvoiceHtmlPrompt(input);
     
     if (!output) {
       throw new Error("AI failed to generate agent invoice HTML.");

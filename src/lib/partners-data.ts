@@ -319,7 +319,7 @@ function getInitialPartners(): Partner[] {
     ];
 }
 
-export function getPartners(): Partner[] {
+export const getPartners = (): Partner[] => {
   if (typeof window === 'undefined') {
     return [];
   }
@@ -343,7 +343,7 @@ export function getPartners(): Partner[] {
   }
 }
 
-export function savePartners(partners: Partner[]): void {
+export const savePartners = (partners: Partner[]): void => {
   if (typeof window === 'undefined') {
     return;
   }
@@ -375,4 +375,4 @@ export function savePartners(partners: Partner[]): void {
   }
 }
 
-    
+      

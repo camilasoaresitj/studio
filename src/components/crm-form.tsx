@@ -91,7 +91,7 @@ export function CrmForm() {
     setCrmResult(null);
     const response = await runCreateCrmEntry(values.emailContent);
     if (response.success) {
-      setCrmResult(response.data);
+      setCrmResult(response.data || null);
     } else {
       toast({
         variant: 'destructive',

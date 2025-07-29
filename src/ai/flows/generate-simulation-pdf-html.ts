@@ -10,7 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { SimulationResult, SimulationFormData } from '@/app/simulador-di/page';
+import type { SimulationResult, SimulationFormData } from '@/lib/schemas/simulation';
 
 
 const GenerateSimulationPdfHtmlInputSchema = z.object({

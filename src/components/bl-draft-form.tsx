@@ -11,7 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import type { Shipment, Partner, BLDraftHistory, BLDraftData } from '@/lib/shipment-data';
+import type { Shipment, BLDraftHistory, BLDraftData } from '@/lib/shipment-data';
+import type { Partner } from '@/lib/partners-data';
 import { saveShipments } from '@/lib/shipment-data';
 import { runSubmitBLDraft } from '@/app/actions';
 import { Loader2, Send, FileText, AlertTriangle, CheckCircle, Ship, Trash2, PlusCircle, History } from 'lucide-react';

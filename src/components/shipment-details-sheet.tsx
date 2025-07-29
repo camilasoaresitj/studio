@@ -912,18 +912,20 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </SheetHeader>
                     
                     <div className="flex-grow overflow-y-auto">
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-hidden">
-                            <TabsList className="shrink-0 border-b px-2 h-auto">
+                        <Tabs value={activeTab} onValueChange={setActiveTab}>
+                            <div className="p-4 border-b">
+                            <TabsList>
                                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
                                 <TabsTrigger value="details">Detalhes</TabsTrigger>
                                 <TabsTrigger value="financials">Financeiro</TabsTrigger>
                                 <TabsTrigger value="documents">Documentos</TabsTrigger>
-                                <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
+                                <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>
                                 <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
                             </TabsList>
-                            
-                            <div className="flex-grow overflow-y-auto">
-                                <TabsContent value="timeline" className="mt-0 p-4 min-h-[300px]">
+                            </div>
+
+                            <div className="p-4">
+                            <TabsContent value="timeline">
                                 <Form {...form}>
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                     <Card className="lg:col-span-2">
@@ -945,7 +947,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                     const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
                                                     const isCompleted = !!milestone.effectiveDate;
                                                     return (
-                                                        <div key={index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
+                                                        <div key={milestone.id || index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
                                                             <div className="flex h-full justify-center row-span-2">
                                                                 <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
                                                                     <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
@@ -1000,9 +1002,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                     </div>
                                 </div>
                                 </Form>
-                                </TabsContent>
-                                
-                                <TabsContent value="details">
+                            </TabsContent>
+                            
+                            <TabsContent value="details">
                                 <Form {...form}>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                     <Card>
@@ -1151,23 +1153,294 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                     </div>
                                 </div>
                                 </Form>
-                                </TabsContent>
-                                <TabsContent value="financials">
-                                    <p>Financeiro</p>
-                                </TabsContent>
-                                <TabsContent value="documents">
-                                    <p>Documentos</p>
-                                </TabsContent>
-                                <TabsContent value="bl_draft">
-                                    <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                                </TabsContent>
-                                <TabsContent value="desembaraco">
-                                    <CustomsClearanceTab shipment={shipment} />
-                                </TabsContent>
+                            </TabsContent>
+
+                            <TabsContent value="financials">
+                              <Form {...form}>
+                              <div className="space-y-4">
+                              <Card>
+                                    <CardHeader>
+                                        <div className="flex justify-between items-center">
+                                            <CardTitle>Planilha de Custos e Vendas</CardTitle>
+                                             <div className="flex items-center gap-2">
+                                                <Button type="button" variant="secondary" size="sm" onClick={handleFaturarProcesso}>Faturar Processo</Button>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `custom-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'pendente', financialEntryId: null })}>
+                                                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="border rounded-lg">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="w-[180px]">Taxa</TableHead>
+                                                        <TableHead className="w-[180px]">Tipo Cobrança</TableHead>
+                                                        <TableHead className="w-[180px]">Fornecedor</TableHead>
+                                                        <TableHead className="w-[200px]">Custo</TableHead>
+                                                        <TableHead className="w-[180px]">Sacado</TableHead>
+                                                        <TableHead className="w-[200px]">Venda</TableHead>
+                                                        <TableHead className="w-[50px]">Ações</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {chargesFields.map((field, index) => {
+                                                         const charge = watchedCharges[index];
+                                                         if (!charge) return null;
+
+                                                        const isBilled = !!charge.financialEntryId;
+                                                        const financialEntry = isBilled ? financialEntries.find(e => e.id === charge.financialEntryId) : undefined;
+                                                        const isPaid = financialEntry?.status === 'Pago';
+                                                        const availableFees = fees.filter(
+                                                            fee => !watchedCharges.some(c => c.name === fee.name) || charge.name === fee.name
+                                                        );
+
+
+                                                        return (
+                                                            <TableRow key={field.id} className={cn(isPaid && 'bg-green-500/10')}>
+                                                                <TableCell className="p-1 align-top">
+                                                                    <FeeCombobox fees={availableFees} value={charge.name} onValueChange={(value) => handleFeeSelection(value, index)} />
+                                                                </TableCell>
+                                                                <TableCell className="p-1 align-top">
+                                                                    <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
+                                                                         <Select onValueChange={field.onChange} value={field.value} disabled={isBilled}>
+                                                                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                                                                            <SelectContent>
+                                                                                {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    )} />
+                                                                </TableCell>
+                                                                <TableCell className="p-1 align-top">
+                                                                    <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
+                                                                        <Select onValueChange={field.onChange} value={field.value} disabled={isBilled}>
+                                                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                                                                            <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
+                                                                        </Select>
+                                                                    )} />
+                                                                </TableCell>
+                                                                <TableCell className="p-1 align-top">
+                                                                    <div className="flex gap-1">
+                                                                        <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isBilled}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                        <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled} onBlur={(e) => handleValueChange(index, 'cost', parseFloat(e.target.value) || 0)} />} />
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="p-1 align-top">
+                                                                    <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
+                                                                        <Select onValueChange={field.onChange} value={field.value} disabled={isBilled}>
+                                                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                                                            <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
+                                                                        </Select>
+                                                                    )} />
+                                                                </TableCell>
+                                                                <TableCell className="p-1 align-top">
+                                                                    <div className="flex gap-1">
+                                                                        <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isBilled}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                                        <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isBilled && charge.approvalStatus !== 'pendente'} onBlur={(e) => handleValueChange(index, 'sale', parseFloat(e.target.value) || 0)} />} />
+                                                                    </div>
+                                                                    {charge.approvalStatus === 'pendente' && <Badge variant="default" className="mt-1">Pendente</Badge>}
+                                                                    {charge.approvalStatus === 'rejeitada' && <Badge variant="destructive" className="mt-1">Rejeitada</Badge>}
+                                                                </TableCell>
+                                                                <TableCell className="p-1 align-top text-center">
+                                                                    {isBilled ? (
+                                                                        <TooltipProvider>
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger asChild>
+                                                                                    <Button type="button" variant="ghost" size="icon" onClick={() => setDetailsEntry(financialEntry)}>
+                                                                                        <Wallet className="h-5 w-5 text-primary" />
+                                                                                    </Button>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent>
+                                                                                    <p>Faturado: {financialEntry?.invoiceId}</p>
+                                                                                    <p>Venc: {financialEntry ? format(new Date(financialEntry.dueDate), 'dd/MM/yyyy') : 'N/A'}</p>
+                                                                                </TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+                                                                    ) : (
+                                                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                                    )}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )
+                                                    })}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                </div>
+                                </Form>
+                            </TabsContent>
+                            
+                            <TabsContent value="documents">
+                                <Form {...form}>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Gestão de Documentos</CardTitle>
+                                            <CardDescription>Anexe, aprove e gerencie os documentos do processo.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="border rounded-lg">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Documento</TableHead>
+                                                            <TableHead>Status</TableHead>
+                                                            <TableHead>Arquivo</TableHead>
+                                                            <TableHead className="text-right">Ações</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {(shipment.documents || []).map((doc, index) => {
+                                                            const previewUrl = documentPreviews[doc.name];
+                                                            const hasFile = doc.fileName || uploadedFiles[doc.name];
+                                                            return (
+                                                            <TableRow key={index}>
+                                                                <TableCell className="font-medium">{doc.name}</TableCell>
+                                                                <TableCell>
+                                                                    <Badge variant={doc.status === 'approved' ? 'success' : (doc.status === 'uploaded' ? 'default' : 'secondary')}>
+                                                                        {doc.status}
+                                                                    </Badge>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    {hasFile ? (
+                                                                         <TooltipProvider>
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger asChild>
+                                                                                    <a href="#" className="text-primary hover:underline" onClick={(e) => { e.preventDefault(); handleDownload(doc); }}>
+                                                                                        {uploadedFiles[doc.name]?.name || doc.fileName}
+                                                                                    </a>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent>
+                                                                                    {previewUrl ? (
+                                                                                        <Image src={previewUrl} alt={`Preview de ${doc.fileName}`} width={200} height={200} className="object-contain" />
+                                                                                    ) : (
+                                                                                        <p>Pré-visualização indisponível.</p>
+                                                                                    )}
+                                                                                </TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+                                                                    ) : 'N/A'}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Button asChild variant="outline" size="sm" className="mr-2">
+                                                                        <label htmlFor={`upload-${doc.name}`} className="cursor-pointer"><Upload className="mr-2 h-4 w-4"/> Anexar</label>
+                                                                    </Button>
+                                                                    <Input id={`upload-${doc.name}`} type="file" className="hidden" onChange={(e) => handleDocumentUpload(doc.name, e.target.files ? e.target.files[0] : null)} />
+                                                                    <Button variant="ghost" size="sm" disabled={doc.status !== 'uploaded'}><FileCheck className="mr-2 h-4 w-4"/> Aprovar</Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )})}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card>
+                                        <CardHeader><CardTitle className="text-lg">Informações do Courier</CardTitle></CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <FormField control={form.control} name="mblPrintingAtDestination" render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                                    <div className="space-y-0.5"><FormLabel>Impressão do MBL no Destino?</FormLabel></div>
+                                                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                                </FormItem>
+                                            )} />
+                                            {mblPrintingAtDestination && (
+                                                <FormField control={form.control} name="mblPrintingAuthDate" render={({ field }) => (
+                                                    <FormItem className="flex flex-col animate-in fade-in-50"><FormLabel>Data Autorização de Impressão</FormLabel>
+                                                        <Popover><PopoverTrigger asChild><FormControl>
+                                                            <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                            </Button>
+                                                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                    </FormItem>
+                                                )} />
+                                            )}
+                                            <FormField control={form.control} name="courier" render={({ field }) => (
+                                                <FormItem><FormLabel>Empresa de Courier</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={mblPrintingAtDestination}>
+                                                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="DHL">DHL</SelectItem>
+                                                            <SelectItem value="UPS">UPS</SelectItem>
+                                                            <SelectItem value="FedEx">FedEx</SelectItem>
+                                                            <SelectItem value="Outro">Outro</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={form.control} name="courierNumber" render={({ field }) => (
+                                                <FormItem><FormLabel>Número de Rastreio do Courier</FormLabel>
+                                                <div className="flex gap-2">
+                                                    <FormControl><Input {...field} disabled={mblPrintingAtDestination} /></FormControl>
+                                                    <Button type="button" variant="secondary" onClick={() => {}} disabled={isFetchingCourier || mblPrintingAtDestination}>
+                                                        {isFetchingCourier ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}
+                                                    </Button>
+                                                </div>
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={form.control} name="courierLastStatus" render={({ field }) => (
+                                                <FormItem><FormLabel>Último Status do Courier</FormLabel><FormControl><Input {...field} disabled /></FormControl></FormItem>
+                                            )} />
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                                </Form>
+                            </TabsContent>
+
+                            <TabsContent value="bl_draft">
+                                <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                            </TabsContent>
+                            
+                            <TabsContent value="desembaraco">
+                               <CustomsClearanceTab shipment={shipment} />
+                            </TabsContent>
+                            
                             </div>
                         </Tabs>
                     </div>
                 </div>
+                 <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Adicionar Milestone Manual</DialogTitle>
+                            <DialogDescription>
+                                Insira os detalhes da nova tarefa operacional.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <Form {...newMilestoneForm}>
+                            <form onSubmit={handleAddManualMilestone} className="space-y-4 pt-4">
+                                 <FormField control={newMilestoneForm.control} name="name" render={({ field }) => (
+                                    <FormItem><FormLabel>Nome da Tarefa</FormLabel><FormControl><Input placeholder="Ex: Enviar pré-alerta ao cliente" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                 <FormField control={newMilestoneForm.control} name="predictedDate" render={({ field }) => (
+                                    <FormItem className="flex flex-col"><FormLabel>Data Prevista</FormLabel>
+                                        <Popover><PopoverTrigger asChild><FormControl>
+                                            <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover>
+                                    <FormMessage /></FormItem>
+                                )}/>
+                                 <FormField control={newMilestoneForm.control} name="details" render={({ field }) => (
+                                    <FormItem><FormLabel>Detalhes (Opcional)</FormLabel><FormControl><Input placeholder="Ex: Aguardando numerário" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
+                                    <Button type="submit">Adicionar Tarefa</Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </DialogContent>
+                </Dialog>
+                
+                 <JustificationDialog
+                    open={!!justificationData}
+                    onOpenChange={() => setJustificationData(null)}
+                    onConfirm={handleConfirmJustification}
+                />
             </SheetContent>
         </Sheet>
     );

@@ -220,7 +220,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
                 companyLogoUrl: logoDataUrl,
             });
             
-            if (!response.success || !response.data.html) {
+            if (!response.success || !response.data?.html) {
                 throw new Error(response.error || "A geração do HTML da fatura falhou.");
             }
             

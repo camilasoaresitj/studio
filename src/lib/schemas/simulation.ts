@@ -41,6 +41,7 @@ export type SimulationResultItem = InvoiceItem & {
     impostosRateados: number;
     despesasLocaisRateadas: number;
     custoUnitarioFinal: number;
+    taxRates?: z.infer<typeof ncmRateSchema>;
 };
 
 export interface SimulationResult {

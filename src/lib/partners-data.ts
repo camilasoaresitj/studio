@@ -375,3 +375,5 @@ export function savePartners(partners: Partner[]): void {
     console.error("Failed to save partners to localStorage", error);
   }
 }
+
+    

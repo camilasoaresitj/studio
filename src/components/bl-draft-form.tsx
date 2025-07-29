@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
@@ -380,7 +379,7 @@ export const BLDraftForm = forwardRef<{ submit: () => void }, BLDraftFormProps>(
                     control={form.control}
                     name="containers"
                     render={({ fieldState }) => (
-                        fieldState.error?.message ? <FormMessage className="mt-2">{fieldState.error.message}</FormMessage> : null
+                        <>{fieldState.error?.message ? <FormMessage className="mt-2">{fieldState.error.message}</FormMessage> : <></>}</>
                     )}
                 />
             </div>

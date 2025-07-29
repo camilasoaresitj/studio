@@ -319,7 +319,7 @@ function getInitialPartners(): Partner[] {
     ];
 }
 
-export const getPartners = (): Partner[] => {
+export function getPartners(): Partner[] {
   if (typeof window === 'undefined') {
     return [];
   }
@@ -343,7 +343,7 @@ export const getPartners = (): Partner[] => {
   }
 }
 
-export const savePartners = (partners: Partner[]): void => {
+export function savePartners(partners: Partner[]): void {
   if (typeof window === 'undefined') {
     return;
   }
@@ -374,5 +374,3 @@ export const savePartners = (partners: Partner[]): void => {
     console.error("Failed to save partners to localStorage", error);
   }
 }
-
-      

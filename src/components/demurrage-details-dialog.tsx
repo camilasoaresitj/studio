@@ -163,7 +163,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, costTariffs, sal
             exchangeRate: finalRate.toFixed(4),
         });
 
-        if (emailResponse.success) {
+        if (emailResponse.success && emailResponse.data) {
             console.log(`----- SIMULATING ${isDetention ? 'DETENTION' : 'DEMURRAGE'} INVOICE EMAIL -----`);
             console.log("SUBJECT:", emailResponse.data.emailSubject);
             console.log("BODY (HTML):", emailResponse.data.emailBody);
@@ -279,24 +279,20 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, costTariffs, sal
                                 )}
                             </TableBody>
                         </Table>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                    </CardContent>
+    </Card>
 
-        <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={handleGenerateInvoice} disabled={isGenerating || item.status === 'invoiced' || !!missingTariff}>
-            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-            {item.status === 'invoiced' ? 'Faturado' : 'Gerar Fatura e Enviar'}
-          </Button>
-          <Button onClick={() => handleOtherActions("Emitir Recibo")} disabled={isGenerating}>
-            <Receipt className="mr-2 h-4 w-4" />
-            Emitir Recibo
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+    <DialogFooter className="pt-4">
+      <Button variant="outline" onClick={handleGenerateInvoice} disabled={isGenerating || item.status === 'invoiced' || !!missingTariff}>
+        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+        {item.status === 'invoiced' ? 'Faturado' : 'Gerar Fatura e Enviar'}
+      </Button>
+      <Button onClick={() => handleOtherActions("Emitir Recibo")} disabled={isGenerating}>
+        <Receipt className="mr-2 h-4 w-4" />
+        Emitir Recibo
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+);
 }
-
-    

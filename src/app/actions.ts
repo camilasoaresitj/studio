@@ -505,12 +505,14 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
   if (isImport && agent) {
     const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
     const agentPortalUrl = typeof window !== 'undefined' ? `${window.location.origin}/agent-portal/${shipmentId}` : `/agent-portal/${shipmentId}`;
+    const profitAgreement = agent.profitAgreements?.find(pa => pa.modal === 'FCL' && pa.direction === 'IMPORTACAO');
+    
     await runSendShippingInstructions({
       shipmentId: newShipment.id, agentName: agent.name, agentEmail: agent.contacts[0]?.email || 'agent@example.com',
       shipper: shipper, consigneeName: consignee.name, notifyName: quoteData.notifyName,
       freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
       freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'AS AGREED',
-      agentProfit: agent.profitAgreement?.amount ? `USD ${agent.profitAgreement.amount.toFixed(2)}` : 'N/A',
+      agentProfit: profitAgreement?.amount ? `USD ${profitAgreement.amount.toFixed(2)}` : 'N/A',
       thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
       commodity: newShipment.commodityDescription || 'General Cargo', equipmentDescription: newShipment.details.cargo || 'N/A',
       ncm: newShipment.ncms?.[0] || 'N/A', invoiceNumber: newShipment.invoiceNumber || 'N/A', purchaseOrderNumber: newShipment.purchaseOrderNumber || 'N/A',
@@ -700,3 +702,4 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
+

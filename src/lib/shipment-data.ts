@@ -217,6 +217,7 @@ export type Shipment = {
   ncms?: string[];
   operationalNotes?: string;
   approvalLogs?: ApprovalLog[];
+  invoiceItems?: any[];
 };
 
 // --- Milestone Templates & Due Date Calculation ---

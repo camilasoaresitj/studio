@@ -4,8 +4,8 @@
 
 import { useState, useEffect } from 'react';
 import { BLDraftForm } from '@/components/bl-draft-form';
-import { getShipmentById } from '@/lib/shipment';
-import type { Shipment } from '@/lib/shipment';
+import { getShipmentById } from '@/lib/shipment-data';
+import type { Shipment } from '@/lib/shipment-data';
 import { Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 

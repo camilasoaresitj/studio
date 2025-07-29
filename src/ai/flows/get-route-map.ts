@@ -10,7 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { getShipmentById } from '@/lib/shipment';
+import { getShipmentById } from '@/lib/shipment-data';
 import { findPortByTerm } from '@/lib/ports';
 
 const LatLonSchema = z.object({

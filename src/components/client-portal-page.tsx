@@ -3,7 +3,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { getShipmentById, Shipment, Milestone, DocumentStatus } from '@/lib/shipment';
+import { getShipmentById, updateShipment } from '@/lib/shipment-data';
+import type { Shipment, Milestone, DocumentStatus } from '@/lib/shipment-data';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

@@ -63,7 +63,6 @@ export function ApprovalsPanel() {
         if (viewingItem.type === 'finance') {
             const updatedEntries = getFinancialEntries().map(e => {
                 if (e.id === viewingItem.item.id) {
-                    // Only change status if approved. Rejection keeps it pending.
                     const newStatus: FinancialEntry['status'] = approved ? 'Aberto' : 'Pendente de Aprovação';
                     return { ...e, status: newStatus };
                 }
@@ -92,7 +91,8 @@ export function ApprovalsPanel() {
                     };
                     const updatedCharges = s.charges.map(c => {
                         if (c.id === charge.id) {
-                            return { ...c, approvalStatus: approved ? 'aprovada' : 'rejeitada', justification: undefined };
+                            const newStatus: QuoteCharge['approvalStatus'] = approved ? 'aprovada' : 'rejeitada';
+                            return { ...c, approvalStatus: newStatus, justification: undefined };
                         }
                         return c;
                     });

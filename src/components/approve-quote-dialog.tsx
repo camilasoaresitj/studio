@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -21,7 +22,7 @@ import { Label } from './ui/label';
 import type { UploadedDocument } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
 
-const documentTypes = ['Invoice', 'Packing List', 'Negociação NET', 'Outro'];
+const documentTypes = ['Invoice', 'Packing List', 'Negociação NET', 'Outros'];
 
 interface ApproveQuoteDialogProps {
   quote: Quote | null;
@@ -81,7 +82,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
   };
   
   const addDocumentSlot = () => {
-    setUploadedDocs([...uploadedDocs, { name: 'Outro', file: null as any }]);
+    setUploadedDocs([...uploadedDocs, { name: 'Outros', file: null as any }]);
   };
 
   const removeDocumentSlot = (index: number) => {

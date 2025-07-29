@@ -37,7 +37,7 @@ export type QuoteDetails = {
 };
 
 export type UploadedDocument = {
-    name: 'Invoice' | 'Packing List' | 'Negociação NET' | 'Outro' | 'Draft HBL' | 'Draft MBL' | 'Original MBL' | 'Original HBL' | 'Extrato DUE';
+    name: 'Invoice' | 'Packing List' | 'Negociação NET' | 'Outros' | 'Draft HBL' | 'Draft MBL' | 'Original MBL' | 'Original HBL' | 'Extrato DUE';
     file: File;
 };
 

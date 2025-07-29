@@ -55,7 +55,8 @@
     "soap": "^1.0.0",
     "twilio": "^5.2.2",
     "genkit": "1.15.1",
-    "@genkit-ai/googleai": "1.15.1"
+    "@genkit-ai/googleai": "1.15.1",
+    "@genkit-ai/firebase": "1.15.1"
   },
   "devDependencies": {
     "@types/google.maps": "^3.55.11",

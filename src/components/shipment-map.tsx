@@ -25,6 +25,13 @@ export function ShipmentMap({ shipmentNumber }: ShipmentMapProps) {
       setError(null);
       
       const response = await runGetRouteMap(shipmentNumber);
+
+      if (!response) {
+        setError('A resposta da API de rota foi inválida.');
+        setIsLoading(false);
+        return;
+      }
+
       if (!response.success || !response.data) {
         setError(response.error || 'Não foi possível carregar os dados da rota do embarque.');
         setIsLoading(false);

@@ -1,3 +1,4 @@
+
 'use client';
 import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { CustomerQuotesList, type Quote } from '@/components/customer-quotes-list';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { List } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { CrmForm } from '@/components/crm-form';
+import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
 
 export default function ComercialPage() {
     const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -80,6 +82,17 @@ export default function ComercialPage() {
         setRates(newRates);
         saveRates(newRates);
     };
+    
+    const handleRatesImported = (newRates: ExtractRatesFromTextOutput) => {
+        setRates(prev => {
+            const maxId = Math.max(0, ...prev.map(r => r.id));
+            const ratesWithIds: Rate[] = newRates.map((rate, index) => ({
+                ...rate,
+                id: maxId + index + 1,
+            }));
+            return [...prev, ...ratesWithIds];
+        });
+    };
 
     if (!isClient) {
         return null;
@@ -123,7 +136,7 @@ export default function ComercialPage() {
                         <RatesTable rates={rates} onRatesChange={handleRatesChange} onSelectRate={() => {}} />
                     </TabsContent>
                     <TabsContent value="import" className="mt-6">
-                        <RateImporter onRatesImported={(newRates) => setRates(prev => [...prev, ...newRates])} />
+                        <RateImporter onRatesImported={handleRatesImported} />
                     </TabsContent>
                     <TabsContent value="crm" className="mt-6">
                         <CrmForm />

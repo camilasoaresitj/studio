@@ -132,7 +132,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         isClientAgent,
       });
 
-      if (commsResponse.success) {
+      if (commsResponse.success && commsResponse.data) {
         if (channel === 'email') {
             const primaryContact = customer.contacts.find(c => c.departments?.includes('Comercial')) || customer.contacts[0];
             const recipient = primaryContact?.email;

@@ -2,9 +2,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import type { Shipment, Partner } from '@/lib/shipment-data';
+import type { Shipment } from '@/lib/shipment-data';
 import { getShipments, saveShipments } from '@/lib/shipment-data';
-import { getPartners } from '@/lib/partners-data';
+import { getPartners, type Partner } from '@/lib/partners-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ImportantTasks } from '@/components/important-tasks';
 import { RecentShipments } from '@/components/recent-shipments';

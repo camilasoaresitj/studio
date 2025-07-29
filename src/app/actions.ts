@@ -24,7 +24,8 @@ import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
-import { getPartners, savePartners, type Partner } from "@/lib/partners-data";
+import { getPartners, savePartners } from "@/lib/partners-data";
+import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/components/customer-quotes-list";
 import { getShipments, saveShipments } from "@/lib/shipment-data";
 import { isPast, format, addDays } from "date-fns";
@@ -207,7 +208,7 @@ export async function runExtractQuoteDetailsFromText(textInput: string) {
 export async function runCreateCrmEntry(emailContent: string) {
     try {
         const data = await createCrmEntryFromEmail({ emailContent });
-        return { success: true, data };
+        return { success: true, data: data || null };
     } catch (error: any) {
         console.error("Create CRM Entry Action Failed", error);
         return { success: false, error: error.message || "Failed to create CRM entry" };
@@ -269,7 +270,7 @@ export async function runSendToLegal(input: any) {
 export async function runCreateEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {
     try {
         const data = await createEmailCampaign({ instruction, partners, quotes });
-        return { success: true, data };
+        return { success: true, data: data || null };
     } catch (error: any) {
         console.error("Create Email Campaign Action Failed", error);
         return { success: false, error: error.message || "Failed to create email campaign" };
@@ -704,9 +705,5 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
-
-
-
-    
 
     

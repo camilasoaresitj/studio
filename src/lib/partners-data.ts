@@ -4,7 +4,7 @@
 import { z } from 'zod';
 
 const profitAgreementSchema = z.object({
-    modal: z.enum(['FCL', 'LCL', 'AIR']),
+    modal: z.enum(['FCL', 'LCL', 'AIR', 'ROAD_FTL']),
     direction: z.enum(['IMPORTACAO', 'EXPORTACAO']),
     amount: z.coerce.number().optional(),
     unit: z.enum(['por_container', 'por_bl', 'porcentagem_lucro']).optional(),

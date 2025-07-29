@@ -18,11 +18,9 @@ import type {
     BLDraftData,
     ChatMessage,
     BLDraftRevision,
-    BLDraftHistory
+    BLDraftHistory,
+    Partner
 } from './shipment-data';
-
-// This file re-exports the functions and types for client-side usage.
-// Crucially, it only exports functions, not types, to comply with 'use server' constraints in consuming files.
 
 export const getShipments = getShipmentsData;
 export const saveShipments = saveShipmentsData;
@@ -57,5 +55,6 @@ export type {
     BLDraftData,
     ChatMessage,
     BLDraftRevision,
-    BLDraftHistory
+    BLDraftHistory,
+    Partner
 };

@@ -1,5 +1,4 @@
 
-
 'use client';
 import { z } from 'zod';
 
@@ -320,7 +319,7 @@ function getInitialPartners(): Partner[] {
     ];
 }
 
-export function getPartners(): Partner[] {
+function getPartners(): Partner[] {
   if (typeof window === 'undefined') {
     return [];
   }
@@ -344,7 +343,7 @@ export function getPartners(): Partner[] {
   }
 }
 
-export function savePartners(partners: Partner[]): void {
+function savePartners(partners: Partner[]): void {
   if (typeof window === 'undefined') {
     return;
   }
@@ -376,4 +375,4 @@ export function savePartners(partners: Partner[]): void {
   }
 }
 
-    
+export { getPartners, savePartners };

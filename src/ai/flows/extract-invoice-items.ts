@@ -32,6 +32,7 @@ const extractInvoiceItemsPrompt = ai.definePrompt({
   name: 'extractInvoiceItemsPrompt',
   input: { schema: z.object({ textContent: z.string().optional(), media: z.any().optional() }) },
   output: { schema: z.object({ data: z.array(InvoiceItemSchema) }) },
+  models: { 'gemini-pro-vision': 'googleai/gemini-1.5-pro-latest' },
   prompt: `You are an expert data extraction AI for logistics. Your task is to extract structured line items from the provided content, which could be from a CSV, XML, plain text, an image, or a PDF file.
 
 Analyze the content below and extract all product line items. For each item, you must find:
@@ -106,13 +107,8 @@ const extractInvoiceItemsFlow = ai.defineFlow(
             throw new Error('The file appears to be empty or could not be read.');
         }
 
-        const llmResponse = await ai.generate({
-          model: 'gemini-pro-vision',
-          prompt: extractInvoiceItemsPrompt,
-          input: promptInput,
-        });
-        
-        const output = llmResponse.output();
+        const { output } = await extractInvoiceItemsPrompt(promptInput);
+
         if (!output || !output.data || output.data.length === 0) {
             throw new Error("A IA não conseguiu extrair nenhum item válido do arquivo. Verifique o conteúdo, o formato e se as colunas necessárias (descrição, quantidade, valor, ncm) estão presentes.");
         }

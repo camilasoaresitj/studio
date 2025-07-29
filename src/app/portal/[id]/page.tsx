@@ -1,3 +1,4 @@
+
 import { Suspense } from 'react';
 import { ClientPortalPage } from '@/components/client-portal-page';
 import Loading from './loading';

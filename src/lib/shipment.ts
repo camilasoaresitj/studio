@@ -4,6 +4,8 @@
 import { 
     getShipments as getShipmentsData, 
     saveShipments as saveShipmentsData,
+    getShipmentById as getShipmentByIdData,
+    updateShipment as updateShipmentData,
 } from './shipment-data';
 import type { 
     Shipment, 
@@ -19,26 +21,15 @@ import type {
     ChatMessage,
     BLDraftRevision,
     BLDraftHistory,
-    Partner
+    Partner,
+    ActivityLog,
+    ApprovalLog
 } from './shipment-data';
 
 export const getShipments = getShipmentsData;
 export const saveShipments = saveShipmentsData;
-
-export function getShipmentById(id: string): Shipment | undefined {
-  const shipments = getShipments();
-  return shipments.find(s => s.id === id);
-}
-
-export function updateShipment(updatedShipment: Shipment): Shipment[] {
-  const shipments = getShipments();
-  const index = shipments.findIndex(s => s.id === updatedShipment.id);
-  if (index !== -1) {
-    shipments[index] = updatedShipment;
-    saveShipments(shipments);
-  }
-  return shipments;
-}
+export const getShipmentById = getShipmentByIdData;
+export const updateShipment = updateShipmentData;
 
 
 // Export types for client-side components that need them
@@ -56,5 +47,7 @@ export type {
     ChatMessage,
     BLDraftRevision,
     BLDraftHistory,
-    Partner
+    Partner,
+    ActivityLog,
+    ApprovalLog
 };

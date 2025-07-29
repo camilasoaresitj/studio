@@ -128,13 +128,9 @@ const extractRatesFromTextFlow = ai.defineFlow(
   },
   async (input) => {
     // The prompt returns a list of potentially incomplete rate objects.
-    const llmResponse = await ai.generate({
-      model: 'gemini-pro',
-      prompt: extractRatesFromTextPrompt,
-      input
-    });
+    const { output: llmOutput } = await extractRatesFromTextPrompt(input);
     
-    const partialRates = llmResponse.output()?.rates;
+    const partialRates = llmOutput?.rates;
     
     // It's possible the AI returns nothing if the text is very unclear.
     if (!partialRates || partialRates.length === 0) {

@@ -133,9 +133,9 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
         <div className="flex-grow overflow-y-auto pr-2 space-y-4">
             <div className="p-4 border rounded-lg bg-secondary/50">
                 <h3 className="font-semibold mb-2">Parceiros Selecionados</h3>
-                <p className="text-sm"><strong className="text-muted-foreground">Shipper:</strong> {partners.find(p=>p.id?.toString() === quote.shipperId)?.name || 'Não definido'}</p>
-                <p className="text-sm"><strong className="text-muted-foreground">Consignee:</strong> {partners.find(p=>p.id?.toString() === quote.consigneeId)?.name || 'Não definido'}</p>
-                <p className="text-sm"><strong className="text-muted-foreground">Agente:</strong> {partners.find(p=>p.id?.toString() === quote.agentId)?.name || 'Nenhum (Embarque Direto)'}</p>
+                <p className="text-sm"><strong className="text-muted-foreground">Shipper:</strong> {quote.shipper?.name || 'Não definido'}</p>
+                <p className="text-sm"><strong className="text-muted-foreground">Consignee:</strong> {quote.consignee?.name || 'Não definido'}</p>
+                <p className="text-sm"><strong className="text-muted-foreground">Agente:</strong> {quote.agent?.name || 'Nenhum (Embarque Direto)'}</p>
             </div>
 
             <div className="space-y-2">

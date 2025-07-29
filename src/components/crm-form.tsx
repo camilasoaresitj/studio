@@ -108,7 +108,7 @@ export function CrmForm() {
     const partners = getPartners();
     const response = await runCreateEmailCampaign(values.instruction, partners, quotes);
     if (response.success) {
-      setCampaignResult(response.data);
+      setCampaignResult(response.data || null);
     } else {
       toast({
         variant: 'destructive',

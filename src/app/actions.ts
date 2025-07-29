@@ -1,4 +1,5 @@
 
+
 'use server'
 
 import { detectCarrierFromBooking } from "@/ai/flows/detect-carrier-from-booking";
@@ -10,7 +11,7 @@ import { generateQuotePdfHtml } from "@/ai/flows/generate-quote-pdf-html";
 import { generateClientInvoiceHtml } from "@/ai/flows/generate-client-invoice-html";
 import { generateAgentInvoiceHtml } from "@/ai/flows/generate-agent-invoice-html";
 import { generateHblHtml } from "@/ai/flows/generate-hbl-html";
-import { getFreightRates, getAirFreightRates } from "@/ai/flows/get-freight-rates";
+import { getFreightRates, getAirFreightRates, getRoadFreightRates } from "@/ai/flows/get-freight-rates";
 import { getCourierRates } from "@/ai/flows/get-courier-rates";
 import { monitorEmailForTasks } from "@/ai/flows/monitor-email-for-tasks";
 import { requestAgentQuote } from "@/ai/flows/request-agent-quote";
@@ -47,6 +48,8 @@ export async function runGetFreightRates(input: any) {
         let data;
         if (input.modal === 'air') {
             data = await getAirFreightRates(input);
+        } else if (input.modal === 'road') {
+            data = await getRoadFreightRates(input);
         } else {
             data = await getFreightRates(input);
         }

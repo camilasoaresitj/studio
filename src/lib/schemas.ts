@@ -59,11 +59,12 @@ export const baseFreightQuoteFormSchema = z.object({
     containers: z.array(oceanContainerSchema),
   }),
   lclDetails: lclDetailsSchema,
-
+  
+  roadShipmentType: z.enum(['FTL', 'LTL']).optional(),
   roadShipment: z.object({
     truckType: z.string().optional(),
-    weight: z.coerce.number().optional(),
-  }).optional(),
+    pieces: z.array(airPieceSchema).optional(),
+  }),
 
   optionalServices: z.object({
     customsClearance: z.boolean(),
@@ -112,6 +113,13 @@ export const freightQuoteFormSchema = baseFreightQuoteFormSchema.superRefine((da
             path: ['oceanShipment.containers'],
         });
     }
+    if (data.modal === 'road' && data.roadShipmentType === 'LTL' && (!data.roadShipment.pieces || data.roadShipment.pieces.length === 0)) {
+        ctx.addIssue({
+           code: z.ZodIssueCode.custom,
+           message: "Adicione pelo menos uma peça para cotação LTL.",
+           path: ['roadShipment.pieces'],
+       });
+   }
 
     if (data.optionalServices.insurance && (!data.optionalServices.cargoValue || data.optionalServices.cargoValue <= 0)) {
         ctx.addIssue({

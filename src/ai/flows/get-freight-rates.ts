@@ -210,14 +210,17 @@ function getSimulatedCargoAiRates(input: GetFreightRatesInput): GetFreightRatesO
     return results;
 }
 
+
 export async function getFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {
   // For Ocean, call the real API. For Air, call the simulation.
   if (input.modal === 'ocean') {
     return getFreightRatesFlow(input);
-  } else {
-    // This part remains a simulation as per the existing code.
+  } else if (input.modal === 'air') {
     return getAirFreightRates(input);
+  } else if (input.modal === 'road') {
+    return getRoadFreightRates(input);
   }
+  return [];
 }
 
 const getAirFreightRatesFlow = ai.defineFlow(
@@ -252,4 +255,54 @@ const getAirFreightRatesFlow = ai.defineFlow(
 
 export async function getAirFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {
   return getAirFreightRatesFlow(input);
+}
+
+
+// SIMULATION for ROAD
+const getRoadFreightRatesFlow = ai.defineFlow(
+  {
+    name: 'getRoadFreightRatesFlow',
+    inputSchema: freightQuoteFormSchema,
+    outputSchema: GetFreightRatesOutputSchema,
+  },
+  async (input) => {
+    const carriers = [
+        { name: 'Trans-Mercosul', logoHint: 'truck logo' },
+        { name: 'Andes Logistics', logoHint: 'truck logo' },
+        { name: 'Sudamericana', logoHint: 'truck logo' },
+    ];
+    
+    const results: GetFreightRatesOutput = [];
+    
+    // Simplified cost simulation
+    let baseCost = 3000; 
+    if (input.roadShipmentType === 'LTL' && input.roadShipment.pieces) {
+        const totalWeight = input.roadShipment.pieces.reduce((sum, p) => sum + (p.quantity * p.weight), 0);
+        baseCost = 500 + (totalWeight * 0.8); // LTL cost logic
+    }
+    
+    for (const carrier of carriers) {
+        const costValue = baseCost + Math.random() * 500;
+        const transitTime = 5 + Math.floor(Math.random() * 5);
+        results.push({
+            id: `simulated-road-${carrier.name}-${Date.now()}`,
+            carrier: carrier.name,
+            origin: input.origin,
+            destination: input.destination,
+            transitTime: `${transitTime} dias`,
+            cost: `USD ${costValue.toFixed(2)}`,
+            costValue: costValue,
+            carrierLogo: `https://placehold.co/120x40.png?text=${carrier.name.replace('-','')}`,
+            dataAiHint: carrier.logoHint,
+            source: 'Rodoviário (Simulado)',
+        });
+    }
+
+    return results.sort((a,b) => a.costValue - b.costValue);
+  }
+);
+
+
+export async function getRoadFreightRates(input: GetFreightRatesInput): Promise<GetFreightRatesOutput> {
+    return getRoadFreightRatesFlow(input);
 }

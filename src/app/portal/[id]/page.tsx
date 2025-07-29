@@ -2,6 +2,7 @@
 import { Suspense } from 'react';
 import { ClientPortalPage } from '@/components/client-portal-page';
 import Loading from './loading';
+import { getShipmentById } from '@/lib/shipment-data';
 
 export default function ShipmentDetailPage({ params }: { params: { id: string } }) {
   // This is now a Server Component by default.

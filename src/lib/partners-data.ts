@@ -1,4 +1,5 @@
 
+
 'use client';
 import { z } from 'zod';
 
@@ -17,6 +18,8 @@ const standardFeeSchema = z.object({
   unit: z.string().min(1, 'Unidade é obrigatória'),
   containerType: z.enum(['Todos', 'Dry', 'Reefer', 'Especiais']).optional(),
   incoterm: z.string().optional(),
+  modal: z.enum(['Marítimo', 'Aéreo', 'Ambos']).optional(),
+  direction: z.enum(['Importação', 'Exportação', 'Ambos']).optional(),
 });
 
 const contactSchema = z.object({

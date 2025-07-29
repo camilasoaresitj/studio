@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
@@ -616,7 +617,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                         </div>
                         {profitFields.map((field, index) => (
                             <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-b pb-2">
-                                <FormField control={form.control} name={`profitAgreements.${index}.modal`} render={({ field }) => (<FormItem><FormLabel>Modal</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="FCL">FCL</SelectItem><SelectItem value="LCL">LCL</SelectItem><SelectItem value="AIR">Aéreo</SelectItem></SelectContent></Select></FormItem>)}/>
+                                <FormField control={form.control} name={`profitAgreements.${index}.modal`} render={({ field }) => (<FormItem><FormLabel>Modal</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="FCL">FCL</SelectItem><SelectItem value="LCL">LCL</SelectItem><SelectItem value="AIR">Aéreo</SelectItem><SelectItem value="ROAD_FTL">Rodoviário FTL</SelectItem></SelectContent></Select></FormItem>)}/>
                                 <FormField control={form.control} name={`profitAgreements.${index}.direction`} render={({ field }) => (<FormItem><FormLabel>Direção</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="IMPORTACAO">Importação (Pagamos)</SelectItem><SelectItem value="EXPORTACAO">Exportação (Cobramos)</SelectItem></SelectContent></Select></FormItem>)}/>
                                 <FormField control={form.control} name={`profitAgreements.${index}.amount`} render={({ field }) => (<FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" className="h-9" {...field} /></FormControl></FormItem>)}/>
                                 <FormField control={form.control} name={`profitAgreements.${index}.unit`} render={({ field }) => (<FormItem><FormLabel>Unidade</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="por_container">Por Contêiner</SelectItem><SelectItem value="por_bl">Por BL/AWB</SelectItem><SelectItem value="porcentagem_lucro">% Lucro</SelectItem></SelectContent></Select></FormItem>)}/>

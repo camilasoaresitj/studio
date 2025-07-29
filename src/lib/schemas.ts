@@ -36,7 +36,7 @@ export const lclDetailsSchema = z.object({
 // Base schema that can be extended. It's a plain ZodObject.
 export const baseFreightQuoteFormSchema = z.object({
   customerId: z.string({ required_error: "Por favor, selecione um cliente."}).min(1, { message: "Por favor, selecione um cliente." }),
-  modal: z.enum(['air', 'ocean', 'courier']),
+  modal: z.enum(['air', 'ocean', 'courier', 'road']),
   incoterm: z.enum(['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'DDU']),
   origin: z.string().min(3, { message: "Origem obrigatória (mínimo 3 caracteres)." }),
   destination: z.string().min(3, { message: "Destino obrigatório (mínimo 3 caracteres)." }),
@@ -59,6 +59,11 @@ export const baseFreightQuoteFormSchema = z.object({
     containers: z.array(oceanContainerSchema),
   }),
   lclDetails: lclDetailsSchema,
+
+  roadShipment: z.object({
+    truckType: z.string().optional(),
+    weight: z.coerce.number().optional(),
+  }).optional(),
 
   optionalServices: z.object({
     customsClearance: z.boolean(),

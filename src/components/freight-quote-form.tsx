@@ -1183,7 +1183,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 col-span-1 lg:col-span-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                 <div className="space-y-1 leading-none w-full">
                                 <FormLabel>Seguro Internacional</FormLabel>
-                                {optionalServices.insurance && (
+                                {optionalServices?.insurance && (
                                     <div className="animate-in fade-in-50 duration-300">
                                     <Alert variant="default" className="mt-2 border-primary/50">
                                         <Info className="h-4 w-4" />

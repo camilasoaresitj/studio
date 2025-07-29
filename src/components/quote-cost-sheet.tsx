@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
-import { Trash2, PlusCircle, Save, ChevronsUpDown, Check, CalendarIcon } from 'lucide-react';
+import { Trash2, PlusCircle, Save, ChevronsUpDown, Check } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from './partners-registry';
 import { cn } from '@/lib/utils';
@@ -28,8 +28,6 @@ import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
-import { Calendar } from './ui/calendar';
-import { format } from 'date-fns';
 
 const quoteChargeSchema = z.object({
   charges: z.array(z.object({
@@ -64,8 +62,6 @@ interface QuoteCostSheetProps {
   partners: Partner[];
   onUpdate: (data: { charges: QuoteCharge[], details: Quote['details'], shipper?: Partner, consignee?: Partner, agent?: Partner }) => void;
 }
-
-const containerTypes = ["20'GP", "40'GP", "40'HC", "20'RF", "40'RF", "40'NOR", "20'OT", "40'OT", "20'FR", "40'FR"];
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
     const [open, setOpen] = React.useState(false);

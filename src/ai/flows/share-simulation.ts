@@ -43,7 +43,7 @@ Generate the following based on the input data:
 2.  **Email Body (HTML)**: A well-formatted HTML email.
     - Start with a professional greeting to the client.
     - State that you are sharing the cost simulation as requested.
-    - Clearly display the estimated total cost: "Custo Total Estimado: **BRL {{{totalCostBRL}}}**".
+    - Clearly display the estimated total cost: "Custo Total Estimado: **BRL {{totalCostBRL}}**".
     - Include a prominent, nicely styled HTML button (<a href="..." style="...">...</a>) for the user to view the full simulation details online using the \`simulationLink\`. The button text should be "Ver Detalhes da Simulação".
     - End with a professional closing.
 
@@ -65,13 +65,9 @@ const shareSimulationFlow = ai.defineFlow(
     outputSchema: ShareSimulationOutputSchema,
   },
   async (input) => {
-    // Format the number to have two decimal places for the prompt
-    const formattedInput = {
-        ...input,
-        totalCostBRL: input.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    };
-
-    const { output } = await shareSimulationPrompt(formattedInput);
+    // The prompt expects a number, so we pass the input directly.
+    // The formatting is handled by the prompt template itself.
+    const { output } = await shareSimulationPrompt(input);
     
     if (!output) {
       throw new Error("A IA não conseguiu gerar o conteúdo para compartilhamento.");

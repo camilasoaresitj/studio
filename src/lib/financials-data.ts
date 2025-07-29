@@ -41,6 +41,7 @@ export type FinancialEntry = {
     recurrence?: 'Única' | 'Mensal' | 'Anual';
     description?: string;
     originalEntryId?: string; // For renegoriation tracking
+    accountId?: number; // Link to the bank account for reconciliation
 };
 
 const today = new Date();

@@ -379,7 +379,7 @@ export const BLDraftForm = forwardRef<{ submit: () => void }, BLDraftFormProps>(
                     control={form.control}
                     name="containers"
                     render={({ fieldState }) => (
-                        <>{fieldState.error?.message ? <FormMessage className="mt-2">{fieldState.error.message}</FormMessage> : <></>}</>
+                        <>{fieldState.error?.message ? <FormMessage className="mt-2">{fieldState.error.message}</FormMessage> : null}</>
                     )}
                 />
             </div>
@@ -439,7 +439,7 @@ export const BLDraftForm = forwardRef<{ submit: () => void }, BLDraftFormProps>(
                           <PlusCircle className="mr-2 h-4 w-4" /> Adicionar NCM
                       </Button>
                       <FormField name="ncms" control={form.control} render={({ fieldState }) => (
-                          fieldState.error?.message ? <FormMessage className="mt-2">{fieldState.error.message}</FormMessage> : null
+                          <>{fieldState.error?.message ? <FormMessage className="mt-2">{fieldState.error.message}</FormMessage> : null}</>
                       )} />
                   </div>
                   <FormField name="due" control={form.control} render={({ field }) => (

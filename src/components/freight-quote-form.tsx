@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -571,14 +572,16 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     setIsRequestingAgentQuote(false);
   };
 
-  const handleUpdateQuote = (data: { charges: QuoteCharge[], details: Quote['details'] }) => {
+  const handleUpdateQuote = (data: { charges: QuoteCharge[], details: Quote['details'], shipper?: Partner, consignee?: Partner, agent?: Partner }) => {
     if (!activeQuote) return;
 
-    // Create a new object to force re-render in the child component
     const updatedQuote: Quote = {
         ...activeQuote,
         charges: data.charges,
         details: data.details,
+        shipper: data.shipper,
+        consignee: data.consignee,
+        agent: data.agent,
         status: 'Enviada'
     };
     

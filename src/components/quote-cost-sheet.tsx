@@ -293,37 +293,27 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
                     </Button>
                 </div>
-                <div className="flex-grow overflow-hidden">
+                <div className="flex-grow overflow-hidden border rounded-lg">
                     <ScrollArea className="h-full">
-                    <div className="border rounded-lg">
                         <Table>
                         <TableHeader className="sticky top-0 bg-secondary z-10">
                             <TableRow>
-                            <TableHead className="h-9 w-[150px]">Taxa</TableHead>
-                            <TableHead className="h-9 w-[150px]">Tipo Cobrança</TableHead>
-                             <TableHead className="h-9 w-[150px]">Tipo Contêiner</TableHead>
-                            <TableHead className="h-9 text-right min-w-[250px]">Compra</TableHead>
-                            <TableHead className="h-9 text-right min-w-[250px]">Venda</TableHead>
-                            <TableHead className="h-9 w-[120px] text-right">Lucro</TableHead>
-                            <TableHead className="h-9 w-[180px]">Fornecedor</TableHead>
-                            <TableHead className="h-9 w-[180px]">Sacado</TableHead>
-                            <TableHead className="h-9 w-[50px]">Ação</TableHead>
+                            <TableHead className="w-1/6">Taxa</TableHead>
+                            <TableHead className="w-1/6">Fornecedor</TableHead>
+                            <TableHead className="w-1/4 text-right">Compra</TableHead>
+                            <TableHead className="w-1/6">Sacado</TableHead>
+                            <TableHead className="w-1/4 text-right">Venda</TableHead>
+                            <TableHead className="text-right">Ação</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {fields.map((field, index) => {
                             const charge = watchedCharges[index];
                              if (!charge) {
-                                return null; // or a loading skeleton
+                                return null;
                             }
-                            const canCalculateProfit = charge.saleCurrency === charge.costCurrency;
-                            const profit = canCalculateProfit ? (Number(charge.sale) || 0) - (Number(charge.cost) || 0) : 0;
-                            const profitCurrency = charge.saleCurrency;
-                            const isLoss = canCalculateProfit && profit < 0;
-
-                            const usedFeeNames = new Set(watchedCharges.map(c => c.name));
                             const availableFees = fees.filter(
-                                fee => !usedFeeNames.has(fee.name) || fee.name === charge.name
+                                fee => !watchedCharges.some(c => c.name === fee.name) || fee.name === charge.name
                             );
                             
                             return (
@@ -336,35 +326,16 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                     />
                                 </TableCell>
                                 <TableCell className="p-1 align-top">
-                                    <FormField
-                                        control={form.control}
-                                        name={`charges.${index}.type`}
-                                        render={({ field }) => (
-                                             <Select onValueChange={field.onChange} value={field.value}>
-                                                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    {chargeTypeOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
+                                    <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
+                                            <SelectContent>
+                                                {supplierPartners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    )} />
                                 </TableCell>
-                                 <TableCell className="p-1 align-top">
-                                    <FormField
-                                        control={form.control}
-                                        name={`charges.${index}.containerType`}
-                                        render={({ field }) => (
-                                             <Select onValueChange={field.onChange} value={field.value}>
-                                                <SelectTrigger className="h-8"><SelectValue placeholder="N/A" /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="N/A">N/A</SelectItem>
-                                                    {containerTypes.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
-                                </TableCell>
-                                <TableCell className="text-right p-1 align-top min-w-[250px]">
+                                <TableCell className="text-right p-1 align-top">
                                     <div className="flex items-center gap-1">
                                     <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
@@ -384,7 +355,19 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                     )} />
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-right p-1 align-top min-w-[250px]">
+                                <TableCell className="p-1 align-top">
+                                    <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
+                                        <Select onValueChange={field.onChange} value={field.value || quote.customer}>
+                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {clientPartners.map(p => (
+                                                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )} />
+                                </TableCell>
+                                <TableCell className="text-right p-1 align-top">
                                     <div className="flex items-center gap-1">
                                     <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
@@ -404,32 +387,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                     )} />
                                     </div>
                                 </TableCell>
-                                <TableCell className={cn('font-semibold text-right p-1 align-top', canCalculateProfit ? (isLoss ? 'text-destructive' : 'text-success') : 'text-muted-foreground')}>
-                                    {canCalculateProfit ? `${profitCurrency} ${profit.toFixed(2)}` : 'N/A'}
-                                </TableCell>
-                                <TableCell className="p-1 align-top">
-                                    <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
-                                            <SelectContent>
-                                                {supplierPartners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    )} />
-                                </TableCell>
-                                <TableCell className="p-1 align-top">
-                                    <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value || quote.customer}>
-                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                            <SelectContent>
-                                                {clientPartners.map(p => (
-                                                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )} />
-                                </TableCell>
-                                <TableCell className="p-1 align-top">
+                                <TableCell className="p-1 align-top text-center">
                                     <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>
@@ -439,7 +397,6 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                             })}
                         </TableBody>
                         </Table>
-                    </div>
                     </ScrollArea>
                 </div>
                 

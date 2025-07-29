@@ -63,7 +63,9 @@ export function ApprovalsPanel() {
         if (viewingItem.type === 'finance') {
             const updatedEntries = getFinancialEntries().map(e => {
                 if (e.id === viewingItem.item.id) {
-                    return { ...e, status: approved ? 'Aberto' : 'Aberto' }; // Let's simplify and just move it to 'Aberto' on approval
+                    // Only change status if approved. Rejection keeps it pending.
+                    const newStatus: FinancialEntry['status'] = approved ? 'Aberto' : 'Pendente de Aprovação';
+                    return { ...e, status: newStatus };
                 }
                 return e;
             });

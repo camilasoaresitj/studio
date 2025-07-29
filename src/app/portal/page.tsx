@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -8,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle, List, FileText, Ship, Anchor } from 'lucide-react';
 import { getShipments, Shipment } from '@/lib/shipment';
 import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
-import { getInitialQuotes, Quote } from '@/lib/initial-data';
+import { getInitialQuotes } from '@/lib/initial-data';
+import type { Quote } from '@/components/customer-quotes-list';
 import { useRouter } from 'next/navigation';
 import { format, isValid, differenceInDays, isPast, isWithinInterval, addDays } from 'date-fns';
 import Link from 'next/link';

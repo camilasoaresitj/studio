@@ -54,9 +54,9 @@
     "zod-to-json-schema": "^3.23.1",
     "soap": "^1.0.0",
     "twilio": "^5.2.2",
-    "genkit": "latest",
-    "@genkit-ai/googleai": "latest",
-    "@opentelemetry/exporter-jaeger": "^1.25.1"
+    "genkit": "1.15.2",
+    "@genkit-ai/googleai": "1.15.2",
+    "@genkit-ai/firebase": "1.15.2"
   },
   "devDependencies": {
     "@types/google.maps": "^3.55.11",

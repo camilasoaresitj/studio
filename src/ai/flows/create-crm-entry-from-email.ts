@@ -60,8 +60,7 @@ const createCrmEntryFromEmailFlow = ai.defineFlow(
   async (input) => {
       const llmResponse = await ai.generate({
           model: 'gemini-pro',
-          prompt: createCrmEntryFromEmailPrompt,
-          input,
+          prompt: createCrmEntryFromEmailPrompt.compile({input}),
       });
       
       const output = llmResponse.output;

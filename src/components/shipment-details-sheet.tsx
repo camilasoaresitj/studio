@@ -359,6 +359,7 @@ const containerTypes = ["20'GP", "40'GP", "40'HC", "20'RF", "40'RF", "40'NOR", "
 
 export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
+    const [activeTab, setActiveTab] = useState('timeline');
     const [isUpdating, setIsUpdating] = useState(false);
     const [isFetchingCourier, setIsFetchingCourier] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -370,8 +371,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const [justificationData, setJustificationData] = useState<{ chargeIndex: number; field: 'cost' | 'sale'; newValue: number } | null>(null);
     const [financialEntries, setFinancialEntries] = useState(getFinancialEntries());
     const [detailsEntry, setDetailsEntry] = useState<any>(null); // State for finance details dialog
-    const [isFaturarDialogOpen, setIsFaturarDialogOpen] = useState(false);
-    const [chargesToFaturar, setChargesToFaturar] = useState<Set<string>>(new Set());
 
     const blDraftFormRef = useRef<{ submit: () => void }>(null);
 
@@ -423,6 +422,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 ncms: shipment.ncms || [],
                 operationalNotes: shipment.operationalNotes || '',
             });
+            // Reset local file state
             setUploadedFiles([]);
             setDocumentPreviews({});
             setFinancialEntries(getFinancialEntries());
@@ -452,7 +452,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
 
     const handleMasterSave = async () => {
-        const activeTab = document.querySelector('[data-state="active"]')?.getAttribute('data-value');
         if (activeTab === 'bl_draft' && blDraftFormRef.current) {
             blDraftFormRef.current.submit();
         } else {
@@ -520,6 +519,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 let updatedMilestones = [...(form.getValues('milestones') || [])];
                 let newEventsCount = 0;
                 let masterDataUpdated = false;
+
+                // Update Master Data if available from the first event object
                 const trackingShipmentData = data.eventos[0]?.shipment;
                 if (trackingShipmentData) {
                     if (trackingShipmentData.vesselName) form.setValue('vesselName', trackingShipmentData.vesselName);
@@ -532,6 +533,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     masterDataUpdated = true;
                 }
                 
+                // Update Milestones
                 data.eventos.forEach((evento: any) => {
                     const milestoneName = mapEventToMilestone(evento.eventName);
                     if (milestoneName) {
@@ -652,20 +654,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             toast({ variant: 'destructive', title: 'Erro', description: response.error });
         }
     });
-
-    const handleDocTypeChange = (value: UploadedDocument['name'], index: number) => {
-        const newDocs = [...uploadedFiles];
-        newDocs[index].name = value;
-        setUploadedFiles(newDocs);
-    };
-    
-    const handleAddDocumentSlot = () => {
-        setUploadedFiles(prev => [...prev, { name: 'Outros', file: null as any }]);
-    };
-
-    const removeDocumentSlot = (index: number) => {
-        setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-    };
     
     const handleDocumentUpload = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
         const file = event.target.files?.[0];
@@ -681,6 +669,21 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
           reader.readAsDataURL(file);
         }
     };
+
+    const handleDocTypeChange = (value: UploadedDocument['name'], index: number) => {
+        const newDocs = [...uploadedFiles];
+        newDocs[index].name = value;
+        setUploadedFiles(newDocs);
+    };
+
+    const handleAddDocumentSlot = () => {
+        setUploadedFiles(prev => [...prev, { name: 'Outros', file: null as any }]);
+    };
+    
+    const removeDocumentSlot = (index: number) => {
+        setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
     
     const watchedContainers = form.watch('containers');
     const containerTotals = React.useMemo(() => {
@@ -829,6 +832,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
     };
 
+
     const sortedMilestones = useMemo(() => {
         if (!shipment) return [];
         return [...(form.getValues('milestones') || [])].sort((a, b) => {
@@ -838,7 +842,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             if (!dateB) return -1;
             return dateA - dateB;
         });
-    }, [shipment, form.watch('milestones')]);
+    }, [shipment, form.watch('milestones')]); // Re-sort when milestones change
 
     if (!shipment) {
         return (
@@ -851,7 +855,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     }
     
     const isImport = shipment.destination.toUpperCase().includes('BR');
-    
+
     return (
         <>
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -864,7 +868,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             </div>
                             <div>
                                 <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
-                                <Form {...form}>
                                 <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
                                     <div className="flex items-center gap-1">
                                         <Label htmlFor="po-header">Ref. Cliente:</Label>
@@ -880,7 +883,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         )}/>
                                     </div>
                                 </div>
-                                </Form>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -927,234 +929,102 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </TabsList>
                     
                     <div className="flex-1 overflow-y-auto">
-                        <TabsContent value="timeline" className="mt-0 p-4">
-                           <Card>
+                        <TabsContent value="timeline" className="mt-0 p-4 min-h-[300px]">
+                            <Card>
                                 <CardHeader>
-                                    <CardTitle>Linha do Tempo</CardTitle>
+                                <CardTitle>Linha do Tempo</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                  {sortedMilestones.map((m, idx) => (
-                                    <div key={idx} className="mb-4 p-2 border rounded">
-                                      <strong>{m.name}</strong>
-                                      <p>Previsto: {m.predictedDate && format(new Date(m.predictedDate), 'dd/MM/yyyy')}</p>
-                                      {m.effectiveDate && <p>Realizado: {format(new Date(m.effectiveDate), 'dd/MM/yyyy')}</p>}
-                                      {m.details && <p>Detalhes: {m.details}</p>}
-                                    </div>
-                                  ))}
+                                <p>Visualização de eventos operacionais será implementada aqui...</p>
                                 </CardContent>
                             </Card>
                         </TabsContent>
-                        <TabsContent value="details" className="mt-0 p-4">
-                            <Form {...form}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <FormField control={form.control} name="carrier" render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Transportadora</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="vesselName" render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Navio</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="voyageNumber" render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Viagem</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="bookingNumber" render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Booking</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                    </FormItem>
-                                )} />
-                                </div>
-                            </Form>
+                        
+                        <TabsContent value="details" className="mt-0 p-4 min-h-[300px]">
+                            <Card>
+                                <CardHeader>
+                                <CardTitle>Detalhes Operacionais</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                <p>Informações detalhadas do processo aparecerão aqui...</p>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
-                        <TabsContent value="financials" className="mt-0 p-4">
-                           <Table>
-                                <TableHeader>
-                                <TableRow>
-                                    <TableHead>Taxa</TableHead>
-                                    <TableHead>Tipo</TableHead>
-                                    <TableHead>Fornecedor</TableHead>
-                                    <TableHead className="text-right">Custo</TableHead>
-                                    <TableHead className="text-right">Venda</TableHead>
-                                </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                {watchedCharges.map((charge, index) => (
-                                    <TableRow key={charge.id}>
-                                    <TableCell>{charge.name}</TableCell>
-                                    <TableCell>{charge.type}</TableCell>
-                                    <TableCell>{charge.supplier}</TableCell>
-                                    <TableCell className="text-right">
-                                        {charge.costCurrency} {(Number(charge.cost) || 0).toFixed(2)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {charge.saleCurrency} {(Number(charge.sale) || 0).toFixed(2)}
-                                    </TableCell>
-                                    </TableRow>
-                                ))}
-                                </TableBody>
-                            </Table>
+                        
+                        <TabsContent value="financials" className="mt-0 p-4 min-h-[300px]">
+                            <Card>
+                                <CardHeader>
+                                <CardTitle>Gestão Financeira</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                <p>Dados financeiros e custos operacionais serão exibidos aqui...</p>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
-                        <TabsContent value="documents" className="mt-0 p-4">
-                            {uploadedFiles.map((doc, index) => (
-                                <div key={index} className="mb-4 border p-4 rounded-md">
-                                <FormLabel>Tipo do Documento</FormLabel>
-                                <Select
-                                    value={doc.name}
-                                    onValueChange={(value) => handleDocTypeChange(value as any, index)}
-                                >
-                                    <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Selecione um tipo..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Draft HBL">Draft HBL</SelectItem>
-                                        <SelectItem value="Draft MBL">Draft MBL</SelectItem>
-                                        <SelectItem value="Invoice">Invoice</SelectItem>
-                                        <SelectItem value="Outros">Outros</SelectItem>
-                                    </SelectContent>
-                                </Select>
-
-                                <Input
-                                    type="file"
-                                    onChange={(e) => handleDocumentUpload(e, index)}
-                                    className="mt-2"
-                                />
-
-                                {documentPreviews[doc.name] && (
-                                    <div className="mt-2">
-                                    <p className="text-xs text-muted-foreground">Pré-visualização:</p>
-                                    <Image src={documentPreviews[doc.name]} alt={doc.name} width={200} height={282} className="w-full max-w-md mt-1 border" />
-                                    </div>
-                                )}
-                                </div>
-                            ))}
-                            <Button onClick={handleAddDocumentSlot} variant="outline" className="mt-4">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Adicionar Documento
-                            </Button>
+                        
+                        <TabsContent value="documents" className="mt-0 p-4 min-h-[300px]">
+                            <Card>
+                                <CardHeader>
+                                <CardTitle>Documentos do Processo</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                <p>Gerenciamento de documentos será implementado aqui...</p>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
+                        
                         <TabsContent value="bl_draft" className="mt-0 p-4">
-                           <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                         </TabsContent>
-                       <TabsContent value="desembaraco" className="mt-0 p-4">
-                           {isImport ? (
+                        
+                        <TabsContent value="desembaraco" className="mt-0 p-4">
+                            {isImport ? (
                                 <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
                             ) : (
                                 <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
                             )}
-                       </TabsContent>
+                        </TabsContent>
                     </div>
                 </Tabs>
-            
-                 <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Adicionar Tarefa Manual</DialogTitle>
-                            <DialogDescription>Insira os detalhes da nova tarefa para este processo.</DialogDescription>
-                        </DialogHeader>
-                        <Form {...newMilestoneForm}>
-                            <form onSubmit={handleAddManualMilestone} className="space-y-4 py-4">
-                                <FormField control={newMilestoneForm.control} name="name" render={({field}) => (
-                                    <FormItem><FormLabel>Nome da Tarefa</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>
-                                )}/>
-                                 <FormField control={newMilestoneForm.control} name="predictedDate" render={({field}) => (
-                                    <FormItem className="flex flex-col"><FormLabel>Data Prevista</FormLabel>
-                                    <Popover><PopoverTrigger asChild><FormControl>
-                                        <Button type="button" variant="outline"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button>
-                                    </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover>
-                                    <FormMessage/>
-                                    </FormItem>
-                                )}/>
-                                <FormField control={newMilestoneForm.control} name="details" render={({field}) => (
-                                    <FormItem><FormLabel>Detalhes (Opcional)</FormLabel><FormControl><Textarea {...field}/></FormControl><FormMessage/></FormItem>
-                                )}/>
-                                <DialogFooter>
-                                    <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
-                                    <Button type="submit">Adicionar Tarefa</Button>
-                                </DialogFooter>
-                            </form>
-                        </Form>
-                    </DialogContent>
-                </Dialog>
-                
-                <JustificationDialog
-                    open={!!justificationData}
-                    onOpenChange={(open) => !open && setJustificationData(null)}
-                    onConfirm={handleConfirmJustification}
-                />
-                 <Dialog open={isFaturarDialogOpen} onOpenChange={setIsFaturarDialogOpen}>
-                    <DialogContent className="max-w-3xl">
-                        <DialogHeader>
-                            <DialogTitle>Faturar Processo: {shipment.id}</DialogTitle>
-                            <DialogDescription>Selecione as despesas que deseja incluir nos lançamentos financeiros.</DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <ScrollArea className="h-96">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-10"></TableHead>
-                                            <TableHead>Taxa</TableHead>
-                                            <TableHead>Tipo</TableHead>
-                                            <TableHead>Parceiro</TableHead>
-                                            <TableHead className="text-right">Valor</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {watchedCharges.filter(c => !c.financialEntryId).flatMap(charge => {
-                                            const items = [];
-                                            if (charge.sacado) {
-                                                items.push({ charge, partner: charge.sacado, type: 'credit' as const });
-                                            }
-                                            if (charge.supplier) {
-                                                items.push({ charge, partner: charge.supplier, type: 'debit' as const });
-                                            }
-                                            return items;
-                                        }).map(({ charge, partner, type }) => (
-                                            <TableRow key={`${charge.id}-${type}`}>
-                                                <TableCell>
-                                                    <Checkbox
-                                                        checked={chargesToFaturar.has(charge.id)}
-                                                        onCheckedChange={(checked) => {
-                                                            setChargesToFaturar(prev => {
-                                                                const newSet = new Set(prev);
-                                                                if (checked) newSet.add(charge.id);
-                                                                else newSet.delete(charge.id);
-                                                                return newSet;
-                                                            });
-                                                        }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>{charge.name}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant={type === 'credit' ? 'success' : 'destructive'}>{type === 'credit' ? 'Venda' : 'Custo'}</Badge>
-                                                </TableCell>
-                                                <TableCell>{partner}</TableCell>
-                                                <TableCell className="text-right font-mono">
-                                                    {type === 'credit' ? charge.saleCurrency : charge.costCurrency}{' '}
-                                                    {type === 'credit' ? (Number(charge.sale) || 0).toFixed(2) : (Number(charge.cost) || 0).toFixed(2)}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </ScrollArea>
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
-                            <Button onClick={handleFaturarProcesso}>Gerar Lançamentos</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
             </SheetContent>
         </Sheet>
+
+        <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Adicionar Tarefa Manual</DialogTitle>
+                    <DialogDescription>Insira os detalhes da nova tarefa para este processo.</DialogDescription>
+                </DialogHeader>
+                <Form {...newMilestoneForm}>
+                    <form onSubmit={handleAddManualMilestone} className="space-y-4 py-4">
+                        <FormField control={newMilestoneForm.control} name="name" render={({field}) => (
+                            <FormItem><FormLabel>Nome da Tarefa</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>
+                        )}/>
+                        <FormField control={newMilestoneForm.control} name="predictedDate" render={({field}) => (
+                            <FormItem className="flex flex-col"><FormLabel>Data Prevista</FormLabel>
+                            <Popover><PopoverTrigger asChild><FormControl>
+                                <Button type="button" variant="outline"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button>
+                            </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover>
+                            <FormMessage/>
+                            </FormItem>
+                        )}/>
+                        <FormField control={newMilestoneForm.control} name="details" render={({field}) => (
+                            <FormItem><FormLabel>Detalhes (Opcional)</FormLabel><FormControl><Textarea {...field}/></FormControl><FormMessage/></FormItem>
+                        )}/>
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+                            <Button type="submit">Adicionar Tarefa</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+        
+        <JustificationDialog
+            open={!!justificationData}
+            onOpenChange={(open) => !open && setJustificationData(null)}
+            onConfirm={handleConfirmJustification}
+        />
         </>
     );
 }

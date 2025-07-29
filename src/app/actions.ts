@@ -30,8 +30,8 @@ import { getShipments, saveShipments } from "@/lib/shipment-data";
 import { isPast, format, addDays } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
-import { registerDueFlow } from '@/ai/flows/register-due';
-import type { RegisterDueInput, RegisterDueOutput } from '@/ai/flows/register-due';
+import { registerDue } from '@/ai/flows/register-due';
+import type { RegisterDueInput, RegisterDueOutput } from '@/lib/schemas/due';
 import { generateDiXmlFromSpreadsheet } from "@/ai/flows/generate-di-xml-from-spreadsheet";
 import { extractInvoiceItems } from "@/ai/flows/extract-invoice-items";
 import { getNcmRates } from "@/ai/flows/get-ncm-rates";
@@ -630,7 +630,7 @@ export async function runGenerateDiXml(input: GenerateDiXmlInput): Promise<{ suc
 }
 
 export async function runRegisterDue(input: RegisterDueInput): Promise<RegisterDueOutput> {
-  return registerDueFlow(input);
+  return registerDue(input);
 }
 
 export async function runGenerateDiXmlFromSpreadsheet(input: any) {

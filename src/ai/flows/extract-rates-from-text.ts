@@ -87,6 +87,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
     -   **Agent Contact:** Find a full name, email, AND phone number together. If any part is missing, do not include the \`agentContact\` object.
     -   **Location Standardization:** Normalize location names (e.g., "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN").
     -   **Final Review:** Before finishing, review your generated JSON. If any object is fundamentally incomplete (missing an origin, destination, or rate), delete that entire object from the array. It is better to return fewer, complete rates than an incomplete list.
+    -   **JSON Output:** You must ensure the final output is a single JSON object with the key "rates" containing an array of the extracted rate objects.
 
 Analyze the following text and extract the rates:
 {{{textInput}}}

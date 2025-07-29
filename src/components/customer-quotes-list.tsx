@@ -152,7 +152,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
             const phone = primaryContact?.phone?.replace(/\D/g, '');
              if (phone) {
                 const whatsappResponse = await runSendWhatsapp(phone, commsResponse.data.whatsappMessage);
-                if (whatsappResponse.success) {
+                if (whatsappResponse.success && whatsappResponse.data) {
                     toast({ title: 'Mensagem de WhatsApp enviada!', description: `SID: ${whatsappResponse.data.sid}.`, className: 'bg-success text-success-foreground' });
                 } else {
                     toast({ variant: 'destructive', title: 'Falha no Envio do WhatsApp', description: whatsappResponse.error });

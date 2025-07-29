@@ -17,6 +17,7 @@ import { Send, Loader2, MessageSquare, ArrowLeft, Building, DollarSign } from 'l
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Label } from './ui/label';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 
 interface GlobalChatProps {
     isOpen: boolean;

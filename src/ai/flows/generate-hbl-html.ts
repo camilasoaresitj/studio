@@ -189,11 +189,7 @@ const generateHblHtmlFlow = ai.defineFlow(
     outputSchema: GenerateHblHtmlOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
-      prompt: generateHblHtmlPrompt,
-      input,
-      model: 'gemini-pro',
-    });
+    const { output } = await generateHblHtmlPrompt(input);
     
     if (!output) {
       throw new Error("AI failed to generate HBL HTML.");

@@ -22,6 +22,7 @@ const FreightRateSchema = z.object({
     source: z.string(),
     flightDetails: z.string().optional(),
 });
+type FreightRate = z.infer<typeof FreightRateSchema>;
 
 const GetFreightRatesOutputSchema = z.array(FreightRateSchema);
 export type GetFreightRatesOutput = z.infer<typeof GetFreightRatesOutputSchema>;
@@ -151,7 +152,7 @@ const getFreightRatesFlow = ai.defineFlow(
             return [];
         }
 
-        return rates.map((rate: any, index: number) => ({
+        return rates.map((rate: any, index: number): FreightRate => ({
             id: rate.rate_id || `rate-${index}`,
             carrier: rate.carrier?.name || 'N/A',
             origin: rate.origin?.name || 'N/A',
@@ -162,7 +163,7 @@ const getFreightRatesFlow = ai.defineFlow(
             carrierLogo: rate.carrier?.logo_url || `https://logo.clearbit.com/${rate.carrier?.name?.toLowerCase()}.com`,
             dataAiHint: `${rate.carrier?.name?.toLowerCase()} logo`,
             source: 'CargoFive'
-        })).sort((a, b) => a.costValue - b.costValue);
+        })).sort((a: FreightRate, b: FreightRate) => a.costValue - b.costValue);
 
         } catch (error: any) {
         console.error('Erro no fluxo de tarifas:', error);
@@ -249,7 +250,7 @@ const getAirFreightRatesFlow = ai.defineFlow(
             }
         }
         
-        return allResults.sort((a,b) => a.costValue - b.costValue);
+        return allResults.sort((a: FreightRate, b: FreightRate) => a.costValue - b.costValue);
     }
 );
 
@@ -298,7 +299,7 @@ const getRoadFreightRatesFlow = ai.defineFlow(
         });
     }
 
-    return results.sort((a,b) => a.costValue - b.costValue);
+    return results.sort((a: FreightRate, b: FreightRate) => a.costValue - b.costValue);
   }
 );
 

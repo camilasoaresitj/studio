@@ -124,13 +124,8 @@ const sendShippingInstructionsFlow = ai.defineFlow(
     // We will just log the action to the console to simulate it.
     console.log(`SIMULATING sending Shipping Instructions to ${input.agentEmail}`);
 
-    const llmResponse = await ai.generate({
-      prompt: prompt,
-      input,
-      model: 'gemini-pro',
-    });
+    const { output } = await prompt(input);
 
-    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate shipping instructions.");
     }

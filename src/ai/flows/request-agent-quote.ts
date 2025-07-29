@@ -105,13 +105,8 @@ const requestAgentQuoteFlow = ai.defineFlow(
         shipmentDetails: shipmentDetailsString
     };
 
-    const llmResponse = await ai.generate({
-        prompt: requestAgentQuotePrompt,
-        input: promptInput,
-        model: 'gemini-pro',
-    });
+    const { output } = await requestAgentQuotePrompt(promptInput);
     
-    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate agent quote request.");
     }

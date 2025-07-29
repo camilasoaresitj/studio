@@ -56,13 +56,8 @@ const monitorEmailForTasksFlow = ai.defineFlow(
     outputSchema: MonitorEmailForTasksOutputSchema,
   },
   async input => {
-    const llmResponse = await ai.generate({
-      prompt: prompt,
-      input,
-      model: 'gemini-pro',
-    });
+    const { output } = await prompt(input);
 
-    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate task analysis.");
     }

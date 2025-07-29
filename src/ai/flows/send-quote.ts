@@ -89,13 +89,8 @@ const sendQuoteFlow = ai.defineFlow(
   async input => {
     console.log(`Simulating generating communication for ${input.customerName}`);
     
-    const llmResponse = await ai.generate({
-        model: 'gemini-pro',
-        prompt: sendQuotePrompt,
-        input,
-    });
+    const { output } = await sendQuotePrompt(input);
 
-    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate communication content.");
     }

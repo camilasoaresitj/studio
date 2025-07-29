@@ -71,13 +71,8 @@ const shareSimulationFlow = ai.defineFlow(
         totalCostBRL: input.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     };
 
-    const llmResponse = await ai.generate({
-      prompt: shareSimulationPrompt,
-      input: formattedInput,
-      model: 'gemini-pro',
-    });
+    const { output } = await shareSimulationPrompt(formattedInput);
     
-    const output = llmResponse.output();
     if (!output) {
       throw new Error("A IA não conseguiu gerar o conteúdo para compartilhamento.");
     }

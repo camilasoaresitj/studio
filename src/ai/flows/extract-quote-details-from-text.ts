@@ -119,11 +119,7 @@ const extractQuoteDetailsFromTextFlow = ai.defineFlow(
     outputSchema: ExtractQuoteDetailsFromTextOutputSchema,
   },
   async (input) => {
-    const llmResponse = await ai.generate({
-      model: 'gemini-pro',
-      prompt: extractQuoteDetailsFromTextPrompt,
-      input,
-    });
-    return llmResponse.output() || {};
+    const { output } = await extractQuoteDetailsFromTextPrompt(input);
+    return output || {};
   }
 );

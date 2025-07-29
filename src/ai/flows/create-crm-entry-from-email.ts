@@ -58,9 +58,8 @@ const createCrmEntryFromEmailFlow = ai.defineFlow(
     outputSchema: CreateCrmEntryFromEmailOutputSchema,
   },
   async (input) => {
-      const llmResponse = await createCrmEntryFromEmailPrompt(input);
+      const { output } = await createCrmEntryFromEmailPrompt(input);
       
-      const output = llmResponse.output;
       if (!output) {
         throw new Error("AI failed to generate CRM entry.");
       }

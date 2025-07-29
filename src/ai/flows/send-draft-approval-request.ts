@@ -59,13 +59,8 @@ const sendDraftApprovalRequestFlow = ai.defineFlow(
     outputSchema: SendDraftApprovalRequestOutputSchema,
   },
   async (input) => {
-    const llmResponse = await ai.generate({
-      prompt: sendDraftApprovalRequestPrompt,
-      input,
-      model: 'gemini-pro',
-    });
+    const { output } = await sendDraftApprovalRequestPrompt(input);
 
-    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate draft approval request.");
     }

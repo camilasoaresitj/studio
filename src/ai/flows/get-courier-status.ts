@@ -48,13 +48,8 @@ const getCourierStatusFlow = ai.defineFlow(
     outputSchema: GetCourierStatusOutputSchema,
   },
   async input => {
-    const llmResponse = await ai.generate({
-      model: 'gemini-pro',
-      prompt: getCourierStatusPrompt,
-      input
-    });
+    const { output } = await getCourierStatusPrompt(input);
     
-    const output = llmResponse.output();
     if (!output) {
       throw new Error("AI failed to generate status.");
     }

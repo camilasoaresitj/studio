@@ -323,7 +323,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
         shippedOnBoardDate: updatedShipment.etd ? format(updatedShipment.etd, 'dd-MMM-yyyy') : 'N/A',
     });
 
-    if (!hblHtmlResponse.success || !hblHtmlResponse.data.html) {
+    if (!hblHtmlResponse.success || !hblHtmlResponse.data?.html) {
         throw new Error('Falha ao gerar o PDF do Draft HBL.');
     }
 

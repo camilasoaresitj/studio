@@ -91,11 +91,7 @@ const generateDiXmlFromSpreadsheetFlow = ai.defineFlow(
     outputSchema: GenerateDiXmlFromSpreadsheetOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
-      prompt: generateDiXmlFromSpreadsheetPrompt,
-      input,
-      model: 'gemini-pro',
-    });
+    const { output } = await generateDiXmlFromSpreadsheetPrompt(input);
     
     if (!output?.xml) {
       throw new Error("A IA não conseguiu gerar o XML. Verifique os dados da planilha e do processo.");

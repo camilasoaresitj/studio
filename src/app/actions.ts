@@ -208,7 +208,7 @@ export async function runExtractQuoteDetailsFromText(textInput: string) {
 export async function runCreateCrmEntry(emailContent: string) {
     try {
         const data = await createCrmEntryFromEmail({ emailContent });
-        return { success: true, data: data || null };
+        return { success: true, data };
     } catch (error: any) {
         console.error("Create CRM Entry Action Failed", error);
         return { success: false, error: error.message || "Failed to create CRM entry" };
@@ -270,7 +270,7 @@ export async function runSendToLegal(input: any) {
 export async function runCreateEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {
     try {
         const data = await createEmailCampaign({ instruction, partners, quotes });
-        return { success: true, data: data || null };
+        return { success: true, data };
     } catch (error: any) {
         console.error("Create Email Campaign Action Failed", error);
         return { success: false, error: error.message || "Failed to create email campaign" };
@@ -705,5 +705,7 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
+
+    
 
     

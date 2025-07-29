@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -104,7 +103,6 @@ const quoteChargeSchemaForSheet = z.object({
     id: z.string(),
     name: z.string().min(1, 'Obrigatório'),
     type: z.string(),
-    containerType: z.string().optional(),
     localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
     cost: z.coerce.number().default(0),
     costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
@@ -355,8 +353,6 @@ function mapEventToMilestone(eventName: string): string | null {
     return null;
 }
 
-const containerTypes = ["20'GP", "40'GP", "40'HC", "20'RF", "40'RF", "40'NOR", "20'OT", "40'OT", "20'FR", "40'FR"];
-
 export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('timeline');
@@ -367,7 +363,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
     const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
     const [documentPreviews, setDocumentPreviews] = useState<Record<string, string>>({});
-    const [uploadedFiles, setUploadedFiles] = useState<UploadedDocument[]>([]);
+    const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
     const [justificationData, setJustificationData] = useState<{ chargeIndex: number; field: 'cost' | 'sale'; newValue: number } | null>(null);
     const [financialEntries, setFinancialEntries] = useState(getFinancialEntries());
     const [detailsEntry, setDetailsEntry] = useState<any>(null); // State for finance details dialog
@@ -423,7 +419,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 operationalNotes: shipment.operationalNotes || '',
             });
             // Reset local file state
-            setUploadedFiles([]);
+            setUploadedFiles({});
             setDocumentPreviews({});
             setFinancialEntries(getFinancialEntries());
         }
@@ -455,7 +451,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         if (activeTab === 'bl_draft' && blDraftFormRef.current) {
             blDraftFormRef.current.submit();
         } else {
-            await form.handleSubmit(onMainFormSubmit)();
+            await onMainFormSubmit(form.getValues());
         }
     };
 
@@ -464,12 +460,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         setIsUpdating(true);
         
         const updatedDocuments = (shipment.documents || []).map(doc => {
-            const uploadedFile = uploadedFiles.find(f => f.name === doc.name);
+            const uploadedFile = uploadedFiles[doc.name];
             if (uploadedFile) {
                 return {
                     ...doc,
                     status: 'uploaded' as const,
-                    fileName: uploadedFile.file.name,
+                    fileName: uploadedFile.name,
                     uploadedAt: new Date(),
                 };
             }
@@ -490,7 +486,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             }))
         };
         onUpdate(updatedData as Shipment);
-        setUploadedFiles([]); // Clear after save
+        setUploadedFiles({}); // Clear after save
         await new Promise(resolve => setTimeout(resolve, 300));
         setIsUpdating(false);
         toast({
@@ -655,35 +651,33 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
     });
     
-    const handleDocumentUpload = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
-        const file = event.target.files?.[0];
-        if (file) {
-          const newDocs = [...uploadedFiles];
-          newDocs[index].file = file;
-          setUploadedFiles(newDocs);
-          
-          const reader = new FileReader();
-          reader.onload = (e) => {
-              setDocumentPreviews(prev => ({ ...prev, [newDocs[index].name]: e.target?.result as string }));
-          };
-          reader.readAsDataURL(file);
-        }
-    };
+    const handleDocumentUpload = (docName: string, file: File | null) => {
+        if (!file) return;
 
-    const handleDocTypeChange = (value: UploadedDocument['name'], index: number) => {
-        const newDocs = [...uploadedFiles];
-        newDocs[index].name = value;
-        setUploadedFiles(newDocs);
-    };
+        setUploadedFiles(prev => ({ ...prev, [docName]: file }));
 
-    const handleAddDocumentSlot = () => {
-        setUploadedFiles(prev => [...prev, { name: 'Outros', file: null as any }]);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setDocumentPreviews(prev => ({ ...prev, [docName]: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
     };
     
-    const removeDocumentSlot = (index: number) => {
-        setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    const handleDownload = (doc: DocumentStatus) => {
+        const file = uploadedFiles[doc.name];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } else {
+            toast({ variant: "destructive", title: "Arquivo não encontrado", description: "O arquivo não foi anexado nesta sessão." });
+        }
     };
-
     
     const watchedContainers = form.watch('containers');
     const containerTotals = React.useMemo(() => {
@@ -699,22 +693,21 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const handleFaturarProcesso = () => {
         if (!shipment) return;
     
-        const chargesToFaturarNow = watchedCharges.filter(c => chargesToFaturar.has(c.id));
-        if (chargesToFaturarNow.length === 0) {
-            toast({ title: 'Nenhuma taxa selecionada para faturar.' });
-            setIsFaturarDialogOpen(false);
+        const chargesToProcess = watchedCharges.filter(c => !c.financialEntryId);
+        if (chargesToProcess.length === 0) {
+            toast({ title: 'Nenhuma taxa nova para faturar.' });
             return;
         }
     
         const groupedCredits: { [partner: string]: QuoteCharge[] } = {};
         const groupedDebits: { [partner: string]: QuoteCharge[] } = {};
     
-        chargesToFaturarNow.forEach(charge => {
-            if (charge.sacado) {
+        chargesToProcess.forEach(charge => {
+            if (charge.sacado) { // Contas a Receber
                 if (!groupedCredits[charge.sacado]) groupedCredits[charge.sacado] = [];
                 groupedCredits[charge.sacado].push(charge);
             }
-            if (charge.supplier) {
+            if (charge.supplier) { // Contas a Pagar
                 if (!groupedDebits[charge.supplier]) groupedDebits[charge.supplier] = [];
                 groupedDebits[charge.supplier].push(charge);
             }
@@ -728,13 +721,14 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             const agio = partner?.exchangeRateAgio ?? 0;
             return charges.reduce((total, charge) => {
                 const currency = type === 'sale' ? charge.saleCurrency : charge.costCurrency;
-                const value = type === 'sale' ? Number(charge.sale) || 0 : Number(charge.cost) || 0;
+                const value = type === 'sale' ? charge.sale : charge.cost;
                 const ptax = exchangeRates[currency] || 1;
                 const finalRate = currency === 'BRL' ? 1 : ptax * (1 + agio / 100);
                 return total + (value * finalRate);
             }, 0);
         };
     
+        // Process Credits (Contas a Receber)
         for (const partnerName in groupedCredits) {
             const charges = groupedCredits[partnerName];
             const totalBRL = calculateTotalInBRL(charges, partnerName, 'sale');
@@ -751,6 +745,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             });
         }
     
+        // Process Debits (Contas a Pagar)
         for (const partnerName in groupedDebits) {
             const charges = groupedDebits[partnerName];
             const totalBRL = calculateTotalInBRL(charges, partnerName, 'cost');
@@ -769,10 +764,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     
         const createdEntries = addFinancialEntries(newFinancialEntries);
         
+        // Link charges to financial entries
         const updatedCharges = form.getValues('charges').map(charge => {
             const entryForCharge = createdEntries.find(entry => 
-                (entry.type === 'credit' && entry.partner === charge.sacado && chargesToFaturar.has(charge.id)) ||
-                (entry.type === 'debit' && entry.partner === charge.supplier && chargesToFaturar.has(charge.id))
+                (entry.type === 'credit' && entry.partner === charge.sacado) ||
+                (entry.type === 'debit' && entry.partner === charge.supplier)
             );
             return entryForCharge ? { ...charge, financialEntryId: entryForCharge.id } : charge;
         });
@@ -780,8 +776,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         form.setValue('charges', updatedCharges);
         onMainFormSubmit(form.getValues());
         setFinancialEntries(getFinancialEntries());
-        setIsFaturarDialogOpen(false);
-        setChargesToFaturar(new Set());
     
         toast({
             title: 'Processo Faturado!',
@@ -790,13 +784,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         });
     };
 
-    const handleValueChange = (index: number, field: 'cost' | 'sale', newValue: string) => {
-        const numericValue = parseFloat(newValue) || 0;
+    const handleValueChange = (index: number, field: 'cost' | 'sale', newValue: number) => {
         const charge = watchedCharges[index];
-        if (charge.approvalStatus === 'aprovada' && numericValue !== charge[field]) {
-            setJustificationData({ chargeIndex: index, field, newValue: numericValue });
+        if (charge.approvalStatus === 'aprovada' && newValue !== charge[field]) {
+            setJustificationData({ chargeIndex: index, field, newValue });
         } else {
-            updateCharge(index, { ...charge, [field]: numericValue });
+            updateCharge(index, { ...charge, [field]: newValue });
         }
     };
     
@@ -811,10 +804,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 justification,
             };
             updateCharge(chargeIndex, updatedCharge);
+            // Salvar o estado do formulário para persistir a alteração pendente
             onMainFormSubmit(form.getValues());
         }
         setJustificationData(null);
     };
+
     
     const handleFeeSelection = (feeName: string, index: number) => {
         const fee = fees.find(f => f.name === feeName);
@@ -854,177 +849,326 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         );
     }
     
-    const isImport = shipment.destination.toUpperCase().includes('BR');
-
     return (
-        <>
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="sm:max-w-7xl w-full p-0 flex flex-col">
-                <SheetHeader className="p-4 border-b">
-                    <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-primary/10 p-3 rounded-full">
-                                <GanttChart className="h-8 w-8 text-primary"/>
-                            </div>
-                            <div>
-                                <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
-                                <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
-                                    <div className="flex items-center gap-1">
-                                        <Label htmlFor="po-header">Ref. Cliente:</Label>
-                                        <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
-                                            <Input id="po-header" {...field} className="h-6 text-xs w-24"/>
-                                        )}/>
-                                    </div>
-                                    <Separator orientation="vertical" className="h-4"/>
-                                    <div className="flex items-center gap-1">
-                                        <Label htmlFor="inv-header">Invoice:</Label>
-                                        <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                            <Input id="inv-header" {...field} className="h-6 text-xs w-24"/>
-                                        )}/>
+            <SheetContent className="sm:max-w-7xl w-full p-0">
+                <div className="flex flex-col h-full">
+                    <SheetHeader className="p-4 border-b">
+                        <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-primary/10 p-3 rounded-full">
+                                    <GanttChart className="h-8 w-8 text-primary"/>
+                                </div>
+                                <div>
+                                    <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
+                                    <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
+                                        <div className="flex items-center gap-1">
+                                            <Label htmlFor="po-header">Ref. Cliente:</Label>
+                                            <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                                                <Input id="po-header" {...field} className="h-6 text-xs w-24"/>
+                                            )}/>
+                                        </div>
+                                        <Separator orientation="vertical" className="h-4"/>
+                                        <div className="flex items-center gap-1">
+                                            <Label htmlFor="inv-header">Invoice:</Label>
+                                            <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                                <Input id="inv-header" {...field} className="h-6 text-xs w-24"/>
+                                            )}/>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" disabled={isGenerating}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => generatePdf('client')}>Fatura do Cliente</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => generatePdf('agent')}>Invoice do Agente</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => generatePdf('hbl')}>HBL</DropdownMenuItem>
-                                </DropdownMenuContent>
-                             </DropdownMenu>
-                            <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
-                            <Button type="button" onClick={handleMasterSave} disabled={isUpdating}>
-                                {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                                Salvar Alterações
-                            </Button>
-                        </div>
-                    </div>
-                    <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <Form {...form}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
-                                <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
-                                <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
-                                <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
-                                <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
+                            <div className="flex items-center gap-2">
+                                 <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" disabled={isGenerating}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem onClick={() => generatePdf('client')}>Fatura do Cliente</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => generatePdf('agent')}>Invoice do Agente</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => generatePdf('hbl')}>HBL</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                 </DropdownMenu>
+                                <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
+                                <Button type="button" onClick={handleMasterSave} disabled={isUpdating}>
+                                    {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                                    Salvar Alterações
+                                </Button>
                             </div>
-                        </Form>
-                        {foreignLocationClock && (
-                            <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
-                        )}
-                    </div>
-                </SheetHeader>
-                
-                <Tabs defaultValue="timeline" className="flex-grow flex flex-col overflow-hidden">
-                    <TabsList className="shrink-0 border-b px-4">
-                        <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                        <TabsTrigger value="details">Detalhes</TabsTrigger>
-                        <TabsTrigger value="financials">Financeiro</TabsTrigger>
-                        <TabsTrigger value="documents">Documentos</TabsTrigger>
-                        <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
-                        <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
-                    </TabsList>
-                    
-                    <div className="flex-1 overflow-y-auto">
-                        <TabsContent value="timeline" className="mt-0 p-4 min-h-[300px]">
-                            <Card>
-                                <CardHeader>
-                                <CardTitle>Linha do Tempo</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                <p>Visualização de eventos operacionais será implementada aqui...</p>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                        
-                        <TabsContent value="details" className="mt-0 p-4 min-h-[300px]">
-                            <Card>
-                                <CardHeader>
-                                <CardTitle>Detalhes Operacionais</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                <p>Informações detalhadas do processo aparecerão aqui...</p>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                        
-                        <TabsContent value="financials" className="mt-0 p-4 min-h-[300px]">
-                            <Card>
-                                <CardHeader>
-                                <CardTitle>Gestão Financeira</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                <p>Dados financeiros e custos operacionais serão exibidos aqui...</p>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                        
-                        <TabsContent value="documents" className="mt-0 p-4 min-h-[300px]">
-                            <Card>
-                                <CardHeader>
-                                <CardTitle>Documentos do Processo</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                <p>Gerenciamento de documentos será implementado aqui...</p>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                        
-                        <TabsContent value="bl_draft" className="mt-0 p-4">
-                            <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
-                        </TabsContent>
-                        
-                        <TabsContent value="desembaraco" className="mt-0 p-4">
-                            {isImport ? (
-                                <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate} />
-                            ) : (
-                                <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                        </div>
+                        <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <Form {...form}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2">
+                                    <PartnerSelectField name="shipperId" label="Shipper" control={form.control} partners={partners} />
+                                    <PartnerSelectField name="consigneeId" label="Consignee" control={form.control} partners={partners} />
+                                    <PartnerSelectField name="agentId" label="Agente" control={form.control} partners={partners.filter(p => p.roles.agente)} />
+                                    <PartnerSelectField name="notifyId" label="Notify" control={form.control} partners={partners} />
+                                </div>
+                            </Form>
+                            {foreignLocationClock && (
+                                <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
                             )}
-                        </TabsContent>
+                        </div>
+                    </SheetHeader>
+                    
+                    <div className="flex-grow overflow-y-auto">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col overflow-hidden">
+                            <TabsList className="shrink-0 border-b px-2 h-auto">
+                                <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                                <TabsTrigger value="details">Detalhes</TabsTrigger>
+                                <TabsTrigger value="financials">Financeiro</TabsTrigger>
+                                <TabsTrigger value="documents">Documentos</TabsTrigger>
+                                <TabsTrigger value="bl_draft">Draft BL</TabsTrigger>
+                                <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
+                            </TabsList>
+                            
+                            <div className="flex-grow overflow-y-auto">
+                                <TabsContent value="timeline" className="mt-0 p-4 min-h-[300px]">
+                                <Form {...form}>
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <Card className="lg:col-span-2">
+                                        <CardHeader>
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <CardTitle>Timeline do Processo</CardTitle>
+                                                    <CardDescription>Acompanhe e atualize os marcos do embarque.</CardDescription>
+                                                </div>
+                                                <Button size="sm" type="button" variant="outline" onClick={() => setIsManualMilestoneOpen(true)}>
+                                                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Milestone
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="relative pl-4 space-y-6">
+                                                <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
+                                                {sortedMilestones.map((milestone, index) => {
+                                                    const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
+                                                    const isCompleted = !!milestone.effectiveDate;
+                                                    return (
+                                                        <div key={index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
+                                                            <div className="flex h-full justify-center row-span-2">
+                                                                <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
+                                                                    <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
+                                                                        isCompleted ? 'bg-success' : 'bg-muted',
+                                                                        overdue && 'bg-destructive')}>
+                                                                        {isCompleted ? <CheckCircle className="h-5 w-5 text-white" /> : (overdue ? <AlertTriangle className="h-5 w-5 text-white" /> : <Circle className="h-5 w-5 text-muted-foreground" />)}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="w-full space-y-2 pt-1">
+                                                                <div className="flex justify-between items-center">
+                                                                    <div>
+                                                                        <p className={cn("font-semibold text-base", milestone.isTransshipment && "text-red-500", isCompleted && "text-success")}>{milestone.isTransshipment ? milestone.name.toUpperCase() : milestone.name}</p>
+                                                                        <p className="text-sm text-muted-foreground -mt-1">{milestone.details}</p>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Controller control={form.control} name={`milestones.${index}.predictedDate`} render={({ field }) => (
+                                                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                                                <Button variant="outline" size="sm" className="h-7 text-xs w-32 justify-start">
+                                                                                    <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Prev: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Prevista'}
+                                                                                </Button>
+                                                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                                        )} />
+                                                                        <Controller control={form.control} name={`milestones.${index}.effectiveDate`} render={({ field }) => (
+                                                                            <Popover><PopoverTrigger asChild><FormControl>
+                                                                                <Button variant="outline" size="sm" className={cn("h-7 text-xs w-32 justify-start", !field.value && "text-muted-foreground")}>
+                                                                                    <CalendarIcon className="mr-2 h-3 w-3" /> {field.value ? `Efet: ${format(new Date(field.value), 'dd/MM/yy')}`: 'Efetiva'}
+                                                                                </Button>
+                                                                            </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                                        )} />
+                                                                    </div>
+                                                                </div>
+                                                                {index < milestoneFields.length - 1 && <Separator className="my-4"/>}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                            <Separator className="my-4"/>
+                                            <FormField control={form.control} name="operationalNotes" render={({ field }) => (<FormItem><FormLabel className="text-base font-semibold">Informações Adicionais (Visível ao Cliente)</FormLabel><FormControl><Textarea placeholder="Adicione aqui observações importantes sobre o processo que devem ser visíveis ao cliente no portal..." className="min-h-[100px]" {...field} /></FormControl></FormItem>)} />
+                                        </CardContent>
+                                    </Card>
+                                    <div className="lg:col-span-1">
+                                        {shipment.bookingNumber ? (
+                                            <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                                        ) : (
+                                            <div className="text-center p-8 text-muted-foreground h-full flex flex-col justify-center items-center border rounded-lg bg-muted/50">
+                                                <MapIcon className="mx-auto h-12 w-12 mb-4" />
+                                                <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                </Form>
+                                </TabsContent>
+                                
+                                <TabsContent value="details">
+                                <Form {...form}>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-lg">Informações do Processo</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                 <FormField control={form.control} name="etd" render={({ field }) => (
+                                                    <FormItem className="flex flex-col"><FormLabel>ETD</FormLabel>
+                                                        <Popover><PopoverTrigger asChild><FormControl>
+                                                            <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                            </Button>
+                                                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                    </FormItem>
+                                                )} />
+                                                 <FormField control={form.control} name="eta" render={({ field }) => (
+                                                    <FormItem className="flex flex-col"><FormLabel>ETA</FormLabel>
+                                                        <Popover><PopoverTrigger asChild><FormControl>
+                                                            <Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                            </Button>
+                                                        </FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                                    </FormItem>
+                                                )} />
+                                            </div>
+                                            <FormField control={form.control} name="carrier" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Transportadora</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecione a transportadora..." />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {carrierPartners.map(p => (
+                                                                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <div className="grid grid-cols-2 gap-4">
+                                                 <FormField control={form.control} name="vesselName" render={({ field }) => (<FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                 <FormField control={form.control} name="voyageNumber" render={({ field }) => (<FormItem><FormLabel>Viagem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                            </div>
+                                            <FormField control={form.control} name="bookingNumber" render={({ field }) => (
+                                                <FormItem><FormLabel>Booking Number</FormLabel>
+                                                <div className="flex gap-2">
+                                                    <FormControl><Input {...field} /></FormControl>
+                                                    <Button type="button" variant="secondary" onClick={handleRefreshTracking} disabled={isUpdating}>
+                                                        {isUpdating ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}
+                                                    </Button>
+                                                </div>
+                                                </FormItem>
+                                            )} />
+                                            <div className="grid grid-cols-2 gap-4">
+                                                 <FormField control={form.control} name="masterBillNumber" render={({ field }) => (<FormItem><FormLabel>Master BL / AWB</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                 <FormField control={form.control} name="houseBillNumber" render={({ field }) => (<FormItem><FormLabel>House BL / AWB</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <FormField control={form.control} name="ceMaster" render={({ field }) => (<FormItem><FormLabel>CE Master</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                                <FormField control={form.control} name="ceHouse" render={({ field }) => (<FormItem><FormLabel>CE House</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                            </div>
+                                            <FormField control={form.control} name="manifesto" render={({ field }) => (<FormItem><FormLabel>Manifesto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                        </CardContent>
+                                    </Card>
+                                    
+                                    <div className="space-y-4">
+                                        <Card>
+                                            <CardHeader><CardTitle className="text-lg">Detalhes da Carga</CardTitle></CardHeader>
+                                            <CardContent className="space-y-4">
+                                                <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
+                                                <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs</FormLabel><FormControl><Input placeholder="Separados por vírgula" {...field} onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()))} value={Array.isArray(field.value) ? field.value.join(', ') : ''} /></FormControl></FormItem>)} />
+                                            </CardContent>
+                                        </Card>
+                                        <Card>
+                                            <CardHeader>
+                                                <div className="flex justify-between items-center">
+                                                    <CardTitle className="text-lg">Detalhes dos Contêineres</CardTitle>
+                                                    <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ id: `cont-${Date.now()}`, number: '', seal: '', tare: '', grossWeight: '', freeTime: shipment.details.freeTime, type: '' })}>
+                                                        <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                                                    </Button>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="space-y-2">
+                                                {containerFields.map((field, index) => (
+                                                    <div key={field.id} className="grid grid-cols-2 md:grid-cols-8 gap-2 items-center p-2 border rounded-md relative">
+                                                        <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                        <div className="col-span-2"><Label>Nº Contêiner</Label><FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="MSCU1234567" {...field} className="h-8 mt-1"/>} /></div>
+                                                        <div><Label>Lacre</Label><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="SEAL12345" {...field} className="h-8 mt-1"/>} /></div>
+                                                        <div><Label>Tara (Kg)</Label><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="2250" {...field} className="h-8 mt-1"/>} /></div>
+                                                        <div><Label>Peso Bruto</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
+                                                        <div><Label>Volumes</Label><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="1000" {...field} className="h-8 mt-1"/>} /></div>
+                                                        <div><Label>M³</Label><FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="28.5" {...field} className="h-8 mt-1"/>} /></div>
+                                                        <div><Label>Free Time</Label><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input {...field} value={shipment.details.freeTime} className="h-8 mt-1" disabled/>} /></div>
+                                                    </div>
+                                                ))}
+                                                 {containerFields.length > 0 && (
+                                                    <div className="grid grid-cols-2 md:grid-cols-8 gap-2 p-2 border-t mt-2 font-semibold">
+                                                        <div className="col-span-2">Total:</div>
+                                                        <div className="text-center">{containerTotals.qty}</div>
+                                                        <div></div>
+                                                        <div className="text-center">{containerTotals.weight.toFixed(2)}</div>
+                                                        <div className="text-center">{containerTotals.volumes}</div>
+                                                        <div className="text-center">{containerTotals.cbm.toFixed(3)}</div>
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                        <Card>
+                                            <CardHeader>
+                                                <div className="flex justify-between items-center">
+                                                    <CardTitle className="text-lg">Portos de Transbordo</CardTitle>
+                                                    <Button type="button" size="sm" variant="outline" onClick={() => appendTransshipment({ id: `ts-${Date.now()}`, port: '', vessel: '' })}>
+                                                        <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                                                    </Button>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="space-y-2">
+                                                {transshipmentFields.map((field, index) => (
+                                                    <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-center p-2 border rounded-md relative">
+                                                        <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeTransshipment(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                        <FormField control={form.control} name={`transshipments.${index}.port`} render={({ field }) => <Input placeholder="Porto de Transbordo" {...field} className="h-8"/>} />
+                                                        <FormField control={form.control} name={`transshipments.${index}.vessel`} render={({ field }) => <Input placeholder="Navio/Voo" {...field} className="h-8"/>} />
+                                                    </div>
+                                                ))}
+                                            </CardContent>
+                                        </Card>
+                                         <Card>
+                                            <CardHeader><CardTitle className="text-lg">Endereços e Terminais</CardTitle></CardHeader>
+                                            <CardContent className="space-y-4">
+                                                {shipment.details?.incoterm === 'EXW' && <FormField control={form.control} name="collectionAddress" render={({ field }) => (<FormItem><FormLabel>Local de Coleta</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
+                                                {(shipment.details?.incoterm.startsWith('D') || shipment.charges.some(c => c.name.toLowerCase().includes('entrega'))) && <FormField control={form.control} name="deliveryAddress" render={({ field }) => (<FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />}
+                                                <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (<FormItem><FormLabel>Terminal de Chegada (Descarga)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um terminal..." /></SelectTrigger></FormControl><SelectContent>{terminalPartners.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                                <FormField control={form.control} name="terminalRedestinacaoId" render={({ field }) => (<FormItem><FormLabel>Terminal de Redestinação</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um terminal..." /></SelectTrigger></FormControl><SelectContent>{terminalPartners.map(t => <SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                </div>
+                                </Form>
+                                </TabsContent>
+                                <TabsContent value="financials">
+                                    <p>Financeiro</p>
+                                </TabsContent>
+                                <TabsContent value="documents">
+                                    <p>Documentos</p>
+                                </TabsContent>
+                                <TabsContent value="bl_draft">
+                                    <BLDraftForm ref={blDraftFormRef} shipment={shipment} onUpdate={onUpdate} isSheet />
+                                </TabsContent>
+                                <TabsContent value="desembaraco">
+                                    <CustomsClearanceTab shipment={shipment} />
+                                </TabsContent>
+                            </div>
+                        </Tabs>
                     </div>
-                </Tabs>
+                </div>
             </SheetContent>
         </Sheet>
-
-        <Dialog open={isManualMilestoneOpen} onOpenChange={setIsManualMilestoneOpen}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Adicionar Tarefa Manual</DialogTitle>
-                    <DialogDescription>Insira os detalhes da nova tarefa para este processo.</DialogDescription>
-                </DialogHeader>
-                <Form {...newMilestoneForm}>
-                    <form onSubmit={handleAddManualMilestone} className="space-y-4 py-4">
-                        <FormField control={newMilestoneForm.control} name="name" render={({field}) => (
-                            <FormItem><FormLabel>Nome da Tarefa</FormLabel><FormControl><Input {...field}/></FormControl><FormMessage/></FormItem>
-                        )}/>
-                        <FormField control={newMilestoneForm.control} name="predictedDate" render={({field}) => (
-                            <FormItem className="flex flex-col"><FormLabel>Data Prevista</FormLabel>
-                            <Popover><PopoverTrigger asChild><FormControl>
-                                <Button type="button" variant="outline"><CalendarIcon className="mr-2 h-4 w-4"/>{field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecione'}</Button>
-                            </FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value} onSelect={field.onChange}/></PopoverContent></Popover>
-                            <FormMessage/>
-                            </FormItem>
-                        )}/>
-                        <FormField control={newMilestoneForm.control} name="details" render={({field}) => (
-                            <FormItem><FormLabel>Detalhes (Opcional)</FormLabel><FormControl><Textarea {...field}/></FormControl><FormMessage/></FormItem>
-                        )}/>
-                        <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
-                            <Button type="submit">Adicionar Tarefa</Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-            </DialogContent>
-        </Dialog>
-        
-        <JustificationDialog
-            open={!!justificationData}
-            onOpenChange={(open) => !open && setJustificationData(null)}
-            onConfirm={handleConfirmJustification}
-        />
-        </>
     );
 }

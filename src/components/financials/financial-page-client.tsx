@@ -1041,7 +1041,7 @@ export function FinancialPageClient() {
         </AlertDialog>
 
         <BankAccountDialog
-            isOpen={!!editingAccount || !!(editingAccount && editingAccount.name === undefined)}
+            isOpen={!!editingAccount}
             onClose={() => setEditingAccount(null)}
             onSave={handleAccountSave}
             account={editingAccount}

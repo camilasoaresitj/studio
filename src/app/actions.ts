@@ -57,11 +57,11 @@ async function simulateSave<T extends { [key: string]: any }>(data: T[], newData
             // Check if IDs are numbers or strings to generate the correct new ID type
             if (keys.length > 0 && typeof keys[0] === 'number') {
                 const newId = Math.max(0, ...keys.map(k => Number(k) || 0)) + 1;
-                (item as any)[idField] = newId;
+                (item as any)[idField] = newId as T[keyof T];
                 dataMap.set(newId, item);
             } else {
                 const newId = `new-${Date.now()}-${Math.random()}`;
-                (item as any)[idField] = newId;
+                (item as any)[idField] = newId as T[keyof T];
                 dataMap.set(newId, item);
             }
         }

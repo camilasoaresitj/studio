@@ -94,31 +94,27 @@ export function ClientPortalPage({ id }: { id: string }) {
     }, [id]);
     
     const sortedMilestones = useMemo(() => {
-        if (!shipment) return [];
-        const uniqueMilestones = (shipment.milestones || []).reduce((acc: Milestone[], current) => {
-            const twentyFourHours = 24 * 60 * 60 * 1000;
-            const x = acc.find(item => {
-                const bothDatesExist = item.predictedDate && current.predictedDate;
-                if (bothDatesExist) {
-                    // TypeScript needs a clear guarantee that these are not null.
-                    // Accessing them directly after the check provides this.
-                    const timeDiff = Math.abs(item.predictedDate.getTime() - current.predictedDate.getTime());
-                    return item.name === current.name && timeDiff < twentyFourHours && item.details === current.details;
-                }
-                return false;
-            });
-            if (!x) {
-                return acc.concat([current]);
-            } else {
-                return acc;
+        if (!shipment?.milestones) return [];
+        
+        // Use a Map to filter out duplicates based on name and date (within 24h)
+        const uniqueMilestonesMap = new Map<string, Milestone>();
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+
+        shipment.milestones.forEach(current => {
+            if (!current.predictedDate) return; // Ignore milestones without a date
+            
+            const key = `${current.name}|${new Date(current.predictedDate).toISOString().slice(0, 10)}`;
+            if (!uniqueMilestonesMap.has(key)) {
+                uniqueMilestonesMap.set(key, current);
             }
-        }, []);
+        });
+
+        const uniqueMilestones = Array.from(uniqueMilestonesMap.values());
 
         return uniqueMilestones.sort((a, b) => {
-            const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
-            const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
-            if (!dateA) return 1;
-            if (!dateB) return -1;
+            // This sort is now safe because we've filtered out null dates
+            const dateA = a.predictedDate!.getTime();
+            const dateB = b.predictedDate!.getTime();
             return dateA - dateB;
         });
     }, [shipment]);

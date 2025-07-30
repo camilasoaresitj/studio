@@ -43,6 +43,10 @@ export default function SimuladorDIPage() {
             itens: [{ descricao: '', ncm: '', quantidade: 1, valorUnitarioUSD: 0, pesoKg: 0 }],
             exchangeRate: 5.45,
             icmsRate: 17,
+            freightCostUSD: 0,
+            insuranceCostUSD: 0,
+            thcValueBRL: 0,
+            otherExpensesBRL: 0,
         }
     });
 

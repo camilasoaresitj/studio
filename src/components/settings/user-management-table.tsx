@@ -50,7 +50,7 @@ const userSchema = z.object({
   id: z.number(),
   name: z.string().min(1, "Nome é obrigatório."),
   email: z.string().email("E-mail inválido."),
-  role: z.string(),
+  role: z.enum(['Administrador', 'Comercial', 'Operacional', 'Financeiro', 'Comum']),
   status: z.string(),
   signatureUrl: z.string().url().optional(),
   admissionDate: z.date().optional(),

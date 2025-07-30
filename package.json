@@ -5,9 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "check-build": "npm run build",
-    "export": "next export"
+    "start": "next start"
   },
   "dependencies": {
     "@genkit-ai/firebase": "^1.15.1",

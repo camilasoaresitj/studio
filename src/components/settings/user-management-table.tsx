@@ -100,9 +100,19 @@ export function UserManagementTable() {
         } else {
             form.reset({
                 id: Math.max(...users.map(u => u.id)) + 1,
-                name: '', email: '', role: 'Comum', status: 'Ativo',
+                name: '',
+                email: '',
+                role: 'Comum',
+                status: 'Ativo',
+                signatureUrl: undefined,
+                admissionDate: undefined,
+                phone: undefined,
+                address: undefined,
+                rg: undefined,
+                cpf: undefined,
                 permissions: { gerencial: false, comercial: true, operacional: false, financeiro: false, demurrage: false, schedules: false, configuracoes: false },
-                gmailEmail: '', gmailAppPassword: ''
+                gmailEmail: '',
+                gmailAppPassword: ''
             });
         }
     };
@@ -331,5 +341,3 @@ export function UserManagementTable() {
     </>
   );
 }
-
-    

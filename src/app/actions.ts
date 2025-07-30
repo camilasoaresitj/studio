@@ -46,16 +46,24 @@ import type { FinancialEntry, BankAccount, PartialPayment } from '@/lib/financia
 // Helper function to simulate saving data and returning it
 // In a real app, this would interact with a database.
 async function simulateSave<T extends { [key: string]: any }>(data: T[], newData: T | T[], idField: keyof T = 'id' as keyof T): Promise<T[]> {
-    const dataMap = new Map(data.map(item => [item[idField], item]));
+    const dataMap = new Map<any, T>(data.map(item => [item[idField], item]));
     const itemsToSave = Array.isArray(newData) ? newData : [newData];
 
     itemsToSave.forEach(item => {
         if (item[idField]) {
             dataMap.set(item[idField], item);
         } else {
-            const newId = Math.max(0, ...Array.from(dataMap.keys()).map(k => Number(k) || 0)) + 1;
-            (item as any)[idField] = newId;
-            dataMap.set(newId, item);
+            const keys = Array.from(dataMap.keys());
+            // Check if IDs are numbers or strings to generate the correct new ID type
+            if (keys.length > 0 && typeof keys[0] === 'number') {
+                const newId = Math.max(0, ...keys.map(k => Number(k) || 0)) + 1;
+                (item as any)[idField] = newId;
+                dataMap.set(newId, item);
+            } else {
+                const newId = `new-${Date.now()}-${Math.random()}`;
+                (item as any)[idField] = newId;
+                dataMap.set(newId, item);
+            }
         }
     });
 
@@ -72,7 +80,7 @@ export async function savePartnerAction(partnerToSave: Partner) {
             allPartners = currentPartners.map(p => p.id === partnerToSave.id ? partnerToSave : p);
         } else {
             const newId = Math.max(0, ...currentPartners.map(p => p.id ?? 0)) + 1;
-            allPartners = [...currentPartners, { ...partnerToSave, id: newId }];
+            allPartners = [...currentPartners, { ...partnerToSave, id: newId, createdAt: new Date() }];
         }
         
         // This would be a database call in a real app.

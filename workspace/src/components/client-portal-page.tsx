@@ -20,7 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2 } from 'lucide-react';
 import { findPortByTerm } from '@/lib/ports';
 import React from 'react';
-import { ShipmentMap } from './shipment-map';
+import { ShipmentMap } from '@/components/shipment-map';
 
 const MilestoneIcon = ({ status, predictedDate, isTransshipment }: { status: Milestone['status'], predictedDate?: Date | null, isTransshipment?: boolean }) => {
     if (!predictedDate || !isValid(predictedDate)) {

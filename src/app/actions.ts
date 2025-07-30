@@ -320,7 +320,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
         freightPayableAt: 'Destino',
         numberOfOriginals: '0 (ZERO)',
         issueDate: format(new Date(), 'dd-MMM-yyyy'),
-        shippedOnBoardDate: updatedShipment.etd ? format(updatedShipment.etd, 'dd-MMM-yyyy') : 'N/A',
+        shippedOnBoardDate: updatedShipment.etd ? format(new Date(updatedShipment.etd), 'dd-MMM-yyyy') : 'N/A',
     });
 
     if (!hblHtmlResponse.success || !hblHtmlResponse.data?.html) {

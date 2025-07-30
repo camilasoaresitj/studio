@@ -242,7 +242,7 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
         isOpen={!!detailsShipment}
         onClose={() => setDetailsShipment(null)}
         commissionableShipment={detailsShipment}
-        partner={detailsShipment ? commissionData.find(cd => cd.commissionableShipments.some(cs => cs.shipment.id === detailsShipment.shipment.id))?.partner : null}
+        partner={detailsShipment ? commissionData.find(cd => cd.commissionableShipments.some(cs => cs.shipment.id === detailsShipment.shipment.id))?.partner ?? null : null}
     />
     </>
   );

@@ -9,7 +9,7 @@ const nextConfig = {
     '@genkit-ai/googleai',
   ],
   webpack: (config, { isServer }) => {
-    // Ignore warning from handlebars library and opentelemetry
+    // Ignore warning from handlebars library and opentelemetry on client-side build
     if (!isServer) {
         config.externals = [...config.externals, 'handlebars', '@opentelemetry/instrumentation'];
     }

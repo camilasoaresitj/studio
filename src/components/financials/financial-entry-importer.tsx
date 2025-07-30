@@ -74,17 +74,18 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
                 throw new Error(`Data de vencimento inválida na linha ${rowIndex + 2}: ${entry.vencimento}`);
             }
 
-            return {
+            const newEntry: Omit<FinancialEntry, 'id'> = {
                 type: String(entry.tipo).toLowerCase() as 'credit' | 'debit',
                 partner: String(entry.parceiro),
                 invoiceId: String(entry.fatura),
-                status: 'Aberto' as const,
+                status: 'Aberto',
                 dueDate: dueDate.toISOString(),
                 amount: parseFloat(entry.valor),
                 currency: String(entry.moeda).toUpperCase() as FinancialEntry['currency'],
                 processId: String(entry.processo),
                 accountId: parseInt(entry.conta_id || '1', 10),
             };
+            return newEntry;
         }).filter((entry): entry is Omit<FinancialEntry, 'id'> => entry !== null);
         
         if (importedEntries.length > 0) {

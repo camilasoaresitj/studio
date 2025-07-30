@@ -82,7 +82,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
                 status: 'Aberto', // Default status for imported entries
                 dueDate: dueDate.toISOString(),
                 amount: parseFloat(entry.valor),
-                currency: String(entry.moeda).toUpperCase() as 'BRL' | 'USD',
+                currency: String(entry.moeda).toUpperCase() as FinancialEntry['currency'],
                 processId: String(entry.processo),
                 accountId: parseInt(entry.conta_id || '1', 10), // Default to account 1 if not specified
             };

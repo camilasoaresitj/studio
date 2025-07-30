@@ -38,6 +38,8 @@ export default function SimuladorDIPage() {
     const form = useForm<SimulationFormData>({
         resolver: zodResolver(simulationFormSchema),
         defaultValues: {
+            simulationName: '',
+            customerName: '',
             itens: [{ descricao: '', ncm: '', quantidade: 1, valorUnitarioUSD: 0, pesoKg: 0 }],
             exchangeRate: 5.45,
             icmsRate: 17,

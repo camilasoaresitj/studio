@@ -23,10 +23,10 @@ import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
-import { getPartners, savePartnerAction } from '@/lib/partners-data';
+import { getPartners } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/components/customer-quotes-list";
-import { getShipments, saveShipments } from "@/lib/shipment-data";
+import { getShipments, saveShipments as saveShipmentsData } from "@/lib/shipment-data";
 import { isPast, format, addDays, isValid } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
@@ -40,9 +40,110 @@ import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraf
 import { shareSimulation } from '@/ai/flows/share-simulation';
 import { generateSimulationPdfHtml } from "@/ai/flows/generate-simulation-pdf-html";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { addFinancialEntriesAction, updateFinancialEntryAction, saveFinancialsDataAction } from './actions';
-import type { FinancialEntry, BankAccount } from '@/lib/financials-data';
+import { getFinancialEntries, getBankAccounts, getStoredFinancialEntries, getStoredBankAccounts, saveFinancialEntries as saveFinancialEntriesData, saveBankAccounts as saveBankAccountsData } from '@/lib/financials-data';
+import type { FinancialEntry, BankAccount, PartialPayment } from '@/lib/financials-data';
 
+// Helper function to simulate saving data and returning it
+// In a real app, this would interact with a database.
+async function simulateSave<T>(data: T[], newData: T | T[], idField: keyof T = 'id'): Promise<T[]> {
+    const dataMap = new Map(data.map(item => [item[idField], item]));
+    const itemsToSave = Array.isArray(newData) ? newData : [newData];
+
+    itemsToSave.forEach(item => {
+        if (item[idField]) {
+            dataMap.set(item[idField], item);
+        } else {
+            const newId = Math.max(0, ...Array.from(dataMap.keys()).map(k => Number(k) || 0)) + 1;
+            (item as any)[idField] = newId;
+            dataMap.set(newId, item);
+        }
+    });
+
+    return Array.from(dataMap.values());
+}
+
+
+export async function savePartnerAction(partnerToSave: Partner) {
+    try {
+        const currentPartners = getPartners();
+        let allPartners;
+
+        if (partnerToSave.id && partnerToSave.id !== 0) {
+            allPartners = currentPartners.map(p => p.id === partnerToSave.id ? partnerToSave : p);
+        } else {
+            const newId = Math.max(0, ...currentPartners.map(p => p.id ?? 0)) + 1;
+            allPartners = [...currentPartners, { ...partnerToSave, id: newId }];
+        }
+        
+        // Here you would save `allPartners` to your database.
+        // For the mock, we can't persist it server-side, but we return the updated list.
+        return { success: true, data: allPartners };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+
+export async function addFinancialEntriesAction(newEntriesData: Omit<FinancialEntry, 'id'>[]) {
+    try {
+        const currentEntries = getFinancialEntries();
+        const newEntries = newEntriesData.map((entry, index) => ({
+            ...entry,
+            id: `fin-${Date.now()}-${index}`,
+        }));
+        const updatedEntries = [...currentEntries, ...newEntries];
+        // In a real app, you would save `updatedEntries` to a database.
+        saveFinancialEntriesData(updatedEntries); // This will update localStorage on the client for mock persistence
+        return { success: true, data: updatedEntries };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function updateFinancialEntryAction(entryOrPaymentData: { entryId: string; payment: PartialPayment; settlementAccountId: number } | FinancialEntry) {
+    try {
+        const currentEntries = getFinancialEntries();
+        const currentAccounts = getBankAccounts();
+        let updatedEntries = [...currentEntries];
+        let updatedAccounts = [...currentAccounts];
+
+        if ('entryId' in entryOrPaymentData) { // It's a payment
+            const { entryId, payment, settlementAccountId } = entryOrPaymentData;
+            const entryIndex = updatedEntries.findIndex(e => e.id === entryId);
+            if (entryIndex === -1) throw new Error("Lançamento não encontrado");
+
+            const entry = updatedEntries[entryIndex];
+            const account = updatedAccounts.find(a => a.id === settlementAccountId);
+            if (!account) throw new Error("Conta bancária não encontrada");
+            
+            entry.payments = [...(entry.payments || []), payment];
+            
+            let amountInAccountCurrency = payment.amount;
+            if (payment.exchangeRate && entry.currency !== account.currency) {
+                amountInAccountCurrency = payment.amount * payment.exchangeRate;
+            }
+
+            const newBalance = entry.type === 'credit' 
+                ? account.balance + amountInAccountCurrency 
+                : account.balance - amountInAccountCurrency;
+            
+            updatedAccounts = updatedAccounts.map(acc => acc.id === settlementAccountId ? { ...acc, balance: newBalance } : acc);
+            updatedEntries[entryIndex] = entry;
+
+        } else { // It's a full entry update
+            const entryData = entryOrPaymentData;
+            updatedEntries = updatedEntries.map(e => e.id === entryData.id ? entryData : e);
+        }
+
+        // Persist changes
+        saveFinancialEntriesData(updatedEntries);
+        saveBankAccountsData(updatedAccounts);
+
+        return { success: true, data: { entries: updatedEntries, accounts: updatedAccounts } };
+    } catch (error: any) {
+         return { success: false, error: error.message };
+    }
+}
 
 export async function runGetFreightRates(input: any) {
     try {
@@ -291,7 +392,7 @@ export async function updateShipment(updatedShipment: Shipment): Promise<Shipmen
     const index = shipments.findIndex(s => s.id === updatedShipment.id);
     if (index !== -1) {
         shipments[index] = updatedShipment;
-        await saveShipments(shipments);
+        await saveShipmentsData(shipments);
     }
     return shipments;
 }
@@ -423,7 +524,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
     updatedShipment.milestones.sort((a,b) => (a.predictedDate?.getTime() ?? 0) - (b.predictedDate?.getTime() ?? 0));
 
     allShipments[shipmentIndex] = updatedShipment;
-    await saveShipments(allShipments);
+    await saveShipmentsData(allShipments);
     return { success: true, data: allShipments };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);
@@ -542,7 +643,7 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
 
   
   allShipments.unshift(newShipment);
-  await saveShipments(allShipments);
+  await saveShipmentsData(allShipments);
   return newShipment;
 }
 
@@ -605,7 +706,7 @@ export async function updateShipmentFromAgent(shipmentId: string, agentData: any
         };
 
         shipments[shipmentIndex] = updatedShipment;
-        await saveShipments(shipments);
+        await saveShipmentsData(shipments);
         
         return { success: true };
 
@@ -638,7 +739,7 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
         };
 
         allShipments[shipmentIndex] = updatedShipment;
-        await saveShipments(allShipments);
+        await saveShipmentsData(allShipments);
         return { success: true, data: updatedShipment };
 
     } catch (error: any) {
@@ -725,9 +826,6 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
-
-export { savePartnerAction };
-export { addFinancialEntriesAction, updateFinancialEntryAction, saveFinancialsDataAction };
       
 
   

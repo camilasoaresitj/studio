@@ -131,7 +131,8 @@ export type Partner = z.infer<typeof partnerSchema>;
 
 const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v13';
 
-function getInitialPartners(): Partner[] {
+// SERVER-SAFE: Reads from JSON, no localStorage.
+export function getPartners(): Partner[] {
     // Rehydrate dates from the JSON import
     return initialPartnersData.map((p: any) => ({
       ...p,
@@ -140,7 +141,7 @@ function getInitialPartners(): Partner[] {
     })) as Partner[];
 }
 
-// Client-side function to get data from localStorage
+// CLIENT-SIDE ONLY: Function to get data from localStorage
 export function getStoredPartners(): Partner[] {
   if (typeof window === 'undefined') {
     return [];
@@ -148,8 +149,8 @@ export function getStoredPartners(): Partner[] {
   try {
     const storedPartners = localStorage.getItem(PARTNERS_STORAGE_KEY);
     if (!storedPartners) {
-        const initialData = getInitialPartners();
-        savePartnersData(initialData); // Use the new server-side compatible save function
+        const initialData = getPartners();
+        savePartners(initialData); // Use the client-side save function
         return initialData;
     };
     const parsed = JSON.parse(storedPartners);
@@ -165,16 +166,9 @@ export function getStoredPartners(): Partner[] {
   }
 }
 
-// Function to be used by server actions
-export function getPartners(): Partner[] {
-    // In a real app, this would fetch from a database.
-    // For this mock, we'll continue to read the JSON file directly.
-    return getInitialPartners();
-}
-
-export function savePartnersData(partners: Partner[]): void {
+// CLIENT-SIDE ONLY: Function to save data to localStorage
+export function savePartners(partners: Partner[]): void {
   if (typeof window === 'undefined') {
-    console.log("Save operation called on the server. Data is not persisted in this mock implementation.");
     return;
   }
   try {

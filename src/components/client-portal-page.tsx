@@ -96,23 +96,28 @@ export function ClientPortalPage({ id }: { id: string }) {
     const sortedMilestones = useMemo(() => {
         if (!shipment?.milestones) return [];
         
-        const uniqueMilestonesMap = new Map<string, Milestone>();
-
-        // Filter out milestones without a valid predictedDate first
+        // First, filter out any milestones that have an invalid or missing predictedDate.
         const validMilestones = shipment.milestones.filter(m => m.predictedDate && isValid(new Date(m.predictedDate)));
-
+    
+        // Use a Map to ensure uniqueness based on name and the date part of predictedDate.
+        const uniqueMilestonesMap = new Map<string, Milestone>();
+    
         validMilestones.forEach(current => {
-            // TypeScript now knows predictedDate is a valid Date here
-            const key = `${current.name}|${new Date(current.predictedDate).toISOString().slice(0, 10)}`;
-            if (!uniqueMilestonesMap.has(key)) {
-                uniqueMilestonesMap.set(key, current);
+            // TypeScript now knows predictedDate is a valid Date here.
+            const dateKey = new Date(current.predictedDate!).toISOString().slice(0, 10);
+            const uniqueKey = `${current.name}|${dateKey}`;
+            
+            // Only add the milestone if a similar one (same name on the same day) isn't already present.
+            if (!uniqueMilestonesMap.has(uniqueKey)) {
+                uniqueMilestonesMap.set(uniqueKey, current);
             }
         });
-
+    
         const uniqueMilestones = Array.from(uniqueMilestonesMap.values());
-
+    
+        // Sort the final unique list by date.
         return uniqueMilestones.sort((a, b) => {
-            // The sort is now safe because we've filtered out null/invalid dates
+            // The sort is now safe because we've filtered out null/invalid dates.
             const dateA = a.predictedDate!.getTime();
             const dateB = b.predictedDate!.getTime();
             return dateA - dateB;
@@ -406,6 +411,4 @@ export function ClientPortalPage({ id }: { id: string }) {
             </div>
         </div>
     );
-
-    
-
+}

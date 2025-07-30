@@ -61,7 +61,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
             }
         }
         
-        const importedEntries: FinancialEntry[] = dataRows.map((row: any[], rowIndex) => {
+        const importedEntries = dataRows.map((row: any[], rowIndex) => {
             const entry: any = {};
             headers.forEach((header, index) => {
                 entry[header] = row[index];

@@ -132,18 +132,19 @@ export type Partner = z.infer<typeof partnerSchema>;
 const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v13';
 
 function getInitialPartners(): Partner[] {
-    return initialPartnersData as Partner[];
+    // Rehydrate dates from the JSON import
+    return initialPartnersData.map((p: any) => ({
+      ...p,
+      createdAt: p.createdAt ? new Date(p.createdAt) : undefined,
+      demurrageAgreementDueDate: p.demurrageAgreementDueDate ? new Date(p.demurrageAgreementDueDate) : undefined,
+    })) as Partner[];
 }
 
 // Environment-aware function
 export function getPartners(): Partner[] {
   // SERVER-SIDE: Read directly from the JSON file.
   if (typeof window === 'undefined') {
-    return initialPartnersData.map((p: any) => ({
-      ...p,
-      createdAt: p.createdAt ? new Date(p.createdAt) : undefined,
-      demurrageAgreementDueDate: p.demurrageAgreementDueDate ? new Date(p.demurrageAgreementDueDate) : undefined,
-    })) as Partner[];
+    return getInitialPartners();
   }
   
   // CLIENT-SIDE: Use localStorage.
@@ -201,5 +202,3 @@ export function savePartners(partners: Partner[]): void {
     console.error("Failed to save partners to localStorage", error);
   }
 }
-
-    

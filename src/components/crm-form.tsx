@@ -105,8 +105,7 @@ export function CrmForm() {
   async function onCampaignSubmit(values: z.infer<typeof campaignFormSchema>) {
     setIsCampaignLoading(true);
     setCampaignResult(null);
-    const partners = getPartners();
-    const response = await runCreateEmailCampaign(values.instruction, partners, quotes);
+    const response = await runCreateEmailCampaign(values.instruction);
     if (response.success) {
       setCampaignResult(response.data || null);
     } else {

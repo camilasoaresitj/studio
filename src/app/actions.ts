@@ -69,8 +69,9 @@ export async function runGetCourierRates(input: any) {
     }
 }
 
-export async function runRequestAgentQuote(input: any, partners: any[]) {
+export async function runRequestAgentQuote(input: any) {
     try {
+        const partners = getPartners();
         const agents = partners.filter(p => p.roles.agente);
         if (agents.length === 0) {
             return { success: false, error: "Nenhum agente cadastrado." };
@@ -266,9 +267,11 @@ export async function runSendToLegal(input: any) {
     }
 }
 
-export async function runCreateEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {
+export async function runCreateEmailCampaign(instruction: string) {
     try {
-        const data = await createEmailCampaign({ instruction, partners, quotes });
+        const allPartners = getPartners();
+        const allQuotes = [] as Quote[]; // In a real app, fetch quotes
+        const data = await createEmailCampaign({ instruction, partners: allPartners, quotes: allQuotes });
         return { success: true, data: data || null };
     } catch (error: any) {
         console.error("Create Email Campaign Action Failed", error);
@@ -276,7 +279,7 @@ export async function runCreateEmailCampaign(instruction: string, partners: Part
     }
 }
 
-export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftData): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
+export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftData): Promise<{ success: boolean; data?: Shipment; error?: string }> {
   try {
     const allShipments = getShipments();
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
@@ -322,7 +325,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
         shippedOnBoardDate: updatedShipment.etd ? format(updatedShipment.etd, 'dd-MMM-yyyy') : 'N/A',
     });
 
-    if (!response.success || !response.data?.html) {
+    if (!hblHtmlResponse.success || !hblHtmlResponse.data?.html) {
         throw new Error('Falha ao gerar o PDF do Draft HBL.');
     }
 
@@ -403,7 +406,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
 
     allShipments[shipmentIndex] = updatedShipment;
     saveShipments(allShipments);
-    return { success: true, data: allShipments };
+    return { success: true, data: updatedShipment };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);
     return { success: false, error: error.message || "Failed to submit BL Draft" };

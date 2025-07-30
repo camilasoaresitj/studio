@@ -23,7 +23,7 @@ import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
-import { getPartners, savePartners as savePartnersData } from '@/lib/partners-data';
+import { getPartners, savePartnersData } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/components/customer-quotes-list";
 import { getShipments as getShipmentsFromStorage, saveShipments as saveShipmentsToStorage } from "@/lib/shipment-data";
@@ -40,7 +40,7 @@ import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraf
 import { shareSimulation } from '@/ai/flows/share-simulation';
 import { generateSimulationPdfHtml } from "@/ai/flows/generate-simulation-pdf-html";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getFinancialEntries, saveFinancialEntries, getBankAccounts, saveBankAccounts, addFinancialEntry as addFinancialEntryData, updateFinancialEntry as updateFinancialEntryData } from '@/lib/financials-data';
+import { getFinancialEntries, saveFinancialEntries, getBankAccounts, saveBankAccounts, updateFinancialEntry as updateFinancialEntryData, addFinancialEntry as addFinancialEntryData } from '@/lib/financials-data';
 import type { FinancialEntry, BankAccount } from '@/lib/financials-data';
 
 
@@ -786,3 +786,5 @@ export async function saveFinancialsDataAction(entries: FinancialEntry[], accoun
 
 
     
+
+  

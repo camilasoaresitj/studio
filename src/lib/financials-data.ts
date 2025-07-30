@@ -263,24 +263,18 @@ export function saveFinancialEntries(entries: FinancialEntry[]): void {
     saveToStorage(FINANCIALS_STORAGE_KEY, entries, 'financialsUpdated');
 }
 
-export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'>): string {
+export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'> | Omit<FinancialEntry, 'id'>[]): FinancialEntry[] {
   const currentEntries = getFinancialEntries();
-  const newId = `fin-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  const entryWithId: FinancialEntry = { ...newEntry, id: newId };
-  const updatedEntries = [entryWithId, ...currentEntries];
-  saveFinancialEntries(updatedEntries);
-  return newId;
-}
-
-export function addFinancialEntries(newEntries: Omit<FinancialEntry, 'id'>[]): FinancialEntry[] {
-  const currentEntries = getFinancialEntries();
-  const entriesWithIds: FinancialEntry[] = newEntries.map(entry => ({
+  const entriesToAdd = Array.isArray(newEntry) ? newEntry : [newEntry];
+  
+  const newEntriesWithIds = entriesToAdd.map(entry => ({
     ...entry,
     id: `fin-${Date.now()}-${Math.floor(Math.random() * 10000)}`
   }));
-  const updatedEntries = [...currentEntries, ...entriesWithIds];
+  
+  const updatedEntries = [...newEntriesWithIds, ...currentEntries];
   saveFinancialEntries(updatedEntries);
-  return entriesWithIds;
+  return newEntriesWithIds;
 }
 
 export function findEntryById(id: string): FinancialEntry | undefined {
@@ -307,4 +301,4 @@ export function saveBankAccounts(accounts: BankAccount[]): void {
     saveToStorage(ACCOUNTS_STORAGE_KEY, accounts, 'financialsUpdated');
 }
 
-      
+  

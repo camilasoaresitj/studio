@@ -548,7 +548,7 @@ export function FinancialPageClient() {
             isInvoice: true,
         });
 
-        if (response.success) {
+        if (response.success && response.data) {
             console.log("----- SIMULATING INVOICE EMAIL SEND -----");
             console.log("SUBJECT:", response.data.emailSubject);
             console.log("BODY (HTML):", response.data.emailBody);
@@ -559,9 +559,10 @@ export function FinancialPageClient() {
         }
     };
 
-    const handleEntriesImported = (importedEntries: FinancialEntry[]) => {
+    const handleEntriesImported = (importedEntries: Omit<FinancialEntry, 'id'>[]) => {
         const currentEntries = entries;
-        const updatedEntries = [...currentEntries, ...importedEntries];
+        const entriesWithId = importedEntries.map(e => ({...e, id: `fin-imported-${Date.now()}-${Math.random()}`}))
+        const updatedEntries = [...currentEntries, ...entriesWithId];
         saveFinancialEntries(updatedEntries);
         setEntries(updatedEntries);
     };

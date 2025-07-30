@@ -114,20 +114,20 @@ export function ApprovalsPanel() {
     const renderFinanceItem = (item: FinancialEntry) => (
         <div className="flex-1 cursor-pointer" onClick={() => setViewingItem({ type: 'finance', item })}>
             <p className="text-sm font-medium leading-none">{item.description || `Despesa para ${item.partner}`}</p>
-            <p className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
                 <Badge variant="secondary" className="mr-2">{item.expenseType}</Badge>
                 {item.currency} {item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-            </p>
+            </div>
         </div>
     );
 
     const renderOperationsItem = (item: { charge: QuoteCharge; shipment: Shipment }) => (
          <div className="flex-1 cursor-pointer" onClick={() => setViewingItem({ type: 'operations', item })}>
             <p className="text-sm font-medium leading-none">Aprovar alteração de despesa</p>
-            <p className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
                 <Badge variant="secondary" className="mr-2">Processo {item.shipment.id}</Badge>
                 {item.charge.name}: {item.charge.saleCurrency} {item.charge.sale.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-            </p>
+            </div>
         </div>
     );
     

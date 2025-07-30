@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { runGenerateDiXml, runRegisterDue, runGenerateDiXmlFromSpreadsheet, runExtractInvoiceItems, runGetNcmRates } from '@/app/actions';
 import { Loader2, FileCode, Upload, Send, Wand2, Trash2, PlusCircle, Edit } from 'lucide-react';
-import type { Shipment } from '@/lib/shipment';
+import type { Shipment } from '@/lib/shipment-data';
 import { Textarea } from './ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';

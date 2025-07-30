@@ -46,7 +46,7 @@ import { FinancialEntryDialog } from './financial-entry-dialog';
 import { RenegotiationDialog } from './renegotiation-dialog';
 import { NfseConsulta } from './nfse-consulta';
 import { PartnersRegistry } from '../partners-registry';
-import { Partner, getPartners } from '@/lib/partners-data';
+import { Partner, getStoredPartners } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { CommissionManagement } from './commission-management';
 
@@ -85,7 +85,7 @@ export function FinancialPageClient() {
             setEntries(getFinancialEntries());
             setAccounts(getBankAccounts());
             setAllShipments(getShipments());
-            setPartners(getPartners());
+            setPartners(getStoredPartners());
             const rates = await exchangeRateService.getRates();
             setPtaxRates(rates);
         };

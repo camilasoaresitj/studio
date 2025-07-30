@@ -140,19 +140,16 @@ function getInitialPartners(): Partner[] {
     })) as Partner[];
 }
 
-// Environment-aware function
-export function getPartners(): Partner[] {
-  // SERVER-SIDE: Read directly from the JSON file.
+// Client-side function to get data from localStorage
+export function getStoredPartners(): Partner[] {
   if (typeof window === 'undefined') {
-    return getInitialPartners();
+    return [];
   }
-  
-  // CLIENT-SIDE: Use localStorage.
   try {
     const storedPartners = localStorage.getItem(PARTNERS_STORAGE_KEY);
     if (!storedPartners) {
         const initialData = getInitialPartners();
-        savePartners(initialData);
+        savePartnersData(initialData); // Use the new server-side compatible save function
         return initialData;
     };
     const parsed = JSON.parse(storedPartners);
@@ -168,25 +165,37 @@ export function getPartners(): Partner[] {
   }
 }
 
-export function savePartners(partners: Partner[]): void {
+// Function to be used by server actions
+export function getPartners(): Partner[] {
+    // In a real app, this would fetch from a database.
+    // For this mock, we'll continue to read the JSON file directly.
+    return getInitialPartners();
+}
+
+export function savePartnersData(partners: Partner[]): void {
   if (typeof window === 'undefined') {
-    // On the server, this would write back to the file/database.
-    // For this project, we'll assume server-side changes are not persisted in this manner.
     console.log("Save operation called on the server. Data is not persisted in this mock implementation.");
     return;
   }
   try {
+    const currentPartners = getStoredPartners();
     
-    const currentPartners = getPartners();
-    const updatedPartners = partners.map(partner => {
-        const existingPartner = currentPartners.find(p => p.id === partner.id);
-        if(existingPartner) {
-            return { ...existingPartner, ...partner };
+    // Create a map for efficient lookup of existing partners
+    const currentPartnersMap = new Map(currentPartners.map(p => [p.id, p]));
+
+    partners.forEach(partner => {
+        if (partner.id && currentPartnersMap.has(partner.id)) {
+            // Update existing partner
+            const existing = currentPartnersMap.get(partner.id);
+            currentPartnersMap.set(partner.id, { ...existing, ...partner });
+        } else {
+            // Add new partner
+            const newId = Math.max(0, ...Array.from(currentPartnersMap.keys()).filter(k => k !== undefined)) + 1;
+            currentPartnersMap.set(newId, { ...partner, id: newId });
         }
-        return { ...partner, id: partner.id || Math.max(0, ...currentPartners.map(p => p.id ?? 0)) + 1 };
     });
 
-    const allPartners = [...currentPartners.filter(p => !updatedPartners.some(up => up.id === p.id)), ...updatedPartners];
+    const allPartners = Array.from(currentPartnersMap.values());
     
     // Logic to update the `clientsLinked` field for despachantes
     const despachantes = allPartners.filter(p => p.tipoFornecedor?.despachante);
@@ -207,9 +216,8 @@ export function savePartners(partners: Partner[]): void {
     });
 
     localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(allPartners));
+    window.dispatchEvent(new Event('partnersUpdated'));
   } catch (error) {
     console.error("Failed to save partners to localStorage", error);
   }
 }
-
-      

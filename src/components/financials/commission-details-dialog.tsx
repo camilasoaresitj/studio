@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '../ui/badge';
 import { FileDown, DollarSign } from 'lucide-react';
 import type { CommissionableShipment } from './commission-management';
-import type { Partner } from '@/lib/shipment';
+import type { Partner } from '@/lib/partners-data';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -114,5 +114,3 @@ export function CommissionDetailsDialog({ isOpen, onClose, commissionableShipmen
     </Dialog>
   );
 }
-
-    

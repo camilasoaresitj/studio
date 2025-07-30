@@ -98,7 +98,6 @@ export function ClientPortalPage({ id }: { id: string }) {
         
         // Use a Map to filter out duplicates based on name and date (within 24h)
         const uniqueMilestonesMap = new Map<string, Milestone>();
-        const twentyFourHours = 24 * 60 * 60 * 1000;
 
         shipment.milestones.forEach(current => {
             if (!current.predictedDate) return; // Ignore milestones without a date

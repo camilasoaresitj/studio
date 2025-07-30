@@ -15,7 +15,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from './ui/button';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { getShipments, Shipment } from '@/lib/shipment';
+import { getShipments, Shipment } from '@/lib/shipment-data';
 import { isValid } from 'date-fns';
 
 export function RecentShipments() {

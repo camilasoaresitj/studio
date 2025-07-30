@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,8 @@ import { Loader2, FileText, ChevronsUpDown, Check } from 'lucide-react';
 import type { FinancialEntry } from '@/lib/financials-data';
 import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import { runGenerateNfseXml } from '@/app/actions';
-import { getPartners, Partner } from '@/lib/partners-data';
+import { getPartners } from '@/lib/partners-data';
+import type { Partner } from '@/lib/partners-data';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { cn } from '@/lib/utils';
@@ -80,7 +81,6 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
 
   const chargesToDisplay = useMemo(() => {
     if (!data) return [];
-    // Show only charges that are credits (contas a receber) and not already invoiced under another NFS-e.
     return data.shipment.charges.filter(c => c.sacado === data.entry.partner);
   }, [data]);
 
@@ -94,37 +94,32 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
   useEffect(() => {
     if (data && partners.length > 0) {
         const consignee = data.shipment.consignee;
-        const initialTomador = partners.find(p => p.id === consignee?.id) || partners.find(p => p.name === data.entry.partner) || partners[0];
+        const initialTomador = partners.find(p => p.id === consignee?.id) || partners.find(p => p.name === data.entry.partner) || null;
         
-        const isMaritime = data.shipment.details.cargo?.toLowerCase().includes('container') || !data.shipment.details.cargo?.toLowerCase().includes('kg');
         const isImport = data.shipment.destination.toUpperCase().includes('BR');
         
-        let defaultCharges: string[] = [];
-        if (isMaritime && isImport) {
-            defaultCharges = ['DESCONSOLIDAÇÃO', 'BL FEE'];
-        } else if (!isMaritime && isImport) {
-            defaultCharges = ['DESCONSOLIDAÇÃO', 'COLLECT FEE'];
-        } else if (!isMaritime && !isImport) {
-            defaultCharges = ['AWB FEE', 'HANDLING FEE', 'DESPACHO ADUANEIRO'];
-        } else if (isMaritime && !isImport) {
-            defaultCharges = ['BL FEE', 'LACRE'];
+        let defaultChargeNames: string[] = [];
+        if (isImport) {
+            defaultChargeNames = ['DESCONSOLIDAÇÃO', 'BL FEE', 'COLLECT FEE'];
+        } else { // Export
+            defaultChargeNames = ['BL FEE', 'LACRE', 'AWB FEE', 'HANDLING FEE', 'DESPACHO ADUANEIRO'];
         }
 
         const defaultChargeIds = chargesToDisplay
-            .filter(c => defaultCharges.some(dc => c.name.toUpperCase().includes(dc)))
+            .filter(c => defaultChargeNames.some(dc => c.name.toUpperCase().includes(dc)))
             .map(c => c.id);
 
         form.reset({
-            selectedTomadorId: initialTomador.id!.toString(),
+            selectedTomadorId: initialTomador?.id?.toString() || '',
             tomador: {
-              cpfCnpj: initialTomador.cnpj?.replace(/\D/g, '') || '',
-              razaoSocial: initialTomador.name || '',
-              endereco: initialTomador.address?.street || '',
-              numero: initialTomador.address?.number || '',
-              bairro: initialTomador.address?.district || '',
+              cpfCnpj: initialTomador?.cnpj?.replace(/\D/g, '') || '',
+              razaoSocial: initialTomador?.name || '',
+              endereco: initialTomador?.address?.street || '',
+              numero: initialTomador?.address?.number || '',
+              bairro: initialTomador?.address?.district || '',
               codigoMunicipio: '4208203', // Itajai
-              uf: initialTomador.address?.state || '',
-              cep: initialTomador.address?.zip?.replace(/\D/g, '') || '',
+              uf: initialTomador?.address?.state || '',
+              cep: initialTomador?.address?.zip?.replace(/\D/g, '') || '',
             },
             selectedCharges: defaultChargeIds,
         });
@@ -181,7 +176,8 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
             formData: nfseInputData,
             xml: response.data.xml
         }));
-        router.push(`/nfse?data=${encodedData}`);
+        router.push(`/gerencial/nfse?data=${encodedData}`);
+        onClose();
     } else {
         toast({
             variant: 'destructive',

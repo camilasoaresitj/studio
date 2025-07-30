@@ -16,7 +16,7 @@ const ncmRateSchema = z.object({
 const simulationItemSchema = z.object({
   descricao: z.string().min(1, 'Obrigatório'),
   quantidade: z.coerce.number().min(0.01, 'Obrigatório'),
-  valorUnitarioUSD: z.coerce.number().min(0.01, 'Obrigatório'),
+  valorUnitarioUSD: z.coerce.number().min(0.01, 'O valor deve ser maior que zero'),
   ncm: z.string().length(8, 'NCM deve ter 8 dígitos'),
   pesoKg: z.coerce.number().min(0.01, 'Obrigatório'),
   taxRates: ncmRateSchema.optional(),

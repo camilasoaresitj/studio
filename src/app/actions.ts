@@ -207,7 +207,7 @@ export async function runExtractQuoteDetailsFromText(textInput: string) {
 export async function runCreateCrmEntry(emailContent: string) {
     try {
         const data = await createCrmEntryFromEmail({ emailContent });
-        return { success: true, data };
+        return { success: true, data: data || null };
     } catch (error: any) {
         console.error("Create CRM Entry Action Failed", error);
         return { success: false, error: error.message || "Failed to create CRM entry" };
@@ -269,7 +269,7 @@ export async function runSendToLegal(input: any) {
 export async function runCreateEmailCampaign(instruction: string, partners: Partner[], quotes: Quote[]) {
     try {
         const data = await createEmailCampaign({ instruction, partners, quotes });
-        return { success: true, data };
+        return { success: true, data: data || null };
     } catch (error: any) {
         console.error("Create Email Campaign Action Failed", error);
         return { success: false, error: error.message || "Failed to create email campaign" };
@@ -322,7 +322,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
         shippedOnBoardDate: updatedShipment.etd ? format(updatedShipment.etd, 'dd-MMM-yyyy') : 'N/A',
     });
 
-    if (!hblHtmlResponse.success || !hblHtmlResponse.data?.html) {
+    if (!response.success || !response.data?.html) {
         throw new Error('Falha ao gerar o PDF do Draft HBL.');
     }
 
@@ -704,3 +704,5 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
+
+    

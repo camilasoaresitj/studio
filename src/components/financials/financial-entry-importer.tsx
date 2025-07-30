@@ -65,7 +65,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
             }
         }
         
-        const importedEntries = dataRows.map((row: any[], rowIndex) => {
+        const importedRaw = dataRows.map((row: any[], rowIndex) => {
             const entry: any = {};
             headers.forEach((header, index) => {
                 entry[header] = row[index];
@@ -78,7 +78,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
                 throw new Error(`Data de vencimento inválida na linha ${rowIndex + 2}: ${entry.vencimento}`);
             }
             
-            const newEntry = {
+            const newEntry: Omit<FinancialEntry, 'id'> = {
                 type: String(entry.tipo).toLowerCase() as 'credit' | 'debit',
                 partner: String(entry.parceiro),
                 invoiceId: String(entry.fatura),
@@ -90,7 +90,9 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
                 accountId: parseInt(entry.conta_id || '1', 10),
             };
             return newEntry;
-        }).filter(isFinancialEntry);
+        });
+
+        const importedEntries = importedRaw.filter(isFinancialEntry);
         
         if (importedEntries.length > 0) {
             onEntriesImported(importedEntries);

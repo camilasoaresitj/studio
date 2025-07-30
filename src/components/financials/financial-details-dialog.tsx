@@ -193,7 +193,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePaymen
     if (entry && onEntryUpdate) {
       onEntryUpdate({
         ...entry,
-        legalStatus,
+        legalStatus: legalStatus as FinancialEntry['legalStatus'],
         processoJudicial,
         legalComments,
       });

@@ -81,7 +81,7 @@ import { CustomsClearanceTab } from './customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
 
 const containerDetailSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   number: z.string().min(1, "Obrigatório"),
   seal: z.string().min(1, "Obrigatório"),
   tare: z.string().min(1, "Obrigatório"),
@@ -93,7 +93,7 @@ const containerDetailSchema = z.object({
 });
 
 const transshipmentDetailSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   port: z.string().min(1, "Obrigatório"),
   vessel: z.string().min(1, "Obrigatório"),
   etd: z.date().optional(),
@@ -413,7 +413,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 etd: shipment.etd ? new Date(shipment.etd) : undefined,
                 eta: shipment.eta ? new Date(shipment.eta) : undefined,
                 mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : undefined,
-                milestones: (shipment.milestones || []).map(m => ({...m, predictedDate: new Date(m.predictedDate), effectiveDate: m.effectiveDate ? new Date(m.effectiveDate) : null})),
+                milestones: (shipment.milestones || []).map(m => ({...m, predictedDate: new Date(m.predictedDate!), effectiveDate: m.effectiveDate ? new Date(m.effectiveDate) : null})),
                 transshipments: (shipment.transshipments || []).map(t => ({...t, etd: t.etd ? new Date(t.etd) : undefined, eta: t.eta ? new Date(t.eta) : undefined })),
                 charges: shipment.charges || [],
                 ncms: shipment.ncms || [],
@@ -694,7 +694,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const handleFaturarProcesso = () => {
         if (!shipment) return;
     
-        const chargesToProcess = watchedCharges.filter(c => !c.financialEntryId);
+        const chargesToProcess = watchedCharges?.filter(c => !c.financialEntryId) || [];
         if (chargesToProcess.length === 0) {
             toast({ title: 'Nenhuma taxa nova para faturar.' });
             return;
@@ -766,7 +766,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         const createdEntries = addFinancialEntries(newFinancialEntries);
         
         // Link charges to financial entries
-        const updatedCharges = form.getValues('charges').map(charge => {
+        const updatedCharges = form.getValues('charges')?.map(charge => {
             const entryForCharge = createdEntries.find(entry => 
                 (entry.type === 'credit' && entry.partner === charge.sacado) ||
                 (entry.type === 'debit' && entry.partner === charge.supplier)
@@ -786,7 +786,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     };
 
     const handleValueChange = (index: number, field: 'cost' | 'sale', newValue: number) => {
-        const charge = watchedCharges[index];
+        const charge = watchedCharges?.[index];
+        if(!charge) return;
         if (charge.approvalStatus === 'aprovada' && newValue !== charge[field]) {
             setJustificationData({ chargeIndex: index, field, newValue });
         } else {
@@ -797,7 +798,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const handleConfirmJustification = (justification: string) => {
         if (justificationData) {
             const { chargeIndex, field, newValue } = justificationData;
-            const charge = watchedCharges[chargeIndex];
+            const charge = watchedCharges?.[chargeIndex];
+            if(!charge) return;
             const updatedCharge = {
                 ...charge,
                 [field]: newValue,
@@ -814,7 +816,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     
     const handleFeeSelection = (feeName: string, index: number) => {
         const fee = fees.find(f => f.name === feeName);
-        if (fee) {
+        if (fee && watchedCharges) {
             updateCharge(index, {
                 ...watchedCharges[index],
                 name: fee.name,
@@ -831,7 +833,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
     const sortedMilestones = useMemo(() => {
         if (!shipment) return [];
-        return [...(form.getValues('milestones') || [])].sort((a, b) => {
+        const currentMilestones = form.getValues('milestones') || [];
+        if(!currentMilestones || !Array.isArray(currentMilestones)) return [];
+        return [...currentMilestones].sort((a, b) => {
             const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
             const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
             if (!dateA) return 1;
@@ -945,10 +949,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                             <div className="relative pl-4 space-y-6">
                                                 <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
                                                 {sortedMilestones.map((milestone, index) => {
-                                                    const overdue = isPast(new Date(milestone.predictedDate)) && milestone.status !== 'completed';
+                                                    const overdue = isPast(new Date(milestone.predictedDate!)) && milestone.status !== 'completed';
                                                     const isCompleted = !!milestone.effectiveDate;
                                                     return (
-                                                        <div key={milestone.id || index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
+                                                        <div key={index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">
                                                             <div className="flex h-full justify-center row-span-2">
                                                                 <div className="absolute left-4 top-1 -translate-x-1/2 z-10">
                                                                     <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', 
@@ -1187,14 +1191,14 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                                 </TableHeader>
                                                 <TableBody>
                                                     {chargesFields.map((field, index) => {
-                                                         const charge = watchedCharges[index];
+                                                         const charge = watchedCharges?.[index];
                                                          if (!charge) return null;
 
                                                         const isBilled = !!charge.financialEntryId;
                                                         const financialEntry = isBilled ? financialEntries.find(e => e.id === charge.financialEntryId) : undefined;
                                                         const isPaid = financialEntry?.status === 'Pago';
                                                         const availableFees = fees.filter(
-                                                            fee => !watchedCharges.some(c => c.name === fee.name) || charge.name === fee.name
+                                                            fee => !watchedCharges?.some(c => c.name === fee.name) || charge.name === fee.name
                                                         );
 
 

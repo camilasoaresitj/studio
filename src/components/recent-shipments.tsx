@@ -69,7 +69,7 @@ export function RecentShipments() {
           <CardDescription>Acompanhe os embarques mais recentes.</CardDescription>
         </div>
         <Button asChild size="sm">
-          <Link href="/operacional">
+          <Link href="/gerencial/operacional">
               Ver todos <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
@@ -97,7 +97,11 @@ export function RecentShipments() {
                 const status = getShipmentStatus(shipment);
                 return (
                   <TableRow key={shipment.id}>
-                    <TableCell className="font-medium">{shipment.id}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/gerencial/operacional?shipmentId=${shipment.id}`} className="text-primary hover:underline">
+                        {shipment.id}
+                      </Link>
+                    </TableCell>
                     <TableCell>{shipment.origin}</TableCell>
                     <TableCell>{shipment.destination}</TableCell>
                     <TableCell>

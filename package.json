@@ -1,16 +1,17 @@
+
 {
   "name": "cargainteligente",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start -p 8080"
   },
   "dependencies": {
-    "@genkit-ai/firebase": "^1.15.1",
-    "@genkit-ai/google-cloud": "^1.15.1",
-    "@genkit-ai/googleai": "^1.15.1",
+    "@genkit-ai/firebase": "^1.15.2",
+    "@genkit-ai/google-cloud": "^1.15.2",
+    "@genkit-ai/googleai": "^1.15.2",
     "@google-cloud/firestore": "^7.7.0",
     "@googlemaps/js-api-loader": "^1.16.6",
     "@hookform/resolvers": "^3.3.4",
@@ -43,7 +44,7 @@
     "embla-carousel-react": "^8.0.2",
     "firebase": "^12.0.0",
     "firebase-admin": "^12.1.0",
-    "genkit": "^1.15.1",
+    "genkit": "^1.15.2",
     "lucide-react": "^0.363.0",
     "next": "14.1.4",
     "react": "18.3.1",

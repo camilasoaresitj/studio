@@ -9,17 +9,29 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ImportantTasks } from '@/components/important-tasks';
 import { RecentShipments } from '@/components/recent-shipments';
 import { ShipmentDetailsSheet } from '@/components/shipment-details-sheet';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function OperacionalPage() {
+function OperacionalPageContent() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [partners, setPartners] = useState<Partner[]>([]);
     const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const searchParams = useSearchParams();
   
     useEffect(() => {
       const loadData = () => {
-        setShipments(getShipments());
+        const allShipments = getShipments();
+        setShipments(allShipments);
         setPartners(getPartners());
+
+        const shipmentIdFromUrl = searchParams.get('shipmentId');
+        if (shipmentIdFromUrl) {
+            const shipmentToOpen = allShipments.find(s => s.id === shipmentIdFromUrl);
+            if (shipmentToOpen) {
+                handleSelectShipment(shipmentToOpen);
+            }
+        }
       };
       loadData();
       window.addEventListener('shipmentsUpdated', loadData);
@@ -28,7 +40,7 @@ export default function OperacionalPage() {
         window.removeEventListener('shipmentsUpdated', loadData);
         window.removeEventListener('partnersUpdated', loadData);
       };
-    }, []);
+    }, [searchParams]);
   
     const handleSelectShipment = (shipment: Shipment) => {
       setSelectedShipment(shipment);
@@ -82,5 +94,13 @@ export default function OperacionalPage() {
           onUpdate={handleUpdateShipment}
         />
       </div>
+    );
+}
+
+export default function OperacionalPage() {
+    return (
+        <Suspense fallback={<div>Carregando...</div>}>
+            <OperacionalPageContent />
+        </Suspense>
     );
 }

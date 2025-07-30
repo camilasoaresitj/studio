@@ -400,7 +400,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
     
     updatedShipment.blDraftHistory = history;
     
-    updatedShipment.milestones.sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime());
+    updatedShipment.milestones.sort((a,b) => (a.predictedDate?.getTime() ?? 0) - (b.predictedDate?.getTime() ?? 0));
 
     allShipments[shipmentIndex] = updatedShipment;
     saveShipments(allShipments);
@@ -467,7 +467,7 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
         const deadLineCargaDate = milestones.find(m => m.name === 'Cut Off Documental')?.predictedDate;
         milestones.push({ name: 'Prazo de Entrega (Gate In)', status: 'pending', predictedDate: deadLineCargaDate ? addDays(deadLineCargaDate, -2) : gateInDueDate, effectiveDate: null, details: `Prazo final para evitar detention.` });
     }
-    milestones.sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime());
+    milestones.sort((a, b) => (a.predictedDate?.getTime() ?? 0) - (b.predictedDate?.getTime() ?? 0));
     return milestones;
   };
 
@@ -614,7 +614,7 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
 
         const updatedShipment = {
             ...shipment,
-            milestones: [...(shipment.milestones || []), newMilestone].sort((a,b) => new Date(a.predictedDate).getTime() - new Date(b.predictedDate).getTime()),
+            milestones: [...(shipment.milestones || []), newMilestone].sort((a,b) => (a.predictedDate?.getTime() ?? 0) - (b.predictedDate?.getTime() ?? 0)),
         };
 
         allShipments[shipmentIndex] = updatedShipment;
@@ -705,5 +705,7 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
+
+    
 
     

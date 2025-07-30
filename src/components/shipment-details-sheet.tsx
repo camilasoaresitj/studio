@@ -61,7 +61,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, addManualMilestone } from '@/app/actions';
+import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, addManualMilestone, addFinancialEntriesAction } from '@/app/actions';
 import { Checkbox } from './ui/checkbox';
 import { getFees } from '@/lib/fees-data';
 import type { Fee } from '@/lib/fees-data';
@@ -75,7 +75,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFo
 import { Switch } from './ui/switch';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { Label } from './ui/label';
-import { addFinancialEntries, getFinancialEntries } from '@/lib/financials-data';
+import { getFinancialEntries } from '@/lib/financials-data';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { CustomsClearanceTab } from './customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
@@ -691,7 +691,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
     }, [watchedContainers]);
 
-    const handleFaturarProcesso = () => {
+    const handleFaturarProcesso = async () => {
         if (!shipment) return;
     
         const chargesToProcess = watchedCharges?.filter(c => !c.financialEntryId) || [];
@@ -763,7 +763,13 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             });
         }
     
-        const createdEntries = addFinancialEntries(newFinancialEntries);
+        const response = await addFinancialEntriesAction(newFinancialEntries);
+        if (!response.success || !response.data) {
+            toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
+            return;
+        }
+
+        const createdEntries = response.data;
         
         // Link charges to financial entries
         const updatedCharges = form.getValues('charges')?.map(charge => {

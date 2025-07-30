@@ -45,7 +45,7 @@ import type { FinancialEntry, BankAccount, PartialPayment } from '@/lib/financia
 
 // Helper function to simulate saving data and returning it
 // In a real app, this would interact with a database.
-async function simulateSave<T>(data: T[], newData: T | T[], idField: keyof T = 'id'): Promise<T[]> {
+async function simulateSave<T extends { [key: string]: any }>(data: T[], newData: T | T[], idField: keyof T = 'id'): Promise<T[]> {
     const dataMap = new Map(data.map(item => [item[idField], item]));
     const itemsToSave = Array.isArray(newData) ? newData : [newData];
 

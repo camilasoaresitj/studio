@@ -40,7 +40,7 @@ import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraf
 import { shareSimulation } from '@/ai/flows/share-simulation';
 import { generateSimulationPdfHtml } from "@/ai/flows/generate-simulation-pdf-html";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getFinancialEntries, getBankAccounts, getStoredFinancialEntries, getStoredBankAccounts, saveFinancialEntries as saveFinancialEntriesData, saveBankAccounts as saveBankAccountsData } from '@/lib/financials-data';
+import { getFinancialEntries, getBankAccounts, saveFinancialEntries as saveFinancialEntriesData, saveBankAccounts as saveBankAccountsData } from '@/lib/financials-data';
 import type { FinancialEntry, BankAccount, PartialPayment } from '@/lib/financials-data';
 
 // Helper function to simulate saving data and returning it
@@ -54,14 +54,13 @@ async function simulateSave<T extends { [key: string]: any }>(data: T[], newData
             dataMap.set(item[idField], item);
         } else {
             const keys = Array.from(dataMap.keys());
-            // Check if IDs are numbers or strings to generate the correct new ID type
             if (keys.length > 0 && typeof keys[0] === 'number') {
                 const newId = Math.max(0, ...keys.map(k => Number(k) || 0)) + 1;
-                (item as any)[idField] = newId as T[keyof T];
+                (item as any)[idField] = newId;
                 dataMap.set(newId, item);
             } else {
                 const newId = `new-${Date.now()}-${Math.random()}`;
-                (item as any)[idField] = newId as T[keyof T];
+                (item as any)[idField] = newId;
                 dataMap.set(newId, item);
             }
         }

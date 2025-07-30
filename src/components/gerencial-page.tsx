@@ -8,7 +8,7 @@ import { ApprovalsPanel } from '@/components/approvals-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Ship, CheckCircle, TrendingUp, AlertTriangle, Scale, ListTodo, Users, UserPlus, UserCheck, Package } from 'lucide-react';
 import { getShipments, Shipment, Milestone } from '@/lib/shipment-data';
-import { getInitialQuotes, Quote } from '@/lib/initial-data';
+import { getStoredQuotes, Quote } from '@/lib/initial-data';
 import { getFinancialEntries } from '@/lib/financials-data';
 import { isThisMonth, parseISO, isPast, differenceInDays, isValid, subDays } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -33,6 +33,7 @@ interface ReportData {
 export function GerencialPage() {
     const [reportData, setReportData] = useState<ReportData | null>(null);
     const [partners, setPartners] = useState<Partner[]>([]);
+    const [quotes, setQuotes] = useState<Quote[]>([]);
     const [kpiData, setKpiData] = useState({
         totalProfit: 0,
         monthlyProfit: 0,
@@ -50,7 +51,8 @@ export function GerencialPage() {
 
     useEffect(() => {
         const shipments = getShipments();
-        const quotes = getInitialQuotes(); 
+        const storedQuotes = getStoredQuotes();
+        setQuotes(storedQuotes);
         const financialEntries = getFinancialEntries();
         const allPartners = getPartners();
         setPartners(allPartners);
@@ -62,7 +64,7 @@ export function GerencialPage() {
             return !lastMilestone || lastMilestone.status !== 'completed';
         });
 
-        const approvedQuotesThisMonth = quotes.filter(q => {
+        const approvedQuotesThisMonth = storedQuotes.filter(q => {
             if (!q.date) return false;
             try {
                 const quoteDateParts = q.date.split('/');

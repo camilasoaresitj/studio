@@ -64,7 +64,7 @@ export type ShipmentCreationData = {
 export type Milestone = {
   name: string;
   status: 'pending' | 'in_progress' | 'completed';
-  predictedDate: Date;
+  predictedDate: Date | null;
   effectiveDate: Date | null;
   details?: string;
   isTransshipment?: boolean;
@@ -297,7 +297,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
             } else {
                 predictedDate = addDays(creationDate, EXPORT_MILESTONE_DUE_DAYS[name]);
             }
-            return { name, status: 'pending', predictedDate, effectiveDate: null, isTransshipment: false };
+            return { name, status: 'pending' as const, predictedDate, effectiveDate: null, isTransshipment: false };
         });
         
         const deadLineCargaDate = milestones.find(m => m.name === 'Cut Off Documental')?.predictedDate;
@@ -311,7 +311,7 @@ function generateInitialMilestones(isImport: boolean, transitTimeStr: string, fr
         });
     }
 
-    milestones.sort((a, b) => a.predictedDate.getTime() - b.predictedDate.getTime());
+    milestones.sort((a, b) => (a.predictedDate?.getTime() ?? 0) - (b.predictedDate?.getTime() ?? 0));
     return milestones;
 }
 

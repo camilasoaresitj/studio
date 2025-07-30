@@ -2,7 +2,6 @@
 'use client';
 
 import { addDays, subDays } from 'date-fns';
-import { addFinancialEntriesAction } from '@/app/actions';
 
 export type BankAccount = {
     id: number;
@@ -285,9 +284,4 @@ export function saveBankAccounts(accounts: BankAccount[]): void {
         localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
         window.dispatchEvent(new Event('financialsUpdated')); // Reuse the same event
     }
-}
-
-// Client-side wrapper to call the server action
-export function addFinancialEntry(entry: Omit<FinancialEntry, 'id'>): void {
-    addFinancialEntriesAction([entry]);
 }

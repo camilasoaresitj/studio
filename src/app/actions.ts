@@ -69,8 +69,9 @@ export async function runGetCourierRates(input: any) {
     }
 }
 
-export async function runRequestAgentQuote(input: any, partners: Partner[]) {
+export async function runRequestAgentQuote(input: any) {
     try {
+        const partners = getPartners();
         const agents = partners.filter(p => p.roles.agente);
         if (agents.length === 0) {
             return { success: false, error: "Nenhum agente cadastrado." };

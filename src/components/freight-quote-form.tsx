@@ -554,7 +554,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     }
     setIsRequestingAgentQuote(true);
     const values = form.getValues();
-    const response = await runRequestAgentQuote(values, partners);
+    const response = await runRequestAgentQuote(values);
 
     if (response.success) {
         toast({

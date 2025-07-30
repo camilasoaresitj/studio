@@ -69,9 +69,8 @@ export async function runGetCourierRates(input: any) {
     }
 }
 
-export async function runRequestAgentQuote(input: any) {
+export async function runRequestAgentQuote(input: any, partners: Partner[]) {
     try {
-        const partners = getPartners();
         const agents = partners.filter(p => p.roles.agente);
         if (agents.length === 0) {
             return { success: false, error: "Nenhum agente cadastrado." };
@@ -279,7 +278,7 @@ export async function runCreateEmailCampaign(instruction: string) {
     }
 }
 
-export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftData): Promise<{ success: boolean; data?: Shipment; error?: string }> {
+export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftData): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
   try {
     const allShipments = getShipments();
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
@@ -406,7 +405,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
 
     allShipments[shipmentIndex] = updatedShipment;
     saveShipments(allShipments);
-    return { success: true, data: updatedShipment };
+    return { success: true, data: allShipments };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);
     return { success: false, error: error.message || "Failed to submit BL Draft" };
@@ -707,5 +706,3 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
-
-    

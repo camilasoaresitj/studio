@@ -23,14 +23,14 @@ import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
-import { getPartners, savePartners } from '@/lib/partners-data';
+import { getPartners, savePartners as savePartnersData } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/components/customer-quotes-list";
-import { getShipments, saveShipments } from "@/lib/shipment-data";
-import { isPast, format, addDays } from "date-fns";
+import { getShipments as getShipmentsFromStorage, saveShipments as saveShipmentsToStorage } from "@/lib/shipment-data";
+import { isPast, format, addDays, isValid } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
-import { registerDue } from '@/ai/flows/register-due';
+import { registerDue } from "@/ai/flows/register-due";
 import type { RegisterDueInput, RegisterDueOutput } from '@/lib/schemas/due';
 import { generateDiXmlFromSpreadsheet } from "@/ai/flows/generate-di-xml-from-spreadsheet";
 import { extractInvoiceItems } from "@/ai/flows/extract-invoice-items";
@@ -38,8 +38,8 @@ import { getNcmRates } from "@/ai/flows/get-ncm-rates";
 import type { ExtractInvoiceItemsOutput, ExtractInvoiceItemsInput } from '@/lib/schemas/invoice';
 import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision, UploadedDocument, DocumentStatus, ShipmentCreationData } from "@/lib/shipment-data";
 import { shareSimulation } from '@/ai/flows/share-simulation';
-import { generateSimulationPdfHtml } from '@/ai/flows/generate-simulation-pdf-html';
-import { getRouteMap } from '@/ai/flows/get-route-map';
+import { generateSimulationPdfHtml } from "@/ai/flows/generate-simulation-pdf-html";
+import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getFinancialEntries, saveFinancialEntries, getBankAccounts, saveBankAccounts, addFinancialEntry as addFinancialEntryData, updateFinancialEntry as updateFinancialEntryData } from '@/lib/financials-data';
 import type { FinancialEntry, BankAccount } from '@/lib/financials-data';
 
@@ -279,9 +279,34 @@ export async function runCreateEmailCampaign(instruction: string) {
     }
 }
 
+// Shipment data actions
+export async function getShipments(): Promise<Shipment[]> {
+    return getShipmentsFromStorage();
+}
+
+export async function getShipmentById(id: string): Promise<Shipment | undefined> {
+    const shipments = await getShipments();
+    return shipments.find(s => s.id === id);
+}
+
+export async function saveShipments(shipments: Shipment[]): Promise<void> {
+    saveShipmentsToStorage(shipments);
+}
+
+export async function updateShipment(updatedShipment: Shipment): Promise<Shipment[]> {
+    const shipments = await getShipments();
+    const index = shipments.findIndex(s => s.id === updatedShipment.id);
+    if (index !== -1) {
+        shipments[index] = updatedShipment;
+        await saveShipments(shipments);
+    }
+    return shipments;
+}
+
+
 export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftData): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
   try {
-    const allShipments = getShipments();
+    const allShipments = await getShipments();
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
     if (shipmentIndex === -1) {
         throw new Error("Shipment not found");
@@ -322,7 +347,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
         freightPayableAt: 'Destino',
         numberOfOriginals: '0 (ZERO)',
         issueDate: format(new Date(), 'dd-MMM-yyyy'),
-        shippedOnBoardDate: updatedShipment.etd ? format(new Date(updatedShipment.etd), 'dd-MMM-yyyy') : 'N/A',
+        shippedOnBoardDate: updatedShipment.etd && isValid(new Date(updatedShipment.etd)) ? format(new Date(updatedShipment.etd), 'dd-MMM-yyyy') : 'N/A',
     });
 
     if (!hblHtmlResponse.success || !hblHtmlResponse.data?.html) {
@@ -405,7 +430,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
     updatedShipment.milestones.sort((a,b) => (a.predictedDate?.getTime() ?? 0) - (b.predictedDate?.getTime() ?? 0));
 
     allShipments[shipmentIndex] = updatedShipment;
-    saveShipments(allShipments);
+    await saveShipments(allShipments);
     return { success: true, data: allShipments };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);
@@ -413,9 +438,9 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
   }
 }
 
-// Moved from `shipment-data.ts` to `actions.ts` to break circular dependency
 async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
   const allPartners = getPartners();
+  const allShipments = await getShipments();
   const shipper = allPartners.find(p => p.id?.toString() === quoteData.shipperId);
   const consignee = allPartners.find(p => p.id?.toString() === quoteData.consigneeId);
   const agent = allPartners.find(p => p.id?.toString() === quoteData.agentId);
@@ -522,9 +547,9 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
     });
   }
 
-  const shipments = getShipments();
-  shipments.unshift(newShipment);
-  saveShipments(shipments);
+  
+  allShipments.unshift(newShipment);
+  await saveShipments(allShipments);
   return newShipment;
 }
 
@@ -560,7 +585,7 @@ export async function runApproveQuote(
 
 export async function updateShipmentFromAgent(shipmentId: string, agentData: any): Promise<{ success: boolean, error?: string }> {
     try {
-        const shipments = getShipments();
+        const shipments = await getShipments();
         const shipmentIndex = shipments.findIndex(s => s.id === shipmentId);
 
         if (shipmentIndex === -1) {
@@ -587,7 +612,7 @@ export async function updateShipmentFromAgent(shipmentId: string, agentData: any
         };
 
         shipments[shipmentIndex] = updatedShipment;
-        saveShipments(shipments);
+        await saveShipments(shipments);
         
         return { success: true };
 
@@ -599,7 +624,7 @@ export async function updateShipmentFromAgent(shipmentId: string, agentData: any
 
 export async function addManualMilestone(shipmentId: string, milestone: Omit<Milestone, 'status' | 'effectiveDate'>) {
     try {
-        const allShipments = getShipments();
+        const allShipments = await getShipments();
         const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
 
         if (shipmentIndex === -1) {
@@ -620,7 +645,7 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
         };
 
         allShipments[shipmentIndex] = updatedShipment;
-        saveShipments(allShipments);
+        await saveShipments(allShipments);
         return { success: true, data: updatedShipment };
 
     } catch (error: any) {
@@ -710,7 +735,7 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
 
 export async function savePartnerAction(partner: Partner) {
     try {
-        savePartners([partner]);
+        savePartnersData([partner]);
         return { success: true, data: getPartners() };
     } catch(e: any) {
         return { success: false, error: e.message };
@@ -718,32 +743,24 @@ export async function savePartnerAction(partner: Partner) {
 }
 
 // Financials Server Actions
-export async function saveFinancialEntriesAction(entries: FinancialEntry[]) {
-    try {
-        saveFinancialEntries(entries);
-        return { success: true };
-    } catch (e: any) {
-        return { success: false, error: e.message };
-    }
-}
-
-export async function saveBankAccountsAction(accounts: BankAccount[]) {
-    try {
-        saveBankAccounts(accounts);
-        return { success: true };
-    } catch (e: any) {
-        return { success: false, error: e.message };
-    }
-}
-
 export async function addFinancialEntryAction(newEntry: Omit<FinancialEntry, 'id'>) {
     try {
-        addFinancialEntryData(newEntry);
-        return { success: true };
+        const newId = addFinancialEntryData(newEntry);
+        return { success: true, data: { ...newEntry, id: newId }};
     } catch (e: any) {
         return { success: false, error: e.message };
     }
 }
+
+export async function addFinancialEntriesAction(newEntries: Omit<FinancialEntry, 'id'>[]) {
+    try {
+        const createdEntries = addFinancialEntryData(newEntries as any); // The function needs to be updated to handle arrays
+        return { success: true, data: createdEntries };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
 
 export async function updateFinancialEntryAction(id: string, updates: Partial<FinancialEntry>) {
     try {
@@ -754,4 +771,18 @@ export async function updateFinancialEntryAction(id: string, updates: Partial<Fi
     }
 }
 
+export async function saveFinancialsDataAction(entries: FinancialEntry[], accounts: BankAccount[]) {
+    try {
+        saveFinancialEntries(entries);
+        saveBankAccounts(accounts);
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
       
+
+  
+
+
+    

@@ -353,7 +353,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     }
   };
   
-  const handleSendAccess = (contactEmail: string | undefined) => {
+  const handleSendAccess = (contactEmail: string | undefined | null) => {
       if (!contactEmail) {
            toast({ variant: "destructive", title: "E-mail de Acesso Inválido", description: "O contato precisa ter um e-mail de acesso válido." });
            return;

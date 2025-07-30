@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -101,7 +100,7 @@ export function ClientPortalPage({ id }: { id: string }) {
             const x = acc.find(item => {
                 const bothDatesExist = item.predictedDate && current.predictedDate;
                 if (bothDatesExist) {
-                    const timeDiff = Math.abs(new Date(item.predictedDate).getTime() - new Date(current.predictedDate).getTime());
+                    const timeDiff = Math.abs(item.predictedDate.getTime() - current.predictedDate.getTime());
                     return item.name === current.name && timeDiff < twentyFourHours && item.details === current.details;
                 }
                 return false;

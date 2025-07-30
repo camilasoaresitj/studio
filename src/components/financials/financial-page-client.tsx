@@ -23,7 +23,7 @@ import {
   HandCoins,
 } from 'lucide-react';
 import { format, isPast, isToday, addDays } from 'date-fns';
-import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getFinancialEntries, getBankAccounts, addFinancialEntry, updateFinancialEntry, findEntryById } from '@/lib/financials-data';
+import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getStoredFinancialEntries, getStoredBankAccounts } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -35,13 +35,13 @@ import { NfseGenerationDialog } from '@/components/financials/nfse-generation-di
 import type { Shipment } from '@/lib/shipment-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
-import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote, savePartnerAction } from '@/app/actions';
+import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote, savePartnerAction, addFinancialEntriesAction, updateFinancialEntryAction } from '@/app/actions';
 import { FinancialEntryImporter } from '@/components/financials/financial-entry-importer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
-import { getShipments } from '@/lib/shipment-data';
+import { getStoredShipments } from '@/lib/shipment-data';
 import { FinancialEntryDialog } from './financial-entry-dialog';
 import { RenegotiationDialog } from './renegotiation-dialog';
 import { NfseConsulta } from './nfse-consulta';
@@ -82,9 +82,9 @@ export function FinancialPageClient() {
     
     useEffect(() => {
         const loadData = async () => {
-            setEntries(getFinancialEntries());
-            setAccounts(getBankAccounts());
-            setAllShipments(getShipments());
+            setEntries(getStoredFinancialEntries());
+            setAccounts(getStoredBankAccounts());
+            setAllShipments(getStoredShipments());
             setPartners(getStoredPartners());
             const rates = await exchangeRateService.getRates();
             setPtaxRates(rates);
@@ -170,7 +170,7 @@ export function FinancialPageClient() {
         return account && account.currency !== entryToSettle.currency;
     }, [entryToSettle, settlementAccountId, accounts]);
     
-    const handleSettlePayment = () => {
+    const handleSettlePayment = async () => {
         if (!entryToSettle || !settlementAccountId || !settlementAmount) {
             toast({ variant: 'destructive', title: 'Erro', description: 'Todos os campos são obrigatórios.' });
             return;
@@ -194,50 +194,24 @@ export function FinancialPageClient() {
             exchangeRate: needsExchangeRate ? parseFloat(exchangeRate) : undefined,
         };
 
-        const updatedEntries = entries.map(e => {
-            if (e.id === entryToSettle.id) {
-                const updatedPayments = [...(e.payments || []), newPayment];
-                const newBalance = getEntryBalance({ ...e, payments: updatedPayments });
-                // If payment settles the balance, update status.
-                const newStatus = newBalance <= 0.009 ? 'Pago' : e.status;
-                return { ...e, payments: updatedPayments, status: newStatus as Status };
-            }
-            return e;
+        const response = await updateFinancialEntryAction({
+            entryId: entryToSettle.id,
+            payment: newPayment,
+            settlementAccountId: parseInt(settlementAccountId, 10),
         });
-
-        const accountToUpdate = accounts.find(a => a.id.toString() === settlementAccountId);
-        if (!accountToUpdate) {
-             toast({ variant: 'destructive', title: 'Conta não encontrada' });
-             return;
+        
+        if (response.success && response.data) {
+            setEntries(response.data.entries);
+            setAccounts(response.data.accounts);
+            toast({
+                title: 'Baixa de Pagamento Realizada!',
+                description: `Pagamento de ${entryToSettle.currency} ${amount.toFixed(2)} para a fatura ${entryToSettle.invoiceId} foi registrado.`,
+                className: 'bg-success text-success-foreground'
+            });
+            setEntryToSettle(null);
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao processar baixa', description: response.error });
         }
-        
-        let amountInAccountCurrency = amount;
-        if (needsExchangeRate && exchangeRate) {
-            amountInAccountCurrency = amount * parseFloat(exchangeRate);
-        }
-
-        const updatedAccounts = accounts.map(acc => {
-            if (acc.id.toString() === settlementAccountId) {
-                const newBalance = entryToSettle.type === 'credit' 
-                    ? acc.balance + amountInAccountCurrency 
-                    : acc.balance - amountInAccountCurrency;
-                return { ...acc, balance: newBalance };
-            }
-            return acc;
-        });
-        
-        saveFinancialEntries(updatedEntries);
-        setEntries(updatedEntries);
-        saveBankAccounts(updatedAccounts);
-        setAccounts(updatedAccounts);
-
-        toast({
-            title: 'Baixa de Pagamento Realizada!',
-            description: `Pagamento de ${entryToSettle.currency} ${amount.toFixed(2)} para a fatura ${entryToSettle.invoiceId} foi registrado.`,
-            className: 'bg-success text-success-foreground'
-        });
-        
-        setEntryToSettle(null);
     };
     
     const toggleRowSelection = (id: string) => {
@@ -361,9 +335,13 @@ export function FinancialPageClient() {
         setDetailsEntry(null);
     }
     
-    const handleDetailsEntryUpdate = (entry: FinancialEntry) => {
-        updateFinancialEntry(entry.id, entry);
-        setEntries(getFinancialEntries());
+    const handleDetailsEntryUpdate = async (entry: FinancialEntry) => {
+        const response = await updateFinancialEntryAction(entry);
+        if (response.success && response.data) {
+            setEntries(response.data);
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao atualizar', description: response.error });
+        }
     };
 
 
@@ -411,15 +389,19 @@ export function FinancialPageClient() {
         setEditingAccount(null);
     };
 
-    const handleNewEntrySave = (newEntryData: Omit<FinancialEntry, 'id'>) => {
-        addFinancialEntry(newEntryData);
-        setEntries(getFinancialEntries()); // Refresh state
-        setIsEntryDialogOpen(false);
-        toast({
-            title: "Despesa Lançada para Aprovação!",
-            description: `A despesa para "${newEntryData.partner}" foi enviada.`,
-            className: 'bg-success text-success-foreground',
-        });
+    const handleNewEntrySave = async (newEntryData: Omit<FinancialEntry, 'id'>) => {
+        const response = await addFinancialEntriesAction([newEntryData]);
+        if (response.success && response.data) {
+            setEntries(response.data);
+            setIsEntryDialogOpen(false);
+            toast({
+                title: "Despesa Lançada para Aprovação!",
+                description: `A despesa para "${newEntryData.partner}" foi enviada.`,
+                className: 'bg-success text-success-foreground',
+            });
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao salvar', description: response.error });
+        }
     };
 
     const openGeneratedHtml = (html: string | undefined, entryId: string) => {
@@ -558,12 +540,18 @@ export function FinancialPageClient() {
         }
     };
 
-    const handleEntriesImported = (importedEntries: Omit<FinancialEntry, 'id'>[]) => {
-        const currentEntries = entries;
-        const entriesWithId = importedEntries.map(e => ({...e, id: `fin-imported-${Date.now()}-${Math.random()}`}))
-        const updatedEntries = [...currentEntries, ...entriesWithId];
-        saveFinancialEntries(updatedEntries);
-        setEntries(updatedEntries);
+    const handleEntriesImported = async (importedEntries: Omit<FinancialEntry, 'id'>[]) => {
+        const response = await addFinancialEntriesAction(importedEntries);
+        if (response.success && response.data) {
+            setEntries(response.data);
+            toast({
+                title: 'Importação Concluída!',
+                description: `${importedEntries.length} lançamentos financeiros foram importados com sucesso.`,
+                className: 'bg-success text-success-foreground'
+            });
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao Importar', description: response.error });
+        }
     };
     
     const handleLegalImported = (importedData: { invoiceId: string }[]) => {
@@ -585,51 +573,50 @@ export function FinancialPageClient() {
         });
     };
 
-    const handleLegalEntryUpdate = (id: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: string) => {
-        const updatedEntries = entries.map(entry => {
-            if (entry.id === id) {
-                return { ...entry, [field]: value };
+    const handleLegalEntryUpdate = async (id: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: string) => {
+        const entryToUpdate = entries.find(e => e.id === id);
+        if (entryToUpdate) {
+            const response = await updateFinancialEntryAction({ ...entryToUpdate, [field]: value });
+            if (response.success && response.data) {
+                setEntries(response.data);
+            } else {
+                 toast({ variant: 'destructive', title: 'Erro ao atualizar', description: response.error });
             }
-            return entry;
-        });
-        saveFinancialEntries(updatedEntries);
-        setEntries(updatedEntries);
+        }
     };
     
-    const handleSendToLegal = (entry: FinancialEntry) => {
-        const updatedEntries = entries.map(e => 
-            e.id === entry.id ? { ...e, status: 'Jurídico' as const, legalStatus: 'Fase Inicial' as const } : e
-        );
-        saveFinancialEntries(updatedEntries);
-        setEntries(updatedEntries);
-        setLegalData(null);
+    const handleSendToLegal = async (entry: FinancialEntry) => {
+        const response = await updateFinancialEntryAction({ ...entry, status: 'Jurídico', legalStatus: 'Fase Inicial' });
+        if (response.success && response.data) {
+            setEntries(response.data);
+            setLegalData(null);
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao mover para jurídico', description: response.error });
+        }
     };
 
-    const handleRenegotiation = (installments: Omit<FinancialEntry, 'id'>[]) => {
+    const handleRenegotiation = async (installments: Omit<FinancialEntry, 'id'>[]) => {
         if (!entryToRenegotiate) return;
-
+        
         // Mark original entry as Renegotiado
-        const originalEntry = findEntryById(entryToRenegotiate.id);
-        if(originalEntry) {
-            updateFinancialEntry(entryToRenegotiate.id, { status: 'Renegociado' });
-        }
+        await updateFinancialEntryAction({ ...entryToRenegotiate, status: 'Renegociado' });
         
         // Add new installment entries
-        let currentEntries = getFinancialEntries();
-        const newEntriesWithIds = installments.map(inst => ({
-             ...inst,
-             id: `fin-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-        }));
+        const response = await addFinancialEntriesAction(installments);
         
-        saveFinancialEntries([...currentEntries, ...newEntriesWithIds]);
-        setEntries(getFinancialEntries());
-
-        toast({
-            title: 'Renegociação Salva!',
-            description: `${installments.length} novas faturas de parcela foram criadas.`,
-            className: 'bg-success text-success-foreground'
-        });
-        setEntryToRenegotiate(null);
+        if(response.success && response.data) {
+            setEntries(response.data);
+            toast({
+                title: 'Renegociação Salva!',
+                description: `${installments.length} novas faturas de parcela foram criadas.`,
+                className: 'bg-success text-success-foreground'
+            });
+            setEntryToRenegotiate(null);
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao salvar renegociação', description: response.error });
+            // Revert original entry status if installments fail
+            await updateFinancialEntryAction(entryToRenegotiate);
+        }
     }
 
     const handleOpenSettleDialog = (entry: FinancialEntry) => {

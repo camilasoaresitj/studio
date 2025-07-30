@@ -42,7 +42,13 @@ const initialDemurrageTariffs: DemurrageTariff[] = [
   },
 ];
 
+// Server-side safe: returns initial data
 export function getDemurrageTariffs(): DemurrageTariff[] {
+  return initialDemurrageTariffs;
+}
+
+// Client-side only: uses localStorage
+export function getStoredDemurrageTariffs(): DemurrageTariff[] {
   if (typeof window === 'undefined') {
     return [];
   }

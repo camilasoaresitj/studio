@@ -16,8 +16,8 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, CalendarCheck2 } from 'lucide-react';
 import { getStoredShipments, Shipment, ContainerDetail } from '@/lib/shipment-data';
 import { DemurrageDetailsDialog } from '@/components/demurrage-details-dialog';
-import { DemurrageTariff, getDemurrageTariffs } from '@/lib/demurrage-tariffs-data';
-import { LtiTariff, getLtiTariffs } from '@/lib/lti-tariffs-data';
+import { DemurrageTariff, getStoredDemurrageTariffs } from '@/lib/demurrage-tariffs-data';
+import { LtiTariff, getStoredLtiTariffs } from '@/lib/lti-tariffs-data';
 import { differenceInDays, addDays } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -113,8 +113,8 @@ export default function DemurragePage() {
         };
         
         calculateDemurrage();
-        setCostTariffs(getDemurrageTariffs());
-        setLtiTariffs(getLtiTariffs());
+        setCostTariffs(getStoredDemurrageTariffs());
+        setLtiTariffs(getStoredLtiTariffs());
         
         window.addEventListener('shipmentsUpdated', calculateDemurrage);
         return () => window.removeEventListener('shipmentsUpdated', calculateDemurrage);

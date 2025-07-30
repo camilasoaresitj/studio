@@ -224,24 +224,6 @@ const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v8';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
 // Internal function to manage localStorage access
-function getFromStorage<T>(key: string, initialData: T[]): T[] {
-    if (typeof window === 'undefined') {
-        return [];
-    }
-    try {
-        const stored = localStorage.getItem(key);
-        if (!stored) {
-            localStorage.setItem(key, JSON.stringify(initialData));
-            return initialData;
-        }
-        return JSON.parse(stored);
-    } catch (error) {
-        console.error(`Failed to parse ${key} from localStorage`, error);
-        return [];
-    }
-}
-
-// Internal function to manage localStorage access
 function saveToStorage<T>(key: string, data: T[], eventName: string): void {
     if (typeof window === 'undefined') {
         return;
@@ -254,51 +236,58 @@ function saveToStorage<T>(key: string, data: T[], eventName: string): void {
     }
 }
 
-
+// SERVER-SIDE SAFE: Reads initial data.
 export function getFinancialEntries(): FinancialEntry[] {
-    return getFromStorage(FINANCIALS_STORAGE_KEY, initialFinancialData);
+    return initialFinancialData;
 }
 
+// CLIENT-SIDE ONLY: Reads from localStorage.
+export function getStoredFinancialEntries(): FinancialEntry[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+  try {
+    const stored = localStorage.getItem(FINANCIALS_STORAGE_KEY);
+    if (!stored) {
+      localStorage.setItem(FINANCIALS_STORAGE_KEY, JSON.stringify(initialFinancialData));
+      return initialFinancialData;
+    }
+    return JSON.parse(stored);
+  } catch (error) {
+    console.error("Failed to parse financials from localStorage", error);
+    return [];
+  }
+}
+
+// SERVER-SIDE SAFE: Placeholder for database interaction
 export function saveFinancialEntries(entries: FinancialEntry[]): void {
     saveToStorage(FINANCIALS_STORAGE_KEY, entries, 'financialsUpdated');
 }
 
-export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'> | Omit<FinancialEntry, 'id'>[]): FinancialEntry[] {
-  const currentEntries = getFinancialEntries();
-  const entriesToAdd = Array.isArray(newEntry) ? newEntry : [newEntry];
-  
-  const newEntriesWithIds = entriesToAdd.map(entry => ({
-    ...entry,
-    id: `fin-${Date.now()}-${Math.floor(Math.random() * 10000)}`
-  }));
-  
-  const updatedEntries = [...newEntriesWithIds, ...currentEntries];
-  saveFinancialEntries(updatedEntries);
-  return newEntriesWithIds;
-}
-
-export function findEntryById(id: string): FinancialEntry | undefined {
-    const currentEntries = getFinancialEntries();
-    return currentEntries.find(entry => entry.id === id);
-}
-
-export function updateFinancialEntry(id: string, updates: Partial<FinancialEntry>): void {
-    const currentEntries = getFinancialEntries();
-    const updatedEntries = currentEntries.map(entry => {
-        if (entry.id === id) {
-            return { ...entry, ...updates };
-        }
-        return entry;
-    });
-    saveFinancialEntries(updatedEntries);
-}
-
+// SERVER-SIDE SAFE: Reads initial data.
 export function getBankAccounts(): BankAccount[] {
-    return getFromStorage(ACCOUNTS_STORAGE_KEY, initialBankAccounts);
+    return initialBankAccounts;
 }
 
+// CLIENT-SIDE ONLY: Reads from localStorage.
+export function getStoredBankAccounts(): BankAccount[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+  try {
+    const stored = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+    if (!stored) {
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(initialBankAccounts));
+      return initialBankAccounts;
+    }
+    return JSON.parse(stored);
+  } catch (error) {
+    console.error("Failed to parse accounts from localStorage", error);
+    return [];
+  }
+}
+
+// SERVER-SIDE SAFE: Placeholder for database interaction
 export function saveBankAccounts(accounts: BankAccount[]): void {
     saveToStorage(ACCOUNTS_STORAGE_KEY, accounts, 'financialsUpdated');
 }
-
-  

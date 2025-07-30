@@ -38,7 +38,13 @@ const initialLtiTariffs: LtiTariff[] = [
   },
 ];
 
+// Server-side safe: returns initial data
 export function getLtiTariffs(): LtiTariff[] {
+  return initialLtiTariffs;
+}
+
+// Client-side only: uses localStorage
+export function getStoredLtiTariffs(): LtiTariff[] {
   if (typeof window === 'undefined') {
     return [];
   }

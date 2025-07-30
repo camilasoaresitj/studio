@@ -176,7 +176,7 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
 
     const response = await runGenerateNfseXml(nfseInputData);
     
-    if(response.success){
+    if(response.success && response.data){
         const encodedData = encodeURIComponent(JSON.stringify({
             formData: nfseInputData,
             xml: response.data.xml
@@ -337,5 +337,3 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
     </Dialog>
   );
 }
-
-    

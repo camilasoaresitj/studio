@@ -9,7 +9,7 @@ const nextConfig = {
     '@genkit-ai/googleai',
   ],
   webpack: (config, { isServer }) => {
-    // Ignore warning from handlebars library and opentelemetry which are dependencies of genkit
+    // Ignore warning from handlebars library and opentelemetry
     if (!isServer) {
         config.externals = [...config.externals, 'handlebars', '@opentelemetry/instrumentation'];
     }

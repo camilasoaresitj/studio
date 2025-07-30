@@ -1,4 +1,3 @@
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -10,8 +9,9 @@ const nextConfig = {
   ],
   webpack: (config, { isServer }) => {
     // Ignore warning from handlebars library and opentelemetry
-    config.externals.push('handlebars');
-    config.externals.push('@opentelemetry/instrumentation');
+    if (!isServer) {
+        config.externals = [...config.externals, 'handlebars', '@opentelemetry/instrumentation'];
+    }
     return config;
   },
 }

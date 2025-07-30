@@ -14,12 +14,12 @@ import { runCreateCrmEntry, runCreateEmailCampaign } from '@/app/actions';
 import { CreateCrmEntryFromEmailOutput } from '@/ai/flows/create-crm-entry-from-email';
 import { CreateEmailCampaignOutput } from '@/ai/flows/create-email-campaign';
 import { Loader2, User, Building, Mail, ChevronsRight, FileText, AlertTriangle, Wand2, Users, Send, CheckCircle, XCircle, UserPlus, UserCheck } from 'lucide-react';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { getPartners, Partner } from '@/lib/partners-data';
 import { getInitialQuotes } from '@/lib/initial-data';
 import type { Quote } from './customer-quotes-list';
-import { ScrollArea } from './ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { getShipments } from '@/lib/shipment-data';
 import { subDays } from 'date-fns';
 

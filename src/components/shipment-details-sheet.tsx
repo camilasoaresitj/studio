@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -20,7 +21,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner, UploadedDocument, ActivityLog, ApprovalLog } from '@/lib/shipment';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner, UploadedDocument, ActivityLog, ApprovalLog } from '@/lib/shipment-data';
 import { cn } from '@/lib/utils';
 import { 
     Calendar as CalendarIcon, 
@@ -991,12 +992,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         </CardContent>
                                     </Card>
                                     <div className="lg:col-span-1">
-                                        {shipment.bookingNumber ? (
-                                            <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                                        {shipment.id ? (
+                                            <ShipmentMap shipmentNumber={shipment.id} />
                                         ) : (
                                             <div className="text-center p-8 text-muted-foreground h-full flex flex-col justify-center items-center border rounded-lg bg-muted/50">
                                                 <MapIcon className="mx-auto h-12 w-12 mb-4" />
-                                                <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                                <p>É necessário um ID de Processo para visualizar o mapa da rota.</p>
                                             </div>
                                         )}
                                     </div>
@@ -1395,7 +1396,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             </TabsContent>
                             
                             <TabsContent value="desembaraco">
-                               <CustomsClearanceTab shipment={shipment} />
+                               <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate}/>
                             </TabsContent>
                             
                             </div>

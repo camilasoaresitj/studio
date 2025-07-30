@@ -14,9 +14,10 @@ import { PartnersRegistry } from '@/components/partners-registry';
 import { ProfitSettings } from '@/components/profit-settings';
 import { ShipRegistry } from '@/components/settings/ship-registry';
 import { getFees, saveFees, type Fee } from '@/lib/fees-data';
-import { getPartners, savePartners, type Partner } from '@/lib/partners-data';
+import { getStoredPartners, type Partner } from '@/lib/partners-data';
 import { UserManagementTable } from '@/components/settings/user-management-table';
 import { TaskAutomationRegistry } from '@/components/task-automation-registry';
+import { savePartnerAction } from '@/app/actions';
 
 export default function CadastrosPage() {
     const [fees, setFees] = useState<Fee[]>([]);
@@ -24,7 +25,7 @@ export default function CadastrosPage() {
     
     useEffect(() => {
         setFees(getFees());
-        setPartners(getPartners());
+        setPartners(getStoredPartners());
     }, []);
 
     const handleFeeSave = (feeToSave: Fee) => {
@@ -39,18 +40,13 @@ export default function CadastrosPage() {
         saveFees(updatedFees);
     };
     
-    const handlePartnerSaved = (partnerToSave: Partner) => {
-        let updatedPartners;
-        if (partnerToSave.id && partnerToSave.id !== 0) {
-            updatedPartners = partners.map(p => p.id === partnerToSave.id ? partnerToSave : p);
-        } else {
-            const newId = Math.max(0, ...partners.map(p => p.id ?? 0)) + 1;
-            updatedPartners = [...partners, { ...partnerToSave, id: newId }];
+    const handlePartnerSaved = async (partnerToSave: Partner) => {
+        const response = await savePartnerAction(partnerToSave);
+        if (response.success && response.data) {
+            setPartners(response.data);
+            // Dispatch a custom event to notify other components
+            window.dispatchEvent(new Event('partnersUpdated'));
         }
-        setPartners(updatedPartners);
-        savePartners(updatedPartners);
-        // Dispatch a custom event to notify other components
-        window.dispatchEvent(new Event('partnersUpdated'));
     };
 
     return (

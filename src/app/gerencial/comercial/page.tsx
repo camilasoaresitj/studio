@@ -7,7 +7,8 @@ import { RateImporter } from '@/components/rate-importer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRates, saveRates } from '@/lib/rates-data';
 import { getInitialQuotes } from '@/lib/initial-data';
-import { getPartners, savePartners, type Partner } from '@/lib/partners-data';
+import { getStoredPartners, type Partner } from '@/lib/partners-data';
+import { savePartnerAction } from '@/app/actions';
 import { getFees, type Fee } from '@/lib/fees-data';
 import { Button } from '@/components/ui/button';
 import { List } from 'lucide-react';
@@ -36,7 +37,7 @@ export default function ComercialPage() {
             setQuotes(initialQuotes);
             localStorage.setItem('freight_quotes', JSON.stringify(initialQuotes));
         }
-        setPartners(getPartners());
+        setPartners(getStoredPartners());
         setRates(getRates());
         setFees(getFees());
     }, []);
@@ -65,17 +66,11 @@ export default function ComercialPage() {
          setQuotes(prev => prev.map(q => q.id === updatedQuote.id ? updatedQuote : q));
     };
 
-    const handlePartnerSaved = (partner: Partner) => {
-        const existing = partners.find(p => p.id === partner.id);
-        let updatedPartners;
-        if(existing) {
-            updatedPartners = partners.map(p => p.id === partner.id ? partner : p);
-        } else {
-            const newId = Math.max(0, ...partners.map(p => p.id ?? 0)) + 1;
-            updatedPartners = [...partners, { ...partner, id: newId }];
+    const handlePartnerSaved = async (partner: Partner) => {
+        const response = await savePartnerAction(partner);
+        if (response.success && response.data) {
+            setPartners(response.data);
         }
-        setPartners(updatedPartners);
-        savePartners(updatedPartners);
     };
 
     const handleRatesChange = (newRates: Rate[]) => {
@@ -90,7 +85,9 @@ export default function ComercialPage() {
                 ...rate,
                 id: maxId + index + 1,
             }));
-            return [...prev, ...ratesWithIds];
+            const updatedRates = [...prev, ...ratesWithIds];
+            saveRates(updatedRates);
+            return updatedRates;
         });
     };
 

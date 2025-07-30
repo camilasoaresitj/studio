@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { HandCoins, FileText, FileDown, MoreHorizontal, CheckCircle, Circle } from 'lucide-react';
 import type { Partner } from '@/lib/partners-data';
 import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
-import { addFinancialEntry } from '@/lib/financials-data';
+import { addFinancialEntriesAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
-import { CommissionDetailsDialog } from './commission-details-dialog'; // Assuming this component will be created
+import { CommissionDetailsDialog } from './commission-details-dialog'; 
 
 interface CommissionManagementProps {
   partners: Partner[];
@@ -99,7 +99,7 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
 
   const handlePayCommission = (partner: Partner, shipment: CommissionableShipment) => {
     // 1. Create a debit entry in financials
-    addFinancialEntry({
+    addFinancialEntriesAction([{
         type: 'debit',
         partner: partner.name,
         invoiceId: `COM-${shipment.shipment.id}`,
@@ -110,7 +110,7 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
         status: 'Pago',
         expenseType: 'Operacional',
         description: `Pagamento de comissão ref. processo ${shipment.shipment.id}`
-    });
+    }]);
 
     // 2. Mark as paid locally for UI update
     localStorage.setItem(`commission_paid_${shipment.shipment.id}`, 'true');
@@ -247,5 +247,3 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
     </>
   );
 }
-
-    

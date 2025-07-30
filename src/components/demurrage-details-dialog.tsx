@@ -18,7 +18,7 @@ import { FileText, Receipt, Banknote, Loader2, AlertTriangle, Ship, ArrowUp, Arr
 import type { DemurrageItem } from '@/app/gerencial/demurrage/page';
 import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { addFinancialEntry } from '@/lib/financials-data';
+import { addFinancialEntriesAction } from '@/app/actions';
 import { getBankAccounts } from '@/lib/financials-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { runSendDemurrageInvoice } from '@/app/actions';
@@ -130,7 +130,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, costTariffs, sal
         const dueDate = addDays(new Date(), 30);
 
         // 1. Create financial entry
-        addFinancialEntry({
+        await addFinancialEntriesAction([{
             type: 'credit',
             partner: item.shipment.customer,
             invoiceId: invoiceId,
@@ -141,7 +141,8 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, costTariffs, sal
             processId: item.shipment.id,
             accountId: usdAccount.id,
             description: `${isDetention ? 'Detention' : 'Demurrage'}/Detention ref. Container ${item.container.number}`
-        });
+        }]);
+
         toast({
             title: 'Lançamento Financeiro Criado!',
             description: `Fatura de ${totalSale.toFixed(2)} USD para ${item.shipment.customer} adicionada ao financeiro.`,

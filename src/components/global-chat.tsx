@@ -7,8 +7,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getShipments, updateShipment } from '@/lib/shipment-data';
-import type { Shipment, ChatMessage } from '@/lib/shipment-data';
+import { getStoredShipments, type Shipment, type ChatMessage } from '@/lib/shipment-data';
+import { updateShipment as updateShipmentAction } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -48,7 +48,7 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
 
     useEffect(() => {
         if (isOpen) {
-            setShipments(getShipments());
+            setShipments(getStoredShipments());
         }
     }, [isOpen]);
     
@@ -69,30 +69,24 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
             timestamp: new Date().toISOString(),
             readBy: ['user-1']
         };
-
-        const currentShipment = getShipments().find(s => s.id === selectedShipment.id);
-        if (!currentShipment) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Embarque não encontrado.' });
-            setIsLoading(false);
-            return;
-        }
-
-        const updatedShipment = {
-            ...currentShipment,
-            chatMessages: [...(currentShipment.chatMessages || []), messageToSend],
-        };
         
+        const updatedShipmentData = {
+            ...selectedShipment,
+            chatMessages: [...(selectedShipment.chatMessages || []), messageToSend],
+        };
+
         // Mark client messages as read upon replying
-        updatedShipment.chatMessages = updatedShipment.chatMessages.map(msg => {
+        updatedShipmentData.chatMessages = updatedShipmentData.chatMessages.map(msg => {
             if (msg.sender === 'Cliente' && !msg.readBy?.includes('user-1')) {
                 return { ...msg, readBy: [...(msg.readBy || []), 'user-1'] };
             }
             return msg;
         });
         
-        updateShipment(updatedShipment);
-        setSelectedShipment(updatedShipment);
-        setShipments(getShipments());
+        await updateShipmentAction(updatedShipmentData);
+
+        setSelectedShipment(updatedShipmentData);
+        setShipments(getStoredShipments());
         
         setNewMessage('');
         

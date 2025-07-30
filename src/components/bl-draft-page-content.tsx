@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { BLDraftForm } from '@/components/bl-draft-form';
-import { getShipmentById } from '@/lib/shipment-data';
+import { getShipmentById } from '@/app/actions';
 import type { Shipment } from '@/lib/shipment-data';
 import { Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -17,7 +17,7 @@ export function BLDraftPageContent({ id }: { id: string }) {
   useEffect(() => {
     const loadShipment = async () => {
       setIsLoading(true);
-      const data = getShipmentById(id);
+      const data = await getShipmentById(id);
       if (data) {
         setShipment(data);
       } else {

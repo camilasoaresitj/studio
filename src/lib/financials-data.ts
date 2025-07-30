@@ -2,6 +2,7 @@
 'use client';
 
 import { addDays, subDays } from 'date-fns';
+import { addFinancialEntriesAction } from '@/app/actions';
 
 export type BankAccount = {
     id: number;
@@ -223,25 +224,12 @@ const initialFinancialData: FinancialEntry[] = [
 const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v8';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
-// Internal function to manage localStorage access
-function saveToStorage<T>(key: string, data: T[], eventName: string): void {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    try {
-        localStorage.setItem(key, JSON.stringify(data));
-        window.dispatchEvent(new Event(eventName));
-    } catch (error) {
-        console.error(`Failed to save ${key} to localStorage`, error);
-    }
-}
-
-// SERVER-SIDE SAFE: Reads initial data.
+// Server-safe: returns initial data
 export function getFinancialEntries(): FinancialEntry[] {
     return initialFinancialData;
 }
 
-// CLIENT-SIDE ONLY: Reads from localStorage.
+// Client-side only: uses localStorage
 export function getStoredFinancialEntries(): FinancialEntry[] {
   if (typeof window === 'undefined') {
     return [];
@@ -259,17 +247,21 @@ export function getStoredFinancialEntries(): FinancialEntry[] {
   }
 }
 
-// SERVER-SIDE SAFE: Placeholder for database interaction
+// Client-side only: Saves data and notifies other components
 export function saveFinancialEntries(entries: FinancialEntry[]): void {
-    saveToStorage(FINANCIALS_STORAGE_KEY, entries, 'financialsUpdated');
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(FINANCIALS_STORAGE_KEY, JSON.stringify(entries));
+        window.dispatchEvent(new Event('financialsUpdated'));
+    }
 }
 
-// SERVER-SIDE SAFE: Reads initial data.
+
+// Server-safe: returns initial data
 export function getBankAccounts(): BankAccount[] {
     return initialBankAccounts;
 }
 
-// CLIENT-SIDE ONLY: Reads from localStorage.
+// Client-side only: uses localStorage
 export function getStoredBankAccounts(): BankAccount[] {
   if (typeof window === 'undefined') {
     return [];
@@ -287,7 +279,15 @@ export function getStoredBankAccounts(): BankAccount[] {
   }
 }
 
-// SERVER-SIDE SAFE: Placeholder for database interaction
+// Client-side only
 export function saveBankAccounts(accounts: BankAccount[]): void {
-    saveToStorage(ACCOUNTS_STORAGE_KEY, accounts, 'financialsUpdated');
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+        window.dispatchEvent(new Event('financialsUpdated')); // Reuse the same event
+    }
+}
+
+// Client-side wrapper to call the server action
+export function addFinancialEntry(entry: Omit<FinancialEntry, 'id'>): void {
+    addFinancialEntriesAction([entry]);
 }

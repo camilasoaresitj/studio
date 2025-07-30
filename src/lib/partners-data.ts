@@ -1,10 +1,8 @@
 
 'use client';
 import { z } from 'zod';
-
-// NOTE: This is a mocked file-based data store for demonstration purposes.
-// In a real-world application, you would replace this with a proper database like Firestore.
 import initialPartnersData from './partners.json';
+import { savePartnerAction } from '@/app/actions';
 
 
 const profitAgreementSchema = z.object({
@@ -150,7 +148,7 @@ export function getStoredPartners(): Partner[] {
     const storedPartners = localStorage.getItem(PARTNERS_STORAGE_KEY);
     if (!storedPartners) {
         const initialData = getPartners();
-        savePartners(initialData); // Use the client-side save function
+        localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(initialData));
         return initialData;
     };
     const parsed = JSON.parse(storedPartners);
@@ -172,44 +170,7 @@ export function savePartners(partners: Partner[]): void {
     return;
   }
   try {
-    const currentPartners = getStoredPartners();
-    
-    // Create a map for efficient lookup of existing partners
-    const currentPartnersMap = new Map(currentPartners.map(p => [p.id, p]));
-
-    partners.forEach(partner => {
-        if (partner.id && currentPartnersMap.has(partner.id)) {
-            // Update existing partner
-            const existing = currentPartnersMap.get(partner.id);
-            currentPartnersMap.set(partner.id, { ...existing, ...partner });
-        } else {
-            // Add new partner
-            const newId = Math.max(0, ...Array.from(currentPartnersMap.keys()).filter(k => k !== undefined)) + 1;
-            currentPartnersMap.set(newId, { ...partner, id: newId });
-        }
-    });
-
-    const allPartners = Array.from(currentPartnersMap.values());
-    
-    // Logic to update the `clientsLinked` field for despachantes
-    const despachantes = allPartners.filter(p => p.tipoFornecedor?.despachante);
-    
-    despachantes.forEach(despachante => {
-        const linkedClients: string[] = [];
-        allPartners.forEach(client => {
-            if (client.roles.cliente && client.contacts) {
-                const isLinked = client.contacts.some(contact => 
-                    contact.departments?.includes('Despachante') && contact.despachanteId === despachante.id
-                );
-                if (isLinked) {
-                    linkedClients.push(client.name);
-                }
-            }
-        });
-        despachante.clientsLinked = linkedClients;
-    });
-
-    localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(allPartners));
+    localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(partners));
     window.dispatchEvent(new Event('partnersUpdated'));
   } catch (error) {
     console.error("Failed to save partners to localStorage", error);

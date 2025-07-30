@@ -9,7 +9,7 @@ import { Upload, Loader2, Gavel } from 'lucide-react';
 import type { FinancialEntry } from '@/lib/financials-data';
 
 interface FinancialEntryImporterProps {
-  onEntriesImported: (entries: any[]) => void;
+  onEntriesImported: (entries: Omit<FinancialEntry, 'id'>[]) => void;
   importType?: 'financial' | 'legal';
 }
 
@@ -35,7 +35,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
         if (importType === 'legal') {
             const jsonData = XLSX.utils.sheet_to_json<{ invoiceId: string }>(worksheet);
             if(jsonData.length > 0) {
-                onEntriesImported(jsonData);
+                onEntriesImported(jsonData as any);
                 toast({
                     title: 'Arquivo Processado!',
                     description: `${jsonData.length} processos encontrados para mover para o jurídico.`,
@@ -75,18 +75,17 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
             }
 
             return {
-                id: `import-${Date.now()}-${rowIndex}`,
                 type: String(entry.tipo).toLowerCase() as 'credit' | 'debit',
                 partner: String(entry.parceiro),
                 invoiceId: String(entry.fatura),
-                status: 'Aberto', // Default status for imported entries
+                status: 'Aberto' as const,
                 dueDate: dueDate.toISOString(),
                 amount: parseFloat(entry.valor),
                 currency: String(entry.moeda).toUpperCase() as FinancialEntry['currency'],
                 processId: String(entry.processo),
-                accountId: parseInt(entry.conta_id || '1', 10), // Default to account 1 if not specified
+                accountId: parseInt(entry.conta_id || '1', 10),
             };
-        }).filter((entry): entry is FinancialEntry => entry !== null);
+        }).filter((entry): entry is Omit<FinancialEntry, 'id'> => entry !== null);
         
         if (importedEntries.length > 0) {
             onEntriesImported(importedEntries);

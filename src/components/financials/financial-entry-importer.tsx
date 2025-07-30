@@ -13,6 +13,10 @@ interface FinancialEntryImporterProps {
   importType?: 'financial' | 'legal';
 }
 
+function isFinancialEntry(obj: any): obj is Omit<FinancialEntry, 'id'> {
+    return obj && typeof obj.type === 'string' && typeof obj.partner === 'string' && typeof obj.invoiceId === 'string' && typeof obj.status === 'string';
+}
+
 export function FinancialEntryImporter({ onEntriesImported, importType = 'financial' }: FinancialEntryImporterProps) {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,11 +78,11 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
                 throw new Error(`Data de vencimento inválida na linha ${rowIndex + 2}: ${entry.vencimento}`);
             }
             
-            const newEntry: Omit<FinancialEntry, 'id'> = {
+            const newEntry = {
                 type: String(entry.tipo).toLowerCase() as 'credit' | 'debit',
                 partner: String(entry.parceiro),
                 invoiceId: String(entry.fatura),
-                status: 'Aberto',
+                status: 'Aberto' as const,
                 dueDate: dueDate.toISOString(),
                 amount: parseFloat(entry.valor),
                 currency: String(entry.moeda).toUpperCase() as FinancialEntry['currency'],
@@ -86,7 +90,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
                 accountId: parseInt(entry.conta_id || '1', 10),
             };
             return newEntry;
-        }).filter((entry): entry is Omit<FinancialEntry, 'id'> => entry !== null);
+        }).filter(isFinancialEntry);
         
         if (importedEntries.length > 0) {
             onEntriesImported(importedEntries);

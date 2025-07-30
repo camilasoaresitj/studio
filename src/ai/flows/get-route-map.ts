@@ -93,3 +93,5 @@ const getRouteMapFlow = ai.defineFlow(
 export async function getRouteMap(shipmentId: string): Promise<GetRouteMapOutput> {
   return getRouteMapFlow(shipmentId);
 }
+
+    

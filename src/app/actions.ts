@@ -23,7 +23,7 @@ import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
-import { getPartners } from '@/lib/partners-data';
+import { getPartners, savePartners as savePartnersData } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/components/customer-quotes-list";
 import { getShipments, saveShipments as saveShipmentsData } from "@/lib/shipment-data";
@@ -75,14 +75,14 @@ export async function savePartnerAction(partnerToSave: Partner) {
             allPartners = [...currentPartners, { ...partnerToSave, id: newId }];
         }
         
-        // Here you would save `allPartners` to your database.
-        // For the mock, we can't persist it server-side, but we return the updated list.
+        // This would be a database call in a real app.
+        // For now, we are just returning the updated list, but not persisting server-side.
+        // The client will persist to its localStorage.
         return { success: true, data: allPartners };
     } catch (error: any) {
         return { success: false, error: error.message };
     }
 }
-
 
 export async function addFinancialEntriesAction(newEntriesData: Omit<FinancialEntry, 'id'>[]) {
     try {
@@ -93,7 +93,7 @@ export async function addFinancialEntriesAction(newEntriesData: Omit<FinancialEn
         }));
         const updatedEntries = [...currentEntries, ...newEntries];
         // In a real app, you would save `updatedEntries` to a database.
-        saveFinancialEntriesData(updatedEntries); // This will update localStorage on the client for mock persistence
+        // saveFinancialEntriesData(updatedEntries); // This would be a DB call
         return { success: true, data: updatedEntries };
     } catch (error: any) {
         return { success: false, error: error.message };
@@ -135,9 +135,9 @@ export async function updateFinancialEntryAction(entryOrPaymentData: { entryId: 
             updatedEntries = updatedEntries.map(e => e.id === entryData.id ? entryData : e);
         }
 
-        // Persist changes
-        saveFinancialEntriesData(updatedEntries);
-        saveBankAccountsData(updatedAccounts);
+        // Persist changes would happen here in a real DB
+        // saveFinancialEntriesData(updatedEntries);
+        // saveBankAccountsData(updatedAccounts);
 
         return { success: true, data: { entries: updatedEntries, accounts: updatedAccounts } };
     } catch (error: any) {
@@ -834,3 +834,5 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     
 
   
+
+    

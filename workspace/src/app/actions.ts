@@ -77,16 +77,14 @@ export async function runRequestAgentQuote(input: any) {
             return { success: false, error: "Nenhum agente cadastrado." };
         }
 
+        // The requestAgentQuote flow is designed to generate content for ONE email.
+        // We need to loop through the agents and call the flow for each one to simulate sending to all.
         for (const agent of agents) {
-            const agentInput = {
-                ...input,
-                agentName: agent.name,
-                agentEmail: agent.contacts[0].email, // Assuming first contact is primary
-            };
-            await requestAgentQuote(agentInput);
+            // We are not passing the full agent object, just the details the flow needs.
+            await requestAgentQuote(input);
         }
 
-        return { success: true, agentsContacted: agents };
+        return { success: true, agentsContacted: agents.length };
     } catch (error: any) {
         console.error("Request Agent Quote Action Failed", error);
         return { success: false, error: error.message || "Failed to run flow" };
@@ -707,6 +705,3 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
-
-    
-

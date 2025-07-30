@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "default": "cargainteligente-lxhac"
+  },
+  "targets": {
+    "cargainteligente-lxhac": {
+      "hosting": {
+        "app": [
+          {
+            "runtime": "nodejs20"
+          }
+        ]
+      }
+    }
+  }
+}

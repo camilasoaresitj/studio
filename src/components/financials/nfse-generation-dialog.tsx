@@ -25,9 +25,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, FileText, ChevronsUpDown, Check } from 'lucide-react';
 import type { FinancialEntry } from '@/lib/financials-data';
-import type { Shipment, QuoteCharge, Partner } from '@/lib/shipment-data';
+import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import { runGenerateNfseXml } from '@/app/actions';
-import { getPartners } from '@/lib/partners-data';
+import { getPartners, Partner } from '@/lib/partners-data';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { cn } from '@/lib/utils';
@@ -104,7 +104,7 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
             defaultCharges = ['DESCONSOLIDAÇÃO', 'BL FEE'];
         } else if (!isMaritime && isImport) {
             defaultCharges = ['DESCONSOLIDAÇÃO', 'COLLECT FEE'];
-        } else if (!isMaritime && !isImport) {
+        } else if (!isMaritime && !isExport) {
             defaultCharges = ['AWB FEE', 'HANDLING FEE', 'DESPACHO ADUANEIRO'];
         } else if (isMaritime && !isImport) {
             defaultCharges = ['BL FEE', 'LACRE'];
@@ -339,3 +339,5 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
 }
 
       
+
+    

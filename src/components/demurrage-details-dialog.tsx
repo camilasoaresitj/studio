@@ -279,7 +279,9 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, costTariffs, sal
                                 )}
                             </TableBody>
                         </Table>
-                    </CardContent>
+                    </div>
+                )}
+            </CardContent>
     </Card>
 
     <DialogFooter className="pt-4">

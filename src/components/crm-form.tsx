@@ -20,7 +20,7 @@ import { getPartners, Partner } from '@/lib/partners-data';
 import { getInitialQuotes } from '@/lib/initial-data';
 import type { Quote } from './customer-quotes-list';
 import { ScrollArea } from './ui/scroll-area';
-import { getShipments } from '@/lib/shipment';
+import { getShipments } from '@/lib/shipment-data';
 import { subDays } from 'date-fns';
 
 const crmFormSchema = z.object({

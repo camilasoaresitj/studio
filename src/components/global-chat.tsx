@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -8,8 +7,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getShipments, updateShipment } from '@/lib/shipment';
-import type { Shipment, ChatMessage } from '@/lib/shipment';
+import { getShipments, updateShipment } from '@/lib/shipment-data';
+import type { Shipment, ChatMessage } from '@/lib/shipment-data';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

@@ -705,3 +705,19 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
+
+export async function savePartnerAction(partner: Partner) {
+    try {
+        let partners = getPartners();
+        if (partner.id && partner.id !== 0) {
+            partners = partners.map(p => p.id === partner.id ? partner : p);
+        } else {
+            const newId = Math.max(0, ...partners.map(p => p.id ?? 0)) + 1;
+            partners.push({ ...partner, id: newId });
+        }
+        savePartners(partners);
+        return { success: true, data: partners };
+    } catch(e: any) {
+        return { success: false, error: e.message };
+    }
+}

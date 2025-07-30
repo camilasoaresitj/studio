@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -36,7 +35,7 @@ import { NfseGenerationDialog } from '@/components/financials/nfse-generation-di
 import type { Shipment } from '@/lib/shipment-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
-import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote } from '@/app/actions';
+import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote, savePartnerAction } from '@/app/actions';
 import { FinancialEntryImporter } from '@/components/financials/financial-entry-importer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
@@ -47,7 +46,7 @@ import { FinancialEntryDialog } from './financial-entry-dialog';
 import { RenegotiationDialog } from './renegotiation-dialog';
 import { NfseConsulta } from './nfse-consulta';
 import { PartnersRegistry } from '../partners-registry';
-import { Partner, getPartners, savePartners } from '@/lib/partners-data';
+import { Partner, getPartners } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { CommissionManagement } from './commission-management';
 
@@ -645,17 +644,14 @@ export function FinancialPageClient() {
         setTextFilters(prev => ({ ...prev, [filterName]: value }));
     };
 
-    const handlePartnerSaved = (partnerToSave: Partner) => {
-        let updatedPartners;
-        if (partnerToSave.id && partnerToSave.id !== 0) {
-            updatedPartners = partners.map(p => p.id === partnerToSave.id ? partnerToSave : p);
+    const handlePartnerSaved = async (partnerToSave: Partner) => {
+        const response = await savePartnerAction(partnerToSave);
+        if (response.success && response.data) {
+            setPartners(response.data);
+            window.dispatchEvent(new Event('partnersUpdated'));
         } else {
-            const newId = Math.max(0, ...partners.map(p => p.id ?? 0)) + 1;
-            updatedPartners = [...partners, { ...partnerToSave, id: newId }];
+            toast({ variant: 'destructive', title: 'Erro ao salvar parceiro', description: response.error });
         }
-        setPartners(updatedPartners);
-        savePartners(updatedPartners);
-        window.dispatchEvent(new Event('partnersUpdated'));
     };
 
     const getBalanceInBRL = (entry: FinancialEntry): number => {

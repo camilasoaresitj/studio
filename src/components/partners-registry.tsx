@@ -49,6 +49,7 @@ import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { getFees, Fee } from '@/lib/fees-data';
+import { runExtractPartnerInfo, savePartnerAction } from '@/app/actions';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
 
@@ -219,18 +220,30 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
     }
   };
 
-  const onSubmit = (data: PartnerFormData) => {
-    onPartnerSaved({
+  const onSubmit = async (data: PartnerFormData) => {
+    const partnerToSave: Partner = {
       ...data,
-      id: editingPartner?.id ?? 0, 
-    });
-    setIsDialogOpen(false);
-    setEditingPartner(null);
-    toast({
-      title: `Parceiro ${editingPartner ? 'atualizado' : 'adicionado'}!`,
-      description: `O parceiro "${data.name}" foi salvo com sucesso.`,
-      className: 'bg-success text-success-foreground',
-    });
+      id: editingPartner?.id ?? 0,
+    };
+    
+    const response = await savePartnerAction(partnerToSave);
+
+    if (response.success) {
+        onPartnerSaved(partnerToSave); // To update local state immediately
+        setIsDialogOpen(false);
+        setEditingPartner(null);
+        toast({
+            title: `Parceiro ${editingPartner ? 'atualizado' : 'adicionado'}!`,
+            description: `O parceiro "${data.name}" foi salvo com sucesso.`,
+            className: 'bg-success text-success-foreground',
+        });
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao Salvar',
+            description: response.error,
+        });
+    }
   };
   
   const getPartnerTypeString = (partner: Partner): string => {

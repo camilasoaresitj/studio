@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { HandCoins, FileText, FileDown, MoreHorizontal, CheckCircle, Circle } from 'lucide-react';
-import type { Partner, QuoteCharge } from '@/lib/shipment';
-import type { Shipment } from '@/lib/shipment';
+import type { Partner } from '@/lib/partners-data';
+import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import { addFinancialEntry } from '@/lib/financials-data';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';

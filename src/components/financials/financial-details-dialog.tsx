@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import type { Shipment, QuoteCharge } from '@/lib/shipment';
+import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import type { PartialPayment, FinancialEntry } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';

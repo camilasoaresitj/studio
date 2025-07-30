@@ -15,13 +15,13 @@ import type { Partner } from '@/lib/partners-data';
 import { saveShipments } from '@/lib/shipment-data';
 import { runSubmitBLDraft } from '@/app/actions';
 import { Loader2, Send, FileText, AlertTriangle, CheckCircle, Ship, Trash2, PlusCircle, History } from 'lucide-react';
-import { Textarea } from './ui/textarea';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { isPast, isValid, format } from 'date-fns';
-import { Separator } from './ui/separator';
-import { Label } from './ui/label';
-import { Badge } from './ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 
 const blDraftContainerSchema = z.object({
@@ -529,4 +529,3 @@ export const BLDraftForm = forwardRef<{ submit: () => void }, BLDraftFormProps>(
 });
 
 BLDraftForm.displayName = 'BLDraftForm';
-

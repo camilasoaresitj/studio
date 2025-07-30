@@ -17,7 +17,7 @@ import { Loader2, User, Building, Mail, ChevronsRight, FileText, AlertTriangle, 
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { getPartners, Partner } from '@/lib/partners-data';
-import { getInitialQuotes } from '@/lib/initial-data';
+import { getStoredQuotes } from '@/lib/initial-data';
 import type { Quote } from './customer-quotes-list';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getShipments } from '@/lib/shipment-data';
@@ -47,7 +47,7 @@ export function CrmForm() {
 
   useEffect(() => {
     // This runs only on the client, after hydration
-    setQuotes(getInitialQuotes());
+    setQuotes(getStoredQuotes());
     setPartners(getPartners());
     setShipments(getShipments());
   }, []);

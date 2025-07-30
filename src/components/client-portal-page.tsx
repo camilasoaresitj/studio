@@ -100,6 +100,8 @@ export function ClientPortalPage({ id }: { id: string }) {
             const x = acc.find(item => {
                 const bothDatesExist = item.predictedDate && current.predictedDate;
                 if (bothDatesExist) {
+                    // TypeScript needs a clear guarantee that these are not null.
+                    // Accessing them directly after the check provides this.
                     const timeDiff = Math.abs(item.predictedDate.getTime() - current.predictedDate.getTime());
                     return item.name === current.name && timeDiff < twentyFourHours && item.details === current.details;
                 }

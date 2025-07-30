@@ -73,7 +73,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
             if (isNaN(dueDate.getTime())) {
                 throw new Error(`Data de vencimento inválida na linha ${rowIndex + 2}: ${entry.vencimento}`);
             }
-
+            
             const newEntry: Omit<FinancialEntry, 'id'> = {
                 type: String(entry.tipo).toLowerCase() as 'credit' | 'debit',
                 partner: String(entry.parceiro),
@@ -111,6 +111,9 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
         });
       } finally {
         setIsLoading(false);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
       }
     };
 
@@ -124,10 +127,6 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
     }
 
     reader.readAsArrayBuffer(file);
-
-    if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-    }
   };
 
   const handleImportClick = () => {

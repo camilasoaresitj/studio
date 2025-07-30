@@ -10,7 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { getShipmentById } from '@/lib/shipment-data';
+import { getShipmentById } from '@/app/actions';
 import { findPortByTerm } from '@/lib/ports';
 
 const LatLonSchema = z.object({
@@ -43,7 +43,7 @@ const getRouteMapFlow = ai.defineFlow(
     outputSchema: GetRouteMapOutputSchema,
   },
   async (shipmentId) => {
-    const shipment = getShipmentById(shipmentId);
+    const shipment = await getShipmentById(shipmentId);
     if (!shipment) {
       throw new Error(`Shipment with ID ${shipmentId} not found.`);
     }

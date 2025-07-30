@@ -82,7 +82,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
                 type: String(entry.tipo).toLowerCase() as 'credit' | 'debit',
                 partner: String(entry.parceiro),
                 invoiceId: String(entry.fatura),
-                status: 'Aberto' as const,
+                status: 'Aberto',
                 dueDate: dueDate.toISOString(),
                 amount: parseFloat(entry.valor),
                 currency: String(entry.moeda).toUpperCase() as FinancialEntry['currency'],
@@ -92,7 +92,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
             return newEntry;
         });
 
-        const importedEntries = importedRaw.filter(isFinancialEntry);
+        const importedEntries = importedRaw.filter((entry): entry is Omit<FinancialEntry, 'id'> => entry !== null);
         
         if (importedEntries.length > 0) {
             onEntriesImported(importedEntries);

@@ -67,7 +67,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
                 entry[header] = row[index];
             });
 
-            if (!entry.tipo || !entry.fatura) return null; // Skip empty rows
+            if (!entry.tipo || !entry.fatura) return null;
 
             const dueDate = new Date(entry.vencimento);
             if (isNaN(dueDate.getTime())) {

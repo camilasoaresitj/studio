@@ -1,415 +1,150 @@
-
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle, List, FileText, Ship, Anchor } from 'lucide-react';
-import { getShipments } from '@/lib/shipment-data';
-import type { Shipment } from '@/lib/shipment-data';
-import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
-import { getInitialQuotes, Quote } from '@/lib/initial-data';
-import { useRouter } from 'next/navigation';
-import { format, isValid, differenceInDays, isPast, isWithinInterval, addDays } from 'date-fns';
-import Link from 'next/link';
-import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Upload, Loader2, Gavel } from 'lucide-react';
+import type { FinancialEntry } from '@/lib/financials-data';
 
-interface DraftAlert {
-    shipment: Shipment;
-    daysRemaining: number;
-    isOverdue: boolean;
+interface FinancialEntryImporterProps {
+  onEntriesImported: (entries: Omit<FinancialEntry, 'id'>[]) => void;
+  importType?: 'financial' | 'legal';
 }
 
-interface ReportData {
-    title: string;
-    shipments: Shipment[];
-}
+export function FinancialEntryImporter({ onEntriesImported, importType = 'financial' }: FinancialEntryImporterProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-export default function CustomerPortalPage() {
-    const [shipments, setShipments] = useState<Shipment[]>([]);
-    const [invoices, setInvoices] = useState<FinancialEntry[]>([]);
-    const [quotes, setQuotes] = useState<Quote[]>([]);
-    const [draftAlerts, setDraftAlerts] = useState<DraftAlert[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [reportData, setReportData] = useState<ReportData | null>(null);
-    const router = useRouter();
+    setIsLoading(true);
+    const reader = new FileReader();
 
-    // In a real app, customerId would come from an authentication context
-    const customerId = "Nexus Imports"; 
-
-    useEffect(() => {
-        const fetchData = () => {
-            setIsLoading(true);
-            // Simulate fetching data for the logged-in customer
-            const allShipments = getShipments();
-            const customerShipments = allShipments.filter(s => s.customer === customerId);
-            setShipments(customerShipments);
-
-            const allInvoices = getFinancialEntries();
-            const customerInvoices = allInvoices.filter(i => i.partner === customerId && i.type === 'credit');
-            setInvoices(customerInvoices);
-            
-            const allQuotes = getInitialQuotes();
-            const customerQuotes = allQuotes.filter(q => q.customer === customerId && (q.status === 'Aprovada' || q.status === 'Perdida'));
-            setQuotes(customerQuotes);
-            setIsLoading(false);
-        };
-
-        const calculateAlerts = () => {
-             const allShipments = getShipments(); // Make sure to get fresh data
-             const customerShipments = allShipments.filter(s => s.customer === customerId);
-             const today = new Date();
-             today.setHours(0, 0, 0, 0);
-
-             const alerts: DraftAlert[] = customerShipments
-                 .map(shipment => {
-                     const draftMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
-                     
-                     if (!draftMilestone || !draftMilestone.predictedDate || !isValid(new Date(draftMilestone.predictedDate))) {
-                         return null;
-                     }
-
-                     const dueDate = new Date(draftMilestone.predictedDate);
-                     const draftAlreadySent = shipment.blDraftData; 
-
-                     if (draftAlreadySent) return null; 
-
-                     const daysRemaining = differenceInDays(dueDate, today);
-                     
-                     if (daysRemaining <= 5) {
-                         return {
-                             shipment,
-                             daysRemaining,
-                             isOverdue: isPast(dueDate) && daysRemaining < 0
-                         };
-                     }
-                     return null;
-                 })
-                 .filter((alert): alert is DraftAlert => alert !== null)
-                 .sort((a,b) => a.daysRemaining - b.daysRemaining);
-             setDraftAlerts(alerts);
-        }
-
-        fetchData();
-        calculateAlerts();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
         
-        window.addEventListener('storage', () => {
-            fetchData();
-            calculateAlerts();
-        });
-        
-        return () => {
-            window.removeEventListener('storage', () => {
-                fetchData();
-                calculateAlerts();
-            });
-        };
-    }, [customerId]);
-
-    const kpiData = useMemo(() => {
-        const now = new Date();
-        const sevenDaysFromNow = addDays(now, 7);
-        const interval = { start: now, end: sevenDaysFromNow };
-
-        const departingSoon = shipments.filter(s => s.etd && isValid(new Date(s.etd)) && isWithinInterval(new Date(s.etd), interval));
-        const arrivingSoon = shipments.filter(s => s.eta && isValid(new Date(s.eta)) && isWithinInterval(new Date(s.eta), interval));
-
-        return {
-            departingSoon,
-            arrivingSoon,
-        };
-    }, [shipments]);
-
-
-    const handleRefresh = () => {
-        // The useEffect will refetch data automatically on storage/focus events,
-        // but a manual trigger can be useful.
-        const event = new Event('storage');
-        window.dispatchEvent(event);
-    };
-    
-    const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
-        if (!shipment.milestones || shipment.milestones.length === 0) {
-          return { text: 'Não iniciado', variant: 'secondary' };
-        }
-      
-        const firstPending = shipment.milestones.find(m => m.status === 'pending' || m.status === 'in_progress');
-      
-        if (!firstPending) {
-          return { text: 'Finalizado', variant: 'outline' };
-        }
-      
-        const firstPendingName = firstPending.name.toLowerCase();
-        
-        const departureCompleted = shipment.milestones.some(m => 
-          (m.name.toLowerCase().includes('embarque')) 
-          && m.status === 'completed'
-        );
-      
-        if (departureCompleted) {
-            if (firstPendingName.includes('chegada') || firstPendingName.includes('desembarque')) {
-                return { text: 'Chegada no Destino', variant: 'default' };
+        if (importType === 'legal') {
+            const jsonData = XLSX.utils.sheet_to_json<{ invoiceId: string }>(worksheet);
+            if(jsonData.length > 0) {
+                onEntriesImported(jsonData as any);
+                toast({
+                    title: 'Arquivo Processado!',
+                    description: `${jsonData.length} processos encontrados para mover para o jurídico.`,
+                    className: 'bg-success text-success-foreground'
+                });
             }
-            return { text: 'Em Trânsito', variant: 'default' };
+            return;
         }
-      
-        return { text: `Aguardando Embarque`, variant: 'secondary' };
+
+        const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
+        
+        if (jsonData.length < 2) {
+          throw new Error('A planilha deve conter um cabeçalho e pelo menos uma linha de dados.');
+        }
+
+        const headers = jsonData[0].map(h => String(h || '').trim().toLowerCase());
+        const dataRows = jsonData.slice(1);
+
+        const requiredHeaders = ['tipo', 'parceiro', 'fatura', 'vencimento', 'valor', 'moeda', 'processo'];
+        for (const rh of requiredHeaders) {
+            if (!headers.includes(rh)) {
+                throw new Error(`Coluna obrigatória não encontrada no arquivo: '${rh}'.`);
+            }
+        }
+        
+        const importedEntries = dataRows.map((row: any[], rowIndex) => {
+            const entry: any = {};
+            headers.forEach((header, index) => {
+                entry[header] = row[index];
+            });
+
+            if (!entry.tipo || !entry.fatura) return null;
+
+            const dueDate = new Date(entry.vencimento);
+            if (isNaN(dueDate.getTime())) {
+                throw new Error(`Data de vencimento inválida na linha ${rowIndex + 2}: ${entry.vencimento}`);
+            }
+
+            return {
+                type: String(entry.tipo).toLowerCase() as 'credit' | 'debit',
+                partner: String(entry.parceiro),
+                invoiceId: String(entry.fatura),
+                status: 'Aberto' as const,
+                dueDate: dueDate.toISOString(),
+                amount: parseFloat(entry.valor),
+                currency: String(entry.moeda).toUpperCase() as FinancialEntry['currency'],
+                processId: String(entry.processo),
+                accountId: parseInt(entry.conta_id || '1', 10),
+            };
+        }).filter((entry): entry is Omit<FinancialEntry, 'id'> => entry !== null);
+        
+        if (importedEntries.length > 0) {
+            onEntriesImported(importedEntries);
+            toast({
+                title: 'Importação Concluída!',
+                description: `${importedEntries.length} lançamentos financeiros foram importados com sucesso.`,
+                className: 'bg-success text-success-foreground'
+            });
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Nenhum dado importado',
+                description: 'Não foram encontrados dados válidos para importar no arquivo.',
+             });
+        }
+      } catch (err: any) {
+        console.error("Error reading file:", err);
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao processar arquivo',
+          description: err.message || 'Verifique se o formato do arquivo e os cabeçalhos estão corretos.',
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    return (
-        <>
-        <div className="space-y-8">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center">
-                <div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-foreground">Portal do Cliente</h1>
-                    <p className="text-muted-foreground mt-2 text-lg">
-                        Bem-vindo, {customerId}. Acompanhe seus embarques e faturas aqui.
-                    </p>
-                </div>
-                 <div className="flex gap-2 mt-4 md:mt-0">
-                    <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        Atualizar
-                    </Button>
-                    <Button onClick={() => router.push('/portal/cotacao')}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Nova Cotação
-                    </Button>
-                 </div>
-            </header>
+    reader.onerror = () => {
+        setIsLoading(false);
+        toast({
+            variant: 'destructive',
+            title: 'Erro de leitura',
+            description: 'Não foi possível ler o arquivo selecionado.',
+        });
+    }
 
-            <div className="grid gap-6 sm:grid-cols-2">
-                <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Embarques Partindo nos Próximos 7 Dias', shipments: kpiData.departingSoon })}>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Embarques Partindo</CardTitle>
-                        <Ship className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{kpiData.departingSoon.length}</div>
-                        <p className="text-xs text-muted-foreground">nos próximos 7 dias</p>
-                    </CardContent>
-                </Card>
-                <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Embarques Chegando nos Próximos 7 Dias', shipments: kpiData.arrivingSoon })}>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Embarques Chegando</CardTitle>
-                        <Anchor className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{kpiData.arrivingSoon.length}</div>
-                        <p className="text-xs text-muted-foreground">nos próximos 7 dias</p>
-                    </CardContent>
-                </Card>
-            </div>
-            
-            {draftAlerts.length > 0 && (
-                <Card className="border-destructive bg-destructive/5 animate-in fade-in-50 duration-500">
-                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5"/> Ações Pendentes</CardTitle>
-                        <CardDescription className="text-destructive/80">Você tem instruções de embarque que precisam da sua atenção.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        {draftAlerts.map(({ shipment, daysRemaining, isOverdue }) => (
-                            <Link key={shipment.id} href={`/bl-draft/${shipment.id}`} className="block">
-                                <div className="p-3 border rounded-lg bg-background hover:bg-muted transition-colors flex justify-between items-center">
-                                    <div>
-                                        <p className="font-semibold">Enviar Draft do BL - Processo <span className="text-primary">{shipment.id}</span></p>
-                                        <p className="text-sm text-muted-foreground">{shipment.origin} &rarr; {shipment.destination}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        {isOverdue ? (
-                                             <Badge variant="destructive">ATRASADO ({Math.abs(daysRemaining)} dias)</Badge>
-                                        ) : (
-                                             <Badge variant="default" className="bg-amber-500">Vence em {daysRemaining} dia(s)</Badge>
-                                        )}
-                                    </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </CardContent>
-                </Card>
-            )}
+    reader.readAsArrayBuffer(file);
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Meus Embarques</CardTitle>
-                    <CardDescription>Acompanhe o status de todos os seus embarques ativos.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Processo</TableHead>
-                                    <TableHead>Rota</TableHead>
-                                    <TableHead>Master / AWB</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>ETA</TableHead>
-                                    <TableHead className="text-right">Ações</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
-                                ) : shipments.length > 0 ? shipments.map((shipment) => (
-                                    <TableRow key={shipment.id} className="hover:bg-muted/50">
-                                        <TableCell className="font-medium text-primary">
-                                             <Link href={`/portal/${shipment.id}`} className="hover:underline">
-                                                {shipment.id}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>{shipment.origin} &rarr; {shipment.destination}</TableCell>
-                                        <TableCell>{shipment.masterBillNumber || 'N/A'}</TableCell>
-                                        <TableCell><Badge variant={getShipmentStatus(shipment).variant}>{getShipmentStatus(shipment).text}</Badge></TableCell>
-                                        <TableCell>{shipment.eta && isValid(new Date(shipment.eta)) ? format(new Date(shipment.eta), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" asChild>
-                                                <Link href={`/portal/${shipment.id}`}>
-                                                    Ver Detalhes <ArrowRight className="ml-2 h-4 w-4" />
-                                                </Link>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhum embarque ativo encontrado.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle>Minhas Cotações</CardTitle>
-                    <CardDescription>Visualize o histórico de suas cotações aprovadas e reprovadas.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Cotação ID</TableHead>
-                                    <TableHead>Rota</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Data</TableHead>
-                                    <TableHead className="text-right">Ações</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
-                                ) : quotes.length > 0 ? quotes.map((quote) => (
-                                    <TableRow key={quote.id}>
-                                        <TableCell className="font-medium">{quote.id.replace('-DRAFT', '')}</TableCell>
-                                        <TableCell>{quote.origin} &rarr; {quote.destination}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={quote.status === 'Aprovada' ? 'success' : 'destructive'}>
-                                                {quote.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>{quote.date}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="outline" size="sm">
-                                                <FileText className="mr-2 h-4 w-4" /> Ver Proposta
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma cotação encontrada.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+  };
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Minhas Faturas</CardTitle>
-                    <CardDescription>Acesse o histórico de suas faturas e documentos financeiros.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Fatura nº</TableHead>
-                                    <TableHead>Processo</TableHead>
-                                    <TableHead>Vencimento</TableHead>
-                                    <TableHead>Valor</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Ações</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
-                                ) : invoices.length > 0 ? invoices.map((invoice) => (
-                                    <TableRow key={invoice.id}>
-                                        <TableCell className="font-medium">{invoice.invoiceId}</TableCell>
-                                        <TableCell>{invoice.processId}</TableCell>
-                                        <TableCell>{format(new Date(invoice.dueDate), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell>{invoice.currency} {invoice.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell><Badge variant={invoice.status === 'Pago' ? 'success' : 'destructive'}>{invoice.status}</Badge></TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="outline" size="sm">
-                                                <FileDown className="mr-2 h-4 w-4" /> Baixar PDF
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow><TableCell colSpan={6} className="h-24 text-center">Nenhuma fatura encontrada.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-        <Dialog open={!!reportData} onOpenChange={(isOpen) => !isOpen && setReportData(null)}>
-            <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>{reportData?.title}</DialogTitle>
-                </DialogHeader>
-                <div className="flex-grow overflow-hidden">
-                    <ScrollArea className="h-full">
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead>PO Number</TableHead>
-                            <TableHead>Invoice</TableHead>
-                            <TableHead>Shipper</TableHead>
-                            <TableHead>Consignee</TableHead>
-                            <TableHead>ETD</TableHead>
-                            <TableHead>ETA</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {reportData?.shipments.length === 0 ? (
-                            <TableRow><TableCell colSpan={6} className="text-center h-24">Nenhum embarque para exibir.</TableCell></TableRow>
-                        ) : (
-                            reportData?.shipments.map(item => (
-                            <TableRow key={item.id}>
-                                <TableCell>{item.purchaseOrderNumber || 'N/A'}</TableCell>
-                                <TableCell>{item.invoiceNumber || 'N/A'}</TableCell>
-                                <TableCell>{item.shipper?.name || 'N/A'}</TableCell>
-                                <TableCell>{item.consignee?.name || 'N/A'}</TableCell>
-                                <TableCell>{item.etd && isValid(new Date(item.etd)) ? format(new Date(item.etd), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                                <TableCell>{item.eta && isValid(new Date(item.eta)) ? format(new Date(item.eta), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                            </TableRow>
-                            ))
-                        )}
-                        </TableBody>
-                    </Table>
-                    </ScrollArea>
-                </div>
-            </DialogContent>
-        </Dialog>
-        </>
-    );
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className="mb-4">
+        <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileChange}
+            className="hidden"
+            accept=".xlsx, .xls, .csv"
+        />
+        <Button variant="outline" onClick={handleImportClick} disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (importType === 'legal' ? <Gavel className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />)}
+            {importType === 'legal' ? 'Importar para Jurídico' : 'Importar Lançamentos'}
+        </Button>
+    </div>
+  );
 }

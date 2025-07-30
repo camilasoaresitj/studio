@@ -1,0 +1,75 @@
+
+[
+    {
+        "id": "PROC-00125-95015",
+        "quoteId": "COT-01832",
+        "origin": "Santos, BR",
+        "destination": "Roterdã, NL",
+        "customer": "Nexus Imports",
+        "shipper": { "id": 1, "name": "Nexus Imports" },
+        "consignee": { "id": 2, "name": "Ocean Express Logistics" },
+        "agent": { "id": 2, "name": "Ocean Express Logistics" },
+        "responsibleUser": "Admin Geral",
+        "carrier": "Maersk Line",
+        "bookingNumber": "MAEU-123456",
+        "masterBillNumber": "MAEU123456789",
+        "houseBillNumber": "OEL-SN-RT-001",
+        "etd": "2024-07-25T12:00:00.000Z",
+        "eta": "2024-08-20T12:00:00.000Z",
+        "details": {
+            "cargo": "1x20GP",
+            "transitTime": "25-30 dias",
+            "validity": "31/12/2024",
+            "freeTime": "14 dias",
+            "incoterm": "FOB"
+        },
+        "charges": [
+            { "id": "charge-1", "name": "FRETE MARÍTIMO", "type": "Contêiner", "cost": 2500, "costCurrency": "USD", "sale": 2800, "saleCurrency": "USD", "supplier": "Maersk Line", "sacado": "Nexus Imports", "approvalStatus": "aprovada" },
+            { "id": "charge-2", "name": "THC", "type": "Contêiner", "cost": 1350, "costCurrency": "BRL", "sale": 1350, "saleCurrency": "BRL", "supplier": "Porto de Roterdã", "sacado": "Nexus Imports", "approvalStatus": "aprovada" }
+        ],
+        "milestones": [
+            { "name": "Booking Confirmado", "status": "completed", "predictedDate": "2024-07-15T00:00:00.000Z", "effectiveDate": "2024-07-15T00:00:00.000Z" },
+            { "name": "Confirmação de Embarque", "status": "in_progress", "predictedDate": "2024-07-25T00:00:00.000Z", "effectiveDate": null },
+            { "name": "Chegada ao Destino", "status": "pending", "predictedDate": "2024-08-20T00:00:00.000Z", "effectiveDate": null }
+        ],
+        "documents": [],
+        "containers": [
+            { "id": "cont-1", "number": "MSCU1234567", "seal": "SEAL123", "tare": "2200 KG", "grossWeight": "24000 KG", "type": "20'GP" }
+        ],
+        "chatMessages": [
+            { "sender": "Sistema", "message": "Processo criado a partir da cotação COT-01832.", "timestamp": "2024-07-16T10:00:00.000Z", "department": "Sistema" }
+        ]
+    },
+    {
+        "id": "PROC-00124-42898",
+        "quoteId": "COT-00124",
+        "origin": "Guarulhos, BR",
+        "destination": "Miami, US",
+        "customer": "TechFront Solutions",
+        "shipper": { "id": 1, "name": "Nexus Imports" },
+        "consignee": { "id": 2, "name": "Ocean Express Logistics" },
+        "responsibleUser": "Usuário Comercial",
+        "carrier": "American Airlines Cargo",
+        "masterBillNumber": "001-12345678",
+        "houseBillNumber": "TF-MIA-002",
+        "etd": "2024-07-20T22:00:00.000Z",
+        "eta": "2024-07-21T08:00:00.000Z",
+        "details": {
+            "cargo": "500kg",
+            "transitTime": "1 dia",
+            "validity": "31/10/2024",
+            "freeTime": "N/A",
+            "incoterm": "FCA"
+        },
+        "charges": [
+            { "id": "charge-5", "name": "FRETE AÉREO", "type": "KG", "cost": 2100, "costCurrency": "USD", "sale": 2250, "saleCurrency": "USD", "supplier": "American Airlines Cargo", "sacado": "TechFront Solutions", "approvalStatus": "aprovada" }
+        ],
+        "milestones": [
+            { "name": "Booking Confirmado", "status": "completed", "predictedDate": "2024-07-18T00:00:00.000Z", "effectiveDate": "2024-07-18T00:00:00.000Z" },
+            { "name": "Confirmação de Embarque", "status": "completed", "predictedDate": "2024-07-20T00:00:00.000Z", "effectiveDate": "2024-07-20T00:00:00.000Z" },
+            { "name": "Chegada ao Destino", "status": "pending", "predictedDate": "2024-07-21T00:00:00.000Z", "effectiveDate": null }
+        ],
+        "documents": [],
+        "chatMessages": []
+    }
+]

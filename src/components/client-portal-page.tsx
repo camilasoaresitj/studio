@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { getShipmentById, updateShipment } from '@/lib/shipment-data';
+import { getStoredShipments, updateShipment } from '@/lib/shipment-data';
 import type { Shipment, Milestone, DocumentStatus } from '@/lib/shipment-data';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -86,7 +86,8 @@ export function ClientPortalPage({ id }: { id: string }) {
 
     useEffect(() => {
       setIsLoading(true);
-      const data = getShipmentById(id);
+      const allShipments = getStoredShipments();
+      const data = allShipments.find(s => s.id === id);
       if (data) {
         setShipment(data);
       }
@@ -141,6 +142,12 @@ export function ClientPortalPage({ id }: { id: string }) {
 
     const handleUpdate = (updatedShipment: Shipment) => {
         setShipment(updatedShipment);
+        const allShipments = getStoredShipments();
+        const updatedShipments = allShipments.map(s => s.id === updatedShipment.id ? updatedShipment : s);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('cargaInteligente_shipments_v12', JSON.stringify(updatedShipments));
+            window.dispatchEvent(new Event('shipmentsUpdated'));
+        }
     }
     
     if (isLoading) {

@@ -3,7 +3,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle, CalendarCheck2 } from 'lucide-react';
-import { getShipments, Shipment } from '@/lib/shipment-data';
+import { getStoredShipments, Shipment } from '@/lib/shipment-data';
 import { useState, useEffect, useMemo } from 'react';
 import { isToday, isPast, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -25,7 +25,7 @@ export function ImportantTasks({ onTaskClick }: ImportantTasksProps) {
 
     useEffect(() => {
         const calculateTasks = () => {
-            const shipments = getShipments();
+            const shipments = getStoredShipments();
             const today = new Date();
             today.setHours(0,0,0,0);
             

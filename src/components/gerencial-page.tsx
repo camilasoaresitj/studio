@@ -7,7 +7,7 @@ import { RecentShipments } from '@/components/recent-shipments';
 import { ApprovalsPanel } from '@/components/approvals-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Ship, CheckCircle, TrendingUp, AlertTriangle, Scale, ListTodo, Users, UserPlus, UserCheck, Package } from 'lucide-react';
-import { getShipments, Shipment, Milestone } from '@/lib/shipment-data';
+import { getStoredShipments, Shipment, Milestone } from '@/lib/shipment-data';
 import { getStoredQuotes, Quote } from '@/lib/initial-data';
 import { getFinancialEntries } from '@/lib/financials-data';
 import { isThisMonth, parseISO, isPast, differenceInDays, isValid, subDays } from 'date-fns';
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { format } from 'date-fns';
-import { Partner, getPartners } from '@/lib/partners-data';
+import { Partner, getStoredPartners } from '@/lib/partners-data';
 
 const formatCurrency = (value: number, currency = 'BRL') => {
     return new Intl.NumberFormat('pt-BR', {
@@ -50,11 +50,11 @@ export function GerencialPage() {
     });
 
     useEffect(() => {
-        const shipments = getShipments();
+        const shipments = getStoredShipments();
         const storedQuotes = getStoredQuotes();
         setQuotes(storedQuotes);
         const financialEntries = getFinancialEntries();
-        const allPartners = getPartners();
+        const allPartners = getStoredPartners();
         setPartners(allPartners);
         const today = new Date();
         today.setHours(0,0,0,0);
@@ -339,7 +339,7 @@ export function GerencialPage() {
         </Card>
       </div>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
-         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Volume (TEUs) no Mês', data: getShipments().filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd))), type: 'shipments' })}>
+         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Volume (TEUs) no Mês', data: getStoredShipments().filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd))), type: 'shipments' })}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Volume (TEUs) no Mês</CardTitle>
                 <Ship className="h-5 w-5 text-muted-foreground" />
@@ -349,7 +349,7 @@ export function GerencialPage() {
                 <p className="text-xs text-muted-foreground">Total de TEUs embarcados</p>
             </CardContent>
         </Card>
-         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Contêineres Embarcados no Mês', data: getShipments().filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd))), type: 'shipments' })}>
+         <Card className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setReportData({ title: 'Contêineres Embarcados no Mês', data: getStoredShipments().filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd))), type: 'shipments' })}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Contêineres no Mês</CardTitle>
                 <Package className="h-5 w-5 text-muted-foreground" />

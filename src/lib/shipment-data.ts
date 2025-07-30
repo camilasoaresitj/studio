@@ -4,6 +4,7 @@
 import type { Partner } from '@/lib/partners-data';
 import { addDays, isValid, subDays } from 'date-fns';
 import type { PartialPayment } from './financials-data';
+import initialShipmentsData from './shipments.json'; // Assuming you create this file
 
 const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v12';
 
@@ -218,19 +219,62 @@ export type Shipment = {
   invoiceItems?: any[];
 };
 
-function getInitialShipments(): Shipment[] {
-    return [];
+// SERVER-SIDE SAFE: Reads from JSON, no localStorage.
+export function getShipments(): Shipment[] {
+    // In a real app, this would fetch from a database.
+    // For this mock, we read the JSON file directly.
+    return initialShipmentsData.map((shipment: any) => {
+         const safeDate = (dateString: string | Date | undefined | null): Date | undefined => {
+            if (!dateString) return undefined;
+            const date = new Date(dateString);
+            return isValid(date) ? date : undefined;
+        };
+
+        const safeMilestoneDate = (dateString: string | Date | undefined | null): Date | null => {
+             if (!dateString) return null;
+             const date = new Date(dateString);
+             return isValid(date) ? date : null;
+        }
+
+        return {
+            ...shipment,
+            etd: safeDate(shipment.etd),
+            eta: safeDate(shipment.eta),
+            milestones: (shipment.milestones || []).map((m: any) => ({
+                ...m,
+                predictedDate: safeMilestoneDate(m.predictedDate || m.dueDate),
+                effectiveDate: safeMilestoneDate(m.effectiveDate || m.completedDate),
+            })).filter((m: Milestone) => m.predictedDate !== null),
+        };
+    }) as Shipment[];
 }
 
-export function getShipments(): Shipment[] {
+// SERVER-SIDE SAFE: This is a placeholder. In a real app, this would write to a database.
+export async function saveShipments(shipments: Shipment[]): Promise<void> {
+    console.log("Simulating saving shipments to a persistent store.");
+    // In a real implementation with a database, this function would be async and write the data.
+    // For the mock, we can update localStorage if on the client to keep the UI consistent.
+    if (typeof window !== 'undefined') {
+        try {
+            localStorage.setItem(SHIPMENTS_STORAGE_KEY, JSON.stringify(shipments));
+            window.dispatchEvent(new Event('shipmentsUpdated'));
+        } catch (error) {
+            console.error("Failed to save shipments to localStorage", error);
+        }
+    }
+}
+
+
+// CLIENT-SIDE ONLY: Reads from localStorage.
+export function getStoredShipments(): Shipment[] {
   if (typeof window === 'undefined') {
     return [];
   }
   try {
     const storedShipments = localStorage.getItem(SHIPMENTS_STORAGE_KEY);
     if (!storedShipments) {
-        const initialData = getInitialShipments();
-        saveShipments(initialData);
+        const initialData: Shipment[] = []; // Start with an empty array on the client
+        localStorage.setItem(SHIPMENTS_STORAGE_KEY, JSON.stringify(initialData));
         return initialData;
     };
     
@@ -291,17 +335,3 @@ export function getShipments(): Shipment[] {
     return [];
   }
 }
-
-export function saveShipments(shipments: Shipment[]): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    localStorage.setItem(SHIPMENTS_STORAGE_KEY, JSON.stringify(shipments));
-    window.dispatchEvent(new Event('shipmentsUpdated'));
-  } catch (error) {
-    console.error("Failed to save shipments to localStorage", error);
-  }
-}
-
-  

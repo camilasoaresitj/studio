@@ -15,7 +15,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from './ui/button';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { getShipments } from '@/app/actions';
+import { getStoredShipments } from '@/lib/shipment-data';
 import type { Shipment } from '@/lib/shipment-data';
 import { isValid } from 'date-fns';
 
@@ -24,9 +24,9 @@ export function RecentShipments() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadShipments = async () => {
+    const loadShipments = () => {
         setIsLoading(true);
-        const allShipments = await getShipments();
+        const allShipments = getStoredShipments();
         const sortedShipments = allShipments.sort((a, b) => {
             const dateA = a.etd && isValid(new Date(a.etd)) ? new Date(a.etd).getTime() : 0;
             const dateB = b.etd && isValid(new Date(b.etd)) ? new Date(b.etd).getTime() : 0;
@@ -36,6 +36,8 @@ export function RecentShipments() {
         setIsLoading(false);
     }
     loadShipments();
+    window.addEventListener('shipmentsUpdated', loadShipments);
+    return () => window.removeEventListener('shipmentsUpdated', loadShipments);
   }, []);
 
   const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {

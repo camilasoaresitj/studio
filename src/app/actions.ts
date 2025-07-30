@@ -23,10 +23,10 @@ import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
-import { getPartners, savePartnersData } from '@/lib/partners-data';
+import { getPartners, savePartnerAction } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/components/customer-quotes-list";
-import { getShipments as getShipmentsFromStorage, saveShipments as saveShipmentsToStorage } from "@/lib/shipment-data";
+import { getShipments, saveShipments } from "@/lib/shipment-data";
 import { isPast, format, addDays, isValid } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
@@ -40,7 +40,7 @@ import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraf
 import { shareSimulation } from '@/ai/flows/share-simulation';
 import { generateSimulationPdfHtml } from "@/ai/flows/generate-simulation-pdf-html";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getFinancialEntries, saveFinancialEntries, getBankAccounts, saveBankAccounts, updateFinancialEntry as updateFinancialEntryData, addFinancialEntry as addFinancialEntryData } from '@/lib/financials-data';
+import { addFinancialEntriesAction, updateFinancialEntryAction, saveFinancialsDataAction } from './actions';
 import type { FinancialEntry, BankAccount } from '@/lib/financials-data';
 
 
@@ -280,18 +280,11 @@ export async function runCreateEmailCampaign(instruction: string) {
 }
 
 // Shipment data actions
-export async function getShipments(): Promise<Shipment[]> {
-    return getShipmentsFromStorage();
-}
-
 export async function getShipmentById(id: string): Promise<Shipment | undefined> {
     const shipments = await getShipments();
     return shipments.find(s => s.id === id);
 }
 
-export async function saveShipments(shipments: Shipment[]): Promise<void> {
-    saveShipmentsToStorage(shipments);
-}
 
 export async function updateShipment(updatedShipment: Shipment): Promise<Shipment[]> {
     const shipments = await getShipments();
@@ -733,53 +726,8 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
 
-export async function savePartnerAction(partner: Partner) {
-    try {
-        savePartnersData([partner]);
-        return { success: true, data: getPartners() };
-    } catch(e: any) {
-        return { success: false, error: e.message };
-    }
-}
-
-// Financials Server Actions
-export async function addFinancialEntryAction(newEntry: Omit<FinancialEntry, 'id'>) {
-    try {
-        const newId = addFinancialEntryData(newEntry);
-        return { success: true, data: { ...newEntry, id: newId }};
-    } catch (e: any) {
-        return { success: false, error: e.message };
-    }
-}
-
-export async function addFinancialEntriesAction(newEntries: Omit<FinancialEntry, 'id'>[]) {
-    try {
-        const createdEntries = addFinancialEntryData(newEntries as any); // The function needs to be updated to handle arrays
-        return { success: true, data: createdEntries };
-    } catch (e: any) {
-        return { success: false, error: e.message };
-    }
-}
-
-
-export async function updateFinancialEntryAction(id: string, updates: Partial<FinancialEntry>) {
-    try {
-        updateFinancialEntryData(id, updates);
-        return { success: true };
-    } catch (e: any) {
-        return { success: false, error: e.message };
-    }
-}
-
-export async function saveFinancialsDataAction(entries: FinancialEntry[], accounts: BankAccount[]) {
-    try {
-        saveFinancialEntries(entries);
-        saveBankAccounts(accounts);
-        return { success: true };
-    } catch (e: any) {
-        return { success: false, error: e.message };
-    }
-}
+export { savePartnerAction };
+export { addFinancialEntriesAction, updateFinancialEntryAction, saveFinancialsDataAction };
       
 
   

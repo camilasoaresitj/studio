@@ -3,8 +3,8 @@
 
 import React, { useEffect, useState } from 'react';
 import type { Shipment } from '@/lib/shipment-data';
-import { getShipments, saveShipments } from '@/lib/shipment-data';
-import { getPartners, type Partner } from '@/lib/partners-data';
+import { getStoredShipments, saveShipments } from '@/lib/shipment-data';
+import { getStoredPartners, type Partner } from '@/lib/partners-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ImportantTasks } from '@/components/important-tasks';
 import { RecentShipments } from '@/components/recent-shipments';
@@ -21,9 +21,9 @@ function OperacionalPageContent() {
   
     useEffect(() => {
       const loadData = () => {
-        const allShipments = getShipments();
+        const allShipments = getStoredShipments();
         setShipments(allShipments);
-        setPartners(getPartners());
+        setPartners(getStoredPartners());
 
         const shipmentIdFromUrl = searchParams.get('shipmentId');
         if (shipmentIdFromUrl) {

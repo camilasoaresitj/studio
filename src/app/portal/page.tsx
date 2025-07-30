@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle, List, FileText, Ship, Anchor } from 'lucide-react';
-import { getShipments } from '@/lib/shipment-data';
+import { getStoredShipments } from '@/lib/shipment-data';
 import type { Shipment } from '@/lib/shipment-data';
 import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { getInitialQuotes } from '@/lib/initial-data';
@@ -47,7 +47,7 @@ export default function CustomerPortalPage() {
         const fetchData = () => {
             setIsLoading(true);
             // Simulate fetching data for the logged-in customer
-            const allShipments = getShipments();
+            const allShipments = getStoredShipments();
             const customerShipments = allShipments.filter(s => s.customer === customerId);
             setShipments(customerShipments);
 
@@ -62,7 +62,7 @@ export default function CustomerPortalPage() {
         };
 
         const calculateAlerts = () => {
-             const allShipments = getShipments(); // Make sure to get fresh data
+             const allShipments = getStoredShipments(); // Make sure to get fresh data
              const customerShipments = allShipments.filter(s => s.customer === customerId);
              const today = new Date();
              today.setHours(0, 0, 0, 0);

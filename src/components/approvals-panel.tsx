@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertCircle, DollarSign, Settings, ArrowRight } from 'lucide-react';
 import { getFinancialEntries, saveFinancialEntries, FinancialEntry } from '@/lib/financials-data';
-import { getShipments, saveShipments, Shipment, QuoteCharge, ApprovalLog } from '@/lib/shipment-data';
+import { getStoredShipments, saveShipments, Shipment, QuoteCharge, ApprovalLog } from '@/lib/shipment-data';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -24,7 +24,7 @@ export function ApprovalsPanel() {
 
     const fetchPendingItems = () => {
         const financialEntries = getFinancialEntries();
-        const shipments = getShipments();
+        const shipments = getStoredShipments();
 
         const pendingFinancial: ApprovalItem[] = financialEntries
             .filter(e => e.status === 'Pendente de Aprovação')
@@ -76,7 +76,7 @@ export function ApprovalsPanel() {
             });
         } else if (viewingItem.type === 'operations') {
             const { charge, shipment } = viewingItem.item;
-            const allShipments = getShipments();
+            const allShipments = getStoredShipments();
             const updatedShipments = allShipments.map(s => {
                 if (s.id === shipment.id) {
                     const originalCharge = shipment.charges.find(c => c.id === charge.id);
@@ -158,7 +158,7 @@ export function ApprovalsPanel() {
         if (viewingItem.type === 'operations') {
             const { charge, shipment } = viewingItem.item;
             // Safe check for the original shipment and charge
-            const originalShipment = getShipments().find(s => s.id === shipment.id);
+            const originalShipment = getStoredShipments().find(s => s.id === shipment.id);
             const originalCharge = originalShipment?.charges.find(c => c.id === charge.id);
 
             return (

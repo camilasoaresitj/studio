@@ -177,7 +177,16 @@ export function savePartners(partners: Partner[]): void {
   }
   try {
     
-    const allPartners = [...partners];
+    const currentPartners = getPartners();
+    const updatedPartners = partners.map(partner => {
+        const existingPartner = currentPartners.find(p => p.id === partner.id);
+        if(existingPartner) {
+            return { ...existingPartner, ...partner };
+        }
+        return { ...partner, id: partner.id || Math.max(0, ...currentPartners.map(p => p.id ?? 0)) + 1 };
+    });
+
+    const allPartners = [...currentPartners.filter(p => !updatedPartners.some(up => up.id === p.id)), ...updatedPartners];
     
     // Logic to update the `clientsLinked` field for despachantes
     const despachantes = allPartners.filter(p => p.tipoFornecedor?.despachante);
@@ -202,3 +211,5 @@ export function savePartners(partners: Partner[]): void {
     console.error("Failed to save partners to localStorage", error);
   }
 }
+
+      

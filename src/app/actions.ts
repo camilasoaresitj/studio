@@ -40,6 +40,8 @@ import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraf
 import { shareSimulation } from '@/ai/flows/share-simulation';
 import { generateSimulationPdfHtml } from '@/ai/flows/generate-simulation-pdf-html';
 import { getRouteMap } from '@/ai/flows/get-route-map';
+import { getFinancialEntries, saveFinancialEntries, getBankAccounts, saveBankAccounts, addFinancialEntry as addFinancialEntryData, updateFinancialEntry as updateFinancialEntryData } from '@/lib/financials-data';
+import type { FinancialEntry, BankAccount } from '@/lib/financials-data';
 
 
 export async function runGetFreightRates(input: any) {
@@ -708,16 +710,48 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
 
 export async function savePartnerAction(partner: Partner) {
     try {
-        let partners = getPartners();
-        if (partner.id && partner.id !== 0) {
-            partners = partners.map(p => p.id === partner.id ? partner : p);
-        } else {
-            const newId = Math.max(0, ...partners.map(p => p.id ?? 0)) + 1;
-            partners.push({ ...partner, id: newId });
-        }
-        savePartners(partners);
-        return { success: true, data: partners };
+        savePartners([partner]);
+        return { success: true, data: getPartners() };
     } catch(e: any) {
         return { success: false, error: e.message };
     }
 }
+
+// Financials Server Actions
+export async function saveFinancialEntriesAction(entries: FinancialEntry[]) {
+    try {
+        saveFinancialEntries(entries);
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function saveBankAccountsAction(accounts: BankAccount[]) {
+    try {
+        saveBankAccounts(accounts);
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function addFinancialEntryAction(newEntry: Omit<FinancialEntry, 'id'>) {
+    try {
+        addFinancialEntryData(newEntry);
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function updateFinancialEntryAction(id: string, updates: Partial<FinancialEntry>) {
+    try {
+        updateFinancialEntryData(id, updates);
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+      

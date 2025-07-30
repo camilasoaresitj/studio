@@ -223,39 +223,48 @@ const initialFinancialData: FinancialEntry[] = [
 const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v8';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
-export function getFinancialEntries(): FinancialEntry[] {
-  if (typeof window === 'undefined') {
-    return [];
-  }
-  try {
-    const stored = localStorage.getItem(FINANCIALS_STORAGE_KEY);
-    if (!stored) {
-        localStorage.setItem(FINANCIALS_STORAGE_KEY, JSON.stringify(initialFinancialData));
-        return initialFinancialData;
+// Internal function to manage localStorage access
+function getFromStorage<T>(key: string, initialData: T[]): T[] {
+    if (typeof window === 'undefined') {
+        return [];
     }
-    return JSON.parse(stored);
-  } catch (error) {
-    console.error("Failed to parse financial entries from localStorage", error);
-    return [];
-  }
+    try {
+        const stored = localStorage.getItem(key);
+        if (!stored) {
+            localStorage.setItem(key, JSON.stringify(initialData));
+            return initialData;
+        }
+        return JSON.parse(stored);
+    } catch (error) {
+        console.error(`Failed to parse ${key} from localStorage`, error);
+        return [];
+    }
+}
+
+// Internal function to manage localStorage access
+function saveToStorage<T>(key: string, data: T[], eventName: string): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+        window.dispatchEvent(new Event(eventName));
+    } catch (error) {
+        console.error(`Failed to save ${key} to localStorage`, error);
+    }
+}
+
+
+export function getFinancialEntries(): FinancialEntry[] {
+    return getFromStorage(FINANCIALS_STORAGE_KEY, initialFinancialData);
 }
 
 export function saveFinancialEntries(entries: FinancialEntry[]): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    localStorage.setItem(FINANCIALS_STORAGE_KEY, JSON.stringify(entries));
-    // Dispatch event to notify other components of the update
-    window.dispatchEvent(new Event('financialsUpdated'));
-  } catch (error) {
-    console.error("Failed to save financial entries to localStorage", error);
-  }
+    saveToStorage(FINANCIALS_STORAGE_KEY, entries, 'financialsUpdated');
 }
 
 export function addFinancialEntry(newEntry: Omit<FinancialEntry, 'id'>): string {
   const currentEntries = getFinancialEntries();
-  // Ensure unique ID by appending a random number to the timestamp
   const newId = `fin-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const entryWithId: FinancialEntry = { ...newEntry, id: newId };
   const updatedEntries = [entryWithId, ...currentEntries];
@@ -275,7 +284,6 @@ export function addFinancialEntries(newEntries: Omit<FinancialEntry, 'id'>[]): F
 }
 
 export function findEntryById(id: string): FinancialEntry | undefined {
-    // Always get the latest from storage to ensure we find dynamically added entries.
     const currentEntries = getFinancialEntries();
     return currentEntries.find(entry => entry.id === id);
 }
@@ -292,30 +300,11 @@ export function updateFinancialEntry(id: string, updates: Partial<FinancialEntry
 }
 
 export function getBankAccounts(): BankAccount[] {
-    if (typeof window === 'undefined') {
-        return [];
-    }
-    try {
-        const stored = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
-        if (!stored) {
-            localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(initialBankAccounts));
-            return initialBankAccounts;
-        }
-        return JSON.parse(stored);
-    } catch (error) {
-        console.error("Failed to parse bank accounts from localStorage", error);
-        return [];
-    }
+    return getFromStorage(ACCOUNTS_STORAGE_KEY, initialBankAccounts);
 }
 
 export function saveBankAccounts(accounts: BankAccount[]): void {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    try {
-        localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
-        window.dispatchEvent(new Event('financialsUpdated'));
-    } catch (error) {
-        console.error("Failed to save bank accounts to localStorage", error);
-    }
+    saveToStorage(ACCOUNTS_STORAGE_KEY, accounts, 'financialsUpdated');
 }
+
+      

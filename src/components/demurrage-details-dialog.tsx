@@ -19,7 +19,7 @@ import type { DemurrageItem } from '@/app/gerencial/demurrage/page';
 import { format, addDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { addFinancialEntriesAction } from '@/app/actions';
-import { getBankAccounts } from '@/lib/financials-data';
+import { getStoredBankAccounts } from '@/lib/financials-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { runSendDemurrageInvoice } from '@/app/actions';
 import { DemurrageTariff } from '@/lib/demurrage-tariffs-data';
@@ -119,7 +119,7 @@ export function DemurrageDetailsDialog({ isOpen, onClose, item, costTariffs, sal
     setIsGenerating(true);
 
     try {
-        const accounts = getBankAccounts();
+        const accounts = getStoredBankAccounts();
         const usdAccount = accounts.find(a => a.currency === 'USD');
 
         if (!usdAccount) {

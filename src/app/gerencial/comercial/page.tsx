@@ -6,10 +6,10 @@ import { RatesTable, type Rate } from '@/components/rates-table';
 import { RateImporter } from '@/components/rate-importer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRates, saveRates } from '@/lib/rates-data';
-import { getInitialQuotes } from '@/lib/initial-data';
-import { getStoredPartners, type Partner } from '@/lib/partners-data';
+import { getStoredQuotes } from '@/lib/initial-data';
+import { getStoredPartners, type Partner, savePartners } from '@/lib/partners-data';
 import { savePartnerAction } from '@/app/actions';
-import { getFees, type Fee } from '@/lib/fees-data';
+import { getStoredFees, type Fee } from '@/lib/fees-data';
 import { Button } from '@/components/ui/button';
 import { List } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
@@ -33,13 +33,13 @@ export default function ComercialPage() {
         if (storedQuotes) {
             setQuotes(JSON.parse(storedQuotes));
         } else {
-            const initialQuotes = getInitialQuotes();
+            const initialQuotes = getStoredQuotes();
             setQuotes(initialQuotes);
             localStorage.setItem('freight_quotes', JSON.stringify(initialQuotes));
         }
         setPartners(getStoredPartners());
         setRates(getRates());
-        setFees(getFees());
+        setFees(getStoredFees());
     }, []);
 
     useEffect(() => {
@@ -70,6 +70,8 @@ export default function ComercialPage() {
         const response = await savePartnerAction(partner);
         if (response.success && response.data) {
             setPartners(response.data);
+            savePartners(response.data);
+            window.dispatchEvent(new Event('partnersUpdated'));
         }
     };
 

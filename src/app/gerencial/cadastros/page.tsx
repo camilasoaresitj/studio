@@ -13,8 +13,8 @@ import { CertificateSettings } from '@/components/settings/certificate-settings'
 import { PartnersRegistry } from '@/components/partners-registry';
 import { ProfitSettings } from '@/components/profit-settings';
 import { ShipRegistry } from '@/components/settings/ship-registry';
-import { getFees, saveFees, type Fee } from '@/lib/fees-data';
-import { getStoredPartners, type Partner } from '@/lib/partners-data';
+import { getStoredFees, saveFees, type Fee } from '@/lib/fees-data';
+import { getStoredPartners, type Partner, savePartners } from '@/lib/partners-data';
 import { UserManagementTable } from '@/components/settings/user-management-table';
 import { TaskAutomationRegistry } from '@/components/task-automation-registry';
 import { savePartnerAction } from '@/app/actions';
@@ -24,7 +24,7 @@ export default function CadastrosPage() {
     const [partners, setPartners] = useState<Partner[]>([]);
     
     useEffect(() => {
-        setFees(getFees());
+        setFees(getStoredFees());
         setPartners(getStoredPartners());
     }, []);
 
@@ -44,7 +44,7 @@ export default function CadastrosPage() {
         const response = await savePartnerAction(partnerToSave);
         if (response.success && response.data) {
             setPartners(response.data);
-            // Dispatch a custom event to notify other components
+            savePartners(response.data); // Update localStorage
             window.dispatchEvent(new Event('partnersUpdated'));
         }
     };

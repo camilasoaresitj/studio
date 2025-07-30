@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getStoredShipments, type Shipment, type ChatMessage } from '@/lib/shipment-data';
-import { updateShipment as updateShipmentAction } from '@/app/actions';
+import { updateShipment } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -83,9 +83,12 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
             return msg;
         });
         
-        await updateShipmentAction(updatedShipmentData);
+        const updatedShipments = await updateShipment(updatedShipmentData);
+        const updatedShipmentFromServer = updatedShipments.find(s => s.id === updatedShipmentData.id);
 
-        setSelectedShipment(updatedShipmentData);
+        if (updatedShipmentFromServer) {
+            setSelectedShipment(updatedShipmentFromServer);
+        }
         setShipments(getStoredShipments());
         
         setNewMessage('');

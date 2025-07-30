@@ -21,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Send } from 'lucide-react';
 import type { FinancialEntry } from '@/lib/financials-data';
-import type { Shipment } from '@/lib/shipment';
+import type { Shipment } from '@/lib/shipment-data';
 import { runSendToLegal } from '@/app/actions';
 import { getPartners, Partner } from '@/lib/partners-data';
 
@@ -179,3 +179,5 @@ export function SendToLegalDialog({ isOpen, onClose, data, onConfirm }: SendToLe
     </Dialog>
   );
 }
+
+      

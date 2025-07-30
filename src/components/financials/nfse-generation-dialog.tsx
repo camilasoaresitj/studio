@@ -25,7 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, FileText, ChevronsUpDown, Check } from 'lucide-react';
 import type { FinancialEntry } from '@/lib/financials-data';
-import type { Shipment, QuoteCharge, Partner } from '@/lib/shipment';
+import type { Shipment, QuoteCharge, Partner } from '@/lib/shipment-data';
 import { runGenerateNfseXml } from '@/app/actions';
 import { getPartners } from '@/lib/partners-data';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
@@ -337,3 +337,5 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
     </Dialog>
   );
 }
+
+      

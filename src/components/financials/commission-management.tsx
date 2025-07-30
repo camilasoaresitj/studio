@@ -247,3 +247,5 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
     </>
   );
 }
+
+    

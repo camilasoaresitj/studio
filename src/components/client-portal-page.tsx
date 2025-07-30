@@ -98,11 +98,16 @@ export function ClientPortalPage({ id }: { id: string }) {
         if (!shipment) return [];
         const uniqueMilestones = (shipment.milestones || []).reduce((acc: Milestone[], current) => {
             const twentyFourHours = 24 * 60 * 60 * 1000;
-            const x = acc.find(item => 
-                item.name === current.name && 
-                Math.abs(new Date(item.predictedDate).getTime() - new Date(current.predictedDate).getTime()) < twentyFourHours &&
-                item.details === current.details
-            );
+            const x = acc.find(item => {
+                const bothDatesExist = item.predictedDate && current.predictedDate;
+                const timeDiff = bothDatesExist 
+                    ? Math.abs(new Date(item.predictedDate).getTime() - new Date(current.predictedDate).getTime())
+                    : -1;
+
+                return item.name === current.name &&
+                       (timeDiff !== -1 && timeDiff < twentyFourHours) &&
+                       item.details === current.details;
+            });
             if (!x) {
                 return acc.concat([current]);
             } else {

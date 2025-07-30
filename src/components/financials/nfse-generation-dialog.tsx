@@ -104,7 +104,7 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
             defaultCharges = ['DESCONSOLIDAÇÃO', 'BL FEE'];
         } else if (!isMaritime && isImport) {
             defaultCharges = ['DESCONSOLIDAÇÃO', 'COLLECT FEE'];
-        } else if (!isMaritime && !isExport) {
+        } else if (!isMaritime && !isImport) {
             defaultCharges = ['AWB FEE', 'HANDLING FEE', 'DESPACHO ADUANEIRO'];
         } else if (isMaritime && !isImport) {
             defaultCharges = ['BL FEE', 'LACRE'];
@@ -337,7 +337,5 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
     </Dialog>
   );
 }
-
-      
 
     

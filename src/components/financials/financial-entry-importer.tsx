@@ -86,7 +86,7 @@ export function FinancialEntryImporter({ onEntriesImported, importType = 'financ
                 processId: String(entry.processo),
                 accountId: parseInt(entry.conta_id || '1', 10), // Default to account 1 if not specified
             };
-        }).filter((entry): entry is FinancialEntry => entry !== null);
+        }).filter(entry => entry !== null);
         
         if (importedEntries.length > 0) {
             onEntriesImported(importedEntries);

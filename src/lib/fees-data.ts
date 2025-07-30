@@ -1,5 +1,4 @@
 
-
 'use client';
 import { z } from 'zod';
 
@@ -66,7 +65,13 @@ const initialFeesData: Fee[] = [
     { id: 36, name: 'SERVIÇOS DE TRADING', value: '2500', currency: 'BRL', type: 'Opcional', unit: 'Processo', modal: 'Ambos', direction: 'Importação' },
 ];
 
+// Server-side safe function
 export function getFees(): Fee[] {
+    return initialFeesData;
+}
+
+// Client-side only function
+export function getStoredFees(): Fee[] {
   if (typeof window === 'undefined') {
     return [];
   }

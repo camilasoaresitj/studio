@@ -48,7 +48,7 @@ import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
-import { getFees, Fee } from '@/lib/fees-data';
+import { getStoredFees, Fee } from '@/lib/fees-data';
 import { runExtractPartnerInfo, savePartnerAction } from '@/app/actions';
 
 type PartnerFormData = import('zod').z.infer<typeof partnerSchema>;
@@ -94,7 +94,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setGlobalFees(getFees());
+    setGlobalFees(getStoredFees());
   }, []);
 
   const form = useForm<PartnerFormData>({

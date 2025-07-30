@@ -77,7 +77,7 @@ export function SendToLegalDialog({ isOpen, onClose, data, onConfirm }: SendToLe
     if (!data) return;
     setIsLoading(true);
 
-    const selectedLawyer = lawyers.find(l => l.id.toString() === formData.lawyerId);
+    const selectedLawyer = lawyers.find(l => l.id?.toString() === formData.lawyerId);
     if (!selectedLawyer) {
         toast({ variant: 'destructive', title: 'Advogado não encontrado' });
         setIsLoading(false);

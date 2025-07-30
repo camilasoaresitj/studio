@@ -100,7 +100,7 @@ export function ClientPortalPage({ id }: { id: string }) {
             const twentyFourHours = 24 * 60 * 60 * 1000;
             const x = acc.find(item => {
                 const bothDatesExist = item.predictedDate && current.predictedDate;
-                const timeDiff = bothDatesExist 
+                const timeDiff = bothDatesExist
                     ? Math.abs(new Date(item.predictedDate).getTime() - new Date(current.predictedDate).getTime())
                     : -1;
 

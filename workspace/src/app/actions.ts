@@ -56,11 +56,11 @@ async function simulateSave<T extends { [key: string]: any }>(data: T[], newData
             const keys = Array.from(dataMap.keys());
             if (keys.length > 0 && typeof keys[0] === 'number') {
                 const newId = Math.max(0, ...keys.map(k => Number(k) || 0)) + 1;
-                item[idField] = newId as T[keyof T];
+                (item as any)[idField] = newId;
                 dataMap.set(newId, item);
             } else {
                 const newId = `new-${Date.now()}-${Math.random()}`;
-                item[idField] = newId as T[keyof T];
+                (item as any)[idField] = newId;
                 dataMap.set(newId, item);
             }
         }
@@ -146,7 +146,7 @@ export async function updateFinancialEntryAction(entryOrPaymentData: { entryId: 
         // saveFinancialEntriesData(updatedEntries);
         // saveBankAccountsData(updatedAccounts);
 
-        return { success: true, data: { entries: updatedEntries, accounts: updatedAccounts } };
+        return { success: true, data: updatedEntries, accounts: updatedAccounts };
     } catch (error: any) {
          return { success: false, error: error.message };
     }
@@ -844,4 +844,4 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
 
     
 
-      
+  

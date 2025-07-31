@@ -108,12 +108,6 @@ export function FinancialPageClient() {
 
         const balance = getEntryBalance(entry);
         if (balance <= 0 && entry.amount > 0) {
-            // This is the corrected logic.
-            // If balance is zero, the status is 'Pago'. No need for the extra `if`.
-            Promise.resolve().then(() => {
-                const updatedEntry = { ...entry, status: 'Pago' as const };
-                handleDetailsEntryUpdate(updatedEntry);
-            });
             return { status: 'Pago', variant: 'outline' };
         }
         if (balance < entry.amount && balance > 0) return { status: 'Parcialmente Pago', variant: 'default' };

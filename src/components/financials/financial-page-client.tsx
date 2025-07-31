@@ -70,11 +70,268 @@ export function FinancialPageClient() {
     const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
     const [isEntryDialogOpen, setIsEntryDialogOpen] = useState(false);
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
-    const [nfseData, setNfseData<{ entry: FinancialEntry; shipment: Shipment } | null>({ entry: null, shipment: null });
-    const [legalData, setLegalData<{ entry: FinancialEntry; shipment: Shipment } | null>({ entry: null, shipment: null });
-    const [detailsEntry, setDetailsEntry(null);
+    const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
+    const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
+    const [detailsEntry, setDetailsEntry] = useState<FinancialEntry | null>(null);
+    const [statusFilter, setStatusFilter] = useState<Status[]>(['Aberto', 'Vencido', 'Parcialmente Pago', 'Pendente de Aprovação']);
+    const [textFilters, setTextFilters] = useState({ partner: '', invoiceId: '', processId: '' });
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [ptaxRates, setPtaxRates] = useState<Record<string, number>>({});
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const loadInitialData = async () => {
+            setEntries(getStoredFinancialEntries());
+            setAccounts(getStoredBankAccounts());
+            setAllShipments(getStoredShipments());
+            setPartners(getStoredPartners());
+            const rates = await exchangeRateService.getRates();
+            setPtaxRates(rates);
+        };
+        loadInitialData();
+    }, []);
+
+    const findEntryForPayment = (paymentId: string) => entries.find(e => e.payments?.some(p => p.id === paymentId));
+
+    const findShipmentForEntry = (entry: FinancialEntry) => allShipments.find(s => s.id === entry.processId);
+
+    const getEntryBalance = (entry: FinancialEntry): number => {
+        const totalPaid = entry.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
+        return entry.amount - totalPaid;
+    };
+    
+    const getEntryStatus = (entry: FinancialEntry): { status: Status, variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+        if (entry.status === 'Pago') return { status: 'Pago', variant: 'outline' };
+        if (entry.status === 'Renegociado') return { status: 'Renegociado', variant: 'secondary' };
+        if (entry.status === 'Jurídico') return { status: 'Jurídico', variant: 'destructive' };
+        if (entry.status === 'Pendente de Aprovação') return { status: 'Pendente de Aprovação', variant: 'default' };
+
+        const balance = getEntryBalance(entry);
+        if (balance <= 0 && entry.amount > 0) {
+            // Auto-correct status if balance is zeroed
+            if (entry.status !== 'Pago') {
+                // Mutating state here is not ideal, but for now it's a quick fix.
+                // A better approach would be to update it via a server action when a payment is made.
+                Promise.resolve().then(() => {
+                    const updatedEntry = { ...entry, status: 'Pago' as const };
+                    handleDetailsEntryUpdate(updatedEntry);
+                });
+            }
+            return { status: 'Pago', variant: 'outline' };
+        }
+        if (balance < entry.amount && balance > 0) return { status: 'Parcialmente Pago', variant: 'default' };
+
+        if (isPast(new Date(entry.dueDate)) && !isToday(new Date(entry.dueDate))) return { status: 'Vencido', variant: 'destructive' };
+        return { status: 'Aberto', variant: 'secondary' };
+    };
+
+    const handleSettlePayment = async () => {
+        if (!entryToSettle || !settlementAccountId || !settlementAmount) return;
+
+        const amount = parseFloat(settlementAmount);
+        const accountIdNum = parseInt(settlementAccountId);
+        const needsRate = entryToSettle.currency !== accounts.find(a => a.id === accountIdNum)?.currency;
+        const rate = parseFloat(exchangeRate);
+
+        if (needsRate && (isNaN(rate) || rate <= 0)) {
+            toast({ variant: 'destructive', title: 'Taxa de câmbio inválida.' });
+            return;
+        }
+
+        const newPayment: PartialPayment = {
+            id: `pay-${Date.now()}`,
+            amount,
+            date: new Date().toISOString(),
+            accountId: accountIdNum,
+            ...(needsRate && { exchangeRate: rate }),
+        };
+
+        const response = await updateFinancialEntryAction({ entryId: entryToSettle.id, payment: newPayment, settlementAccountId: accountIdNum });
+        if (response.success && response.data) {
+            setEntries(response.data.entries);
+            setAccounts(response.data.accounts);
+            toast({ title: "Pagamento baixado com sucesso!", className: 'bg-success text-success-foreground' });
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao baixar pagamento', description: response.error });
+        }
+        setEntryToSettle(null);
+    };
+
+    const handleGenerateClientInvoicePdf = async (entry: FinancialEntry) => {
+        const shipment = findShipmentForEntry(entry);
+        if (!shipment) {
+            toast({ variant: "destructive", title: "Embarque não encontrado", description: "Não é possível gerar a fatura sem um embarque associado." });
+            return;
+        }
+        setIsGenerating(true);
+        const partner = partners.find(p => p.name === entry.partner);
+        const response = await runGenerateClientInvoicePdf({
+            invoiceNumber: entry.invoiceId,
+            customerName: entry.partner,
+            customerAddress: `${partner?.address?.street}, ${partner?.address?.number}`,
+            date: format(new Date(), 'dd/MM/yyyy'),
+            dueDate: format(new Date(entry.dueDate), 'dd/MM/yyyy'),
+            charges: shipment.charges.map(c => ({
+                description: c.name,
+                value: c.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                currency: c.saleCurrency
+            })),
+            total: `${entry.currency} ${entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            bankDetails: { bankName: "LTI GLOBAL", accountNumber: "PIX: 10.298.168/0001-89" }
+        });
+
+        if (response.success && response.data?.html) {
+             const newWindow = window.open();
+             newWindow?.document.write(response.data.html);
+        } else {
+            toast({ variant: "destructive", title: "Erro ao gerar PDF", description: response.error });
+        }
+        setIsGenerating(false);
+    };
+
+    const handleGenerateAgentInvoicePdf = async (entry: FinancialEntry) => {
+        const shipment = findShipmentForEntry(entry);
+        if (!shipment || !shipment.agent) {
+            toast({ variant: "destructive", title: "Dados do agente ou embarque não encontrados." });
+            return;
+        }
+        setIsGenerating(true);
+        const response = await runGenerateAgentInvoicePdf({
+             invoiceNumber: entry.invoiceId,
+             processId: shipment.id,
+             agentName: shipment.agent.name,
+             date: format(new Date(), 'dd/MM/yyyy'),
+             charges: shipment.charges.map(c => {
+                 const profit = (c.sale * (c.saleCurrency === 'BRL' ? 1/5.25 : 1)) - (c.cost * (c.costCurrency === 'BRL' ? 1/5.25 : 1));
+                 return {
+                    description: c.name,
+                    cost: c.cost.toFixed(2),
+                    sale: c.sale.toFixed(2),
+                    profit: profit.toFixed(2),
+                    currency: 'USD'
+                 }
+             }),
+             totalCost: shipment.charges.reduce((sum, c) => sum + c.cost, 0).toFixed(2),
+             totalSale: shipment.charges.reduce((sum, c) => sum + c.sale, 0).toFixed(2),
+             totalProfit: shipment.charges.reduce((sum, c) => sum + (c.sale-c.cost), 0).toFixed(2),
+             currency: 'USD',
+        });
+
+        if (response.success && response.data?.html) {
+             const newWindow = window.open();
+             newWindow?.document.write(response.data.html);
+        } else {
+            toast({ variant: "destructive", title: "Erro ao gerar PDF", description: response.error });
+        }
+        setIsGenerating(false);
     }
     
+    const handleResendInvoice = async (entry: FinancialEntry) => {
+        setIsGenerating(true);
+        const shipment = findShipmentForEntry(entry);
+        if (!shipment || !shipment.agent) {
+             toast({ variant: "destructive", title: "Embarque ou agente não encontrados" });
+             setIsGenerating(false);
+             return;
+        }
+        
+        const response = await runSendQuote({
+            customerName: entry.partner,
+            quoteId: entry.invoiceId,
+            rateDetails: {
+                origin: shipment.origin,
+                destination: shipment.destination,
+                carrier: shipment.carrier || 'N/A',
+                transitTime: shipment.details.transitTime,
+                finalPrice: `${entry.currency} ${entry.amount.toFixed(2)}`,
+            },
+            approvalLink: `https://cargainteligente.com/pay/${entry.id}`,
+            rejectionLink: `https://cargainteligente.com/dispute/${entry.id}`,
+            isInvoice: true,
+            isClientAgent: shipment.agent?.name === entry.partner
+        });
+        
+        if (response.success && response.data) {
+             console.log("----- SIMULATING INVOICE EMAIL -----");
+             console.log("SUBJECT:", response.data.emailSubject);
+             console.log("BODY (HTML):", response.data.emailBody);
+             toast({ title: 'Fatura enviada (simulação)', description: `E-mail para ${entry.partner} gerado no console.` });
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao gerar e-mail', description: response.error });
+        }
+        setIsGenerating(false);
+    }
+
+    const toggleRowSelection = (id: string) => {
+        setSelectedRows(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
+
+    const handleStatusFilterChange = (status: Status, checked: boolean) => {
+        setStatusFilter(prev => {
+            if (checked) {
+                return [...prev, status];
+            } else {
+                return prev.filter(s => s !== status);
+            }
+        });
+    };
+    
+    const handleOpenNfseDialog = (entry: FinancialEntry) => {
+        const shipment = findShipmentForEntry(entry);
+        if(!shipment) {
+            toast({ variant: "destructive", title: "Embarque não encontrado", description: "Não é possível emitir NFS-e sem um embarque." });
+            return;
+        }
+        setNfseData({ entry, shipment });
+    };
+
+    const handleOpenLegalDialog = (entry: FinancialEntry) => {
+        const shipment = findShipmentForEntry(entry);
+        if (!shipment) {
+             toast({ variant: "destructive", title: "Embarque não encontrado", description: "Não é possível enviar para o jurídico sem um embarque." });
+            return;
+        }
+        setLegalData({ entry, shipment });
+    };
+
+    const handleProcessClick = (entry: FinancialEntry) => {
+        setDetailsEntry(entry);
+    };
+
+    const handleCloseDetails = () => {
+        setDetailsEntry(null);
+    };
+
+    const handleDetailsEntryUpdate = async (entry: FinancialEntry) => {
+        const response = await updateFinancialEntryAction(entry);
+        if (response.success && response.data) {
+            setEntries(response.data.entries);
+        } else {
+            toast({ variant: 'destructive', title: 'Erro ao atualizar', description: response.error });
+        }
+    };
+    
+     const handleLegalEntryUpdate = async (entryId: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: any) => {
+        const entry = entries.find(e => e.id === entryId);
+        if (entry) {
+            const updatedEntry = { ...entry, [field]: value };
+            const response = await updateFinancialEntryAction(updatedEntry);
+            if (response.success && response.data) {
+                setEntries(response.data.entries);
+            } else {
+                 toast({ variant: 'destructive', title: 'Erro ao atualizar', description: response.error });
+            }
+        }
+    };
+
     const handleSendToLegal = async (entry: FinancialEntry) => {
         const response = await updateFinancialEntryAction({ ...entry, status: 'Jurídico', legalStatus: 'Fase Inicial' });
         if (response.success && response.data) {
@@ -300,264 +557,224 @@ export function FinancialPageClient() {
     );
 
     return (
-    
+        <div className="space-y-8">
+            <header>
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground">
+                    Módulo Financeiro
+                </h1>
+                <p className="text-muted-foreground mt-2 text-lg">
+                    Gerencie suas contas, faturas, notas fiscais e processos jurídicos.
+                </p>
+            </header>
 
-      
-        
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {accounts.map(account => (
+                    <Card key={account.id} className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setStatementAccount(account)}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
+                            <Banknote className="h-5 w-5 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{account.currency} {account.balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                            <p className="text-xs text-muted-foreground">{account.bankName}</p>
+                        </CardContent>
+                    </Card>
+                ))}
+                 <Button variant="outline" className="h-full" onClick={() => setEditingAccount({} as BankAccount)}>
+                    <div className="flex flex-col items-center justify-center">
+                        <PlusCircle className="h-6 w-6 mb-2"/>
+                        <span className="text-sm">Nova Conta</span>
+                    </div>
+                </Button>
+            </div>
 
-            
-                
-                    
-                        
-                            Módulo Financeiro
-                        
-                        
-                            Gerencie suas contas, faturas, notas fiscais e processos jurídicos.
-                        
-                    
-                    
-                        
-                            
-                                
-                                    {account.name}
-                                
-                                
-                            
-                            
-                                {account.currency} {account.balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                                
-                                {account.bankName}
-                            
-                        
-                    
-                
-                 
-                    
-                        
-                            
-                                Nova Conta
-                            
-                        
-                    
-                
-            
+            <Tabs defaultValue="lancamentos" className="w-full">
+                <TabsList className="grid w-full grid-cols-5">
+                    <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+                    <TabsTrigger value="comissoes">Comissões</TabsTrigger>
+                    <TabsTrigger value="parceiros">Parceiros</TabsTrigger>
+                    <TabsTrigger value="consulta_nfse">Consulta NFS-e</TabsTrigger>
+                    <TabsTrigger value="juridico">Jurídico</TabsTrigger>
+                </TabsList>
 
-            
-                
-                    Lançamentos
-                    Comissões
-                    Parceiros
-                    Consulta NFS-e
-                    Jurídico
-                
-
-                
-                    
-                        
-                            
-                                
-                                    Lançamentos Financeiros
-                                
-                                
-                                    Visualize e gerencie todas as suas contas a pagar e a receber.
-                                
-                            
-                            
-                                
+                <TabsContent value="lancamentos" className="mt-6">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div>
+                                    <CardTitle>Lançamentos Financeiros</CardTitle>
+                                    <CardDescription>Visualize e gerencie todas as suas contas a pagar e a receber.</CardDescription>
+                                </div>
+                                <Button onClick={() => setIsEntryDialogOpen(true)}>
+                                    <PlusCircle className="mr-2 h-4 w-4"/>
                                     Nova Despesa
-                                
-                            
-                        
-                        
-                            
-                            
-                            
-                            
-                            
-                        
-                        
-                            Filtrar por Status:
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="p-4 border rounded-lg bg-secondary/50 flex flex-col md:flex-row gap-4 items-center">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-grow">
+                                    <Input placeholder="Buscar por parceiro..." value={textFilters.partner} onChange={(e) => handleTextFilterChange('partner', e.target.value)} />
+                                    <Input placeholder="Buscar por fatura..." value={textFilters.invoiceId} onChange={(e) => handleTextFilterChange('invoiceId', e.target.value)} />
+                                    <Input placeholder="Buscar por processo..." value={textFilters.processId} onChange={(e) => handleTextFilterChange('processId', e.target.value)} />
+                                </div>
+                                <FinancialEntryImporter onEntriesImported={() => {}} />
+                            </div>
+                            <div className="flex flex-wrap gap-x-6 gap-y-2">
+                            <Label className="font-semibold self-center">Filtrar por Status:</Label>
                             {allStatuses.map((s) => (
-                                
-                                    
-                                        
-                                    
-                                    
+                                <div key={s} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`status-${s}`}
+                                        checked={statusFilter.includes(s)}
+                                        onCheckedChange={(checked) => handleStatusFilterChange(s, !!checked)}
+                                    />
+                                    <label htmlFor={`status-${s}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                         {s}
-                                    
-                                
+                                    </label>
+                                </div>
                             ))}
-                        
+                        </div>
                         {unifiedSettlementData && (
-                            
-                                
+                            <div className="p-3 border rounded-lg bg-primary/10 flex flex-col sm:flex-row justify-between items-center gap-2 animate-in fade-in-50">
+                                <p className="font-semibold">
                                     {unifiedSettlementData.count} item(s) selecionado(s). Totais: 
                                     {Object.entries(unifiedSettlementData.totalsByCurrency).map(([currency, total]) => (
-                                        
-                                            {currency} {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                        
+                                        <Badge key={currency} className="ml-2">{currency} {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Badge>
                                     ))}
-                                
-                                
-                                    
-                                        
-                                    
+                                </p>
+                                <Button size="sm">
+                                    <Check className="mr-2 h-4 w-4"/>
                                     Realizar Baixa Unificada
-                                
-                            
+                                </Button>
+                            </div>
                         )}
 
                         {renderEntriesTable(filteredEntries)}
-                    
-                
+                    </CardContent>
+                    </Card>
+                </TabsContent>
 
+                <TabsContent value="parceiros" className="mt-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Cadastro de Parceiros</CardTitle>
+                            <CardDescription>Gerencie seus clientes, fornecedores e agentes.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <PartnersRegistry partners={partners} onPartnerSaved={handlePartnerSaved} />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
                 
-                    
-                        
-                            
-                                Cadastro de Parceiros
-                                Gerencie seus clientes, fornecedores e agentes.
-                            
-                        
-                        
-                            
-                        
-                    
-                
+                <TabsContent value="comissoes" className="mt-6">
+                    <CommissionManagement partners={partners} shipments={allShipments} exchangeRates={ptaxRates} />
+                </TabsContent>
 
-                
-                    
-                
+                <TabsContent value="consulta_nfse" className="mt-6">
+                    <NfseConsulta />
+                </TabsContent>
 
-                 
-                     
-                         
-                             
-                                 
-                                     
-                                         Processos em Jurídico
-                                     
-                                     Faturas que foram enviadas para cobrança judicial ou protesto.
-                                 
-                             
-                             
-                                 
-                                     
-                                 
-                             
-                         
-                         
-                              
-                             
-                             
-                             
-                         
-                         {renderEntriesTable(juridicoEntries, true)}
-                     
-                 
-            
+                 <TabsContent value="juridico" className="mt-6">
+                     <Card>
+                         <CardHeader>
+                             <div className="flex justify-between items-center">
+                                 <div>
+                                     <CardTitle className="flex items-center gap-2"><Gavel className="h-5 w-5 text-destructive"/> Processos em Jurídico</CardTitle>
+                                     <CardDescription>Faturas que foram enviadas para cobrança judicial ou protesto.</CardDescription>
+                                 </div>
+                                 <FinancialEntryImporter onEntriesImported={() => {}} importType="legal"/>
+                             </div>
+                         </CardHeader>
+                         <CardContent>
+                              {/* Add filters specific to legal cases if needed */}
+                             {renderEntriesTable(juridicoEntries, true)}
+                         </CardContent>
+                     </Card>
+                 </TabsContent>
+            </Tabs>
       
-        
-            
-                
-                    
-                        Confirmar Baixa de Pagamento
-                        Fatura  | Saldo: .
-                    
-                
-                
-                    
-                        
-                            Valor do Pagamento
-                            
-                                0.00
-                                
-                            
-                        
-                        
-                            Conta Bancária
-                            
-                                
-                                    Selecione a conta...
-                                
+        <AlertDialog open={!!entryToSettle}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Baixa de Pagamento</AlertDialogTitle>
+                    <AlertDialogDescription>Fatura {entryToSettle?.invoiceId} | Saldo: {entryToSettle?.currency} {entryToSettle && getEntryBalance(entryToSettle).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-4">
+                    <div className="space-y-1">
+                        <Label htmlFor="settlement-amount">Valor do Pagamento</Label>
+                        <Input id="settlement-amount" value={settlementAmount} onChange={e => setSettlementAmount(e.target.value)} type="number" placeholder="0.00" />
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="settlement-account">Conta Bancária</Label>
+                        <Select onValueChange={setSettlementAccountId} value={settlementAccountId}>
+                            <SelectTrigger id="settlement-account"><SelectValue placeholder="Selecione a conta..." /></SelectTrigger>
+                            <SelectContent>
                                 {accounts.map(account => (
-                                    
-                                        {account.name} ({account.currency})
-                                    
+                                    <SelectItem key={account.id} value={account.id.toString()}>{account.name} ({account.currency})</SelectItem>
                                 ))}
-                            
-                        
-                        {needsExchangeRate && (
-                            
-                                
-                                     Taxa de Câmbio (Fatura  → Conta )
-                                     
-                                        Ex: 5.43
-                                         
-                                    
-                                
-                            
-                        )}
-                    
-                
-                
-                    Cancelar
-                    
-                        Confirmar Baixa
-                    
-                
-            
-        
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    {needsExchangeRate && (
+                        <div className="p-2 border rounded-md bg-secondary/50 animate-in fade-in-50">
+                            <div className="space-y-1">
+                                <Label htmlFor="exchange-rate"> Taxa de Câmbio (Fatura {entryToSettle?.currency} → Conta {accounts.find(a => a.id.toString() === settlementAccountId)?.currency})</Label>
+                                <Input id="exchange-rate" value={exchangeRate} onChange={e => setExchangeRate(e.target.value)} type="number" placeholder="Ex: 5.43" />
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setEntryToSettle(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSettlePayment}>
+                        <Check className="mr-2 h-4 w-4"/>Confirmar Baixa
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
+        <BankAccountDialog isOpen={!!editingAccount} onClose={() => setEditingAccount(null)} onSave={() => {}} account={editingAccount} />
+        <FinancialEntryDialog isOpen={isEntryDialogOpen} onClose={() => setIsEntryDialogOpen(false)} onSave={() => {}} />
         
-            
-            
-            
-            
-        
-        
-            
-            
-            
-        
-
-        
+        <BankAccountStatementDialog
             account={statementAccount}
             entries={entries}
             isOpen={!!statementAccount}
             onClose={() => setStatementAccount(null)}
-        
+        />
 
-        
-            
-            
-            
+        <RenegotiationDialog
+            isOpen={!!entryToRenegotiate}
+            onClose={() => setEntryToRenegotiate(null)}
+            entry={entryToRenegotiate}
             onConfirm={handleRenegotiation}
-        
+        />
 
-        
-            data={nfseData}
+        <NfseGenerationDialog
             isOpen={!!nfseData}
             onClose={() => setNfseData(null)}
-        
+            data={nfseData}
+        />
 
-        
-            data={legalData}
+        <SendToLegalDialog
             isOpen={!!legalData}
             onClose={() => setLegalData(null)}
+            data={legalData}
             onConfirm={handleSendToLegal}
-        
-        
+        />
+        <FinancialDetailsDialog
             entry={detailsEntry}
             isOpen={!!detailsEntry}
             onClose={handleCloseDetails}
-            onReversePayment={handleReversePayment}
+            onReversePayment={()=>{}}
             findEntryForPayment={findEntryForPayment}
             findShipmentForEntry={findShipmentForEntry}
             onEntryUpdate={handleDetailsEntryUpdate}
-        
+        />
 
-    
+    </div>
   );
 }
 
+    

@@ -55,7 +55,7 @@ const consultNfseItajaiFlow = ai.defineFlow(
     `;
 
     try {
-      const soapClient: Client = await createClientAsync(WSDL_URL);
+      const soapClient: any = await createClientAsync(WSDL_URL);
       
       const [result] = await soapClient.ConsultarNfseRecebidasAsync({ ConsultarNfseRecebidasEnvio: xmlPayload });
       

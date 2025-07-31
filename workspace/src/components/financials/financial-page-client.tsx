@@ -42,13 +42,13 @@ import { FinancialDetailsDialog } from '@/components/financials/financial-detail
 import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
 import { getStoredShipments } from '@/lib/shipment-data';
-import { FinancialEntryDialog } from './financial-entry-dialog';
-import { RenegotiationDialog } from './renegotiation-dialog';
-import { NfseConsulta } from './nfse-consulta';
-import { PartnersRegistry } from '../partners-registry';
+import { FinancialEntryDialog } from '@/components/financials/financial-entry-dialog';
+import { RenegotiationDialog } from '@/components/financials/renegotiation-dialog';
+import { NfseConsulta } from '@/components/financials/nfse-consulta';
+import { PartnersRegistry } from '@/components/partners-registry';
 import { Partner, getStoredPartners } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import { CommissionManagement } from './commission-management';
+import { CommissionManagement } from '@/components/financials/commission-management';
 
 
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
@@ -1079,5 +1079,3 @@ export function FinancialPageClient() {
     </div>
   );
 }
-
-    

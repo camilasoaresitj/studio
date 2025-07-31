@@ -101,15 +101,15 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
         setSelectedShipment(shipment);
     }
     
-    const DepartmentIcon = ({ dept }: { dept: ChatMessage['department'] }) => {
-        if (dept === 'Operacional') return <Building className="h-4 w-4 text-background/80" />;
-        if (dept === 'Financeiro') return <DollarSign className="h-4 w-4 text-background/80" />;
+    const DepartmentIcon = ({ department }: { department: ChatMessage['department'] }) => {
+        if (department === 'Operacional') return <Building className="h-4 w-4 text-background/80" />;
+        if (department === 'Financeiro') return <DollarSign className="h-4 w-4 text-background/80" />;
         return null;
     }
 
     return (
         <Sheet open={isOpen} onOpenChange={onOpenChange}>
-            <SheetContent className="w-full sm:max-w-md md:max-w-lg p-0 flex flex-col">
+            <SheetContent side="right" className="w-full sm:max-w-md md:max-w-lg p-0 flex flex-col">
                 <SheetHeader className="p-4 border-b">
                     <SheetTitle className="flex items-center gap-2">
                         {selectedShipment && (
@@ -169,7 +169,7 @@ export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
                                             <div className={cn('max-w-xs md:max-w-md rounded-lg px-3 py-2', isUser ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
                                                 {msg.department !== 'Sistema' && (
                                                     <div className="flex items-center gap-1.5 mb-1">
-                                                        <DepartmentIcon dept={msg.department} />
+                                                        <DepartmentIcon department={msg.department} />
                                                         <span className="text-xs font-semibold opacity-80">{msg.department}</span>
                                                     </div>
                                                 )}

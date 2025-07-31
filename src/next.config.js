@@ -8,6 +8,7 @@ const nextConfig = {
   transpilePackages: [
     'genkit',
     '@genkit-ai/googleai',
+    '@genkit-ai/firebase',
   ],
   webpack: (config, { isServer }) => {
     // Ignore warning from handlebars library and opentelemetry on client-side build

@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { BLDraftForm } from '@/components/bl-draft-form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ShipmentChat } from '@/components/shipment-chat';
+import { GlobalChat } from '@/components/global-chat';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
 import { findPortByTerm } from '@/lib/ports';
@@ -353,7 +353,7 @@ export function ClientPortalPage({ id }: { id: string }) {
                             </Card>
                         </TabsContent>
                         <TabsContent value="chat">
-                           <ShipmentChat shipment={shipment} onUpdate={handleUpdate} />
+                           <GlobalChat shipment={shipment} onUpdate={handleUpdate} />
                         </TabsContent>
                     </Tabs>
                 </div>

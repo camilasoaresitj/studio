@@ -17,11 +17,16 @@ import { Send, Loader2, MessageSquare, ArrowLeft, Building, DollarSign } from 'l
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Label } from './ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 
-interface ShipmentChatProps {
-    shipment: Shipment;
-    onUpdate: (shipment: Shipment) => void;
+
+interface GlobalChatProps {
+    isOpen?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    shipment?: Shipment; // Make shipment optional for the global view
+    onUpdate?: (shipment: Shipment) => void;
 }
+
 
 const DepartmentIcon = ({ department }: { department: ChatMessage['department'] }) => {
     if (department === 'Operacional') return <Building className="h-4 w-4 text-background/80" />;
@@ -29,100 +34,212 @@ const DepartmentIcon = ({ department }: { department: ChatMessage['department'] 
     return null;
 }
 
-export function ShipmentChat({ shipment, onUpdate }: ShipmentChatProps) {
+// Renaming back to GlobalChat as it's used in the sidebar for a global view
+export function GlobalChat({ isOpen, onOpenChange, shipment, onUpdate }: GlobalChatProps) {
+    const [shipments, setShipments] = useState<Shipment[]>([]);
+    const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [department, setDepartment] = useState<'Operacional' | 'Financeiro'>('Operacional');
+    const { toast } = useToast();
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    
+    const isSheet = isOpen !== undefined && onOpenChange !== undefined;
+
+    const conversations = useMemo(() => {
+        return shipments
+            .filter(s => s.chatMessages && s.chatMessages.length > 0)
+            .map(s => {
+                const lastMessage = s.chatMessages![s.chatMessages!.length - 1];
+                const hasUnread = lastMessage.sender === 'Cliente' && !lastMessage.readBy?.includes('user-1'); // Assuming current user is 'user-1'
+                return {
+                    shipment: s,
+                    lastMessage,
+                    hasUnread,
+                };
+            })
+            .sort((a, b) => new Date(b.lastMessage.timestamp).getTime() - new Date(a.lastMessage.timestamp).getTime());
+    }, [shipments]);
 
     useEffect(() => {
-        if (scrollAreaRef.current) {
+        if (isSheet && isOpen) {
+            setShipments(getStoredShipments());
+        } else if (!isSheet && shipment) {
+             setSelectedShipment(shipment);
+        }
+    }, [isOpen, isSheet, shipment]);
+    
+    useEffect(() => {
+        if (selectedShipment && scrollAreaRef.current) {
             scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
         }
-    }, [shipment.chatMessages]);
-    
+    }, [selectedShipment, selectedShipment?.chatMessages]);
+
     const handleSendMessage = async () => {
-        if (!newMessage.trim()) return;
+        const shipmentToUpdate = selectedShipment || shipment;
+        if (!newMessage.trim() || !shipmentToUpdate) return;
         setIsLoading(true);
 
         const messageToSend: ChatMessage = {
-            sender: 'CargaInteligente', // This would be the authenticated user's name
+            sender: 'CargaInteligente',
             message: newMessage,
             department: department,
             timestamp: new Date().toISOString(),
-            readBy: ['user-1'] // Assume current user is user-1
+            readBy: ['user-1']
         };
         
-        const updatedShipmentData: Shipment = {
-            ...shipment,
-            chatMessages: [...(shipment.chatMessages || []), messageToSend],
+        const updatedShipmentData = {
+            ...shipmentToUpdate,
+            chatMessages: [...(shipmentToUpdate.chatMessages || []), messageToSend],
         };
+
+        updatedShipmentData.chatMessages = updatedShipmentData.chatMessages.map(msg => {
+            if (msg.sender === 'Cliente' && !msg.readBy?.includes('user-1')) {
+                return { ...msg, readBy: [...(msg.readBy || []), 'user-1'] };
+            }
+            return msg;
+        });
         
-        onUpdate(updatedShipmentData);
+        if(isSheet) {
+            const updatedShipments = await updateShipment(updatedShipmentData);
+            const updatedShipmentFromServer = updatedShipments.find(s => s.id === updatedShipmentData.id);
+            if (updatedShipmentFromServer) setSelectedShipment(updatedShipmentFromServer);
+            setShipments(getStoredShipments());
+        } else if (onUpdate) {
+            onUpdate(updatedShipmentData);
+        }
+        
         setNewMessage('');
         setIsLoading(false);
     };
+    
+    const handleSelectConversation = (shipment: Shipment) => {
+        setSelectedShipment(shipment);
+    }
 
+    const chatContent = (
+         <div className="flex flex-col h-full">
+             <ScrollArea className="flex-grow p-4" ref={scrollAreaRef as any}>
+                <div className="space-y-4">
+                    {(selectedShipment || shipment)?.chatMessages?.map((msg, index) => {
+                        const currentShipment = selectedShipment || shipment;
+                        const isUser = msg.sender !== 'Cliente';
+                        const showAvatar = (currentShipment?.chatMessages?.[index - 1]?.sender !== msg.sender);
+                        return (
+                            <div key={index} className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
+                                {!isUser && (
+                                    <Avatar className={cn("h-8 w-8", !showAvatar && "invisible")}>
+                                        <AvatarFallback>{currentShipment?.customer?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                )}
+                                <div className={cn('max-w-xs md:max-w-md rounded-lg px-3 py-2', isUser ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                                    {msg.department !== 'Sistema' && (
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <DepartmentIcon department={msg.department} />
+                                            <span className="text-xs font-semibold opacity-80">{msg.department}</span>
+                                        </div>
+                                    )}
+                                    <p className="text-sm">{msg.message}</p>
+                                    <p className={cn('text-xs mt-1 text-right', isUser ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                                        {format(new Date(msg.timestamp), 'dd/MM HH:mm')}
+                                    </p>
+                                </div>
+                                {isUser && (
+                                    <Avatar className={cn("h-8 w-8", !showAvatar && "invisible")}>
+                                        <AvatarFallback>CI</AvatarFallback>
+                                    </Avatar>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </ScrollArea>
+            <div className="p-4 border-t space-y-3 shrink-0">
+                <RadioGroup value={department} onValueChange={(v) => setDepartment(v as any)} className="flex gap-4">
+                    <Label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="Operacional" id="op-dept" />Para Operacional</Label>
+                    <Label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="Financeiro" id="fin-dept" />Para Financeiro</Label>
+                </RadioGroup>
+                <div className="flex gap-2">
+                    <Input
+                        placeholder={`Mensagem para ${department}...`}
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
+                        disabled={isLoading}
+                    />
+                    <Button onClick={handleSendMessage} disabled={isLoading || !newMessage.trim()}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+
+    if (isSheet) {
+        return (
+            <Sheet open={isOpen} onOpenChange={onOpenChange}>
+                <SheetContent side="right" className="w-full sm:max-w-md md:max-w-lg p-0 flex flex-col">
+                    <SheetHeader className="p-4 border-b">
+                        <SheetTitle className="flex items-center gap-2">
+                            {selectedShipment && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedShipment(null)}>
+                                    <ArrowLeft className="h-5 w-5" />
+                                </Button>
+                            )}
+                            <MessageSquare className="h-6 w-6" />
+                            {selectedShipment ? `Chat: ${selectedShipment.id}` : 'Conversas'}
+                        </SheetTitle>
+                        {selectedShipment && (
+                            <SheetDescription>
+                                Cliente: {selectedShipment.customer}
+                            </SheetDescription>
+                        )}
+                    </SheetHeader>
+                    
+                    <div className="flex-grow overflow-y-auto">
+                    {!selectedShipment ? (
+                        <ScrollArea className="h-full">
+                            {conversations.length > 0 ? conversations.map(({ shipment, lastMessage, hasUnread }) => (
+                                <div key={shipment.id} className={cn("flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-accent", hasUnread && "bg-primary/10 font-bold")} onClick={() => handleSelectConversation(shipment)}>
+                                    <Avatar className="relative">
+                                        <AvatarFallback>{shipment.customer?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                        {hasUnread && <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-destructive ring-2 ring-background" />}
+                                    </Avatar>
+                                    <div className="flex-grow overflow-hidden">
+                                        <p className="font-semibold truncate">{shipment.id} - {shipment.customer}</p>
+                                        <p className={cn("text-sm truncate", hasUnread ? "text-foreground" : "text-muted-foreground")}>
+                                            {lastMessage.sender === 'Cliente' ? '' : 'Você: '}{lastMessage.message}
+                                        </p>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground text-right shrink-0">
+                                        {formatDistanceToNow(new Date(lastMessage.timestamp), { addSuffix: true, locale: ptBR })}
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className="text-center text-muted-foreground p-8">
+                                    <p>Nenhuma conversa ativa.</p>
+                                </div>
+                            )}
+                        </ScrollArea>
+                    ) : (
+                        chatContent
+                    )}
+                    </div>
+                </SheetContent>
+            </Sheet>
+        );
+    }
+    
+    // Non-sheet version for embedding in pages
     return (
         <Card className="flex flex-col h-[600px]">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Chat do Processo</CardTitle>
                 <CardDescription>Comunique-se com o cliente e equipes internas sobre este embarque.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow overflow-hidden flex flex-col">
-                <ScrollArea className="flex-grow p-4 border rounded-md" ref={scrollAreaRef as any}>
-                    <div className="space-y-4">
-                        {shipment.chatMessages?.map((msg, index) => {
-                            const isUser = msg.sender !== 'Cliente';
-                             const showAvatar = (shipment.chatMessages?.[index - 1]?.sender !== msg.sender);
-                            return (
-                                <div key={index} className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
-                                     {!isUser && (
-                                        <Avatar className={cn("h-8 w-8", !showAvatar && "invisible")}>
-                                            <AvatarFallback>{shipment.customer?.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                    )}
-                                    <div className={cn('max-w-xs md:max-w-md rounded-lg px-3 py-2', isUser ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-                                        {msg.department !== 'Sistema' && (
-                                            <div className="flex items-center gap-1.5 mb-1">
-                                                <DepartmentIcon department={msg.department} />
-                                                <span className="text-xs font-semibold opacity-80">{msg.department}</span>
-                                            </div>
-                                        )}
-                                        <p className="text-sm">{msg.message}</p>
-                                        <p className={cn('text-xs mt-1 text-right', isUser ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                                            {format(new Date(msg.timestamp), 'dd/MM HH:mm')}
-                                        </p>
-                                    </div>
-                                    {isUser && (
-                                        <Avatar className={cn("h-8 w-8", !showAvatar && "invisible")}>
-                                            <AvatarFallback>CI</AvatarFallback>
-                                        </Avatar>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </ScrollArea>
-                 <div className="p-4 border-t space-y-3 shrink-0">
-                    <RadioGroup value={department} onValueChange={(v) => setDepartment(v as any)} className="flex gap-4">
-                        <Label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="Operacional" id="op-dept" />Para Operacional</Label>
-                        <Label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="Financeiro" id="fin-dept" />Para Financeiro</Label>
-                    </RadioGroup>
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder={`Mensagem para ${department}...`}
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
-                            disabled={isLoading}
-                        />
-                        <Button onClick={handleSendMessage} disabled={isLoading || !newMessage.trim()}>
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                        </Button>
-                    </div>
-                </div>
+            <CardContent className="flex-grow overflow-hidden flex flex-col p-0">
+                {chatContent}
             </CardContent>
         </Card>
-    );
+    )
 }

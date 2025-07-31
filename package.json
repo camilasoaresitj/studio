@@ -54,12 +54,12 @@
     "twilio": "^5.0.4",
     "xlsx": "^0.18.5",
     "zod": "3.23.8",
-    "genkit": "1.15.2",
     "@genkit-ai/ai": "1.15.2",
     "@genkit-ai/core": "1.15.2",
     "@genkit-ai/firebase": "1.15.2",
     "@genkit-ai/google-cloud": "1.15.5",
-    "@genkit-ai/googleai": "1.15.2"
+    "@genkit-ai/googleai": "1.15.2",
+    "genkit": "1.15.2"
   },
   "devDependencies": {
     "@types/node": "20.12.12",
@@ -79,11 +79,11 @@
     "npm": "10.x"
   },
   "overrides": {
-    "genkit": "1.15.2",
     "@genkit-ai/ai": "1.15.2",
     "@genkit-ai/core": "1.15.2",
     "@genkit-ai/firebase": "1.15.2",
     "@genkit-ai/google-cloud": "1.15.5",
-    "@genkit-ai/googleai": "1.15.2"
+    "@genkit-ai/googleai": "1.15.2",
+    "genkit": "1.15.2"
   }
 }

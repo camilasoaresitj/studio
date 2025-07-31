@@ -45,7 +45,7 @@ import type { FinancialEntry, BankAccount, PartialPayment } from '@/lib/financia
 
 // Helper function to simulate saving data and returning it
 // In a real app, this would interact with a database.
-async function simulateSave<T extends { [key: string]: any }>(data: T[], newData: T | T[], idField: keyof T = 'id' as keyof T): Promise<T[]> {
+async function simulateSave<T extends { id?: string | number }>(data: T[], newData: T | T[], idField: keyof T = 'id'): Promise<T[]> {
     const dataMap = new Map<any, T>(data.map(item => [item[idField], item]));
     const itemsToSave = Array.isArray(newData) ? newData : [newData];
 
@@ -56,11 +56,11 @@ async function simulateSave<T extends { [key: string]: any }>(data: T[], newData
             const keys = Array.from(dataMap.keys());
             if (keys.length > 0 && typeof keys[0] === 'number') {
                 const newId = Math.max(0, ...keys.map(k => Number(k) || 0)) + 1;
-                (item as any)[idField] = newId;
+                item[idField] = newId as T[keyof T];
                 dataMap.set(newId, item);
             } else {
                 const newId = `new-${Date.now()}-${Math.random()}`;
-                (item as any)[idField] = newId;
+                item[idField] = newId as T[keyof T];
                 dataMap.set(newId, item);
             }
         }
@@ -834,3 +834,5 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
       
+
+    

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -22,21 +21,21 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
 import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2, Hand, Package as PackageIcon } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Label } from './ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Label } from '@/components/ui/label';
 import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runExtractQuoteDetailsFromText, runSendWhatsapp } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import type { Quote, QuoteCharge, QuoteDetails } from './customer-quotes-list';
 import type { Partner } from '@/lib/partners-data';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
-import { Checkbox } from './ui/checkbox';
-import { Badge } from './ui/badge';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import type { Rate as LocalRate } from './rates-table';
 import type { Fee } from './fees-registry';
 import { QuoteCostSheet } from './quote-cost-sheet';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Textarea } from './ui/textarea';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { findPortByTerm, portsAndAirports } from '@/lib/ports';
 
 
@@ -559,7 +558,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     if (response.success) {
         toast({
             title: "Solicitação enviada!",
-            description: `E-mail de cotação enviado para ${response.agentsContacted.length} agente(s).`,
+            description: `E-mail de cotação enviado para ${response.agentsContacted} agente(s).`,
             className: 'bg-success text-success-foreground'
         });
     } else {
@@ -637,7 +636,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         isClientAgent: isClientAgent,
       });
 
-      if (commsResponse.success) {
+      if (commsResponse.success && commsResponse.data) {
         if (channel === 'email') {
             const primaryContact = customer.contacts.find(c => c.departments?.includes('Comercial')) || customer.contacts[0];
             const recipient = primaryContact.email;

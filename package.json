@@ -1,3 +1,4 @@
+
 {
   "name": "cargainteligente",
   "version": "1.0.8",
@@ -58,16 +59,7 @@
     "@genkit-ai/core": "1.15.2",
     "@genkit-ai/firebase": "1.15.2",
     "@genkit-ai/google-cloud": "1.15.2",
-    "@genkit-ai/googleai": "1.15.2",
-    "@opentelemetry/api": "1.9.0",
-    "@opentelemetry/context-async-hooks": "1.25.1",
-    "@opentelemetry/core": "1.25.1",
-    "@opentelemetry/exporter-jaeger": "1.25.1",
-    "@opentelemetry/instrumentation": "0.52.1",
-    "@opentelemetry/resources": "1.25.1",
-    "@opentelemetry/sdk-trace-base": "1.25.1",
-    "@opentelemetry/sdk-trace-node": "1.25.1",
-    "@opentelemetry/semantic-conventions": "1.25.1"
+    "@genkit-ai/googleai": "1.15.2"
   },
   "devDependencies": {
     "@types/node": "20.12.12",

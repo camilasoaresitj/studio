@@ -1456,5 +1456,3 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
-
-      

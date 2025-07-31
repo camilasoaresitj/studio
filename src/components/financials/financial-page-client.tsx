@@ -776,5 +776,3 @@ export function FinancialPageClient() {
     </div>
   );
 }
-
-    

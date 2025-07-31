@@ -338,7 +338,8 @@ export function FinancialPageClient() {
     const handleDetailsEntryUpdate = async (entry: FinancialEntry) => {
         const response = await updateFinancialEntryAction(entry);
         if (response.success && response.data) {
-            setEntries(response.data);
+            setEntries(response.data.entries);
+            setAccounts(response.data.accounts);
         } else {
             toast({ variant: 'destructive', title: 'Erro ao atualizar', description: response.error });
         }
@@ -578,7 +579,8 @@ export function FinancialPageClient() {
         if (entryToUpdate) {
             const response = await updateFinancialEntryAction({ ...entryToUpdate, [field]: value });
             if (response.success && response.data) {
-                setEntries(response.data);
+                setEntries(response.data.entries);
+                setAccounts(response.data.accounts);
             } else {
                  toast({ variant: 'destructive', title: 'Erro ao atualizar', description: response.error });
             }
@@ -588,7 +590,8 @@ export function FinancialPageClient() {
     const handleSendToLegal = async (entry: FinancialEntry) => {
         const response = await updateFinancialEntryAction({ ...entry, status: 'Jurídico', legalStatus: 'Fase Inicial' });
         if (response.success && response.data) {
-            setEntries(response.data);
+            setEntries(response.data.entries);
+            setAccounts(response.data.accounts);
             setLegalData(null);
         } else {
             toast({ variant: 'destructive', title: 'Erro ao mover para jurídico', description: response.error });

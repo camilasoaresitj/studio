@@ -1,10 +1,9 @@
-
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
+  output: 'standalone',
   transpilePackages: [
     'genkit',
     '@genkit-ai/googleai',
@@ -18,4 +17,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+export default nextConfig;

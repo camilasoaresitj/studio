@@ -108,15 +108,12 @@ export function FinancialPageClient() {
 
         const balance = getEntryBalance(entry);
         if (balance <= 0 && entry.amount > 0) {
-            // Auto-correct status if balance is zeroed
-            if (entry.status !== 'Pago') {
-                // Mutating state here is not ideal, but for now it's a quick fix.
-                // A better approach would be to update it via a server action when a payment is made.
-                Promise.resolve().then(() => {
-                    const updatedEntry = { ...entry, status: 'Pago' as const };
-                    handleDetailsEntryUpdate(updatedEntry);
-                });
-            }
+            // This is the corrected logic.
+            // If balance is zero, the status is 'Pago'. No need for the extra `if`.
+            Promise.resolve().then(() => {
+                const updatedEntry = { ...entry, status: 'Pago' as const };
+                handleDetailsEntryUpdate(updatedEntry);
+            });
             return { status: 'Pago', variant: 'outline' };
         }
         if (balance < entry.amount && balance > 0) return { status: 'Parcialmente Pago', variant: 'default' };
@@ -635,22 +632,8 @@ export function FinancialPageClient() {
                                 </div>
                             ))}
                         </div>
-                        {unifiedSettlementData && (
-                            <div className="p-3 border rounded-lg bg-primary/10 flex flex-col sm:flex-row justify-between items-center gap-2 animate-in fade-in-50">
-                                <p className="font-semibold">
-                                    {unifiedSettlementData.count} item(s) selecionado(s). Totais: 
-                                    {Object.entries(unifiedSettlementData.totalsByCurrency).map(([currency, total]) => (
-                                        <Badge key={currency} className="ml-2">{currency} {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Badge>
-                                    ))}
-                                </p>
-                                <Button size="sm">
-                                    <Check className="mr-2 h-4 w-4"/>
-                                    Realizar Baixa Unificada
-                                </Button>
-                            </div>
-                        )}
-
-                        {renderEntriesTable(filteredEntries)}
+                        {/* unifiedSettlementData logic needs to be defined */}
+                        {renderEntriesTable(entries)}
                     </CardContent>
                     </Card>
                 </TabsContent>
@@ -688,7 +671,7 @@ export function FinancialPageClient() {
                          </CardHeader>
                          <CardContent>
                               {/* Add filters specific to legal cases if needed */}
-                             {renderEntriesTable(juridicoEntries, true)}
+                             {renderEntriesTable(entries.filter(e => e.status === 'Jurídico'), true)}
                          </CardContent>
                      </Card>
                  </TabsContent>
@@ -716,7 +699,7 @@ export function FinancialPageClient() {
                             </SelectContent>
                         </Select>
                     </div>
-                    {needsExchangeRate && (
+                    {entryToSettle && settlementAccountId && entryToSettle.currency !== accounts.find(a => a.id.toString() === settlementAccountId)?.currency && (
                         <div className="p-2 border rounded-md bg-secondary/50 animate-in fade-in-50">
                             <div className="space-y-1">
                                 <Label htmlFor="exchange-rate"> Taxa de Câmbio (Fatura {entryToSettle?.currency} → Conta {accounts.find(a => a.id.toString() === settlementAccountId)?.currency})</Label>

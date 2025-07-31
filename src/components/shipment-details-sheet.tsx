@@ -1,6 +1,4 @@
 
-
-
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -850,7 +848,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             if (!dateB) return -1;
             return dateA - dateB;
         });
-    }, [shipment, form.watch('milestones')]); // Re-sort when milestones change
+    }, [shipment, form]); // Re-sort when milestones change
 
     if (!shipment) {
         return (
@@ -1458,4 +1456,3 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
-

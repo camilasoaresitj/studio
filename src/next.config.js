@@ -13,6 +13,10 @@ const nextConfig = {
     '@genkit-ai/firebase',
     '@genkit-ai/google-cloud',
   ],
+  webpack: (config) => {
+    config.ignoreWarnings = [/require\.extensions/, /Critical dependency/];
+    return config;
+  }
 }
 
 module.exports = nextConfig

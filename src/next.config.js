@@ -7,9 +7,13 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
   transpilePackages: [
     'genkit',
+    '@genkit-ai/ai',
+    '@genkit-ai/core',
     '@genkit-ai/googleai',
     '@genkit-ai/firebase',
+    '@genkit-ai/google-cloud',
   ],
 }
 
 module.exports = nextConfig
+

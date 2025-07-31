@@ -1,0 +1,22 @@
+
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'standalone',
+  reactStrictMode: true,
+  trailingSlash: true,
+  skipTrailingSlashRedirect: true,
+  transpilePackages: [
+    'genkit',
+    '@genkit-ai/googleai',
+  ],
+  webpack: (config, { isServer }) => {
+    // Ignore warning from handlebars library and opentelemetry on client-side build
+    if (!isServer) {
+        config.externals = [...config.externals, 'handlebars', '@opentelemetry/instrumentation'];
+    }
+    return config;
+  },
+}
+
+module.exports = nextConfig

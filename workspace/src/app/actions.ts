@@ -107,7 +107,7 @@ export async function addFinancialEntriesAction(newEntriesData: Omit<FinancialEn
     }
 }
 
-export async function updateFinancialEntryAction(entryOrPaymentData: { entryId: string; payment: PartialPayment; settlementAccountId: number } | FinancialEntry) {
+export async function updateFinancialEntryAction(entryOrPaymentData: { entryId: string; payment: PartialPayment; settlementAccountId: number } | FinancialEntry): Promise<{ success: boolean, data?: { entries: FinancialEntry[], accounts: BankAccount[] }, error?: string }> {
     try {
         const currentEntries = getFinancialEntries();
         const currentAccounts = getBankAccounts();
@@ -148,7 +148,7 @@ export async function updateFinancialEntryAction(entryOrPaymentData: { entryId: 
 
         return { success: true, data: { entries: updatedEntries, accounts: updatedAccounts } };
     } catch (error: any) {
-         return { success: false, error: error.message };
+         return { success: false, error: (error as Error).message };
     }
 }
 
@@ -833,3 +833,6 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
+      
+
+    

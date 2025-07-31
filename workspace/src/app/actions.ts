@@ -146,7 +146,7 @@ export async function updateFinancialEntryAction(entryOrPaymentData: { entryId: 
         // saveFinancialEntriesData(updatedEntries);
         // saveBankAccountsData(updatedAccounts);
 
-        return { success: true, data: updatedEntries, accounts: updatedAccounts };
+        return { success: true, data: { entries: updatedEntries, accounts: updatedAccounts } };
     } catch (error: any) {
          return { success: false, error: error.message };
     }
@@ -835,13 +835,3 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
 }
       
 
-  
-
-
-    
-
-  
-
-    
-
-  

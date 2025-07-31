@@ -9,7 +9,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z, ZodType } from 'zod';
+import { z } from 'genkit';
 import { createClientAsync, Client } from 'soap';
 
 const ConsultNfseItajaiInputSchema = z.object({
@@ -30,7 +30,7 @@ const WSDL_URL = 'http://nfse-teste.publica.inf.br/homologa_nfse_integracao/Cons
 const consultNfseItajaiFlow = ai.defineFlow(
   {
     name: 'consultNfseItajaiFlow',
-    inputSchema: ConsultNfseItajaiInputSchema as ZodType<any>,
+    inputSchema: ConsultNfseItajaiInputSchema,
     outputSchema: ConsultNfseItajaiOutputSchema,
   },
   async (input) => {

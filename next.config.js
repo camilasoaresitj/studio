@@ -1,4 +1,3 @@
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -7,16 +6,12 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
   transpilePackages: [
     'genkit',
+    '@genkit-ai/ai',
+    '@genkit-ai/core',
     '@genkit-ai/googleai',
     '@genkit-ai/firebase',
+    '@genkit-ai/google-cloud',
   ],
-  webpack: (config, { isServer }) => {
-    // Ignore warning from handlebars library and opentelemetry on client-side build
-    if (!isServer) {
-        config.externals = [...config.externals, 'handlebars', '@opentelemetry/instrumentation', '@genkit-ai/firebase'];
-    }
-    return config;
-  },
 }
 
 module.exports = nextConfig

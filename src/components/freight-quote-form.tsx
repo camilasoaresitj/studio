@@ -27,7 +27,7 @@ import { Label } from './ui/label';
 import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runExtractQuoteDetailsFromText, runSendWhatsapp } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
 import type { Quote, QuoteCharge, QuoteDetails } from './customer-quotes-list';
-import type { Partner } from './partners-registry';
+import type { Partner } from '@/lib/partners-data';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
@@ -1353,3 +1353,5 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     </div>
   );
 }
+
+    

@@ -1,4 +1,6 @@
 
+
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -357,7 +359,7 @@ function mapEventToMilestone(eventName: string): string | null {
 export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('timeline');
-    const [isUpdating, setIsUpdating] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(isUpdating);
     const [isFetchingCourier, setIsFetchingCourier] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [fees, setFees] = useState<Fee[]>([]);
@@ -1456,3 +1458,4 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
+

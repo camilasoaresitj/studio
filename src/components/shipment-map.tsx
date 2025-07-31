@@ -1,4 +1,6 @@
 
+
+
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -9,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface ShipmentMapProps {
   shipmentNumber: string;
@@ -159,12 +162,13 @@ export function ShipmentMap({ shipmentNumber }: ShipmentMapProps) {
              <div ref={mapRef} className={cn("w-full h-full", (isLoading || error) && "invisible")} />
         </div>
          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-4">
-            <div className="flex items-center gap-2"><img src="https://maps.google.com/mapfiles/ms/icons/green-dot.png" alt="Origem" className="h-4 w-4"/> Origem</div>
-            <div className="flex items-center gap-2"><img src="https://maps.google.com/mapfiles/ms/icons/red-dot.png" alt="Destino" className="h-4 w-4"/> Destino</div>
-            <div className="flex items-center gap-2"><img src="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" alt="Transbordo" className="h-4 w-4"/> Transbordo</div>
-            <div className="flex items-center gap-2"><img src="/ship-icon.png" alt="Posição Atual" className="h-4 w-4"/> Posição Atual</div>
+            <div className="flex items-center gap-2"><Image src="https://maps.google.com/mapfiles/ms/icons/green-dot.png" alt="Origem" height={16} width={16} /> Origem</div>
+            <div className="flex items-center gap-2"><Image src="https://maps.google.com/mapfiles/ms/icons/red-dot.png" alt="Destino" height={16} width={16} /> Destino</div>
+            <div className="flex items-center gap-2"><Image src="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" alt="Transbordo" height={16} width={16} /> Transbordo</div>
+            <div className="flex items-center gap-2"><Image src="/ship-icon.png" alt="Posição Atual" height={16} width={16} /> Posição Atual</div>
         </div>
       </CardContent>
     </Card>
   );
 }
+

@@ -84,7 +84,8 @@ interface ShipmentDetailsTabProps {
 }
 
 export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners, onUpdate, isTracking, setIsTracking }, ref) => {
-    const [trackingError, setTrackingError] = useState<string | null>(null);
+    const [trackingError, setTrackingError] = useState<any | null>(null);
+
 
     const form = useForm<DetailsFormData>({
         resolver: zodResolver(detailsFormSchema),
@@ -107,10 +108,15 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
     
     const handleRefreshTracking = async () => {
         const { bookingNumber, carrier } = form.getValues();
+
         if (!bookingNumber || !carrier) {
-            setTrackingError("Número do booking e transportadora são necessários para o rastreamento.");
+            setTrackingError({
+                error: "Dados Incompletos",
+                detail: "Número do booking e transportadora são necessários para o rastreamento."
+            });
             return;
         }
+
         setIsTracking(true);
         setTrackingError(null);
         try {
@@ -118,7 +124,7 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             const data = await res.json();
             
             if (!res.ok) {
-                 throw new Error(data.detail || data.error || `HTTP error! status: ${res.status}`);
+                 throw data;
             }
 
             if(data.status === 'ready' || (data.status === 'processing' && data.shipment)) {
@@ -130,11 +136,14 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                     eta: data.shipment.arrivalDate ? new Date(data.shipment.arrivalDate) : shipment.eta,
                 });
             } else {
-                 setTrackingError(data.message || "Status de rastreamento desconhecido.");
+                 setTrackingError({
+                     error: "Status do Rastreamento",
+                     detail: data.message || "Status de rastreamento desconhecido."
+                 });
             }
         } catch (error: any) {
             console.error("Tracking failed:", error);
-            setTrackingError(error.message);
+            setTrackingError(error);
         } finally {
             setIsTracking(false);
         }
@@ -186,9 +195,17 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                         {trackingError && (
                              <Alert variant="destructive">
                                 <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>Status do Rastreamento</AlertTitle>
+                                <AlertTitle>{trackingError.error || 'Erro ao Carregar Rastreamento'}</AlertTitle>
                                 <AlertDescription>
-                                    <pre className="text-xs whitespace-pre-wrap">{trackingError}</pre>
+                                    <p><b>Detalhes:</b> {trackingError.detail || "Ocorreu um erro inesperado."}</p>
+                                    {trackingError.payloadSent && (
+                                        <div className="mt-2">
+                                            <b>Payload Enviado:</b>
+                                            <pre className="text-xs whitespace-pre-wrap bg-destructive/20 p-2 rounded-md mt-1">
+                                                {JSON.stringify(trackingError.payloadSent, null, 2)}
+                                            </pre>
+                                        </div>
+                                    )}
                                 </AlertDescription>
                             </Alert>
                         )}

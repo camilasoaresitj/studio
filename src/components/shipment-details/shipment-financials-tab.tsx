@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
@@ -51,6 +50,7 @@ type FinancialsFormData = z.infer<typeof financialsFormSchema>;
 interface ShipmentFinancialsTabProps {
     shipment: Shipment;
     partners: Partner[];
+    onOpenDetails: (charge: QuoteCharge) => void;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -95,7 +95,7 @@ const containerTypeOptions = ['Todos', 'Dry', 'Reefer', 'Especiais'];
 const chargeTypeOptions = ['Contêiner', 'BL', 'Processo', 'W/M', 'KG', 'AWB', 'Fixo', 'Percentual'];
 
 
-export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners }, ref) => {
+export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
@@ -227,14 +227,21 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                 />
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
-                                                {isFaturado ? (
-                                                     <div className="flex items-center gap-1 text-muted-foreground">
-                                                         <FileText className="h-4 w-4" />
-                                                         <span className="text-xs">{charge.name}</span>
-                                                    </div>
-                                                ) : (
-                                                    <FeeCombobox fees={fees} value={charge.name} onValueChange={() => {}} />
-                                                )}
+                                                <div className="flex items-center gap-1">
+                                                    {isFaturado ? (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenDetails(charge)}>
+                                                                        <FileText className="h-4 w-4 text-primary" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent><p>Ver Fatura</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    ) : null}
+                                                    <span className={cn(isFaturado && "text-muted-foreground text-xs")}>{charge.name}</span>
+                                                </div>
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
                                                 <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (

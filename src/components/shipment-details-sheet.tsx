@@ -17,7 +17,7 @@ import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Form } from './ui/form';
 
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner, UploadedDocument, ActivityLog, ApprovalLog } from '@/lib/shipment-data';
+import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner, UploadedDocument, ActivityLog, ApprovalLog, FinancialEntry } from '@/lib/shipment-data';
 import { 
     Save, 
     GanttChart, 
@@ -43,6 +43,8 @@ import { ShipmentTimelineTab } from './shipment-details/shipment-timeline-tab';
 import { ShipmentDetailsTab } from './shipment-details/shipment-details-tab';
 import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-tab';
 import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
+import { FinancialDetailsDialog } from './financials/financial-details-dialog';
+import { getStoredFinancialEntries } from '@/lib/financials-data';
 
 
 const shipmentDetailsSchema = z.object({
@@ -105,8 +107,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const [activeTab, setActiveTab] = useState('timeline');
     const [isUpdating, setIsUpdating] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [detailsEntry, setDetailsEntry] = useState<FinancialEntry | null>(null);
     
-    // We can use a single ref to hold all form refs from child components
     const formRefs = useRef<Record<string, { submit: () => Promise<any> }>>({});
 
     const form = useForm<ShipmentDetailsFormData>({
@@ -146,12 +148,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         setIsUpdating(true);
         
         try {
-            // Get data from the currently active tab's form
             const activeFormSubmit = formRefs.current[activeTab]?.submit;
             if (activeFormSubmit) {
                 const formData = await activeFormSubmit();
                 
-                // Merge and update the shipment
                 const updatedShipmentData = { ...shipment, ...formData };
                 onUpdate(updatedShipmentData);
 
@@ -244,6 +244,16 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         setIsGenerating(false);
     };
 
+    const handleOpenDetailsDialog = (charge: QuoteCharge) => {
+        const allEntries = getStoredFinancialEntries();
+        const entry = allEntries.find(e => e.id === charge.financialEntryId);
+        if (entry) {
+            setDetailsEntry(entry);
+        } else {
+            toast({ variant: 'destructive', title: 'Fatura não encontrada', description: 'Não foi possível localizar o lançamento financeiro associado.' });
+        }
+    };
+
     if (!shipment) {
         return (
             <Sheet open={open} onOpenChange={onOpenChange}>
@@ -255,6 +265,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     }
     
     return (
+        <>
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="sm:max-w-7xl w-full p-0">
                 <div className="flex flex-col h-full">
@@ -292,7 +303,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             </div>
                         </div>
                         <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            {/* Partner selection could be moved to the Details tab if it becomes too crowded */}
                             <div className="text-sm font-medium">
                                 <span className="text-muted-foreground">Shipper:</span> {shipment.shipper.name} | <span className="text-muted-foreground">Consignee:</span> {shipment.consignee.name}
                             </div>
@@ -335,6 +345,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         ref={(el) => { if (el) formRefs.current['financials'] = el; }}
                                         shipment={shipment}
                                         partners={partners}
+                                        onOpenDetails={handleOpenDetailsDialog}
                                     />
                                 </TabsContent>
                                 <TabsContent value="documents">
@@ -360,5 +371,14 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 </div>
             </SheetContent>
         </Sheet>
+        <FinancialDetailsDialog
+            entry={detailsEntry}
+            isOpen={!!detailsEntry}
+            onClose={() => setDetailsEntry(null)}
+            findEntryForPayment={(paymentId) => getStoredFinancialEntries().find(e => e.payments?.some(p => p.id === paymentId))}
+            findShipmentForEntry={(entry) => shipment?.id === entry.processId ? shipment : undefined}
+            onEntryUpdate={()=>{}}
+        />
+        </>
     );
 }

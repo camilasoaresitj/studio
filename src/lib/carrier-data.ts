@@ -3,6 +3,7 @@ export interface Carrier {
     name: string;
     scac: string | null;
     type: 'INTERMODAL_SHIPMENT' | 'AIR_SHIPMENT' | 'OUTSOURCED_LOGISTICS_SHIPMENT';
+    aliases?: string[];
 }
 
 // Data sourced from Cargo-flows GET /carrierList API, names adjusted for accuracy
@@ -22,7 +23,7 @@ const CARRIER_DATA: Omit<Carrier, 'type'>[] = [
   { name: "Blue Water Lines", scac: "BWLU" },
   { name: "Blue World Lines", scac: "BWLE" },
   { name: "CaroTrans", scac: "CROS" },
-  { name: "CMA CGM", scac: "CMDU" },
+  { name: "CMA CGM", scac: "CMDU", aliases: ["CMA-CGM"] },
   { name: "CNC", scac: "11DX" },
   { name: "Containerships", scac: "CSHP" },
   { name: "COSCO", scac: "COSU" },
@@ -45,7 +46,7 @@ const CARRIER_DATA: Omit<Carrier, 'type'>[] = [
   { name: "GoodRich Maritime", scac: "GRXU" },
   { name: "Grimaldi", scac: "GRIU" },
   { name: "Hamburg Sud", scac: "SUDU" },
-  { name: "Hapag Lloyd", scac: "HLCU" },
+  { name: "Hapag Lloyd", scac: "HLCU", aliases: ["Hapag-Lloyd"] },
   { name: "Heung-A", scac: "HLHU" },
   { name: "HMM", scac: "HDMU" },
   { name: "Interasia", scac: "12AT" },
@@ -53,7 +54,7 @@ const CARRIER_DATA: Omit<Carrier, 'type'>[] = [
   { name: "KMTC", scac: "KMTU" },
   { name: "Lynden", scac: "LTIA" },
   { name: "MacAndrews", scac: "MCAW" },
-  { name: "Maersk", scac: "MAEU" },
+  { name: "Maersk", scac: "MAEU", aliases: ["Maersk Line"] },
   { name: "MainFreight", scac: "MFGT" },
   { name: "Marfret", scac: "MFUS" },
   { name: "Mariana Express Lines", scac: "MEXU" },
@@ -134,7 +135,15 @@ export function getCarrierByScac(scac: string): Carrier | undefined {
 }
 
 export function findCarrierByName(name: string): Carrier | undefined {
-    const lowerName = name.toLowerCase();
-    const carrier = CARRIER_DATA.find(c => c.name.toLowerCase() === lowerName || (c.scac && lowerName.includes(c.scac.toLowerCase())));
+    if (!name) return undefined;
+    const lowerName = name.toLowerCase().trim();
+    
+    // Search by exact name, alias, or SCAC code.
+    const carrier = CARRIER_DATA.find(c => 
+        c.name.toLowerCase() === lowerName ||
+        (c.aliases && c.aliases.some(alias => alias.toLowerCase() === lowerName)) ||
+        (c.scac && c.scac.toLowerCase() === lowerName)
+    );
+    
     return carrier ? { ...carrier, type: 'INTERMODAL_SHIPMENT' } : undefined;
 }

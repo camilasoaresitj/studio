@@ -13,18 +13,18 @@ let lastCacheTime = 0;
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24h
 
 async function safelyParseJSON(response: Response) {
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-        return await response.json();
-    }
     const text = await response.text();
-    // If we get HTML, it's likely an error page from the API provider.
-    if (text.trim().startsWith('<html>')) {
-        console.error("Received HTML response instead of JSON:", text);
-        throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada.");
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        // If we get HTML, it's likely an error page from the API provider.
+        if (text.trim().startsWith('<html>')) {
+            console.error("Received HTML response instead of JSON:", text.substring(0, 500));
+            throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada.");
+        }
+        // For other non-json responses
+        throw new Error(`Resposta inválida da API: ${text}`);
     }
-    // Attempt to parse anyway for other cases, but might fail.
-    return JSON.parse(text);
 }
 
 
@@ -49,6 +49,10 @@ export async function OPTIONS() {
         'X-DPW-Org-Token': ORG_TOKEN
       }
     });
+    if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Erro na API Cargo-flows: ${res.status} ${errorText}`);
+    }
     const list = await res.json();
     cachedCarriers = list;
     lastCacheTime = now;
@@ -81,7 +85,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     });
 
     let data;
-    // Handle empty response (204) before trying to parse JSON
     if (res.status !== 204) {
       data = await safelyParseJSON(res);
     }
@@ -92,8 +95,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       if (!carrierName || !carrierInfo) {
           return NextResponse.json({
-            error: 'Carrier não encontrado.',
-            detail: `Nenhum armador com nome '${carrierName}' foi localizado.`
+            error: 'Transportadora não encontrada.',
+            detail: `Nenhuma transportadora com nome '${carrierName}' foi localizada em nossa base de dados. Verifique o nome e tente novamente.`
           }, { status: 400 });
       }
 
@@ -118,13 +121,13 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         body: JSON.stringify(payload)
       });
       
+      const rawResponseText = await createRes.text();
       console.log('📥 Resposta Cargo-flows status:', createRes.status);
-      const raw = await createRes.text();
-      console.log('📥 Body (raw):', raw);
+      console.log('📥 Body (raw):', rawResponseText);
 
       if (!createRes.ok) {
         let errorBody;
-        try { errorBody = JSON.parse(raw); } catch { errorBody = raw; }
+        try { errorBody = JSON.parse(rawResponseText); } catch { errorBody = rawResponseText; }
         
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
@@ -163,7 +166,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
         fallback: {
           eventName: 'Rastreamento em processamento',
-          location: 'Aguardando dados do armador',
+          location: 'Aguardando dados da transportadora',
           actualTime: new Date().toISOString()
         }
       }, { status: 202 });
@@ -174,7 +177,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       eventName: ev.name,
       location: ev.location,
       actualTime: ev.actualTime || ev.estimateTime,
-      shipment: firstShipment, // Passando os dados do embarque junto com os eventos
+      shipment: firstShipment,
     }));
 
     return NextResponse.json({ status: 'ready', eventos });

@@ -8,7 +8,7 @@ import { RecentShipments } from '@/components/recent-shipments';
 import { ApprovalsPanel } from '@/components/approvals-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Ship, CheckCircle, TrendingUp, AlertTriangle, Scale, ListTodo, Users, UserPlus, UserCheck, Package } from 'lucide-react';
-import { getStoredShipments, Shipment } from '@/lib/shipment-data-client';
+import { getStoredShipments, Shipment, Milestone } from '@/lib/shipment-data-client';
 import { getStoredQuotes, Quote } from '@/lib/initial-data';
 import { getStoredFinancialEntries } from '@/lib/financials-data';
 import { isThisMonth, parseISO, isPast, differenceInDays, isValid, subDays } from 'date-fns';

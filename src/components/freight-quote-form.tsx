@@ -359,8 +359,8 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     const values = form.getValues();
     const customer = partners.find(p => p.id?.toString() === values.customerId);
     
-    const originIsBR = (baseFreightCharges[0]?.origin || values.origin).toUpperCase().includes('BR');
-    const destinationIsBR = (baseFreightCharges[0]?.destination || values.destination).toUpperCase().includes('BR');
+    const originIsBR = (values.origin || "").toUpperCase().includes('BR');
+    const destinationIsBR = (values.destination || "").toUpperCase().includes('BR');
     let direction: 'Importação' | 'Exportação' | 'Ambos' = 'Ambos';
     if (destinationIsBR && !originIsBR) direction = 'Importação';
     else if (originIsBR && !destinationIsBR) direction = 'Exportação';

@@ -34,65 +34,16 @@ function OperacionalPageContent() {
             }
         }
     }, [searchParams, selectedShipment]);
-
-    const runDailyTrackingUpdate = useCallback(async () => {
-        const allShipments = getStoredShipments();
-        const today = new Date().getTime();
-        const oneDay = 24 * 60 * 60 * 1000;
-        const activeShipments = allShipments.filter(s => s.status !== 'Finalizado');
-        const shipmentsToUpdate = activeShipments.filter(s => {
-            const lastUpdate = s.lastTrackingUpdate ? new Date(s.lastTrackingUpdate).getTime() : 0;
-            return (today - lastUpdate) > oneDay;
-        });
-
-        if (shipmentsToUpdate.length > 0) {
-            toast({
-                title: 'Atualização Automática de Rastreio',
-                description: `Iniciando a verificação de ${shipmentsToUpdate.length} embarque(s) em segundo plano.`
-            });
-
-            for (const shipment of shipmentsToUpdate) {
-                if (!shipment.bookingNumber || !shipment.carrier) continue;
-                 try {
-                    const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
-                    if (!response.ok) {
-                        console.warn(`Falha ao auto-atualizar ${shipment.id}: ${response.statusText}`);
-                        continue;
-                    }
-                    const data = await response.json();
-                    
-                    const updatedShipment = { ...shipment, lastTrackingUpdate: new Date() };
-
-                    if (data.status === 'ready' && data.eventos.length > 0) {
-                        // Logic to update milestones based on events
-                    } else if (data.status === 'processing' && data.shipment) {
-                        // Logic to update details from partial data
-                    }
-                    
-                    // In a real scenario, we'd find the index and update it.
-                    // For now, we just update the lastTrackingUpdate timestamp.
-                     const currentShipments = getStoredShipments();
-                     const updatedShipments = currentShipments.map(s => s.id === shipment.id ? { ...s, lastTrackingUpdate: new Date() } : s);
-                     saveShipments(updatedShipments);
-
-                } catch (error) {
-                    console.error(`Erro ao auto-atualizar ${shipment.id}:`, error);
-                }
-            }
-            loadData(); // Reload all data after updates
-        }
-    }, [loadData, toast]);
   
     useEffect(() => {
       loadData();
-      runDailyTrackingUpdate(); // Run on initial load
       window.addEventListener('shipmentsUpdated', loadData);
       window.addEventListener('partnersUpdated', loadData);
       return () => {
         window.removeEventListener('shipmentsUpdated', loadData);
         window.removeEventListener('partnersUpdated', loadData);
       };
-    }, [loadData, runDailyTrackingUpdate]);
+    }, [loadData]);
   
     const handleSelectShipment = (shipment: Shipment) => {
       setSelectedShipment(shipment);

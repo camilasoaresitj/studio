@@ -1,6 +1,6 @@
 
-import { ShipRegistry } from '@/components/settings/ship-registry';
+import { redirect } from 'next/navigation';
 
-export default function NaviosPage() {
-  return <ShipRegistry />;
+export default function NaviosRedirect() {
+  redirect('/gerencial/cadastros');
 }

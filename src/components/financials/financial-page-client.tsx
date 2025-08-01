@@ -501,7 +501,7 @@ export function FinancialPageClient() {
         }
     };
     
-     const handleLegalEntryUpdate = async (entryId: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: any) => {
+    const handleLegalEntryUpdate = async (entryId: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: any) => {
         const entry = entries.find(e => e.id === entryId);
         if (entry) {
             const updatedEntry = { ...entry, [field]: value };
@@ -601,7 +601,7 @@ export function FinancialPageClient() {
                 updatedAccounts[index] = { ...account, id: editingAccount.id };
             }
         } else {
-            const newId = Math.max(0, ...accounts.map(a => a.id)) + 1;
+            const newId = accounts.length > 0 ? Math.max(...accounts.map(a => a.id)) + 1 : 1;
             updatedAccounts.push({ ...account, id: newId });
         }
         setAccounts(updatedAccounts);

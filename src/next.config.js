@@ -6,6 +6,24 @@ const nextConfig = {
   reactStrictMode: true,
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'maps.google.com',
+        port: '',
+        pathname: '/mapfiles/ms/icons/**',
+      },
+       {
+        protocol: 'https',
+        hostname: 'placehold.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'logo.clearbit.com',
+      }
+    ],
+  },
   transpilePackages: [
     'genkit',
     '@genkit-ai/ai',
@@ -26,6 +44,7 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
+
 
 
 

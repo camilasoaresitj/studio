@@ -24,47 +24,9 @@ import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
 import type { UploadedDocument } from '@/lib/shipment-data';
+import type { Quote, QuoteCharge } from '@/lib/initial-data';
 
-export type QuoteCharge = {
-  id: string;
-  name: string;
-  type: string;
-  containerType?: string;
-  localPagamento?: 'Origem' | 'Frete' | 'Destino';
-  cost: number;
-  costCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
-  sale: number;
-  saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
-  supplier: string;
-  sacado?: string;
-  approvalStatus: 'aprovada' | 'pendente' | 'rejeitada';
-  justification?: string;
-  financialEntryId?: string | null;
-};
-
-export type QuoteDetails = {
-    cargo: string;
-    transitTime: string;
-    validity: string;
-    freeTime: string;
-    incoterm: string;
-    collectionAddress?: string;
-    deliveryAddress?: string;
-};
-
-export type Quote = {
-  id: string;
-  customer: string;
-  origin: string;
-  destination: string;
-  status: 'Enviada' | 'Aprovada' | 'Perdida' | 'Rascunho';
-  date: string;
-  details: QuoteDetails;
-  charges: QuoteCharge[];
-  shipper?: Partner;
-  consignee?: Partner;
-  agent?: Partner;
-};
+export type { Quote, QuoteCharge };
 
 
 interface CustomerQuotesListProps {

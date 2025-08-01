@@ -15,7 +15,8 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { Form } from './ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
+import { Input } from './ui/input';
 
 import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner, UploadedDocument, ActivityLog, ApprovalLog, FinancialEntry } from '@/lib/shipment-data';
 import { 
@@ -28,7 +29,9 @@ import {
     Map as MapIcon,
     FileText,
     FileCode,
-    Clock
+    Clock,
+    ChevronsUpDown,
+    Check
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -45,16 +48,22 @@ import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-ta
 import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
 import { FinancialDetailsDialog } from './financials/financial-details-dialog';
 import { getStoredFinancialEntries } from '@/lib/financials-data';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import { cn } from '@/lib/utils';
+import { Textarea } from './ui/textarea';
+import { AutocompleteInput } from './autocomplete-input';
 
 
 const shipmentDetailsSchema = z.object({
-  // This schema can be simplified as validation logic is moved to child components
-  shipperId: z.number().optional(),
-  consigneeId: z.number().optional(),
-  agentId: z.number().optional(),
-  notifyId: z.number().optional(),
+  shipperId: z.string().optional(),
+  consigneeId: z.string().optional(),
+  agentId: z.string().optional(),
+  notifyId: z.string().optional(),
   purchaseOrderNumber: z.string().optional(),
   invoiceNumber: z.string().optional(),
+  origin: z.string().min(1, "Origem é obrigatória."),
+  destination: z.string().min(1, "Destino é obrigatório."),
   charges: z.array(z.any()).optional(), // Simplified for the main sheet
 });
 
@@ -102,6 +111,70 @@ const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string })
     );
 };
 
+const PartnerCombobox = ({
+  partners,
+  value,
+  onValueChange,
+  placeholder,
+}: {
+  partners: Partner[];
+  value: string | undefined;
+  onValueChange: (value: string) => void;
+  placeholder: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const selectedPartner = partners.find((p) => p.id?.toString() === value);
+
+  return (
+    <div className="space-y-1">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <FormControl>
+            <Button
+              variant="outline"
+              role="combobox"
+              className={cn("w-full justify-between font-normal", !value && "text-muted-foreground")}
+            >
+              {selectedPartner ? selectedPartner.name : placeholder}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </FormControl>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command>
+            <CommandInput placeholder="Buscar parceiro..." />
+            <CommandList>
+              <CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
+              <CommandGroup>
+                {partners.map((partner) => (
+                  <CommandItem
+                    value={partner.name}
+                    key={partner.id}
+                    onSelect={() => {
+                      onValueChange(partner.id!.toString());
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", partner.id?.toString() === value ? "opacity-100" : "opacity-0")} />
+                    {partner.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selectedPartner && (
+        <div className="text-xs text-muted-foreground p-2 border rounded-md bg-secondary/50">
+          <p className="truncate">{selectedPartner.address?.street}, {selectedPartner.address?.number}</p>
+          <p>{selectedPartner.cnpj || selectedPartner.vat}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('timeline');
@@ -118,12 +191,14 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     useEffect(() => {
         if (shipment) {
             form.reset({
-                shipperId: shipment.shipper?.id,
-                consigneeId: shipment.consignee?.id,
-                agentId: shipment.agent?.id,
-                notifyId: partners.find(p => p.name === shipment.notifyName)?.id,
+                shipperId: shipment.shipper?.id?.toString(),
+                consigneeId: shipment.consignee?.id?.toString(),
+                agentId: shipment.agent?.id?.toString(),
+                notifyId: partners.find(p => p.name === shipment.notifyName)?.id?.toString(),
                 purchaseOrderNumber: shipment.purchaseOrderNumber,
                 invoiceNumber: shipment.invoiceNumber,
+                origin: shipment.origin,
+                destination: shipment.destination,
                 charges: shipment.charges,
             });
         }
@@ -142,46 +217,39 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
         return null;
     }, [shipment]);
-
+    
     const handleMasterSave = async () => {
         if (!shipment) return;
         setIsUpdating(true);
         
         try {
-            const activeFormSubmit = formRefs.current[activeTab]?.submit;
-            if (activeFormSubmit) {
-                const formData = await activeFormSubmit();
-                
-                let updatedShipmentData = { ...shipment, ...formData };
+            const headerData = form.getValues();
+            const tabDataPromises = Object.values(formRefs.current).map(ref => ref.submit());
+            const tabDataResults = await Promise.all(tabDataPromises);
+            const combinedTabData = tabDataResults.reduce((acc, data) => ({ ...acc, ...data }), {});
+            
+            const shipper = partners.find(p => p.id?.toString() === headerData.shipperId);
+            const consignee = partners.find(p => p.id?.toString() === headerData.consigneeId);
+            const agent = partners.find(p => p.id?.toString() === headerData.agentId);
+            const notify = partners.find(p => p.id?.toString() === headerData.notifyId);
 
-                // Special logic for HBL approval milestone creation
-                if (activeTab === 'documents') {
-                    const originalHblStatus = shipment.documents?.find(d => d.name === 'Draft HBL' || d.name === 'Original HBL')?.status;
-                    const newHbl = formData.documents?.find((d: DocumentStatus) => d.name === 'Draft HBL' || d.name === 'Original HBL');
-                    const hblMilestoneExists = updatedShipmentData.milestones.some(m => m.name === 'HBL Aprovado');
-                    
-                    if (newHbl?.status === 'approved' && originalHblStatus !== 'approved' && !hblMilestoneExists) {
-                        const newMilestone: Milestone = {
-                            name: 'HBL Aprovado',
-                            status: 'completed',
-                            predictedDate: new Date(),
-                            effectiveDate: new Date(),
-                            details: `HBL aprovado pelo usuário.`
-                        };
-                        updatedShipmentData.milestones = [...updatedShipmentData.milestones, newMilestone];
-                    }
-                }
+            let updatedShipmentData = { 
+                ...shipment, 
+                ...headerData,
+                shipper: shipper || shipment.shipper,
+                consignee: consignee || shipment.consignee,
+                agent: agent || shipment.agent,
+                notifyName: notify?.name || shipment.notifyName,
+                ...combinedTabData
+            };
 
-                onUpdate(updatedShipmentData);
+            onUpdate(updatedShipmentData);
 
-                toast({
-                    title: "Processo Atualizado!",
-                    description: "As alterações foram salvas com sucesso.",
-                    className: "bg-success text-success-foreground",
-                });
-            } else {
-                 toast({ title: "Nenhuma alteração para salvar nesta aba." });
-            }
+            toast({
+                title: "Processo Atualizado!",
+                description: "As alterações foram salvas com sucesso.",
+                className: "bg-success text-success-foreground",
+            });
         } catch (error: any) {
             console.error("Save error:", error);
             toast({ variant: "destructive", title: "Erro ao Salvar", description: error.message || "Não foi possível salvar os dados." });
@@ -272,6 +340,69 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             toast({ variant: 'destructive', title: 'Fatura não encontrada', description: 'Não foi possível localizar o lançamento financeiro associado.' });
         }
     };
+    
+    const handleInvoiceCharges = async (chargesToInvoice: QuoteCharge[]): Promise<QuoteCharge[]> => {
+        if (chargesToInvoice.length === 0) {
+            toast({ variant: 'destructive', title: 'Nenhuma taxa selecionada.'});
+            return [];
+        }
+
+        const newEntries: Omit<import('@/lib/financials-data').FinancialEntry, 'id'>[] = [];
+        const entryMap = new Map<string, { partner: string; charges: QuoteCharge[] }>();
+
+        // Group charges by 'sacado' to create one invoice per partner
+        chargesToInvoice.forEach(charge => {
+            const sacado = charge.sacado || shipment!.customer;
+            if (!entryMap.has(sacado)) {
+                entryMap.set(sacado, { partner: sacado, charges: [] });
+            }
+            entryMap.get(sacado)!.charges.push(charge);
+        });
+
+        entryMap.forEach(({ partner, charges }) => {
+            const totalAmount = charges.reduce((sum, ch) => sum + ch.sale, 0);
+            const currency = charges[0].saleCurrency; // Assuming all charges for one invoice have the same currency
+            
+            newEntries.push({
+                type: 'credit',
+                partner: partner,
+                invoiceId: `INV-${shipment!.id}-${partner.slice(0,3).toUpperCase()}`,
+                status: 'Aberto',
+                dueDate: addDays(new Date(), 30).toISOString(),
+                amount: totalAmount,
+                currency: currency,
+                processId: shipment!.id,
+                payments: [],
+                expenseType: 'Operacional',
+                description: `Serviços de frete ref. processo ${shipment!.id}`
+            });
+        });
+
+        const response = await addFinancialEntriesAction(newEntries);
+
+        if (response.success && response.data) {
+            const allCurrentCharges = form.getValues('charges') as QuoteCharge[];
+            let entryIndexOffset = response.data.length - newEntries.length;
+
+            newEntries.forEach(newEntry => {
+                 const originalCharges = entryMap.get(newEntry.partner)!.charges;
+                 originalCharges.forEach(chargeToUpdate => {
+                     const idx = allCurrentCharges.findIndex(c => c.id === chargeToUpdate.id);
+                     if(idx > -1) {
+                         allCurrentCharges[idx].financialEntryId = response.data[entryIndexOffset].id;
+                     }
+                 });
+                 entryIndexOffset++;
+            });
+            
+            toast({ title: `${newEntries.length} fatura(s) gerada(s) com sucesso!`, className: 'bg-success text-success-foreground' });
+            return allCurrentCharges;
+        } else {
+             toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
+             return chargesToInvoice; // Return original charges on failure
+        }
+    };
+
 
     if (!shipment) {
         return (
@@ -288,7 +419,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="sm:max-w-7xl w-full p-0">
                 <div className="flex flex-col h-full">
-                    <SheetHeader className="p-4 border-b">
+                <Form {...form}>
+                    <SheetHeader className="p-4 border-b space-y-2">
                         <div className="flex justify-between items-start">
                             <div className="flex items-center gap-4">
                                 <div className="bg-primary/10 p-3 rounded-full">
@@ -321,13 +453,13 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </Button>
                             </div>
                         </div>
-                        <div className="pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div className="text-sm font-medium">
-                                <span className="text-muted-foreground">Shipper:</span> {shipment.shipper.name} | <span className="text-muted-foreground">Consignee:</span> {shipment.consignee.name}
-                            </div>
-                            {foreignLocationClock && (
-                                <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
-                            )}
+                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-2 items-start pt-2">
+                             <FormField control={form.control} name="shipperId" render={({ field }) => (<FormItem><FormLabel>Shipper</FormLabel><PartnerCombobox partners={partners} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
+                             <FormField control={form.control} name="consigneeId" render={({ field }) => (<FormItem><FormLabel>Consignee</FormLabel><PartnerCombobox partners={partners} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
+                             <FormField control={form.control} name="notifyId" render={({ field }) => (<FormItem><FormLabel>Notify</FormLabel><PartnerCombobox partners={partners} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
+                             <FormField control={form.control} name="agentId" render={({ field }) => (<FormItem><FormLabel>Agente</FormLabel><PartnerCombobox partners={partners.filter(p=> p.roles.agente)} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
+                             <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>)} />
+                             <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>)} />
                         </div>
                     </SheetHeader>
                     
@@ -387,6 +519,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             </div>
                         </Tabs>
                     </div>
+                </Form>
                 </div>
             </SheetContent>
         </Sheet>
@@ -401,3 +534,4 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </>
     );
 }
+

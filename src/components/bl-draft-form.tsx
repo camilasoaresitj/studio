@@ -176,7 +176,7 @@ export const BLDraftForm = forwardRef<{ submit: () => void }, BLDraftFormProps>(
       form.setValue('measurement', `${totalMeasurement.toFixed(3)} CBM`);
   }, [watchedContainers, form]);
   
-  const docsCutoffMilestone = shipment.milestones.find(m => m.name.toLowerCase().includes('documental'));
+  const docsCutoffMilestone = (shipment.milestones || []).find(m => m.name.toLowerCase().includes('documental'));
   const docsCutoffDate = docsCutoffMilestone?.predictedDate ? new Date(docsCutoffMilestone.predictedDate) : null;
   const isLateSubmission = docsCutoffDate ? isPast(docsCutoffDate) : false;
 

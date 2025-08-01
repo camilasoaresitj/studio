@@ -147,27 +147,32 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
     }
 
+    // Handle case where shipment is registered but tracking data is not yet available
     if (res.status === 204 || (Array.isArray(data) && data.length === 0) || (data && Object.keys(data).length === 0)) {
-      return NextResponse.json({
-        status: 'processing',
-        message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
-        fallback: {
-          eventName: 'Rastreamento em processamento',
-          location: 'Aguardando dados da transportadora',
-          actualTime: new Date().toISOString()
-        }
-      }, { status: 202 });
+        return NextResponse.json({
+            status: 'processing',
+            message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
+        }, { status: 202 });
     }
 
     const firstShipment = Array.isArray(data) ? data[0] : data;
+
+    // If still processing, return the partial data
+    if (firstShipment.state === 'PROCESSING') {
+        return NextResponse.json({
+            status: 'processing',
+            message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
+            shipment: firstShipment, // Send partial shipment data
+        }, { status: 202 });
+    }
+
     const eventos = (firstShipment?.shipmentEvents || []).map((ev: any) => ({
       eventName: ev.name,
       location: ev.location,
       actualTime: ev.actualTime || ev.estimateTime,
-      shipment: firstShipment,
     }));
 
-    return NextResponse.json({ status: 'ready', eventos });
+    return NextResponse.json({ status: 'ready', eventos, shipment: firstShipment });
   } catch (err: any) {
     return NextResponse.json({
       error: 'Erro inesperado no servidor.',

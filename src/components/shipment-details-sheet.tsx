@@ -332,7 +332,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
     };
     
-    const handleInvoiceCharges = async (charges: QuoteCharge[]): Promise<{ updatedCharges: QuoteCharge[] }> => {
+    const handleInvoiceCharges = async (charges: QuoteCharge[], shipment: Shipment): Promise<{ updatedCharges: QuoteCharge[] }> => {
         if (!shipment) return { updatedCharges: [] };
         
         const chargesToInvoice = charges.filter(c => !c.financialEntryId);
@@ -394,60 +394,79 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
        return { updatedCharges: finalCharges };
    };
 
-   const handleRefreshTracking = async (): Promise<{ success: boolean; error?: string }> => {
-    if (!shipment?.bookingNumber || !shipment?.carrier) {
-      const error = "Número do booking e transportadora são necessários para o rastreamento.";
-      toast({ variant: "destructive", title: "Dados Incompletos", description: error });
-      return { success: false, error };
-    }
-    setIsTracking(true);
-    let errorMsg: string | undefined;
+    const handleRefreshTracking = async (): Promise<{ success: boolean; error?: string }> => {
+        if (!shipment?.bookingNumber || !shipment?.carrier) {
+            const error = "Número do booking e transportadora são necessários para o rastreamento.";
+            toast({ variant: "destructive", title: "Dados Incompletos", description: error });
+            return { success: false, error };
+        }
+        setIsTracking(true);
+        let errorMsg: string | undefined;
 
-    try {
-      const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
-      const data = await response.json();
-      if (!response.ok) {
-        const errorMessage = `Erro ${response.status}: ${data.error || 'Erro desconhecido'}. Detalhe: ${data.detail ? JSON.stringify(data.detail) : 'Nenhum detalhe adicional.'}`;
-        throw new Error(errorMessage);
-      }
-      
-      if (data.status === 'ready' && data.eventos.length > 0) {
-        const updatedMilestones = [...(shipment.milestones || [])];
-        let etdUpdated = false;
-        let etaUpdated = false;
-
-        data.eventos.forEach((ev: any) => {
-          const eventNameLower = ev.eventName.toLowerCase();
-          if ((eventNameLower.includes('departure') || eventNameLower.includes('saída')) && !etdUpdated) {
-            const etdMilestone = updatedMilestones.find(m => m.name.toLowerCase().includes('embarque'));
-            if (etdMilestone) {
-              etdMilestone.effectiveDate = new Date(ev.actualTime);
-              etdMilestone.status = 'completed';
+        try {
+            const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
+            const data = await response.json();
+            if (!response.ok) {
+                const errorMessage = `Erro ${response.status}: ${data.error || 'Erro desconhecido'}. Detalhe: ${data.detail ? JSON.stringify(data.detail) : 'Nenhum detalhe adicional.'}`;
+                throw new Error(errorMessage);
             }
-            etdUpdated = true;
-          }
-          if ((eventNameLower.includes('arrival') || eventNameLower.includes('chegada')) && !etaUpdated) {
-            const etaMilestone = updatedMilestones.find(m => m.name.toLowerCase().includes('chegada'));
-            if (etaMilestone) {
-              etaMilestone.predictedDate = new Date(ev.actualTime);
-            }
-            etaUpdated = true;
-          }
-        });
-        onUpdate({ ...shipment, milestones: updatedMilestones });
-        toast({ title: "Timeline atualizada com sucesso!" });
-      } else {
-        toast({ title: "Rastreamento em Processamento", description: data.message });
-      }
 
-    } catch (error: any) {
-      errorMsg = error.message;
-      toast({ variant: "destructive", title: "Erro no Rastreamento", description: error.message });
-    } finally {
-      setIsTracking(false);
-    }
-    return { success: !errorMsg, error: errorMsg };
-  };
+            let updatedShipment = { ...shipment };
+
+            const updateMilestone = (nameIdentifier: string[], newDate: Date, status: Milestone['status'] = 'completed') => {
+                 const milestoneIndex = updatedShipment.milestones.findIndex(m => nameIdentifier.some(ni => m.name.toLowerCase().includes(ni)));
+                 if (milestoneIndex > -1) {
+                     updatedShipment.milestones[milestoneIndex].effectiveDate = newDate;
+                     updatedShipment.milestones[milestoneIndex].status = status;
+                 }
+            };
+            
+            // Handle both "ready" and "processing" with fallback data
+            if (data.status === 'ready' || (data.status === 'processing' && data.shipment)) {
+                const apiShipment = data.shipment;
+                updatedShipment.vesselName = apiShipment.vesselName || updatedShipment.vesselName;
+                updatedShipment.voyageNumber = apiShipment.voyageNumber || updatedShipment.voyageNumber;
+
+                // Update container numbers if available
+                if (apiShipment.containerDetails?.length > 0) {
+                    updatedShipment.containers = apiShipment.containerDetails.map((cd: any) => ({
+                        id: cd.containerNumber,
+                        number: cd.containerNumber,
+                        seal: cd.sealNumber || 'N/A',
+                        tare: cd.tareWeight || 'N/A',
+                        grossWeight: cd.grossWeight || 'N/A',
+                        type: cd.containerType || 'N/A'
+                    }));
+                }
+
+                (data.eventos || []).forEach((ev: any) => {
+                    const eventNameLower = ev.eventName.toLowerCase();
+                    const eventDate = new Date(ev.actualTime);
+                    if (eventNameLower.includes('departure') || eventNameLower.includes('saída')) {
+                        updateMilestone(['embarque'], eventDate);
+                        updatedShipment.etd = eventDate;
+                    }
+                    if (eventNameLower.includes('arrival') || eventNameLower.includes('chegada')) {
+                        updateMilestone(['chegada'], eventDate);
+                        updatedShipment.eta = eventDate;
+                    }
+                });
+
+                onUpdate(updatedShipment);
+                toast({ title: "Processo atualizado com dados de rastreamento!" });
+
+            } else if (data.status === 'processing') {
+                toast({ title: "Rastreamento em Processamento", description: data.message });
+            }
+
+        } catch (error: any) {
+            errorMsg = error.message;
+            toast({ variant: "destructive", title: "Erro no Rastreamento", description: error.message });
+        } finally {
+            setIsTracking(false);
+        }
+        return { success: !errorMsg, error: errorMsg };
+    };
 
 
     if (!shipment) {

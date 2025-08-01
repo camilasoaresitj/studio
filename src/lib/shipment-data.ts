@@ -221,6 +221,8 @@ export type Shipment = {
   operationalNotes?: string;
   approvalLogs?: ApprovalLog[];
   invoiceItems?: any[];
+  lastTrackingUpdate?: Date; // Added for daily updates
+  status?: string; // To track if finalized
   // Road specific fields
   border?: string;
   crtNumber?: string;

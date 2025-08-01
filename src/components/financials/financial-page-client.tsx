@@ -55,6 +55,199 @@ type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' 
 const allStatuses: Status[] = ['Aberto', 'Vencido', 'Parcialmente Pago', 'Pago', 'Pendente de Aprovação'];
 
 
+const EntriesTable = ({
+    tableEntries,
+    selectedRows,
+    toggleRowSelection,
+    isLegalTable = false,
+    handleProcessClick,
+    handleLegalEntryUpdate,
+    handleOpenSettleDialog,
+    handleOpenNfseDialog,
+    setEntryToRenegotiate,
+    handleOpenLegalDialog,
+    isGenerating,
+    handleGenerateClientInvoicePdf,
+    handleGenerateAgentInvoicePdf,
+    handleResendInvoice,
+    getEntryStatus,
+    getBalanceInBRL,
+}: {
+    tableEntries: FinancialEntry[];
+    selectedRows: Set<string>;
+    toggleRowSelection: (id: string) => void;
+    isLegalTable?: boolean;
+    handleProcessClick: (entry: FinancialEntry) => void;
+    handleLegalEntryUpdate: (entryId: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: any) => void;
+    handleOpenSettleDialog: (entry: FinancialEntry) => void;
+    handleOpenNfseDialog: (entry: FinancialEntry) => void;
+    setEntryToRenegotiate: (entry: FinancialEntry | null) => void;
+    handleOpenLegalDialog: (entry: FinancialEntry) => void;
+    isGenerating: boolean;
+    handleGenerateClientInvoicePdf: (entry: FinancialEntry) => void;
+    handleGenerateAgentInvoicePdf: (entry: FinancialEntry) => void;
+    handleResendInvoice: (entry: FinancialEntry) => void;
+    getEntryStatus: (entry: FinancialEntry) => { status: Status; variant: 'default' | 'secondary' | 'destructive' | 'outline' };
+    getBalanceInBRL: (entry: FinancialEntry) => number;
+}) => {
+    return (
+        <div className="border rounded-lg">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                {!isLegalTable && <TableHead className="w-10">
+                    <Checkbox
+                        checked={selectedRows.size > 0 && tableEntries.length > 0 && tableEntries.every(e => selectedRows.has(e.id))}
+                        onCheckedChange={(checked) => {
+                            if (checked) {
+                                setSelectedRows(new Set(tableEntries.map(e => e.id)));
+                            } else {
+                                setSelectedRows(new Set());
+                            }
+                        }}
+                        aria-label="Selecionar todos"
+                    />
+                </TableHead>}
+                <TableHead>Tipo</TableHead>
+                <TableHead>Parceiro</TableHead>
+                <TableHead>Fatura</TableHead>
+                <TableHead>{isLegalTable ? 'Nº Processo Judicial' : 'Processo LTI'}</TableHead>
+                <TableHead className="w-40">Status</TableHead>
+                {isLegalTable && <TableHead>Comentários</TableHead>}
+                <TableHead>Vencimento</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-right">Saldo (BRL)</TableHead>
+                <TableHead className="text-center">Ações</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {tableEntries.length > 0 ? tableEntries.map((entry) => {
+                    const { status, variant } = getEntryStatus(entry);
+                    const balanceBRL = getBalanceInBRL(entry);
+                    return (
+                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"} className={isLegalTable ? 'cursor-pointer' : ''} onClick={() => isLegalTable && handleProcessClick(entry)}>
+                            {!isLegalTable && <TableCell>
+                                <Checkbox
+                                    checked={selectedRows.has(entry.id)}
+                                    onCheckedChange={() => toggleRowSelection(entry.id)}
+                                    aria-label="Selecionar linha"
+                                />
+                            </TableCell>}
+                            <TableCell>
+                                <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{entry.partner}</TableCell>
+                            <TableCell>
+                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                    {entry.invoiceId}
+                                </a>
+                            </TableCell>
+                            <TableCell>
+                                {isLegalTable ? (
+                                    <Input
+                                        value={entry.processoJudicial || ''}
+                                        onChange={(e) => handleLegalEntryUpdate(entry.id, 'processoJudicial', e.target.value)}
+                                        placeholder="Adicionar nº"
+                                        className="h-8 text-xs bg-transparent border-0"
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                ) : (
+                                    <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                        {entry.processId}
+                                    </a>
+                                )}
+                            </TableCell>
+                            <TableCell>
+                                {isLegalTable ? (
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                        <Select
+                                            value={entry.legalStatus}
+                                            onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs bg-transparent border-0"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Extrajudicial">Extrajudicial</SelectItem>
+                                                <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
+                                                <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
+                                                <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                ) : (
+                                    <Badge variant={variant} className="capitalize w-[130px] justify-center">{status}</Badge>
+                                )}
+                            </TableCell>
+                            {isLegalTable && (
+                                 <TableCell className="w-64">
+                                    <Input
+                                        value={entry.legalComments || ''}
+                                        onChange={(e) => handleLegalEntryUpdate(entry.id, 'legalComments', e.target.value)}
+                                        placeholder="Adicionar comentário..."
+                                        className="h-8 text-xs bg-transparent border-0"
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                </TableCell>
+                            )}
+                            <TableCell className={cn(variant === 'destructive' && !isLegalTable && 'text-destructive font-bold')}>
+                                {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                                {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                             <TableCell className={cn("text-right font-mono font-bold", entry.type === 'credit' ? 'text-success' : 'text-destructive')}>
+                                R$ {balanceBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="text-center">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleProcessClick(entry)}>
+                                            <FileText className="mr-2 h-4 w-4" /> Detalhes do Processo
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={entry.type === 'debit'}>
+                                            <Printer className="mr-2 h-4 w-4" /> Emitir Fatura (PDF)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={entry.type === 'credit'}>
+                                            <Printer className="mr-2 h-4 w-4" /> Imprimir Invoice Agente
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
+                                            <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleOpenSettleDialog(entry)} disabled={status === 'Pago' || status === 'Renegociado'}>
+                                            <DollarSign className="mr-2 h-4 w-4" /> Baixar Pagamento
+                                        </DropdownMenuItem>
+                                        {entry.type === 'credit' && !isLegalTable && (
+                                            <>
+                                                <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
+                                                    <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={() => setEntryToRenegotiate(entry)} className="text-blue-600 focus:text-blue-700">
+                                                    <Split className="mr-2 h-4 w-4" /> Renegociar Dívida
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleOpenLegalDialog(entry)} className="text-destructive focus:text-destructive">
+                                                    <Gavel className="mr-2 h-4 w-4" /> Enviar para Jurídico
+                                                </DropdownMenuItem>
+                                            </>
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                    )
+                }) : (
+                    <TableRow>
+                        <TableCell colSpan={isLegalTable ? 8 : 10} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
+                    </TableRow>
+                )}
+            </TableBody>
+            </Table>
+        </div>
+    );
+};
+
+
 export function FinancialPageClient() {
     const router = useRouter();
     const [entries, setEntries] = useState<FinancialEntry[]>([]);
@@ -391,161 +584,16 @@ export function FinancialPageClient() {
         return balance * rate;
     }
 
-    const renderEntriesTable = (tableEntries: FinancialEntry[], isLegalTable = false) => (
-        <div className="border rounded-lg">
-            <Table>
-            <TableHeader>
-                <TableRow>
-                {!isLegalTable && <TableHead className="w-10">
-                    <Checkbox
-                        checked={selectedRows.size > 0 && tableEntries.length > 0 && tableEntries.every(e => selectedRows.has(e.id))}
-                        onCheckedChange={(checked) => {
-                            if (checked) {
-                                setSelectedRows(new Set(tableEntries.map(e => e.id)));
-                            } else {
-                                setSelectedRows(new Set());
-                            }
-                        }}
-                        aria-label="Selecionar todos"
-                    />
-                </TableHead>}
-                <TableHead>Tipo</TableHead>
-                <TableHead>Parceiro</TableHead>
-                <TableHead>Fatura</TableHead>
-                <TableHead>{isLegalTable ? 'Nº Processo Judicial' : 'Processo LTI'}</TableHead>
-                <TableHead className="w-40">Status</TableHead>
-                {isLegalTable && <TableHead>Comentários</TableHead>}
-                <TableHead>Vencimento</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="text-right">Saldo (BRL)</TableHead>
-                <TableHead className="text-center">Ações</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {tableEntries.length > 0 ? tableEntries.map((entry) => {
-                    const { status, variant } = getEntryStatus(entry);
-                    const balanceBRL = getBalanceInBRL(entry);
-                    return (
-                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"} className={isLegalTable ? 'cursor-pointer' : ''} onClick={() => isLegalTable && handleProcessClick(entry)}>
-                            {!isLegalTable && <TableCell>
-                                <Checkbox
-                                    checked={selectedRows.has(entry.id)}
-                                    onCheckedChange={() => toggleRowSelection(entry.id)}
-                                    aria-label="Selecionar linha"
-                                />
-                            </TableCell>}
-                            <TableCell>
-                                <Badge variant={entry.type === 'credit' ? 'success' : 'destructive'} className="capitalize">{entry.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">{entry.partner}</TableCell>
-                            <TableCell>
-                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry); }} className="text-muted-foreground hover:text-primary hover:underline">
-                                    {entry.invoiceId}
-                                </a>
-                            </TableCell>
-                            <TableCell>
-                                {isLegalTable ? (
-                                    <Input
-                                        value={entry.processoJudicial || ''}
-                                        onChange={(e) => handleLegalEntryUpdate(entry.id, 'processoJudicial', e.target.value)}
-                                        placeholder="Adicionar nº"
-                                        className="h-8 text-xs bg-transparent border-0"
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                ) : (
-                                    <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry); }} className="text-muted-foreground hover:text-primary hover:underline">
-                                        {entry.processId}
-                                    </a>
-                                )}
-                            </TableCell>
-                            <TableCell>
-                                {isLegalTable ? (
-                                    <div onClick={(e) => e.stopPropagation()}>
-                                        <Select
-                                            value={entry.legalStatus}
-                                            onValueChange={(value) => handleLegalEntryUpdate(entry.id, 'legalStatus', value)}
-                                        >
-                                            <SelectTrigger className="h-8 text-xs bg-transparent border-0"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Extrajudicial">Extrajudicial</SelectItem>
-                                                <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
-                                                <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
-                                                <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                ) : (
-                                    <Badge variant={variant} className="capitalize w-[130px] justify-center">{status}</Badge>
-                                )}
-                            </TableCell>
-                            {isLegalTable && (
-                                 <TableCell className="w-64">
-                                    <Input
-                                        value={entry.legalComments || ''}
-                                        onChange={(e) => handleLegalEntryUpdate(entry.id, 'legalComments', e.target.value)}
-                                        placeholder="Adicionar comentário..."
-                                        className="h-8 text-xs bg-transparent border-0"
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                </TableCell>
-                            )}
-                            <TableCell className={cn(variant === 'destructive' && !isLegalTable && 'text-destructive font-bold')}>
-                                {format(new Date(entry.dueDate), 'dd/MM/yyyy')}
-                            </TableCell>
-                            <TableCell className="text-right font-mono">
-                                {entry.currency} {entry.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </TableCell>
-                             <TableCell className={cn("text-right font-mono font-bold", entry.type === 'credit' ? 'text-success' : 'text-destructive')}>
-                                R$ {balanceBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </TableCell>
-                            <TableCell className="text-center">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={isGenerating}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleProcessClick(entry)}>
-                                            <FileText className="mr-2 h-4 w-4" /> Detalhes do Processo
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleGenerateClientInvoicePdf(entry)} disabled={entry.type === 'debit'}>
-                                            <Printer className="mr-2 h-4 w-4" /> Emitir Fatura (PDF)
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleGenerateAgentInvoicePdf(entry)} disabled={entry.type === 'credit'}>
-                                            <Printer className="mr-2 h-4 w-4" /> Imprimir Invoice Agente
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleResendInvoice(entry)}>
-                                            <Send className="mr-2 h-4 w-4" /> Reenviar Fatura
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => handleOpenSettleDialog(entry)} disabled={status === 'Pago' || status === 'Renegociado'}>
-                                            <DollarSign className="mr-2 h-4 w-4" /> Baixar Pagamento
-                                        </DropdownMenuItem>
-                                        {entry.type === 'credit' && !isLegalTable && (
-                                            <>
-                                                <DropdownMenuItem onClick={() => handleOpenNfseDialog(entry)}>
-                                                    <FileText className="mr-2 h-4 w-4" /> Emitir NF de Serviço
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => setEntryToRenegotiate(entry)} className="text-blue-600 focus:text-blue-700">
-                                                    <Split className="mr-2 h-4 w-4" /> Renegociar Dívida
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleOpenLegalDialog(entry)} className="text-destructive focus:text-destructive">
-                                                    <Gavel className="mr-2 h-4 w-4" /> Enviar para Jurídico
-                                                </DropdownMenuItem>
-                                            </>
-                                        )}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                    )
-                }) : (
-                    <TableRow>
-                        <TableCell colSpan={isLegalTable ? 8 : 10} className="h-24 text-center">Nenhum lançamento encontrado para este filtro.</TableCell>
-                    </TableRow>
-                )}
-            </TableBody>
-            </Table>
-        </div>
-    );
+    const filteredEntries = useMemo(() => {
+        return entries.filter(entry => {
+            const statusInfo = getEntryStatus(entry);
+            const statusMatch = statusFilter.includes(statusInfo.status);
+            const partnerMatch = !textFilters.partner || entry.partner.toLowerCase().includes(textFilters.partner.toLowerCase());
+            const invoiceMatch = !textFilters.invoiceId || entry.invoiceId.toLowerCase().includes(textFilters.invoiceId.toLowerCase());
+            const processMatch = !textFilters.processId || entry.processId.toLowerCase().includes(textFilters.processId.toLowerCase());
+            return statusMatch && partnerMatch && invoiceMatch && processMatch;
+        });
+    }, [entries, statusFilter, textFilters]);
 
     return (
         <div className="space-y-8">
@@ -626,8 +674,23 @@ export function FinancialPageClient() {
                                 </div>
                             ))}
                         </div>
-                        {/* unifiedSettlementData logic needs to be defined */}
-                        {renderEntriesTable(entries)}
+                        <EntriesTable
+                            tableEntries={filteredEntries}
+                            selectedRows={selectedRows}
+                            toggleRowSelection={toggleRowSelection}
+                            handleProcessClick={handleProcessClick}
+                            handleLegalEntryUpdate={handleLegalEntryUpdate}
+                            handleOpenSettleDialog={handleOpenSettleDialog}
+                            handleOpenNfseDialog={handleOpenNfseDialog}
+                            setEntryToRenegotiate={setEntryToRenegotiate}
+                            handleOpenLegalDialog={handleOpenLegalDialog}
+                            isGenerating={isGenerating}
+                            handleGenerateClientInvoicePdf={handleGenerateClientInvoicePdf}
+                            handleGenerateAgentInvoicePdf={handleGenerateAgentInvoicePdf}
+                            handleResendInvoice={handleResendInvoice}
+                            getEntryStatus={getEntryStatus}
+                            getBalanceInBRL={getBalanceInBRL}
+                        />
                     </CardContent>
                     </Card>
                 </TabsContent>
@@ -664,8 +727,24 @@ export function FinancialPageClient() {
                              </div>
                          </CardHeader>
                          <CardContent>
-                              {/* Add filters specific to legal cases if needed */}
-                             {renderEntriesTable(entries.filter(e => e.status === 'Jurídico'), true)}
+                              <EntriesTable
+                                tableEntries={entries.filter(e => e.status === 'Jurídico')}
+                                selectedRows={selectedRows}
+                                toggleRowSelection={toggleRowSelection}
+                                isLegalTable={true}
+                                handleProcessClick={handleProcessClick}
+                                handleLegalEntryUpdate={handleLegalEntryUpdate}
+                                handleOpenSettleDialog={handleOpenSettleDialog}
+                                handleOpenNfseDialog={handleOpenNfseDialog}
+                                setEntryToRenegotiate={setEntryToRenegotiate}
+                                handleOpenLegalDialog={handleOpenLegalDialog}
+                                isGenerating={isGenerating}
+                                handleGenerateClientInvoicePdf={handleGenerateClientInvoicePdf}
+                                handleGenerateAgentInvoicePdf={handleGenerateAgentInvoicePdf}
+                                handleResendInvoice={handleResendInvoice}
+                                getEntryStatus={getEntryStatus}
+                                getBalanceInBRL={getBalanceInBRL}
+                              />
                          </CardContent>
                      </Card>
                  </TabsContent>

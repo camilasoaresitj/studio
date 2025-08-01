@@ -39,11 +39,18 @@ const nextConfig = {
         /Module not found: Can't resolve '@opentelemetry\/winston-transport'/,
         /Module not found: Can't resolve '@opentelemetry\/exporter-jaeger'/
     ];
+    // These are optional dependencies of genkit, we can ignore them
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      '@opentelemetry/exporter-jaeger': false,
+      '@opentelemetry/winston-transport': false,
+    };
     return config;
   }
 }
 
 module.exports = nextConfig
+
 
 
 

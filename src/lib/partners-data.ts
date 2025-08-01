@@ -136,6 +136,10 @@ export function getPartners(): Partner[] {
       ...p,
       createdAt: p.createdAt ? new Date(p.createdAt) : undefined,
       demurrageAgreementDueDate: p.demurrageAgreementDueDate ? new Date(p.demurrageAgreementDueDate) : undefined,
+      contacts: (p.contacts || []).map((c: any) => ({
+          ...c,
+          despachanteId: c.despachanteId === undefined ? null : c.despachanteId,
+      })),
       kpi: {
         manual: {
             mainRoutes: p.kpi?.manual?.mainRoutes?.map((route: string) => ({ value: route })) || [],

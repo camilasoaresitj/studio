@@ -78,10 +78,11 @@ type DetailsFormData = z.infer<typeof detailsFormSchema>;
 interface ShipmentDetailsTabProps {
     shipment: Shipment;
     partners: Partner[];
+    onRefreshTracking: () => Promise<{ success: boolean; error?: string }>;
+    isTracking: boolean;
 }
 
-export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners }, ref) => {
-    const [isTracking, setIsTracking] = useState(false);
+export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners, onRefreshTracking, isTracking }, ref) => {
     const [trackingError, setTrackingError] = useState<string | null>(null);
 
     const form = useForm<DetailsFormData>({
@@ -102,33 +103,15 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             return form.getValues();
         }
     }));
-
+    
     const handleRefreshTracking = async () => {
-        if (!shipment.bookingNumber || !shipment.carrier) {
-            setTrackingError("Número do booking e transportadora são necessários para o rastreamento.");
-            return;
-        }
-        setIsTracking(true);
         setTrackingError(null);
-        try {
-            const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
-            const data = await response.json();
-            if (!response.ok) {
-                const errorMessage = `Erro ${response.status}: ${data.error || 'Erro desconhecido'}. Detalhe: ${data.detail ? JSON.stringify(data.detail) : 'Nenhum detalhe adicional.'}`;
-                throw new Error(errorMessage);
-            }
-            if(data.status === 'processing') {
-                // This is not an error, but an informational state.
-                 setTrackingError(`Rastreamento iniciado. Status: ${data.message}`);
-            } else {
-                 // Logic to update milestones based on tracking data would go here
-            }
-        } catch (error: any) {
-            setTrackingError(error.message);
-        } finally {
-            setIsTracking(false);
+        const result = await onRefreshTracking();
+        if (!result.success) {
+            setTrackingError(result.error || 'Ocorreu um erro desconhecido.');
         }
     };
+
 
     const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
         control: form.control,

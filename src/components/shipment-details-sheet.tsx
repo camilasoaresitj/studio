@@ -2,10 +2,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, isPast, isValid, addDays, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 
 import {
   Sheet,
@@ -15,10 +15,9 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
-import { Input } from './ui/input';
+import { Form, FormControl, FormField, FormItem, FormLabel } from './ui/form';
 
-import type { Shipment, Milestone, TransshipmentDetail, DocumentStatus, QuoteCharge, Partner, UploadedDocument, ActivityLog, ApprovalLog, FinancialEntry } from '@/lib/shipment-data';
+import type { Shipment, Milestone, Partner, QuoteCharge, FinancialEntry } from '@/lib/shipment-data';
 import { 
     Save, 
     GanttChart, 
@@ -26,9 +25,6 @@ import {
     RefreshCw, 
     Loader2, 
     Printer,
-    Map as MapIcon,
-    FileText,
-    FileCode,
     Clock,
     ChevronsUpDown,
     Check
@@ -51,8 +47,6 @@ import { getStoredFinancialEntries } from '@/lib/financials-data';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { cn } from '@/lib/utils';
-import { Textarea } from './ui/textarea';
-import { AutocompleteInput } from './autocomplete-input';
 
 
 const shipmentDetailsSchema = z.object({
@@ -179,6 +173,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const [isUpdating, setIsUpdating] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [detailsEntry, setDetailsEntry] = useState<FinancialEntry | null>(null);
+    const [isTracking, setIsTracking] = useState(false);
     
     const formRefs = useRef<Record<string, { submit: () => Promise<any> }>>({});
 
@@ -397,7 +392,62 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
        }
        return { updatedCharges: finalCharges };
-   }
+   };
+
+   const handleRefreshTracking = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!shipment?.bookingNumber || !shipment?.carrier) {
+      const error = "Número do booking e transportadora são necessários para o rastreamento.";
+      toast({ variant: "destructive", title: "Dados Incompletos", description: error });
+      return { success: false, error };
+    }
+    setIsTracking(true);
+    let errorMsg: string | undefined;
+
+    try {
+      const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
+      const data = await response.json();
+      if (!response.ok) {
+        const errorMessage = `Erro ${response.status}: ${data.error || 'Erro desconhecido'}. Detalhe: ${data.detail ? JSON.stringify(data.detail) : 'Nenhum detalhe adicional.'}`;
+        throw new Error(errorMessage);
+      }
+      
+      if (data.status === 'ready' && data.eventos.length > 0) {
+        const updatedMilestones = [...(shipment.milestones || [])];
+        let etdUpdated = false;
+        let etaUpdated = false;
+
+        data.eventos.forEach((ev: any) => {
+          const eventNameLower = ev.eventName.toLowerCase();
+          if ((eventNameLower.includes('departure') || eventNameLower.includes('saída')) && !etdUpdated) {
+            const etdMilestone = updatedMilestones.find(m => m.name.toLowerCase().includes('embarque'));
+            if (etdMilestone) {
+              etdMilestone.effectiveDate = new Date(ev.actualTime);
+              etdMilestone.status = 'completed';
+            }
+            etdUpdated = true;
+          }
+          if ((eventNameLower.includes('arrival') || eventNameLower.includes('chegada')) && !etaUpdated) {
+            const etaMilestone = updatedMilestones.find(m => m.name.toLowerCase().includes('chegada'));
+            if (etaMilestone) {
+              etaMilestone.predictedDate = new Date(ev.actualTime);
+            }
+            etaUpdated = true;
+          }
+        });
+        onUpdate({ ...shipment, milestones: updatedMilestones });
+        toast({ title: "Timeline atualizada com sucesso!" });
+      } else {
+        toast({ title: "Rastreamento em Processamento", description: data.message });
+      }
+
+    } catch (error: any) {
+      errorMsg = error.message;
+      toast({ variant: "destructive", title: "Erro no Rastreamento", description: error.message });
+    } finally {
+      setIsTracking(false);
+    }
+    return { success: !errorMsg, error: errorMsg };
+  };
 
 
     if (!shipment) {
@@ -486,6 +536,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         ref={(el) => { if (el) formRefs.current['details'] = el; }}
                                         shipment={shipment}
                                         partners={partners}
+                                        onRefreshTracking={handleRefreshTracking}
+                                        isTracking={isTracking}
                                     />
                                 </TabsContent>
                                 <TabsContent value="financials">

@@ -7,17 +7,8 @@ interface TrackingInput {
 }
 
 /**
- * Converte uma string de camelCase para snake_case.
- * @param str A string em camelCase (ex: bookingNumber).
- * @returns A string em snake_case (ex: booking_number).
- */
-function toSnakeCase(str: string): string {
-    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-}
-
-
-/**
- * Constrói o payload para a API da Cargo-flows com base no tipo de rastreamento.
+ * Constrói o payload para a API da Cargo-flows com base no tipo de rastreamento,
+ * seguindo a estrutura especificada na documentação.
  * @param input Objeto contendo o número de rastreamento, o nome da transportadora e o tipo de número.
  * @returns O payload formatado para a API da Cargo-flows.
  */
@@ -37,23 +28,21 @@ export function buildTrackingPayload(input: TrackingInput) {
     }
   };
 
-  const getFormData = () => {
-    const trackingNumber = numbers[type];
-    if (!trackingNumber) {
-      throw new Error(`Número de ${type} não fornecido.`);
-    }
-    if (!oceanLine) {
-        throw new Error('Nome da transportadora (oceanLine) é obrigatório.');
-    }
-    
-    // Converte a chave do tipo de rastreamento para o formato snake_case exigido pela API.
-    const trackingKey = toSnakeCase(type);
-    
-    return [{ [trackingKey]: trackingNumber, oceanLine }];
+  const trackingNumber = numbers[type];
+  if (!trackingNumber) {
+    throw new Error(`Número de ${type} não fornecido.`);
+  }
+  if (!oceanLine) {
+    throw new Error('Nome da transportadora (oceanLine) é obrigatório.');
+  }
+
+  const formData = {
+    uploadType: getUploadType(),
+    [type]: trackingNumber, // The field name is dynamic based on the type
+    oceanLine: oceanLine,
   };
 
   return {
-    uploadType: getUploadType(),
-    formData: getFormData(),
+    formData: [formData],
   };
 }

@@ -67,14 +67,14 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     const headers = getAuthHeaders();
 
-    let res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}&_limit=1`, { headers });
+    let res = await fetch(`${BASE_URL}/shipment?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}`, { headers });
 
     let data;
     if (res.status !== 204) {
       data = await safelyParseJSON(res);
     }
 
-    if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
+    if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0) || (data && Object.keys(data).length === 0) )) {
       const carrierInfo = findCarrierByName(carrierName || '');
 
       if (!carrierName || !carrierInfo) {
@@ -94,7 +94,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       const payload = buildTrackingPayload({ type, [type]: trackingId, oceanLine: carrierInfo.name });
       console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
 
-      const createRes = await fetch(`${BASE_URL}/createShipments`, {
+      const createRes = await fetch(`${BASE_URL}/createShipment`, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload)
@@ -121,7 +121,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}&_limit=1`, { headers });
+      res = await fetch(`${BASE_URL}/shipment?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}`, { headers });
 
       if (!res.ok) {
         const errorText = await res.text();
@@ -136,7 +136,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
     }
 
-    if (res.status === 204 || (Array.isArray(data) && data.length === 0)) {
+    if (res.status === 204 || (Array.isArray(data) && data.length === 0) || (data && Object.keys(data).length === 0)) {
       return NextResponse.json({
         status: 'processing',
         message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',

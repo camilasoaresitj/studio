@@ -615,19 +615,36 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
   const shipmentId = `PROC-${quoteData.id.replace('COT-', '')}-${Date.now().toString().slice(-5)}`;
 
   const newShipment: Shipment = {
-    id: shipmentId, quoteId: quoteData.id, origin: quoteData.origin, destination: quoteData.destination,
-    collectionAddress: quoteData.collectionAddress, deliveryAddress: quoteData.deliveryAddress,
+    id: shipmentId, 
+    quoteId: quoteData.id, 
+    modal: quoteData.modal || (quoteData.details.cargo.includes('kg') ? 'air' : 'ocean'),
+    origin: quoteData.origin, 
+    destination: quoteData.destination,
+    collectionAddress: quoteData.collectionAddress, 
+    deliveryAddress: quoteData.deliveryAddress,
     shipper, consignee, agent,
-    responsibleUser: quoteData.responsibleUser, terminalRedestinacaoId: quoteData.terminalRedestinacaoId,
+    responsibleUser: quoteData.responsibleUser, 
+    terminalRedestinacaoId: quoteData.terminalRedestinacaoId,
     charges: quoteData.charges.map(c => ({ ...c, approvalStatus: 'aprovada' })),
-    details: quoteData.details, carrier: freightCharge?.supplier, milestones, documents, etd, eta,
+    details: quoteData.details, 
+    carrier: freightCharge?.supplier, 
+    milestones, 
+    documents, 
+    etd, 
+    eta,
     bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     masterBillNumber: `MSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    invoiceNumber: quoteData.invoiceNumber, purchaseOrderNumber: quoteData.purchaseOrderNumber,
-    notifyName: quoteData.notifyName, customer: quoteData.customer, 
+    invoiceNumber: quoteData.invoiceNumber, 
+    purchaseOrderNumber: quoteData.purchaseOrderNumber,
+    notifyName: quoteData.notifyName, 
+    customer: quoteData.customer, 
     chatMessages: [{ sender: 'CargaInteligente', message: `Olá! O processo ${shipmentId} foi criado. Use este chat para falar com nossa equipe.`, timestamp: new Date().toISOString(), department: 'Sistema' }],
     blDraftHistory: { sentAt: null, revisions: [] },
+    // Road specific fields from quoteData if they exist
+    border: quoteData.roadShipment?.border,
+    // Courier specific fields from quoteData if they exist
+    courier: quoteData.modal === 'courier' ? freightCharge?.supplier : undefined,
   };
 
   if (isImport && agent) {
@@ -834,3 +851,5 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
       
+
+    

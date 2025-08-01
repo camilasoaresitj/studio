@@ -513,14 +513,19 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             const data = await response.json();
 
             if (!response.ok) {
-                let description = 'Ocorreu um erro desconhecido.';
-                if (data.detail && data.payloadSent) {
-                    description = `Detalhe: ${data.detail}. Payload Enviado: ${JSON.stringify(data.payloadSent)}`;
-                } else if (data.detail) {
+                 let description = 'Ocorreu um erro desconhecido.';
+                if (data.detail && typeof data.detail === 'string') {
                     description = data.detail;
+                } else if (data.detail && typeof data.detail === 'object') {
+                    description = JSON.stringify(data.detail);
                 } else if (data.error) {
                     description = data.error;
                 }
+                
+                if (data.payloadSent) {
+                    description += ` | PAYLOAD: ${JSON.stringify(data.payloadSent)}`;
+                }
+                
                 throw new Error(description);
             }
             
@@ -1466,3 +1471,4 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
+

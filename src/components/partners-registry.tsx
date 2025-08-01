@@ -106,7 +106,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       vat: '',
       scac: '',
       roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
-      contacts: [{ name: '', email: '', phone: '', departments: [] }],
+      contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       tipoCliente: { importacao: false, exportacao: false, empresaNoExterior: false },
       tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
@@ -169,7 +169,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
         vat: '',
         scac: '',
         roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
-        contacts: [{ name: '', email: '', phone: '', departments: [], loginEmail: '', password: '' }],
+        contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] as any[], loginEmail: '', password: '' }],
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
         tipoCliente: { importacao: false, exportacao: false, empresaNoExterior: false },
         tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
@@ -725,7 +725,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
                     <div className="flex justify-between items-center">
                         <h4 className="text-md font-semibold">Contatos</h4>
-                        <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', departments: [] })}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', departments: ['Comercial'] })}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Contato
                         </Button>
                     </div>
@@ -760,7 +760,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                                         <FormItem key={item} className="flex flex-row items-center space-x-2 space-y-0">
                                         <FormControl>
                                             <Checkbox
-                                            checked={field.value?.includes(item)}
+                                            checked={field.value?.includes(item as any)}
                                             onCheckedChange={(checked) => {
                                                 const currentValue = field.value || [];
                                                 return checked

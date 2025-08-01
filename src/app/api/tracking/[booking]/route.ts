@@ -6,7 +6,10 @@ import { findCarrierByName } from '@/lib/carrier-data';
 
 const API_KEY = process.env.NEXT_PUBLIC_CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.NEXT_PUBLIC_CARGOFLOWS_ORG_TOKEN;
+// Corrected to singular endpoints as per user feedback
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
+const CREATE_URL = `${BASE_URL}/createShipment`;
+const SHIPMENT_URL = `${BASE_URL}/shipment`;
 
 let cachedCarriers: any[] | null = null;
 let lastCacheTime = 0;
@@ -15,15 +18,13 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24h
 async function safelyParseJSON(response: Response) {
     const text = await response.text();
     try {
-        if (text === '') return null; // Handle empty responses gracefully
+        if (text === '') return null;
         return JSON.parse(text);
     } catch (e) {
         if (text.trim().toLowerCase().startsWith('<html>')) {
             console.error("Received HTML response instead of JSON:", text.substring(0, 500));
-            // This specific error message will be caught and shown to the user.
             throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada e se as chaves de API estão corretas.");
         }
-        // For other parsing errors, throw a more generic message.
         throw new Error(`Falha ao analisar a resposta da API. Conteúdo recebido: ${text.substring(0, 200)}`);
     }
 }
@@ -40,27 +41,6 @@ const getAuthHeaders = () => {
     };
 };
 
-export async function OPTIONS() {
-  try {
-    const headers = getAuthHeaders();
-    const now = Date.now();
-    if (cachedCarriers && now - lastCacheTime < CACHE_DURATION) {
-        return NextResponse.json({ carriers: cachedCarriers, cached: true });
-    }
-    const res = await fetch(`${BASE_URL}/carrierList`, { headers });
-    if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Erro na API Cargo-flows: ${res.status} ${errorText}`);
-    }
-    const list = await res.json();
-    cachedCarriers = list;
-    lastCacheTime = now;
-    return NextResponse.json({ carriers: list, cached: false });
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Erro ao buscar lista de carriers', detail: err.message }, { status: 500 });
-  }
-}
-
 export async function GET(req: Request, { params }: { params: { booking: string } }) {
   const trackingId = params.booking;
   const url = new URL(req.url);
@@ -68,13 +48,11 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const carrierName = url.searchParams.get('carrierName');
   const type = (url.searchParams.get('type') || 'bookingNumber') as 'bookingNumber' | 'containerNumber' | 'mblNumber';
 
-  const CREATE_URL = `${BASE_URL}/createShipments`;
-  const SHIPMENT_URL = `${BASE_URL}/shipments`;
-
   try {
     const headers = getAuthHeaders();
     
-    const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
+    // Corrected GET URL to use specific query parameter based on type
+    const getShipmentUrl = `${SHIPMENT_URL}?${type}=${trackingId}`;
     
     console.log('➡️  GET Shipment URL:', getShipmentUrl);
     let res = await fetch(getShipmentUrl, { headers });
@@ -87,10 +65,10 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0) || (data && Object.keys(data).length === 0) )) {
       const carrierInfo = findCarrierByName(carrierName || '');
 
-      if (!carrierName || !carrierInfo) {
+      if ((type === 'bookingNumber' || type === 'containerNumber') && (!carrierName || !carrierInfo)) {
           return NextResponse.json({
             error: 'Transportadora inválida ou não encontrada.',
-            detail: `Nenhuma transportadora com nome '${carrierName}' foi localizada. Verifique o nome e tente novamente.`
+            detail: `Nenhuma transportadora com nome '${carrierName}' foi localizada. É obrigatória para este tipo de rastreamento.`
           }, { status: 400 });
       }
 
@@ -101,7 +79,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: 400 });
       }
       
-      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo.name });
+      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo?.name });
       console.log('🔍 Diagnóstico completo:');
       console.log('URL:', CREATE_URL);
       console.log('Headers:', JSON.stringify(headers, null, 2));
@@ -139,7 +117,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      const getShipmentUrlAfterCreate = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
+      const getShipmentUrlAfterCreate = `${SHIPMENT_URL}?${type}=${trackingId}`;
       console.log('➡️  GET Shipment URL (After Create):', getShipmentUrlAfterCreate);
       res = await fetch(getShipmentUrlAfterCreate, { headers });
       
@@ -176,11 +154,10 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
     return NextResponse.json({ status: 'ready', eventos, shipment: firstShipment });
   } catch (err: any) {
-    // This block will now catch errors from safelyParseJSON, including the HTML one.
     console.error("ERRO GERAL NA ROTA DE TRACKING:", err);
     return NextResponse.json({
       error: 'Erro inesperado no servidor de rastreamento.',
-      detail: err.message, // The clear message from safelyParseJSON will be here
+      detail: err.message,
     }, { status: 500 });
   }
 }

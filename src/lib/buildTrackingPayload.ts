@@ -3,13 +3,14 @@
 interface TrackingInput {
   type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
   trackingNumber: string;
-  oceanLine: string; // This should be the carrier's full name
+  oceanLine?: string; // This should be the carrier's full name, optional for MBL
 }
 
 /**
- * Constrói o payload para a API da Cargo-flows com base no tipo de rastreamento.
- * @param input Objeto contendo o número de rastreamento, o nome da transportadora e o tipo de número.
- * @returns O payload formatado para a API da Cargo-flows.
+ * Builds the payload for the Cargo-flows API based on the tracking type,
+ * following the corrected structure from user feedback and documentation.
+ * @param input Object containing tracking number, carrier name, and type.
+ * @returns The formatted payload for the Cargo-flows API.
  */
 export function buildTrackingPayload(input: TrackingInput) {
   const { type, trackingNumber, oceanLine } = input;
@@ -21,21 +22,28 @@ export function buildTrackingPayload(input: TrackingInput) {
     case 'bookingNumber':
       uploadType = 'FORM_BY_BOOKING_NUMBER';
       formDataObject.bookingNumber = trackingNumber;
-      formDataObject.oceanLine = oceanLine;
+      if (oceanLine) {
+        formDataObject.oceanLine = oceanLine;
+      }
       break;
     case 'containerNumber':
       uploadType = 'FORM_BY_CONTAINER_NUMBER';
       formDataObject.containerNumber = trackingNumber;
-      formDataObject.oceanLine = oceanLine;
+      if (oceanLine) {
+        formDataObject.oceanLine = oceanLine;
+      }
       break;
     case 'mblNumber':
       uploadType = 'FORM_BY_MBL_NUMBER';
       formDataObject.mblNumber = trackingNumber;
+      // oceanLine is typically not needed for MBL tracking
       break;
     default:
+      // This is a safeguard, but the type system should prevent this.
       throw new Error(`Tipo de rastreamento inválido: ${type}`);
   }
   
+  // The root object contains uploadType and the formData array.
   return {
     uploadType: uploadType,
     formData: [formDataObject],

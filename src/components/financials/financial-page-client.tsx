@@ -54,6 +54,25 @@ import { CommissionManagement } from '@/components/financials/commission-managem
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
 const allStatuses: Status[] = ['Aberto', 'Vencido', 'Parcialmente Pago', 'Pago', 'Pendente de Aprovação'];
 
+interface EntriesTableProps {
+    tableEntries: FinancialEntry[];
+    selectedRows: Set<string>;
+    toggleRowSelection: (id: string, isChecked: boolean) => void;
+    isLegalTable?: boolean;
+    handleProcessClick: (entry: FinancialEntry) => void;
+    handleOpenSettleDialog: (entry: FinancialEntry) => void;
+    handleOpenNfseDialog: (entry: FinancialEntry) => void;
+    setEntryToRenegotiate: (entry: FinancialEntry | null) => void;
+    handleOpenLegalDialog: (entry: FinancialEntry) => void;
+    isGenerating: boolean;
+    handleGenerateClientInvoicePdf: (entry: FinancialEntry) => void;
+    handleGenerateAgentInvoicePdf: (entry: FinancialEntry) => void;
+    handleResendInvoice: (entry: FinancialEntry) => void;
+    getEntryStatus: (entry: FinancialEntry) => { status: Status; variant: 'default' | 'secondary' | 'destructive' | 'outline' };
+    getBalanceInBRL: (entry: FinancialEntry) => number;
+    handleLegalEntryUpdate: (entryId: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: any) => void;
+}
+
 
 const EntriesTable = ({
     tableEntries,
@@ -72,24 +91,7 @@ const EntriesTable = ({
     handleResendInvoice,
     getEntryStatus,
     getBalanceInBRL,
-}: {
-    tableEntries: FinancialEntry[];
-    selectedRows: Set<string>;
-    toggleRowSelection: (id: string, isChecked: boolean) => void;
-    isLegalTable?: boolean;
-    handleProcessClick: (entry: FinancialEntry) => void;
-    handleLegalEntryUpdate: (entryId: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: any) => void;
-    handleOpenSettleDialog: (entry: FinancialEntry) => void;
-    handleOpenNfseDialog: (entry: FinancialEntry) => void;
-    setEntryToRenegotiate: (entry: FinancialEntry | null) => void;
-    handleOpenLegalDialog: (entry: FinancialEntry) => void;
-    isGenerating: boolean;
-    handleGenerateClientInvoicePdf: (entry: FinancialEntry) => void;
-    handleGenerateAgentInvoicePdf: (entry: FinancialEntry) => void;
-    handleResendInvoice: (entry: FinancialEntry) => void;
-    getEntryStatus: (entry: FinancialEntry) => { status: Status; variant: 'default' | 'secondary' | 'destructive' | 'outline' };
-    getBalanceInBRL: (entry: FinancialEntry) => number;
-}) => {
+}: EntriesTableProps) => {
     return (
         <div className="border rounded-lg">
             <Table>
@@ -738,7 +740,7 @@ export function FinancialPageClient() {
                 </TabsContent>
                 
                 <TabsContent value="comissoes" className="mt-6">
-                    <CommissionManagement partners={partners.filter(p => p.roles.comissionado)} shipments={allShipments} exchangeRates={ptaxRates} />
+                    <CommissionManagement partners={partners} shipments={allShipments} exchangeRates={ptaxRates} />
                 </TabsContent>
 
                 <TabsContent value="consulta_nfse" className="mt-6">

@@ -14,9 +14,9 @@ export function buildTrackingPayload(input: TrackingInput) {
     return {
       uploadType: 'FORM_BY_CONTAINER_NUMBER',
       formData: [{
-        uploadType: 'FORM_BY_CONTAINER_NUMBER',
         containerNumber,
-        ...(oceanLine && { oceanLine }), // oceanLine é opcional, mas documentado para container.
+        // Cargo-flows docs state oceanLine is required for container tracking
+        oceanLine: oceanLine || "Hapag Lloyd", // Fallback, but should be provided
       }]
     };
   }
@@ -26,9 +26,8 @@ export function buildTrackingPayload(input: TrackingInput) {
     return {
       uploadType: 'FORM_BY_MBL_NUMBER',
       formData: [{
-        uploadType: 'FORM_BY_MBL_NUMBER',
         mblNumber,
-        ...(oceanLine && { oceanLine }),
+        oceanLine: oceanLine || "Hapag Lloyd", // Fallback
       }]
     };
   }
@@ -38,9 +37,8 @@ export function buildTrackingPayload(input: TrackingInput) {
     return {
       uploadType: 'FORM_BY_BOOKING_NUMBER',
       formData: [{
-        uploadType: 'FORM_BY_BOOKING_NUMBER',
         bookingNumber,
-        ...(oceanLine && { oceanLine }),
+        oceanLine: oceanLine || "Hapag Lloyd", // Fallback
       }]
     };
   }

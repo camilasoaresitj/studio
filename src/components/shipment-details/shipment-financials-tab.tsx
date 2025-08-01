@@ -17,9 +17,9 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { getFees, Fee } from '@/lib/fees-data';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
+import { Badge } from '../ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { addFinancialEntriesAction } from '@/app/actions';
@@ -215,6 +215,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     const charge = watchedCharges?.[index];
                                     if (!charge) return null;
                                     const isFaturado = !!charge.financialEntryId;
+                                    const isContainerCharge = charge.type === 'Contêiner';
                                     return (
                                         <TableRow key={field.id} data-state={isFaturado ? 'selected' : ''}>
                                             <TableCell className="p-1 align-top">
@@ -246,7 +247,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
                                                  <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{containerTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado || !isContainerCharge}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{containerTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
                                                 )} />
                                             </TableCell>
                                             <TableCell className="p-1 align-top">

@@ -80,6 +80,7 @@ import { getFinancialEntries } from '@/lib/financials-data';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { CustomsClearanceTab } from './customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const containerDetailSchema = z.object({
   id: z.string().optional(),
@@ -369,6 +370,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const [justificationData, setJustificationData] = useState<{ chargeIndex: number; field: 'cost' | 'sale'; newValue: number } | null>(null);
     const [financialEntries, setFinancialEntries] = useState(getFinancialEntries());
     const [detailsEntry, setDetailsEntry] = useState<any>(null); // State for finance details dialog
+    const [trackingError, setTrackingError] = useState<string | null>(null);
 
     const blDraftFormRef = useRef<{ submit: () => void }>(null);
 
@@ -424,6 +426,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             setUploadedFiles({});
             setDocumentPreviews({});
             setFinancialEntries(getFinancialEntries());
+            setTrackingError(null);
         }
     }, [shipment, form, open, partners]);
     
@@ -508,25 +511,21 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
 
         setIsUpdating(true);
+        setTrackingError(null);
         try {
             const response = await fetch(`/api/tracking/${trackingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}&type=${trackingType}`);
             const data = await response.json();
 
             if (!response.ok) {
-                 let description = 'Ocorreu um erro desconhecido.';
-                if (data.detail && typeof data.detail === 'string') {
-                    description = data.detail;
-                } else if (data.detail && typeof data.detail === 'object') {
-                    description = JSON.stringify(data.detail);
-                } else if (data.error) {
-                    description = data.error;
+                let errorMsg = `Erro ${response.status}: ${data.error || 'Erro desconhecido.'}`;
+                if (data.detail) {
+                    const detail = typeof data.detail === 'object' ? JSON.stringify(data.detail, null, 2) : data.detail;
+                    errorMsg += `\n\nDetalhes: ${detail}`;
                 }
-                
                 if (data.payloadSent) {
-                    description += ` | PAYLOAD: ${JSON.stringify(data.payloadSent)}`;
+                    errorMsg += `\n\nPayload Enviado: ${JSON.stringify(data.payloadSent, null, 2)}`;
                 }
-                
-                throw new Error(description);
+                throw new Error(errorMsg);
             }
             
             if (data.status === 'ready' && Array.isArray(data.eventos) && data.eventos.length > 0) {
@@ -575,7 +574,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             }
 
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Erro ao Rastrear', description: error.message, duration: 10000 });
+            setTrackingError(error.message);
         } finally {
             setIsUpdating(false);
         }
@@ -1038,6 +1037,13 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                             <CardTitle className="text-lg">Informações do Processo</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
+                                            {trackingError && (
+                                                <Alert variant="destructive">
+                                                    <AlertTriangle className="h-4 w-4" />
+                                                    <AlertTitle>Erro no Rastreamento</AlertTitle>
+                                                    <AlertDescription className="whitespace-pre-wrap text-xs font-mono">{trackingError}</AlertDescription>
+                                                </Alert>
+                                            )}
                                             <div className="grid grid-cols-2 gap-4">
                                                 <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                                                 <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
@@ -1471,4 +1477,3 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </Sheet>
     );
 }
-

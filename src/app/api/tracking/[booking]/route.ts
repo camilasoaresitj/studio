@@ -65,12 +65,13 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const carrierName = url.searchParams.get('carrierName');
   const type = (url.searchParams.get('type') || 'bookingNumber') as 'bookingNumber' | 'containerNumber' | 'mblNumber';
 
-  const CREATE_URL = `${BASE_URL}/createShipments`; // Use plural endpoint
-  const SHIPMENT_URL = `${BASE_URL}/shipments`; // Use plural endpoint
+  const CREATE_URL = `${BASE_URL}/createShipments`; // Corrected: plural endpoint
+  const SHIPMENT_URL = `${BASE_URL}/shipments`; // Plural endpoint
 
   try {
     const headers = getAuthHeaders();
     
+    // Corrected GET URL parameter name
     const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
     
     console.log('➡️  GET Shipment URL:', getShipmentUrl);
@@ -81,6 +82,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       data = await safelyParseJSON(res);
     }
 
+    // Check if the response is empty or an empty array, and creation is not skipped
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0) || (data && Object.keys(data).length === 0) )) {
       const carrierInfo = findCarrierByName(carrierName || '');
 
@@ -145,6 +147,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
     }
 
+    // Handle array response by taking the first element
     const firstShipment = Array.isArray(data) ? data[0] : data;
     
     console.log('📥 GET Shipment Response Body (parsed):', JSON.stringify(firstShipment, null, 2));

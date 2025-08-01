@@ -1,9 +1,9 @@
+// /src/lib/buildTrackingPayload.ts
+
 interface TrackingInput {
-  bookingNumber?: string;
-  containerNumber?: string;
-  mblNumber?: string;
-  oceanLine?: string;
   type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
+  trackingNumber: string;
+  oceanLine?: string;
 }
 
 /**
@@ -13,7 +13,7 @@ interface TrackingInput {
  * @returns O payload formatado para a API da Cargo-flows.
  */
 export function buildTrackingPayload(input: TrackingInput) {
-  const { type, oceanLine, ...numbers } = input;
+  const { type, trackingNumber, oceanLine } = input;
 
   const getUploadType = () => {
     switch (type) {
@@ -28,21 +28,19 @@ export function buildTrackingPayload(input: TrackingInput) {
     }
   };
 
-  const trackingNumber = numbers[type];
-  if (!trackingNumber) {
-    throw new Error(`Número de ${type} não fornecido.`);
-  }
-  if (!oceanLine) {
-    throw new Error('Nome da transportadora (oceanLine) é obrigatório.');
-  }
-
-  const formData = {
-    uploadType: getUploadType(),
-    [type]: trackingNumber, // The field name is dynamic based on the type
-    oceanLine: oceanLine,
+  const uploadType = getUploadType();
+  const formDataObject: { [key: string]: any } = {
+    uploadType: uploadType,
+    [type]: trackingNumber,
   };
 
+  // Adiciona oceanLine apenas se for MBL, conforme a documentação
+  if (type === 'mblNumber' && oceanLine) {
+    formDataObject.oceanLine = oceanLine;
+  }
+
   return {
-    formData: [formData],
+    uploadType: uploadType,
+    formData: [formDataObject],
   };
 }

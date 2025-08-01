@@ -92,7 +92,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: 400 });
       }
       
-      const payload = buildTrackingPayload({ type, [type]: trackingId, oceanLine: carrierInfo.name });
+      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo.name });
       console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
 
       const createRes = await fetch(`${BASE_URL}/createShipment`, {
@@ -116,7 +116,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
           detail: detailMessage,
-          payloadSent: payload, // Adicionado para depuração
+          payloadSent: payload,
         }, { status: createRes.status });
       }
 

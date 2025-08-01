@@ -27,6 +27,7 @@ const quoteChargeSchemaForSheet = z.object({
     id: z.string(),
     name: z.string().min(1, 'Obrigatório'),
     type: z.string(),
+    containerType: z.string().optional(),
     localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
     cost: z.coerce.number().default(0),
     costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
@@ -88,6 +89,10 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
     );
 }
 
+const containerTypeOptions = ['Todos', 'Dry', 'Reefer', 'Especiais'];
+const chargeTypeOptions = ['Contêiner', 'BL', 'Processo', 'W/M', 'KG', 'AWB', 'Fixo', 'Percentual'];
+
+
 export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
@@ -133,10 +138,12 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-[180px]">Taxa</TableHead>
-                                    <TableHead className="w-[180px]">Fornecedor</TableHead>
+                                    <TableHead className="w-[150px]">Taxa</TableHead>
+                                    <TableHead className="w-[150px]">Fornecedor</TableHead>
+                                    <TableHead className="w-[120px]">Cobrança por</TableHead>
+                                    <TableHead className="w-[120px]">Tipo Cont.</TableHead>
                                     <TableHead className="w-[200px]">Custo</TableHead>
-                                    <TableHead className="w-[180px]">Sacado</TableHead>
+                                    <TableHead className="w-[150px]">Sacado</TableHead>
                                     <TableHead className="w-[200px]">Venda</TableHead>
                                     <TableHead className="w-[50px]">Ações</TableHead>
                                 </TableRow>
@@ -151,6 +158,16 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                             <TableCell className="p-1 align-top">
                                                 <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
                                                     <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
+                                                )} />
+                                            </TableCell>
+                                            <TableCell className="p-1 align-top">
+                                                <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
+                                                    <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{chargeTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                                )} />
+                                            </TableCell>
+                                            <TableCell className="p-1 align-top">
+                                                 <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => (
+                                                    <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{containerTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
                                                 )} />
                                             </TableCell>
                                             <TableCell className="p-1 align-top">

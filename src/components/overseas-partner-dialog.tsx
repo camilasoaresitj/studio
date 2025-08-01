@@ -41,7 +41,7 @@ const partnerSchema = z.object({
   type: z.enum(['Cliente', 'Fornecedor', 'Agente']),
   cnpj: z.string().optional(),
   paymentTerm: z.coerce.number().optional(),
-  exchangeRateAgio: z.coerce.number().optional(),
+  exchangeRateAgio: z.coerce.number().optional().default(0),
   address: z.object({
     street: z.string().optional(),
     number: z.string().optional(),
@@ -134,7 +134,7 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
       form.setValue('cnpj', data.cnpj);
       form.setValue('address', data.address as any);
       if (data.contacts && data.contacts.length > 0) {
-        replace(data.contacts.map(c => ({...c, departments: c.departments[0] ? [c.departments[0]] : ['Outro'] })) as any);
+        replace(data.contacts.map(c => ({...c, departments: c.departments[0] ? c.departments : ['Outro'] })) as any);
       }
       toast({ title: 'Dados preenchidos com sucesso!', className: 'bg-success text-success-foreground' });
     } else {
@@ -246,7 +246,7 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
                                 )}/>
                                  <FormField control={form.control} name={`contacts.${index}.departments`} render={({ field }) => (
                                     <FormItem><FormLabel>Departamento</FormLabel>
-                                        <Select onValueChange={(value) => field.onChange([value])} defaultValue={field.value[0]}>
+                                        <Select onValueChange={(value) => field.onChange([value])} defaultValue={field.value?.[0]}>
                                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                         <SelectContent>
                                             <SelectItem value="Comercial">Comercial</SelectItem>

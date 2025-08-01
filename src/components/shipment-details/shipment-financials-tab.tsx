@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, PlusCircle, ChevronsUpDown, Check } from 'lucide-react';
+import { Trash2, PlusCircle, ChevronsUpDown, Check, Wallet, FileText } from 'lucide-react';
 import type { Shipment, Partner, QuoteCharge } from '@/lib/shipment-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,7 +21,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Wallet } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { addFinancialEntriesAction } from '@/app/actions';
 
 const quoteChargeSchemaForSheet = z.object({
     id: z.string(),
@@ -96,6 +97,7 @@ const chargeTypeOptions = ['Contêiner', 'BL', 'Processo', 'W/M', 'KG', 'AWB', '
 export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
+    const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
 
     const form = useForm<FinancialsFormData>({
         resolver: zodResolver(financialsFormSchema),
@@ -118,6 +120,63 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
     });
 
     const watchedCharges = form.watch('charges');
+    
+    const toggleChargeSelection = (chargeId: string) => {
+        setSelectedChargeIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(chargeId)) {
+                newSet.delete(chargeId);
+            } else {
+                newSet.add(chargeId);
+            }
+            return newSet;
+        });
+    };
+
+    const handleInvoiceSelected = async () => {
+        const chargesToInvoice = watchedCharges?.filter(c => selectedChargeIds.has(c.id)) || [];
+        if (chargesToInvoice.length === 0) {
+            toast({ variant: 'destructive', title: 'Nenhuma taxa selecionada.'});
+            return;
+        }
+
+        const creditCharges = chargesToInvoice.filter(c => c.sacado === shipment.customer);
+        const debitCharges = chargesToInvoice.filter(c => c.sacado !== shipment.customer);
+
+        const newEntries: Omit<import('/src/lib/financials-data').FinancialEntry, 'id'>[] = [];
+        
+        // Generate Credit Entry (Fatura para o Cliente)
+        if (creditCharges.length > 0) {
+            const totalCredit = creditCharges.reduce((sum, c) => sum + c.sale, 0);
+            const financialEntryId = `fin-credit-${shipment.id}-${Date.now()}`;
+            newEntries.push({
+                type: 'credit', partner: shipment.customer,
+                invoiceId: `INV-${shipment.id.replace('PROC-','')}`, dueDate: new Date().toISOString(),
+                amount: totalCredit, currency: 'BRL', // Assuming BRL for simplicity
+                processId: shipment.id, status: 'Aberto', expenseType: 'Operacional'
+            });
+            creditCharges.forEach(c => updateCharge(chargesFields.findIndex(f => f.id === c.id), { ...c, financialEntryId }));
+        }
+
+        // Generate Debit Entries (Faturas dos Fornecedores)
+        const suppliers = [...new Set(debitCharges.map(c => c.supplier))];
+        suppliers.forEach(supplier => {
+            const supplierCharges = debitCharges.filter(c => c.supplier === supplier);
+            const totalDebit = supplierCharges.reduce((sum, c) => sum + c.cost, 0);
+            const financialEntryId = `fin-debit-${supplier.replace(/\s+/g, '')}-${Date.now()}`;
+             newEntries.push({
+                type: 'debit', partner: supplier,
+                invoiceId: `BILL-${shipment.id.replace('PROC-','')}`, dueDate: new Date().toISOString(),
+                amount: totalDebit, currency: 'BRL', // Assuming BRL
+                processId: shipment.id, status: 'Aberto', expenseType: 'Operacional'
+            });
+            supplierCharges.forEach(c => updateCharge(chargesFields.findIndex(f => f.id === c.id), { ...c, financialEntryId }));
+        });
+
+        await addFinancialEntriesAction(newEntries);
+        toast({ title: `${newEntries.length} fatura(s) gerada(s) com sucesso!`, className: 'bg-success text-success-foreground' });
+        setSelectedChargeIds(new Set());
+    };
 
     return (
         <Form {...form}>
@@ -126,7 +185,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                     <div className="flex justify-between items-center">
                         <CardTitle>Planilha de Custos e Vendas</CardTitle>
                         <div className="flex items-center gap-2">
-                            <Button type="button" variant="secondary" size="sm" onClick={() => {}}>Faturar Processo</Button>
+                             <Button type="button" variant="secondary" size="sm" onClick={handleInvoiceSelected} disabled={selectedChargeIds.size === 0}>
+                                <FileText className="mr-2 h-4 w-4"/> Faturar Selecionados ({selectedChargeIds.size})
+                            </Button>
                             <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `custom-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'pendente', financialEntryId: null })}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
                             </Button>
@@ -138,6 +199,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-10"></TableHead>
                                     <TableHead className="w-[150px]">Taxa</TableHead>
                                     <TableHead className="w-[150px]">Fornecedor</TableHead>
                                     <TableHead className="w-[120px]">Cobrança por</TableHead>
@@ -152,45 +214,62 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                 {chargesFields.map((field, index) => {
                                     const charge = watchedCharges?.[index];
                                     if (!charge) return null;
+                                    const isFaturado = !!charge.financialEntryId;
                                     return (
-                                        <TableRow key={field.id}>
-                                            <TableCell className="p-1 align-top"><FeeCombobox fees={fees} value={charge.name} onValueChange={() => {}} /></TableCell>
+                                        <TableRow key={field.id} data-state={isFaturado ? 'selected' : ''}>
+                                            <TableCell className="p-1 align-top">
+                                                <Checkbox
+                                                    checked={selectedChargeIds.has(charge.id)}
+                                                    onCheckedChange={() => toggleChargeSelection(charge.id)}
+                                                    disabled={isFaturado}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="p-1 align-top">
+                                                {isFaturado ? (
+                                                     <div className="flex items-center gap-1 text-muted-foreground">
+                                                         <FileText className="h-4 w-4" />
+                                                         <span className="text-xs">{charge.name}</span>
+                                                    </div>
+                                                ) : (
+                                                    <FeeCombobox fees={fees} value={charge.name} onValueChange={() => {}} />
+                                                )}
+                                            </TableCell>
                                             <TableCell className="p-1 align-top">
                                                 <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
                                                 )} />
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
                                                 <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{chargeTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{chargeTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
                                                 )} />
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
                                                  <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{containerTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{containerTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
                                                 )} />
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
                                                  <div className="flex gap-1">
-                                                    <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                    <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" />} />
+                                                    <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                    <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} />
                                                 </div>
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
                                                 <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
                                                 )} />
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
                                                 <div className="flex gap-1">
-                                                    <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                    <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" />} />
+                                                    <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
+                                                    <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} />
                                                 </div>
                                                 {charge.approvalStatus === 'pendente' && <Badge variant="default" className="mt-1">Pendente</Badge>}
                                                 {charge.approvalStatus === 'rejeitada' && <Badge variant="destructive" className="mt-1">Rejeitada</Badge>}
                                             </TableCell>
                                             <TableCell className="p-1 align-top text-center">
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)} disabled={isFaturado}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </TableCell>
                                         </TableRow>
                                     );

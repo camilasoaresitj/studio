@@ -37,6 +37,8 @@ import { exchangeRateService } from '@/services/exchange-rate-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { findPortByTerm, portsAndAirports } from '@/lib/ports';
+import { ManualFreightForm } from './manual-freight-form';
+import { AutocompleteInput } from './autocomplete-input';
 
 
 type FreightRate = {
@@ -71,139 +73,6 @@ interface FreightQuoteFormProps {
   initialData?: Partial<FreightQuoteFormData> | null;
   onQuoteUpdate: (quote: Quote) => void;
 }
-
-// Custom Autocomplete Input Component
-const AutocompleteInput = ({ field, placeholder, modal }: { field: any, placeholder: string, modal: 'ocean' | 'air' | 'courier' | 'road' }) => {
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    const suggestions = useMemo(() => {
-        if (modal === 'road') {
-            // Placeholder for city/road suggestions
-            return ['São Paulo, BR', 'Rio de Janeiro, BR', 'Buenos Aires, AR', 'Santiago, CL'];
-        }
-        const relevantPortType = modal === 'ocean' ? 'port' : 'airport';
-        return portsAndAirports
-            .filter(p => p.type === relevantPortType)
-            .map(p => `${p.name}, ${p.country}`);
-    }, [modal]);
-
-    const filterSuggestions = (value: string) => {
-        const currentPart = value.split(',').pop()?.trim().toLowerCase() ?? '';
-        if (currentPart.length >= 2) {
-            setFilteredSuggestions(suggestions.filter(s =>
-                s.toLowerCase().includes(currentPart)
-            ));
-        } else {
-            setFilteredSuggestions([]);
-        }
-    };
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        field.onChange(value);
-        if (!showSuggestions) setShowSuggestions(true);
-        filterSuggestions(value);
-    };
-
-    const handleSelectSuggestion = (suggestion: string) => {
-        field.onChange(suggestion);
-        setShowSuggestions(false);
-    };
-    
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setShowSuggestions(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    const currentInputPart = field.value?.split(',').pop()?.trim() ?? '';
-
-    return (
-        <div ref={containerRef} className="relative">
-            <Input
-                placeholder={placeholder}
-                {...field}
-                onChange={handleInputChange}
-                onFocus={() => {
-                    filterSuggestions(field.value || '');
-                    setShowSuggestions(true);
-                }}
-                onKeyDown={(e) => {
-                    if (e.key === 'Escape') setShowSuggestions(false);
-                }}
-                autoComplete="off"
-            />
-            {showSuggestions && (
-                <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto p-1">
-                    {filteredSuggestions.length > 0 ? (
-                        filteredSuggestions.map((suggestion, index) => (
-                            <div
-                                key={`${suggestion}-${index}`}
-                                onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(suggestion); }}
-                                className="cursor-pointer rounded-sm px-3 py-2 text-sm hover:bg-accent"
-                            >
-                                {suggestion}
-                            </div>
-                        ))
-                    ) : (
-                        <div className="px-3 py-2 text-sm text-muted-foreground">
-                            {currentInputPart.length >= 2 ? 'Nenhum local encontrado.' : 'Digite 2+ letras para buscar...'}
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-};
-
-const ManualFreightForm = ({ onManualRateAdd }: { onManualRateAdd: (rate: Omit<FreightRate, 'id' | 'carrierLogo' | 'dataAiHint' | 'source'>) => void }) => {
-    const [supplier, setSupplier] = useState('');
-    const [cost, setCost] = useState('');
-    const [currency, setCurrency] = useState<'USD' | 'BRL'>('USD');
-    const [transitTime, setTransitTime] = useState('');
-
-    const handleSubmit = () => {
-        onManualRateAdd({
-            carrier: supplier,
-            origin: '', // These are taken from the main form
-            destination: '',
-            transitTime: transitTime,
-            cost: `${currency} ${cost}`,
-            costValue: parseFloat(cost) || 0,
-        });
-    };
-
-    return (
-        <Card className="mt-4 bg-secondary/50">
-            <CardHeader>
-                <CardTitle className="text-lg">Adicionar Frete Manualmente</CardTitle>
-                <CardDescription>Insira os detalhes da tarifa que você negociou.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <Input placeholder="Fornecedor" value={supplier} onChange={(e) => setSupplier(e.target.value)} />
-                <Input placeholder="Valor do Frete" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
-                <Select value={currency} onValueChange={(v: 'USD'|'BRL') => setCurrency(v)}>
-                    <SelectTrigger><SelectValue/></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="BRL">BRL</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Input placeholder="Tempo de Trânsito" value={transitTime} onChange={(e) => setTransitTime(e.target.value)} />
-                <Button onClick={handleSubmit} className="sm:col-span-4">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Adicionar e Criar Cotação
-                </Button>
-            </CardContent>
-        </Card>
-    );
-};
 
 export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer, rates, fees: initialFees, initialData, onQuoteUpdate }: FreightQuoteFormProps) {
   const [isLoading, setIsLoading] = useState(false);

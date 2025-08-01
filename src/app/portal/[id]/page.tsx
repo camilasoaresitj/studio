@@ -6,18 +6,14 @@ import { ClientPortalPage } from '@/components/client-portal-page';
 import Loading from './loading';
 import { getShipmentById } from '@/lib/shipment-data-client';
 
-// This is now an async Server Component.
-export default async function ShipmentDetailPage({ params }: { params: { id: string } }) {
-  // We extract the id here and pass it as a simple prop to the client component.
+export default function ShipmentDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
   
-  // We can fetch data on the server now.
-  const shipment = await getShipmentById(id);
-
+  // The initial data fetching will happen inside the client component now.
+  // This avoids the async client component error and works better with client-side data.
   return (
     <Suspense fallback={<Loading />}>
-      {/* We pass the fetched data directly to the client component */}
-      <ClientPortalPage initialShipment={shipment} id={id} />
+      <ClientPortalPage initialShipment={undefined} id={id} />
     </Suspense>
   );
 }

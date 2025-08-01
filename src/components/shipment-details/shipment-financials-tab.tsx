@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exchangeRateService } from '@/services/exchange-rate-service';
+import { addFinancialEntriesAction } from '@/app/actions';
 
 const quoteChargeSchemaForSheet = z.object({
   id: z.string(),
@@ -51,7 +52,6 @@ interface ShipmentFinancialsTabProps {
     shipment: Shipment;
     partners: Partner[];
     onOpenDetails: (charge: QuoteCharge) => void;
-    onInvoiceCharges?: (chargesToInvoice: QuoteCharge[]) => Promise<QuoteCharge[]>;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -92,7 +92,7 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
     );
 }
 
-export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onInvoiceCharges }, ref) => {
+export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
@@ -127,6 +127,107 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
     });
 
     const watchedCharges = form.watch('charges');
+
+    const handleInvoiceSelected = async () => {
+        const chargesToInvoice = watchedCharges?.filter(c => selectedChargeIds.has(c.id)) || [];
+        if (chargesToInvoice.length === 0) {
+            toast({ variant: 'destructive', title: 'Nenhuma taxa selecionada.'});
+            return;
+        }
+
+        const newEntries: Omit<import('@/lib/financials-data').FinancialEntry, 'id'>[] = [];
+        const entryMap = new Map<string, { partner: string; charges: QuoteCharge[] }>();
+
+        // Group charges by 'sacado' to create one invoice per partner
+        chargesToInvoice.forEach(charge => {
+            const sacado = charge.sacado || shipment.customer;
+            if (!entryMap.has(sacado)) {
+                entryMap.set(sacado, { partner: sacado, charges: [] });
+            }
+            entryMap.get(sacado)!.charges.push(charge);
+        });
+
+        entryMap.forEach(({ partner, charges }) => {
+            const totalAmount = charges.reduce((sum, ch) => sum + ch.sale, 0);
+            const currency = charges[0].saleCurrency; // Assuming all charges for one invoice have the same currency
+            
+            newEntries.push({
+                type: 'credit',
+                partner: partner,
+                invoiceId: `INV-${shipment.id}-${partner.slice(0,3).toUpperCase()}`,
+                status: 'Aberto',
+                dueDate: addDays(new Date(), 30).toISOString(),
+                amount: totalAmount,
+                currency: currency,
+                processId: shipment.id,
+                payments: [],
+                expenseType: 'Operacional',
+                description: `Serviços de frete ref. processo ${shipment.id}`
+            });
+        });
+
+        const response = await addFinancialEntriesAction(newEntries);
+
+        if (response.success && response.data) {
+            const newChargesForForm = [...(watchedCharges || [])];
+            let entryIndex = response.data.length - newEntries.length;
+
+            newEntries.forEach(newEntry => {
+                 const originalCharges = entryMap.get(newEntry.partner)!.charges;
+                 originalCharges.forEach(chargeToUpdate => {
+                     const idx = newChargesForForm.findIndex(c => c.id === chargeToUpdate.id);
+                     if(idx > -1) {
+                         newChargesForForm[idx].financialEntryId = response.data[entryIndex].id;
+                     }
+                 });
+                 entryIndex++;
+            });
+            
+            form.setValue('charges', newChargesForForm as any);
+            toast({ title: `${newEntries.length} fatura(s) gerada(s) com sucesso!`, className: 'bg-success text-success-foreground' });
+        } else {
+             toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
+        }
+
+        setSelectedChargeIds(new Set());
+    };
+
+    const calculateBRLValues = React.useCallback((charge: QuoteCharge) => {
+        const chargeCost = Number(charge.cost) || 0;
+        const chargeSale = Number(charge.sale) || 0;
+
+        const customer = partners.find(p => p.name === charge.sacado);
+        const supplier = partners.find(p => p.name === charge.supplier);
+
+        const customerAgio = customer?.exchangeRateAgio ?? 0;
+        const supplierAgio = supplier?.exchangeRateAgio ?? 0;
+
+        const salePtax = exchangeRates[charge.saleCurrency] || 1;
+        const costPtax = exchangeRates[charge.costCurrency] || 1;
+
+        const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + customerAgio / 100);
+        const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + supplierAgio / 100);
+
+        return {
+            costInBrl: chargeCost * costRate,
+            saleInBrl: chargeSale * saleRate,
+        };
+    }, [partners, exchangeRates]);
+
+    const totals = React.useMemo(() => {
+        let totalCostBRL = 0;
+        let totalSaleBRL = 0;
+
+        watchedCharges?.forEach(charge => {
+            const { costInBrl, saleInBrl } = calculateBRLValues(charge);
+            totalCostBRL += costInBrl;
+            totalSaleBRL += saleInBrl;
+        });
+
+        const totalProfitBRL = totalSaleBRL - totalCostBRL;
+
+        return { totalCostBRL, totalSaleBRL, totalProfitBRL };
+    }, [watchedCharges, calculateBRLValues]);
     
     const toggleChargeSelection = (chargeId: string) => {
         setSelectedChargeIds(prev => {
@@ -139,62 +240,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             return newSet;
         });
     };
-
-    const handleInvoiceSelected = async () => {
-        const chargesToInvoice = watchedCharges?.filter(c => selectedChargeIds.has(c.id)) || [];
-        if (chargesToInvoice.length === 0) {
-            toast({ variant: 'destructive', title: 'Nenhuma taxa selecionada.'});
-            return;
-        }
-
-        if (!onInvoiceCharges) {
-             toast({ variant: 'destructive', title: 'Função de faturamento não implementada.'});
-            return;
-        }
-
-        const updatedChargesFromParent = await onInvoiceCharges(chargesToInvoice);
-        
-        // Update the form state with the new financialEntryId
-        const newChargesForForm = chargesFields.map(c => {
-            const updatedVersion = updatedChargesFromParent.find(uc => uc.id === c.id);
-            return updatedVersion || c;
-        });
-        form.setValue('charges', newChargesForForm as any);
-
-        setSelectedChargeIds(new Set());
-    };
-
-    const totals = React.useMemo(() => {
-        const costTotals: Record<string, number> = {};
-        const saleTotals: Record<string, number> = {};
-
-        watchedCharges?.forEach(charge => {
-            const chargeCost = Number(charge.cost) || 0;
-            const chargeSale = Number(charge.sale) || 0;
-
-            costTotals[charge.costCurrency] = (costTotals[charge.costCurrency] || 0) + chargeCost;
-            saleTotals[charge.saleCurrency] = (saleTotals[charge.saleCurrency] || 0) + chargeSale;
-        });
-        
-        const costBRL = 0;
-        const saleBRL = 0;
-
-        return {
-            cost: costTotals,
-            sale: saleTotals,
-            profitBRL: saleBRL - costBRL,
-        };
-    }, [watchedCharges, exchangeRates, partners]);
-
-    const formatTotals = (totals: Record<string, number>) => {
-        const parts = Object.entries(totals)
-            .filter(([, value]) => value !== 0)
-            .map(([currency, value]) => 
-                `${currency} ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-            );
-        return parts.length > 0 ? parts.join(' | ') : 'N/A';
-    };
-
+    
     const handleFeeSelection = (feeName: string, index: number) => {
         const fee = fees.find(f => f.name === feeName);
         if (fee) {
@@ -234,12 +280,12 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-10"></TableHead>
-                                    <TableHead className="w-[150px]">Taxa</TableHead>
-                                    <TableHead className="w-[150px]">Fornecedor</TableHead>
-                                    <TableHead className="w-[200px] text-right">Custo Total</TableHead>
-                                    <TableHead className="w-[150px]">Sacado</TableHead>
-                                    <TableHead className="w-[200px] text-right">Venda Total</TableHead>
-                                    <TableHead className="w-[50px]">Ações</TableHead>
+                                    <TableHead>Taxa</TableHead>
+                                    <TableHead>Fornecedor</TableHead>
+                                    <TableHead className="text-right">Custo</TableHead>
+                                    <TableHead>Sacado</TableHead>
+                                    <TableHead className="text-right">Venda</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -310,17 +356,17 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                 </CardContent>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 p-4 pt-0">
                     <Card>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Custo Total</CardTitle></CardHeader>
-                        <CardContent className="p-2 text-base font-semibold font-mono">{formatTotals(totals.cost)}</CardContent>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Custo Total (em BRL)</CardTitle></CardHeader>
+                        <CardContent className="p-2 text-base font-semibold font-mono">{totals.totalCostBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Venda Total</CardTitle></CardHeader>
-                        <CardContent className="p-2 text-base font-semibold font-mono">{formatTotals(totals.sale)}</CardContent>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Venda Total (em BRL)</CardTitle></CardHeader>
+                        <CardContent className="p-2 text-base font-semibold font-mono">{totals.totalSaleBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</CardContent>
                     </Card>
-                    <Card className={cn(totals.profitBRL < 0 ? "border-destructive" : "border-success")}>
+                    <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
                         <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Resultado (em BRL)</CardTitle></CardHeader>
-                        <CardContent className={cn("p-2 text-base font-semibold font-mono", totals.profitBRL < 0 ? "text-destructive" : "text-success")}>
-                            {totals.profitBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        <CardContent className={cn("p-2 text-base font-semibold font-mono", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
+                            {totals.totalProfitBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </CardContent>
                     </Card>
                 </div>

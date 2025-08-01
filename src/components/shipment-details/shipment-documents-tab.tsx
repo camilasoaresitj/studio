@@ -36,7 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { getCourierStatus as runGetCourierStatus } from '@/app/actions';
+import { runGetCourierStatus } from '@/app/actions';
 
 const documentsFormSchema = z.object({
     documents: z.array(z.any()).optional(),
@@ -275,8 +275,8 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                             render={({ field }) => (
                                 <FormItem className="flex items-center justify-between gap-4 space-y-0">
                                     <div className="space-y-0.5">
-                                        <FormLabel>Emissão MBL no Destino</FormLabel>
-                                        <p className="text-xs text-muted-foreground">Ative para Impressão no destino</p>
+                                        <FormLabel>Impressão no Destino</FormLabel>
+                                        <p className="text-xs text-muted-foreground">Ative para impressão no destino (Express Release).</p>
                                     </div>
                                     <FormControl>
                                         <Switch

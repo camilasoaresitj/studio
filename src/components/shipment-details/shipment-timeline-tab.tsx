@@ -113,7 +113,7 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
     });
 
     const sortedMilestones = useMemo(() => {
-        const currentMilestones = form.getValues('milestones') || [];
+        const currentMilestones = form.getValues('milestones');
         if(!currentMilestones || !Array.isArray(currentMilestones)) return [];
         return [...currentMilestones].sort((a, b) => {
             const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
@@ -122,7 +122,7 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
             if (!dateB) return -1;
             return dateA - dateB;
         });
-    }, [form.watch('milestones')]); 
+    }, [form]); 
 
     return (
         <Form {...form}>

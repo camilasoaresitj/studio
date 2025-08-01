@@ -727,7 +727,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
                     <div className="flex justify-between items-center">
                         <h4 className="text-md font-semibold">Contatos</h4>
-                        <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', departments: ['Comercial'], loginEmail: '', password: '', despachanteId: null })}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', departments: ['Comercial'], despachanteId: null, loginEmail: '', password: '' })}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Contato
                         </Button>
                     </div>

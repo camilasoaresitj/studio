@@ -78,7 +78,9 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     };
     const paramName = paramMap[type];
 
-    let res = await fetch(`${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${paramName}=${trackingId}`, { headers });
+    const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${paramName}=${trackingId}`;
+    console.log('➡️  GET Shipment URL:', getShipmentUrl);
+    let res = await fetch(getShipmentUrl, { headers });
 
     let data;
     if (res.status !== 204) {
@@ -103,7 +105,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
       
       const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo.name });
-      console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
+      console.log('➡️  CREATE Shipment Payload:', JSON.stringify(payload, null, 2));
 
       const createRes = await fetch(CREATE_URL, {
         method: 'POST',
@@ -112,8 +114,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       });
       
       const rawResponseText = await createRes.text();
-      console.log('📥 Resposta Cargo-flows status:', createRes.status);
-      console.log('📥 Body (raw):', rawResponseText);
+      console.log('📥 CREATE Shipment Response Status:', createRes.status);
+      console.log('📥 CREATE Shipment Response Body (raw):', rawResponseText);
 
       if (!createRes.ok) {
         let errorBody;
@@ -132,7 +134,9 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      res = await fetch(`${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${paramName}=${trackingId}`, { headers });
+      const getShipmentUrlAfterCreate = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${paramName}=${trackingId}`;
+      console.log('➡️  GET Shipment URL (After Create):', getShipmentUrlAfterCreate);
+      res = await fetch(getShipmentUrlAfterCreate, { headers });
 
       if (!res.ok) {
         const errorText = await res.text();
@@ -156,6 +160,9 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     }
 
     const firstShipment = Array.isArray(data) ? data[0] : data;
+    
+    console.log('📥 GET Shipment Response Body (parsed):', JSON.stringify(firstShipment, null, 2));
+
 
     // If still processing, return the partial data
     if (firstShipment.state === 'PROCESSING') {

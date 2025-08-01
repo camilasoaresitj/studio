@@ -71,7 +71,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     const headers = getAuthHeaders();
     
-    // **CORRECTION:** The API uses a generic 'shipmentReferenceNumber' for GET requests, not the specific type name.
+    // **CORRECTION:** The API uses a singular 'shipmentType' parameter.
     const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
     
     console.log('➡️  GET Shipment URL:', getShipmentUrl);
@@ -161,13 +161,14 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
 
     // If still processing, return the partial data
-    if (firstShipment.state === 'PROCESSING') {
+    if (firstShipment.state === 'PROCESSING' && firstShipment.fallback) {
         return NextResponse.json({
             status: 'processing',
             message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
-            shipment: firstShipment, // Send partial shipment data
+            shipment: firstShipment.fallback, // Send partial shipment data from fallback
         }, { status: 202 });
     }
+
 
     const eventos = (firstShipment?.shipmentEvents || []).map((ev: any) => ({
       eventName: ev.name,

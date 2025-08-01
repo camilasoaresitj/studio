@@ -59,6 +59,9 @@ export type ShipmentCreationData = {
   uploadedDocs: UploadedDocument[];
   collectionAddress?: string;
   deliveryAddress?: string;
+  modal?: 'air' | 'ocean' | 'courier' | 'road'; // Add modal
+  roadShipment?: any; // Add road shipment details
+  airShipment?: any; // Add air shipment details
 };
 
 export type Milestone = {
@@ -167,6 +170,7 @@ export type ApprovalLog = {
 export type Shipment = {
   id: string; 
   quoteId: string;
+  modal: 'air' | 'ocean' | 'courier' | 'road'; // Make modal required
   origin: string;
   destination: string;
   shipper: Partner;
@@ -181,7 +185,7 @@ export type Shipment = {
   bookingNumber?: string;
   mblPrintingAtDestination?: boolean;
   mblPrintingAuthDate?: Date;
-  courier?: 'DHL' | 'UPS' | 'FedEx' | 'Outro';
+  courier?: string; // Simplified courier name
   courierNumber?: string;
   courierLastStatus?: string;
   vesselName?: string;
@@ -192,6 +196,7 @@ export type Shipment = {
   eta?: Date;
   containers?: ContainerDetail[];
   netWeight?: string;
+  grossWeight?: string; // Add gross weight
   transshipments?: TransshipmentDetail[];
   notifyName?: string;
   ceMaster?: string;
@@ -218,6 +223,12 @@ export type Shipment = {
   operationalNotes?: string;
   approvalLogs?: ApprovalLog[];
   invoiceItems?: any[];
+  // Road specific fields
+  border?: string;
+  crtNumber?: string;
+  truckPlate?: string;
+  driverDetails?: string;
+  pieces?: any[]; // For LTL/Air/Courier
 };
 
 // SERVER-SIDE SAFE: Reads from JSON, no localStorage.
@@ -235,6 +246,7 @@ export function getShipments(): Shipment[] {
         }
         return {
             ...shipment,
+            modal: shipment.modal || (shipment.details?.cargo.includes('kg') ? 'air' : 'ocean'), // Add modal fallback
             etd: safeDate(shipment.etd),
             eta: safeDate(shipment.eta),
             milestones: (shipment.milestones || []).map((m: any) => ({
@@ -275,6 +287,7 @@ export function getStoredShipments(): Shipment[] {
 
         return {
             ...shipment,
+            modal: shipment.modal || (shipment.details?.cargo.includes('kg') ? 'air' : 'ocean'), // Add modal fallback
             etd: safeDate(shipment.etd),
             eta: safeDate(shipment.eta),
             mblPrintingAuthDate: safeDate(shipment.mblPrintingAuthDate),
@@ -335,3 +348,5 @@ export async function getShipmentById(id: string): Promise<Shipment | undefined>
     const shipments = getStoredShipments();
     return shipments.find(s => s.id === id);
 }
+
+    

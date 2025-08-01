@@ -276,7 +276,7 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                                 <FormItem className="flex items-center justify-between gap-4 space-y-0">
                                     <div className="space-y-0.5">
                                         <FormLabel>Emissão MBL no Destino</FormLabel>
-                                        <p className="text-xs text-muted-foreground">Ative para Express Release ou envio por Courrier.</p>
+                                        <p className="text-xs text-muted-foreground">Ative para Impressão no destino</p>
                                     </div>
                                     <FormControl>
                                         <Switch

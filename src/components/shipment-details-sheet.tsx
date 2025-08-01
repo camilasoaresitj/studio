@@ -412,17 +412,18 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 throw new Error(errorMessage);
             }
 
-            let updatedShipment = { ...shipment, lastTrackingUpdate: new Date() };
+            // Create a deep copy to safely mutate
+            let updatedShipment = JSON.parse(JSON.stringify(shipment));
 
             const updateMilestone = (milestoneName: string, newDate: Date, status: Milestone['status'] = 'completed') => {
                 let milestoneFound = false;
                 const nameLower = milestoneName.toLowerCase();
                 
-                updatedShipment.milestones = (updatedShipment.milestones || []).map(m => {
+                updatedShipment.milestones = (updatedShipment.milestones || []).map((m: Milestone) => {
                     if (m.name.toLowerCase().includes(nameLower)) {
                         milestoneFound = true;
-                        // Only update if the new date is different, preserving existing effective dates
-                        if (!m.effectiveDate || m.effectiveDate.getTime() !== newDate.getTime()) {
+                        const existingEffectiveDate = m.effectiveDate ? new Date(m.effectiveDate).getTime() : 0;
+                        if (!existingEffectiveDate || existingEffectiveDate !== newDate.getTime()) {
                            return { ...m, effectiveDate: newDate, predictedDate: newDate, status };
                         }
                     }
@@ -444,6 +445,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
                 updatedShipment = {
                     ...updatedShipment,
+                    lastTrackingUpdate: new Date(),
                     vesselName: apiShipment.vesselName || updatedShipment.vesselName,
                     voyageNumber: apiShipment.voyageNumber || updatedShipment.voyageNumber,
                     etd: apiShipment.departureDate ? new Date(apiShipment.departureDate) : updatedShipment.etd,
@@ -452,7 +454,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 
                 if (apiShipment.containerDetails?.length > 0) {
                     updatedShipment.containers = apiShipment.containerDetails.map((cd: any) => ({
-                        ...(updatedShipment.containers?.find(c => c.number === cd.containerNumber) || {}),
+                        ...(updatedShipment.containers?.find((c:any) => c.number === cd.containerNumber) || {}),
                         id: cd.containerNumber,
                         number: cd.containerNumber,
                         seal: cd.sealNumber || 'N/A',
@@ -467,13 +469,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     const eventNameLower = ev.eventName.toLowerCase();
                     const eventDate = new Date(ev.actualTime);
 
-                    if (eventNameLower.includes('departure') || eventNameLower.includes('saída')) {
+                    if (eventNameLower.includes('departure') || eventNameLower.includes('saída') || eventNameLower.includes('embarque')) {
                         updateMilestone('Embarque', eventDate);
-                        updatedShipment.etd = eventDate;
                     }
                     if (eventNameLower.includes('arrival') || eventNameLower.includes('chegada')) {
                         updateMilestone('Chegada', eventDate);
-                        updatedShipment.eta = eventDate;
                     }
                 });
 

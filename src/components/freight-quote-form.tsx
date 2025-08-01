@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from '@/hooks/use-toast';
-import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2, Hand, Package as PackageIcon } from 'lucide-react';
+import { Plane, Ship, Calendar as CalendarIcon, PlusCircle, Trash2, Loader2, Search, UserPlus, FileText, AlertTriangle, Send, ChevronsUpDown, Check, Info, Mail, Edit, FileDown, MessageCircle, ArrowLeft, CalendarDays, Wand2, Hand, Package as PackageIcon, Truck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runExtractQuoteDetailsFromText, runSendWhatsapp, runGetCourierRates } from '@/app/actions';
@@ -73,12 +73,16 @@ interface FreightQuoteFormProps {
 }
 
 // Custom Autocomplete Input Component
-const AutocompleteInput = ({ field, placeholder, modal }: { field: any, placeholder: string, modal: 'ocean' | 'air' | 'courier' }) => {
+const AutocompleteInput = ({ field, placeholder, modal }: { field: any, placeholder: string, modal: 'ocean' | 'air' | 'courier' | 'road' }) => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const suggestions = useMemo(() => {
+        if (modal === 'road') {
+            // Placeholder for city/road suggestions
+            return ['São Paulo, BR', 'Rio de Janeiro, BR', 'Buenos Aires, AR', 'Santiago, CL'];
+        }
         const relevantPortType = modal === 'ocean' ? 'port' : 'airport';
         return portsAndAirports
             .filter(p => p.type === relevantPortType)
@@ -249,6 +253,12 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         cbm: 1,
         weight: 1000,
       },
+       roadShipmentType: 'FTL',
+      roadShipment: {
+        truckType: 'Carreta Simples',
+        pieces: [{ quantity: 1, length: 1200, width: 240, height: 260, weight: 24000 }],
+        border: 'Uruguaiana',
+      },
       optionalServices: {
         customsClearance: false,
         insurance: false,
@@ -276,6 +286,11 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const { fields: airPieces, append: appendAirPiece, remove: removeAirPiece } = useFieldArray({
     control: form.control,
     name: "airShipment.pieces",
+  });
+  
+  const { fields: roadPieces, append: appendRoadPiece, remove: removeRoadPiece } = useFieldArray({
+    control: form.control,
+    name: "roadShipment.pieces",
   });
 
   const { fields: oceanContainers, append: appendOceanContainer, remove: removeOceanContainer } = useFieldArray({
@@ -349,6 +364,9 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
             return values.oceanShipment.containers.map(c => `${c.quantity}x${c.type}`).join(', ');
         }
         return `LCL ${values.lclDetails.cbm} CBM / ${values.lclDetails.weight} KG`;
+    }
+    if(values.modal === 'road'){
+        return `${values.roadShipment.truckType}`;
     }
     const totalWeight = values.airShipment.pieces.reduce((acc, p) => acc + (p.quantity * p.weight), 0);
     const pieceCount = values.airShipment.pieces.reduce((acc, p) => acc + p.quantity, 0);
@@ -702,6 +720,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
   const optionalServices = form.watch('optionalServices');
   const watchedContainers = form.watch('oceanShipment.containers');
   const oceanShipmentType = form.watch('oceanShipmentType');
+  const roadShipmentType = form.watch('roadShipmentType');
 
   const paymentType = useMemo(() => {
     const prepaidTerms = ['CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'DDU'];
@@ -868,7 +887,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                       defaultValue="ocean"
                       className="w-auto"
                       onValueChange={(value) => {
-                          form.setValue('modal', value as 'air' | 'ocean' | 'courier');
+                          form.setValue('modal', value as 'air' | 'ocean' | 'courier' | 'road');
                           setResults([]);
                       }}
                       value={modal}
@@ -876,6 +895,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                       <TabsList>
                         <TabsTrigger value="air"><Plane className="mr-2 h-4 w-4" />Aéreo</TabsTrigger>
                         <TabsTrigger value="ocean"><Ship className="mr-2 h-4 w-4" />Marítimo</TabsTrigger>
+                        <TabsTrigger value="road"><Truck className="mr-2 h-4 w-4" />Rodoviário</TabsTrigger>
                         <TabsTrigger value="courier"><PackageIcon className="mr-2 h-4 w-4" />Courier</TabsTrigger>
                       </TabsList>
                     </Tabs>
@@ -893,6 +913,22 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                           <TabsList>
                               <TabsTrigger value="FCL">FCL (Contêiner)</TabsTrigger>
                               <TabsTrigger value="LCL">LCL (Carga Solta)</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                    )}
+                    {modal === 'road' && (
+                        <Tabs
+                          defaultValue="FTL"
+                          className="w-auto animate-in fade-in-50 duration-300"
+                          onValueChange={(value) => {
+                             const newType = value as 'FTL' | 'LTL';
+                             form.setValue('roadShipmentType', newType);
+                          }}
+                          value={roadShipmentType}
+                        >
+                          <TabsList>
+                              <TabsTrigger value="FTL">FTL (Carga Completa)</TabsTrigger>
+                              <TabsTrigger value="LTL">LTL (Carga Fracionada)</TabsTrigger>
                           </TabsList>
                         </Tabs>
                     )}
@@ -917,15 +953,15 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                     ) : (
                         <>
                             <FormField control={form.control} name="origin" render={({ field }) => (
-                                <FormItem><FormLabel>Origem (Porto/Aeroporto)</FormLabel>
+                                <FormItem><FormLabel>Origem {modal === 'road' ? '(Cidade)' : '(Porto/Aeroporto)'}</FormLabel>
                                 <FormControl>
-                                    <AutocompleteInput field={field} placeholder="Ex: Santos, BR" modal={modal}/>
+                                    <AutocompleteInput field={field} placeholder={modal === 'road' ? 'Ex: São Paulo, BR' : 'Ex: Santos, BR'} modal={modal}/>
                                 </FormControl><FormMessage /></FormItem>
                             )} />
                              <FormField control={form.control} name="destination" render={({ field }) => (
-                                <FormItem><FormLabel>Destino (Porto/Aeroporto)</FormLabel>
+                                <FormItem><FormLabel>Destino {modal === 'road' ? '(Cidade)' : '(Porto/Aeroporto)'}</FormLabel>
                                 <FormControl>
-                                    <AutocompleteInput field={field} placeholder="Ex: Rotterdam, NL" modal={modal}/>
+                                    <AutocompleteInput field={field} placeholder={modal === 'road' ? 'Ex: Buenos Aires, AR' : 'Ex: Rotterdam, NL'} modal={modal}/>
                                 </FormControl><FormMessage /></FormItem>
                             )} />
                         </>
@@ -1164,6 +1200,68 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                       )}
                   </div>
                 )}
+                 {modal === 'road' && (
+                    <div className="m-0 space-y-4 animate-in fade-in-50 duration-300">
+                        <h3 className="text-lg font-medium">Detalhes da Carga Rodoviária</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 border rounded-md">
+                             <FormField control={form.control} name="roadShipment.truckType" render={({ field }) => (
+                                <FormItem><FormLabel>Tipo de Caminhão</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="Carreta Simples">Carreta Simples (24 ton)</SelectItem>
+                                            <SelectItem value="Carreta LS">Carreta LS (30 ton)</SelectItem>
+                                            <SelectItem value="Bitrem">Bitrem (38 ton)</SelectItem>
+                                            <SelectItem value="Rodotrem">Rodotrem (45 ton)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                <FormMessage/></FormItem>
+                            )} />
+                             <FormField control={form.control} name="roadShipment.border" render={({ field }) => (
+                                <FormItem><FormLabel>Fronteira</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="Uruguaiana">Uruguaiana</SelectItem>
+                                            <SelectItem value="São Borja">São Borja</SelectItem>
+                                            <SelectItem value="Foz do Iguaçu">Foz do Iguaçu</SelectItem>
+                                            <SelectItem value="Corumbá">Corumbá</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                <FormMessage/></FormItem>
+                            )} />
+                        </div>
+                         {roadShipmentType === 'LTL' && (
+                            <div className="space-y-4">
+                                {roadPieces.map((field, index) => (
+                                    <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3 border rounded-md items-end">
+                                        <FormField control={form.control} name={`roadShipment.pieces.${index}.quantity`} render={({ field }) => (
+                                            <FormItem className="col-span-2 md:col-span-1"><FormLabel>Qtde</FormLabel><FormControl><Input type="number" placeholder="1" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name={`roadShipment.pieces.${index}.length`} render={({ field }) => (
+                                            <FormItem><FormLabel>Compr. (cm)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name={`roadShipment.pieces.${index}.width`} render={({ field }) => (
+                                            <FormItem><FormLabel>Larg. (cm)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name={`roadShipment.pieces.${index}.height`} render={({ field }) => (
+                                            <FormItem><FormLabel>Alt. (cm)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}/></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name={`roadShipment.pieces.${index}.weight`} render={({ field }) => (
+                                            <FormItem><FormLabel>Peso (kg)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)}/></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeRoadPiece(index)} disabled={roadPieces.length <= 1}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button type="button" variant="outline" size="sm" onClick={() => appendRoadPiece({ quantity: 1, length: 0, width: 0, height: 0, weight: 0 })}>
+                                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Volume
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                 )}
               
               <Separator className="my-6" />
                 <div>

@@ -33,7 +33,7 @@ const contactSchema = z.object({
   name: z.string().min(1, 'Nome do contato é obrigatório'),
   email: z.string().email('E-mail inválido'),
   phone: z.string().min(10, 'Telefone inválido'),
-  department: z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']),
+  departments: z.array(z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro', 'Despachante'])).min(1, "Selecione ao menos um departamento"),
 });
 
 const partnerSchema = z.object({
@@ -81,7 +81,7 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
       paymentTerm: undefined,
       exchangeRateAgio: undefined,
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
-      contacts: [{ name: '', email: '', phone: '', department: 'Operacional' }],
+      contacts: [{ name: '', email: '', phone: '', departments: ['Operacional'] }],
     },
   });
 
@@ -115,7 +115,8 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
             fornecedor: data.type === 'Fornecedor',
             agente: data.type === 'Agente',
             comissionado: false
-        }
+        },
+        contacts: data.contacts.map(c => ({...c, despachanteId: null, loginEmail: '', password: ''}))
     };
     onPartnerConfirmed(newPartnerData, quote);
   };
@@ -133,7 +134,7 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
       form.setValue('cnpj', data.cnpj);
       form.setValue('address', data.address as any);
       if (data.contacts && data.contacts.length > 0) {
-        replace(data.contacts.map(c => ({...c, department: c.departments[0] || 'Outro' })) as any);
+        replace(data.contacts.map(c => ({...c, departments: c.departments[0] ? [c.departments[0]] : ['Outro'] })) as any);
       }
       toast({ title: 'Dados preenchidos com sucesso!', className: 'bg-success text-success-foreground' });
     } else {
@@ -220,7 +221,7 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
 
                     <div className="flex justify-between items-center">
                         <h4 className="text-md font-semibold">Contatos</h4>
-                        <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', department: 'Operacional' })}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => append({ name: '', email: '', phone: '', departments: ['Operacional'] })}>
                             <PlusCircle className="mr-2 h-4 w-4" /> Add Contato
                         </Button>
                     </div>
@@ -243,9 +244,9 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
                                 <FormField control={form.control} name={`contacts.${index}.phone`} render={({ field }) => (
                                     <FormItem><FormLabel>Telefone</FormLabel><FormControl><Input placeholder="+1 555-555-5555" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
-                                <FormField control={form.control} name={`contacts.${index}.department`} render={({ field }) => (
+                                 <FormField control={form.control} name={`contacts.${index}.departments`} render={({ field }) => (
                                     <FormItem><FormLabel>Departamento</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={(value) => field.onChange([value])} defaultValue={field.value[0]}>
                                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                         <SelectContent>
                                             <SelectItem value="Comercial">Comercial</SelectItem>

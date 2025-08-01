@@ -26,20 +26,20 @@ import { addFinancialEntriesAction } from '@/app/actions';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 
 const quoteChargeSchemaForSheet = z.object({
-    id: z.string(),
-    name: z.string().min(1, 'Obrigatório'),
-    type: z.string(),
-    containerType: z.string().optional(),
-    localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
-    cost: z.coerce.number().default(0),
-    costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
-    sale: z.coerce.number().default(0),
-    saleCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
-    supplier: z.string().min(1, 'Obrigatório'),
-    sacado: z.string().optional(),
-    approvalStatus: z.enum(['aprovada', 'pendente', 'rejeitada']),
-    justification: z.string().optional(), 
-    financialEntryId: z.string().nullable().optional(), 
+  id: z.string(),
+  name: z.string().min(1, 'Obrigatório'),
+  type: z.string(),
+  containerType: z.string().optional(),
+  localPagamento: z.enum(['Origem', 'Frete', 'Destino']).optional(),
+  cost: z.coerce.number().default(0),
+  costCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
+  sale: z.coerce.number().default(0),
+  saleCurrency: z.enum(['USD', 'BRL', 'EUR', 'JPY', 'CHF', 'GBP']),
+  supplier: z.string().min(1, 'Obrigatório'),
+  sacado: z.string().optional(),
+  approvalStatus: z.enum(['aprovada', 'pendente', 'rejeitada']),
+  justification: z.string().optional(), 
+  financialEntryId: z.string().nullable().optional(), 
 });
 
 const financialsFormSchema = z.object({
@@ -208,6 +208,41 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
         };
     };
 
+    const totals = React.useMemo(() => {
+        const costTotals: Record<string, number> = {};
+        const saleTotals: Record<string, number> = {};
+
+        watchedCharges?.forEach(charge => {
+            const chargeCost = Number(charge.cost) || 0;
+            const chargeSale = Number(charge.sale) || 0;
+
+            costTotals[charge.costCurrency] = (costTotals[charge.costCurrency] || 0) + chargeCost;
+            saleTotals[charge.saleCurrency] = (saleTotals[charge.saleCurrency] || 0) + chargeSale;
+        });
+
+        const { costBRL, saleBRL } = watchedCharges.reduce((acc, charge) => {
+            const { costBRL, saleBRL } = calculateBRLValues(charge);
+            acc.costBRL += costBRL;
+            acc.saleBRL += saleBRL;
+            return acc;
+        }, { costBRL: 0, saleBRL: 0 });
+
+        return {
+            cost: costTotals,
+            sale: saleTotals,
+            profitBRL: saleBRL - costBRL,
+        };
+    }, [watchedCharges, exchangeRates, partners]);
+
+    const formatTotals = (totals: Record<string, number>) => {
+        const parts = Object.entries(totals)
+            .filter(([, value]) => value !== 0)
+            .map(([currency, value]) => 
+                `${currency} ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            );
+        return parts.length > 0 ? parts.join(' | ') : 'N/A';
+    };
+
     return (
         <Form {...form}>
             <Card>
@@ -313,6 +348,22 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                         </Table>
                     </div>
                 </CardContent>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 p-4 pt-0">
+                    <Card>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Custo Total</CardTitle></CardHeader>
+                        <CardContent className="p-2 text-base font-semibold font-mono">{formatTotals(totals.cost)}</CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Venda Total</CardTitle></CardHeader>
+                        <CardContent className="p-2 text-base font-semibold font-mono">{formatTotals(totals.sale)}</CardContent>
+                    </Card>
+                    <Card className={cn(totals.profitBRL < 0 ? 'border-destructive' : 'border-success')}>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Resultado (em BRL)</CardTitle></CardHeader>
+                        <CardContent className={cn("p-2 text-base font-semibold font-mono", totals.profitBRL < 0 ? "text-destructive" : "text-success")}>
+                            {totals.profitBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </CardContent>
+                    </Card>
+                </div>
             </Card>
         </Form>
     );

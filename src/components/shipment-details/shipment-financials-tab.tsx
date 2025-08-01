@@ -145,7 +145,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             if (!entryMap.has(sacado)) {
                 entryMap.set(sacado, { partner: sacado, charges: [] });
             }
-            entryMap.get(sacado)!.charges.push(charge);
+            entryMap.get(sacado)!.charges.push(charge as QuoteCharge);
         });
 
         entryMap.forEach(({ partner, charges }) => {
@@ -220,7 +220,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
         let totalSaleBRL = 0;
 
         watchedCharges?.forEach(charge => {
-            const { costInBrl, saleInBrl } = calculateBRLValues(charge);
+            const { costInBrl, saleInBrl } = calculateBRLValues(charge as QuoteCharge);
             totalCostBRL += costInBrl;
             totalSaleBRL += saleInBrl;
         });
@@ -310,7 +310,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenDetails(charge)}>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenDetails(charge as QuoteCharge)}>
                                                                         <FileText className="h-4 w-4 text-primary" />
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -357,17 +357,17 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                 </CardContent>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 p-4 pt-0">
                     <Card>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Custo Total (em BRL)</CardTitle></CardHeader>
-                        <CardContent className="p-2 text-base font-semibold font-mono">{totals.totalCostBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</CardContent>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Custo Total</CardTitle></CardHeader>
+                        <CardContent className="p-2 text-base font-semibold font-mono">BRL {totals.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Venda Total (em BRL)</CardTitle></CardHeader>
-                        <CardContent className="p-2 text-base font-semibold font-mono">{totals.totalSaleBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</CardContent>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Venda Total</CardTitle></CardHeader>
+                        <CardContent className="p-2 text-base font-semibold font-mono">BRL {totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</CardContent>
                     </Card>
                     <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Resultado (em BRL)</CardTitle></CardHeader>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Resultado (Lucro)</CardTitle></CardHeader>
                         <CardContent className={cn("p-2 text-base font-semibold font-mono", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
-                            {totals.totalProfitBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                           BRL {totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </CardContent>
                     </Card>
                 </div>
@@ -377,4 +377,3 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
 });
 
 ShipmentFinancialsTab.displayName = 'ShipmentFinancialsTab';
-

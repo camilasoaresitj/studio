@@ -223,11 +223,6 @@ const initialFinancialData: FinancialEntry[] = [
 const FINANCIALS_STORAGE_KEY = 'cargaInteligente_financials_v8';
 const ACCOUNTS_STORAGE_KEY = 'cargaInteligente_accounts_v1';
 
-// Server-safe: returns initial data
-export function getFinancialEntries(): FinancialEntry[] {
-    return initialFinancialData;
-}
-
 // Client-side only: uses localStorage
 export function getStoredFinancialEntries(): FinancialEntry[] {
   if (typeof window === 'undefined') {
@@ -246,20 +241,6 @@ export function getStoredFinancialEntries(): FinancialEntry[] {
   }
 }
 
-// Client-side only: Saves data and notifies other components
-export function saveFinancialEntries(entries: FinancialEntry[]): void {
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(FINANCIALS_STORAGE_KEY, JSON.stringify(entries));
-        window.dispatchEvent(new Event('financialsUpdated'));
-    }
-}
-
-
-// Server-safe: returns initial data
-export function getBankAccounts(): BankAccount[] {
-    return initialBankAccounts;
-}
-
 // Client-side only: uses localStorage
 export function getStoredBankAccounts(): BankAccount[] {
   if (typeof window === 'undefined') {
@@ -276,12 +257,4 @@ export function getStoredBankAccounts(): BankAccount[] {
     console.error("Failed to parse accounts from localStorage", error);
     return [];
   }
-}
-
-// Client-side only
-export function saveBankAccounts(accounts: BankAccount[]): void {
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
-        window.dispatchEvent(new Event('financialsUpdated')); // Reuse the same event
-    }
 }

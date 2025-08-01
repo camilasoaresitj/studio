@@ -23,7 +23,7 @@ import {
   HandCoins,
 } from 'lucide-react';
 import { format, isPast, isToday, addDays } from 'date-fns';
-import { FinancialEntry, BankAccount, PartialPayment, saveBankAccounts, saveFinancialEntries, getStoredFinancialEntries, getStoredBankAccounts } from '@/lib/financials-data';
+import { FinancialEntry, BankAccount, PartialPayment, getStoredFinancialEntries, getStoredBankAccounts } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +33,7 @@ import { Label } from '@/components/ui/label';
 import { BankAccountDialog } from '@/components/financials/bank-account-form';
 import { NfseGenerationDialog } from '@/components/financials/nfse-generation-dialog';
 import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
-import { getStoredShipments } from '@/lib/shipment-data-client';
+import { getStoredShipments, saveShipments } from '@/lib/shipment-data-client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
 import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote, savePartnerAction, addFinancialEntriesAction, updateFinancialEntryAction } from '@/app/actions';
@@ -46,7 +46,7 @@ import { FinancialEntryDialog } from '@/components/financials/financial-entry-di
 import { RenegotiationDialog } from '@/components/financials/renegotiation-dialog';
 import { NfseConsulta } from '@/components/financials/nfse-consulta';
 import { PartnersRegistry } from '@/components/partners-registry';
-import { Partner, getStoredPartners } from '@/lib/partners-data';
+import { Partner, getStoredPartners, savePartners } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { CommissionManagement } from '@/components/financials/commission-management';
 
@@ -270,17 +270,27 @@ export function FinancialPageClient() {
     const [ptaxRates, setPtaxRates] = useState<Record<string, number>>({});
     const { toast } = useToast();
 
-    useEffect(() => {
-        const loadInitialData = async () => {
-            setEntries(getStoredFinancialEntries());
-            setAccounts(getStoredBankAccounts());
-            setAllShipments(getStoredShipments());
-            setPartners(getStoredPartners());
-            const rates = await exchangeRateService.getRates();
-            setPtaxRates(rates);
-        };
-        loadInitialData();
+    const loadData = useCallback(async () => {
+        setEntries(getStoredFinancialEntries());
+        setAccounts(getStoredBankAccounts());
+        setAllShipments(getStoredShipments());
+        setPartners(getStoredPartners());
+        const rates = await exchangeRateService.getRates();
+        setPtaxRates(rates);
     }, []);
+
+    useEffect(() => {
+        loadData();
+        window.addEventListener('financialsUpdated', loadData);
+        window.addEventListener('shipmentsUpdated', loadData);
+        window.addEventListener('partnersUpdated', loadData);
+
+        return () => {
+            window.removeEventListener('financialsUpdated', loadData);
+            window.removeEventListener('shipmentsUpdated', loadData);
+            window.removeEventListener('partnersUpdated', loadData);
+        };
+    }, [loadData]);
 
     const findEntryForPayment = (paymentId: string) => entries.find(e => e.payments?.some(p => p.id === paymentId));
 
@@ -565,6 +575,7 @@ export function FinancialPageClient() {
         const response = await savePartnerAction(partnerToSave);
         if (response.success && response.data) {
             setPartners(response.data);
+            savePartners(response.data);
             window.dispatchEvent(new Event('partnersUpdated'));
         } else {
             toast({ variant: 'destructive', title: 'Erro ao salvar parceiro', description: response.error });
@@ -605,7 +616,7 @@ export function FinancialPageClient() {
             updatedAccounts.push({ ...account, id: newId });
         }
         setAccounts(updatedAccounts);
-        saveBankAccounts(updatedAccounts);
+        localStorage.setItem('cargaInteligente_accounts_v1', JSON.stringify(updatedAccounts));
         setEditingAccount(null);
     };
 

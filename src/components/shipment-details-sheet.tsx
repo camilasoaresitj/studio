@@ -394,80 +394,94 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
        return { updatedCharges: finalCharges };
    };
 
-    const handleRefreshTracking = async (): Promise<{ success: boolean; error?: string }> => {
-        if (!shipment?.bookingNumber || !shipment?.carrier) {
-            const error = "Número do booking e transportadora são necessários para o rastreamento.";
-            toast({ variant: "destructive", title: "Dados Incompletos", description: error });
-            return { success: false, error };
+   const handleRefreshTracking = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!shipment?.bookingNumber || !shipment?.carrier) {
+        const error = "Número do booking e transportadora são necessários para o rastreamento.";
+        toast({ variant: "destructive", title: "Dados Incompletos", description: error });
+        return { success: false, error };
+    }
+    setIsTracking(true);
+    let errorMsg: string | undefined;
+
+    try {
+        const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
+        const data = await response.json();
+        if (!response.ok) {
+            const errorMessage = `Erro ${response.status}: ${data.error || 'Erro desconhecido'}. Detalhe: ${data.detail ? JSON.stringify(data.detail) : 'Nenhum detalhe adicional.'}`;
+            throw new Error(errorMessage);
         }
-        setIsTracking(true);
-        let errorMsg: string | undefined;
 
-        try {
-            const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
-            const data = await response.json();
-            if (!response.ok) {
-                const errorMessage = `Erro ${response.status}: ${data.error || 'Erro desconhecido'}. Detalhe: ${data.detail ? JSON.stringify(data.detail) : 'Nenhum detalhe adicional.'}`;
-                throw new Error(errorMessage);
-            }
+        let updatedShipment = { ...shipment, lastTrackingUpdate: new Date() };
 
-            let updatedShipment = { ...shipment };
-
-            const updateMilestone = (nameIdentifier: string[], newDate: Date, status: Milestone['status'] = 'completed') => {
-                 const milestoneIndex = updatedShipment.milestones.findIndex(m => nameIdentifier.some(ni => m.name.toLowerCase().includes(ni)));
-                 if (milestoneIndex > -1) {
-                     updatedShipment.milestones[milestoneIndex].effectiveDate = newDate;
-                     updatedShipment.milestones[milestoneIndex].status = status;
-                 }
-            };
-            
-            // Handle both "ready" and "processing" with fallback data
-            if (data.status === 'ready' || (data.status === 'processing' && data.shipment)) {
-                const apiShipment = data.shipment;
-                updatedShipment.vesselName = apiShipment.vesselName || updatedShipment.vesselName;
-                updatedShipment.voyageNumber = apiShipment.voyageNumber || updatedShipment.voyageNumber;
-
-                // Update container numbers if available
-                if (apiShipment.containerDetails?.length > 0) {
-                    updatedShipment.containers = apiShipment.containerDetails.map((cd: any) => ({
-                        id: cd.containerNumber,
-                        number: cd.containerNumber,
-                        seal: cd.sealNumber || 'N/A',
-                        tare: cd.tareWeight || 'N/A',
-                        grossWeight: cd.grossWeight || 'N/A',
-                        type: cd.containerType || 'N/A'
-                    }));
+        const updateMilestone = (milestoneName: string, newDate: Date, status: Milestone['status'] = 'completed') => {
+            let milestoneFound = false;
+            updatedShipment.milestones = updatedShipment.milestones.map(m => {
+                if (m.name.toLowerCase().includes(milestoneName)) {
+                    milestoneFound = true;
+                    return { ...m, effectiveDate: newDate, predictedDate: newDate, status };
                 }
-
-                (data.eventos || []).forEach((ev: any) => {
-                    const eventNameLower = ev.eventName.toLowerCase();
-                    const eventDate = new Date(ev.actualTime);
-                    if (eventNameLower.includes('departure') || eventNameLower.includes('saída')) {
-                        updateMilestone(['embarque'], eventDate);
-                        updatedShipment.etd = eventDate;
-                    }
-                    if (eventNameLower.includes('arrival') || eventNameLower.includes('chegada')) {
-                        updateMilestone(['chegada'], eventDate);
-                        updatedShipment.eta = eventDate;
-                    }
+                return m;
+            });
+            if (!milestoneFound) {
+                updatedShipment.milestones.push({
+                    name: milestoneName.charAt(0).toUpperCase() + milestoneName.slice(1),
+                    status,
+                    predictedDate: newDate,
+                    effectiveDate: newDate,
                 });
+            }
+        };
 
-                onUpdate(updatedShipment);
-                toast({ title: "Processo atualizado com dados de rastreamento!" });
+        if (data.status === 'ready' || (data.status === 'processing' && data.shipment)) {
+            const apiShipment = data.shipment;
+            
+            // Update main details from fallback/shipment data
+            updatedShipment.vesselName = apiShipment.vesselName || updatedShipment.vesselName;
+            updatedShipment.voyageNumber = apiShipment.voyageNumber || updatedShipment.voyageNumber;
+            updatedShipment.etd = apiShipment.departureDate ? new Date(apiShipment.departureDate) : updatedShipment.etd;
+            updatedShipment.eta = apiShipment.arrivalDate ? new Date(apiShipment.arrivalDate) : updatedShipment.eta;
 
-            } else if (data.status === 'processing') {
-                toast({ title: "Rastreamento em Processamento", description: data.message });
+            // Update container numbers if available
+            if (apiShipment.containerDetails?.length > 0) {
+                updatedShipment.containers = apiShipment.containerDetails.map((cd: any) => ({
+                    id: cd.containerNumber,
+                    number: cd.containerNumber,
+                    seal: cd.sealNumber || 'N/A',
+                    tare: cd.tareWeight || 'N/A',
+                    grossWeight: cd.grossWeight || 'N/A',
+                    type: cd.containerType || 'N/A'
+                }));
             }
 
-        } catch (error: any) {
-            errorMsg = error.message;
-            toast({ variant: "destructive", title: "Erro no Rastreamento", description: error.message });
-        } finally {
-            setIsTracking(false);
-        }
-        return { success: !errorMsg, error: errorMsg };
-    };
+            // Update milestones from events
+            (data.eventos || []).forEach((ev: any) => {
+                const eventNameLower = ev.eventName.toLowerCase();
+                const eventDate = new Date(ev.actualTime);
+                if (eventNameLower.includes('departure') || eventNameLower.includes('saída')) {
+                    updateMilestone('embarque', eventDate);
+                    updatedShipment.etd = eventDate;
+                }
+                if (eventNameLower.includes('arrival') || eventNameLower.includes('chegada')) {
+                    updateMilestone('chegada', eventDate);
+                    updatedShipment.eta = eventDate;
+                }
+            });
 
+            onUpdate(updatedShipment);
+            toast({ title: "Processo atualizado com dados de rastreamento!" });
+
+        } else if (data.status === 'processing') {
+            toast({ title: "Rastreamento em Processamento", description: data.message });
+        }
+
+    } catch (error: any) {
+        errorMsg = error.message;
+        toast({ variant: "destructive", title: "Erro no Rastreamento", description: error.message });
+    } finally {
+        setIsTracking(false);
+    }
+    return { success: !errorMsg, error: errorMsg };
+};
 
     if (!shipment) {
         return (

@@ -23,8 +23,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import { addFinancialEntriesAction } from '@/app/actions';
-import { addDays } from 'date-fns';
 
 const quoteChargeSchemaForSheet = z.object({
   id: z.string(),
@@ -53,6 +51,7 @@ interface ShipmentFinancialsTabProps {
     shipment: Shipment;
     partners: Partner[];
     onOpenDetails: (charge: QuoteCharge) => void;
+    onInvoiceCharges: (charges: QuoteCharge[], shipment: Shipment) => Promise<{ updatedCharges: QuoteCharge[] }>;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -93,7 +92,7 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
     );
 }
 
-export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails }, ref) => {
+export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onInvoiceCharges }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
@@ -112,7 +111,8 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             setExchangeRates(rates);
         };
         fetchRates();
-    }, []);
+        form.reset({ charges: shipment.charges || [] });
+    }, [shipment, form]);
 
     useImperativeHandle(ref, () => ({
         submit: async () => {
@@ -136,60 +136,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             return;
         }
 
-        const newEntries: Omit<import('@/lib/financials-data').FinancialEntry, 'id'>[] = [];
-        const entryMap = new Map<string, { partner: string; charges: QuoteCharge[] }>();
+        const { updatedCharges } = await onInvoiceCharges(chargesToInvoice as QuoteCharge[], shipment);
 
-        // Group charges by 'sacado' to create one invoice per partner
-        chargesToInvoice.forEach(charge => {
-            const sacado = charge.sacado || shipment.customer;
-            if (!entryMap.has(sacado)) {
-                entryMap.set(sacado, { partner: sacado, charges: [] });
-            }
-            entryMap.get(sacado)!.charges.push(charge as QuoteCharge);
-        });
-
-        entryMap.forEach(({ partner, charges }) => {
-            const totalAmount = charges.reduce((sum, ch) => sum + ch.sale, 0);
-            const currency = charges[0].saleCurrency; // Assuming all charges for one invoice have the same currency
-            
-            newEntries.push({
-                type: 'credit',
-                partner: partner,
-                invoiceId: `INV-${shipment.id}-${partner.slice(0,3).toUpperCase()}`,
-                status: 'Aberto',
-                dueDate: addDays(new Date(), 30).toISOString(),
-                amount: totalAmount,
-                currency: currency,
-                processId: shipment.id,
-                payments: [],
-                expenseType: 'Operacional',
-                description: `Serviços de frete ref. processo ${shipment.id}`
-            });
-        });
-
-        const response = await addFinancialEntriesAction(newEntries);
-
-        if (response.success && response.data) {
-            const newChargesForForm = [...(watchedCharges || [])];
-            let entryIndex = response.data.length - newEntries.length;
-
-            newEntries.forEach(newEntry => {
-                 const originalCharges = entryMap.get(newEntry.partner)!.charges;
-                 originalCharges.forEach(chargeToUpdate => {
-                     const idx = newChargesForForm.findIndex(c => c.id === chargeToUpdate.id);
-                     if(idx > -1) {
-                         newChargesForForm[idx].financialEntryId = response.data[entryIndex].id;
-                     }
-                 });
-                 entryIndex++;
-            });
-            
-            form.setValue('charges', newChargesForForm as any);
-            toast({ title: `${newEntries.length} fatura(s) gerada(s) com sucesso!`, className: 'bg-success text-success-foreground' });
-        } else {
-             toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
-        }
-
+        form.setValue('charges', updatedCharges as any);
         setSelectedChargeIds(new Set());
     };
 

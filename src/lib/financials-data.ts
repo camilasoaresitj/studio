@@ -258,3 +258,29 @@ export function getStoredBankAccounts(): BankAccount[] {
     return [];
   }
 }
+
+// Client-side only: uses localStorage
+export function saveFinancialEntries(entries: FinancialEntry[]): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    localStorage.setItem(FINANCIALS_STORAGE_KEY, JSON.stringify(entries));
+    window.dispatchEvent(new Event('financialsUpdated'));
+  } catch (error) {
+    console.error("Failed to save financials to localStorage", error);
+  }
+}
+
+// Client-side only: uses localStorage
+export function saveBankAccounts(accounts: BankAccount[]): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+    window.dispatchEvent(new Event('financialsUpdated')); // Trigger same event to reload dependent components
+  } catch (error) {
+    console.error("Failed to save accounts to localStorage", error);
+  }
+}

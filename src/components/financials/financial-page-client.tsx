@@ -23,7 +23,7 @@ import {
   HandCoins,
 } from 'lucide-react';
 import { format, isPast, isToday, addDays } from 'date-fns';
-import { FinancialEntry, BankAccount, PartialPayment, getStoredFinancialEntries, getStoredBankAccounts } from '@/lib/financials-data';
+import { FinancialEntry, BankAccount, PartialPayment, getStoredFinancialEntries, getStoredBankAccounts, saveFinancialEntries, saveBankAccounts } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +49,7 @@ import { PartnersRegistry } from '@/components/partners-registry';
 import { Partner, getStoredPartners, savePartners } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { CommissionManagement } from '@/components/financials/commission-management';
+import { ShipmentDetailsSheet } from '../shipment-details-sheet';
 
 
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
@@ -268,6 +269,8 @@ export function FinancialPageClient() {
     const [textFilters, setTextFilters] = useState({ partner: '', invoiceId: '', processId: '' });
     const [isGenerating, setIsGenerating] = useState(false);
     const [ptaxRates, setPtaxRates] = useState<Record<string, number>>({});
+    const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
     const { toast } = useToast();
 
     const loadData = useCallback(async () => {
@@ -341,7 +344,9 @@ export function FinancialPageClient() {
         const response = await updateFinancialEntryAction({ entryId: entryToSettle.id, payment: newPayment, settlementAccountId: accountIdNum });
         if (response.success && response.data) {
             setEntries(response.data.entries);
+            saveFinancialEntries(response.data.entries);
             setAccounts(response.data.accounts);
+            saveBankAccounts(response.data.accounts);
             toast({ title: "Pagamento baixado com sucesso!", className: 'bg-success text-success-foreground' });
         } else {
             toast({ variant: 'destructive', title: 'Erro ao baixar pagamento', description: response.error });
@@ -495,7 +500,13 @@ export function FinancialPageClient() {
     };
 
     const handleProcessClick = (entry: FinancialEntry) => {
-        setDetailsEntry(entry);
+        const shipment = findShipmentForEntry(entry);
+        if (shipment) {
+            setSelectedShipment(shipment);
+            setIsSheetOpen(true);
+        } else {
+            setDetailsEntry(entry);
+        }
     };
 
     const handleCloseDetails = () => {
@@ -506,6 +517,7 @@ export function FinancialPageClient() {
         const response = await updateFinancialEntryAction(entry);
         if (response.success && response.data) {
             setEntries(response.data.entries);
+            saveFinancialEntries(response.data.entries);
         } else {
             toast({ variant: 'destructive', title: 'Erro ao atualizar', description: response.error });
         }
@@ -518,6 +530,7 @@ export function FinancialPageClient() {
             const response = await updateFinancialEntryAction(updatedEntry);
             if (response.success && response.data) {
                 setEntries(response.data.entries);
+                saveFinancialEntries(response.data.entries);
             } else {
                  toast({ variant: 'destructive', title: 'Erro ao atualizar', description: response.error });
             }
@@ -528,7 +541,9 @@ export function FinancialPageClient() {
         const response = await updateFinancialEntryAction({ ...entry, status: 'Jurídico', legalStatus: 'Fase Inicial' });
         if (response.success && response.data) {
             setEntries(response.data.entries);
+            saveFinancialEntries(response.data.entries);
             setAccounts(response.data.accounts);
+            saveBankAccounts(response.data.accounts);
             setLegalData(null);
         } else {
             toast({ variant: 'destructive', title: 'Erro ao mover para jurídico', description: response.error });
@@ -546,6 +561,7 @@ export function FinancialPageClient() {
         
         if(response.success && response.data) {
             setEntries(response.data);
+            saveFinancialEntries(response.data);
             toast({
                 title: 'Renegociação Salva!',
                 description: `${installments.length} novas faturas de parcela foram criadas.`,
@@ -616,7 +632,7 @@ export function FinancialPageClient() {
             updatedAccounts.push({ ...account, id: newId });
         }
         setAccounts(updatedAccounts);
-        localStorage.setItem('cargaInteligente_accounts_v1', JSON.stringify(updatedAccounts));
+        saveBankAccounts(updatedAccounts);
         setEditingAccount(null);
     };
 
@@ -624,6 +640,7 @@ export function FinancialPageClient() {
         const response = await addFinancialEntriesAction([entryData]);
         if (response.success && response.data) {
             setEntries(response.data);
+            saveFinancialEntries(response.data);
             toast({
                 title: "Despesa enviada para aprovação!",
                 className: 'bg-success text-success-foreground'
@@ -637,6 +654,75 @@ export function FinancialPageClient() {
         }
         setIsEntryDialogOpen(false);
     };
+    
+    const handleUpdateShipment = (updatedShipment: Shipment) => {
+        const newShipments = allShipments.map(s => s.id === updatedShipment.id ? updatedShipment : s);
+        saveShipments(newShipments);
+        setAllShipments(newShipments);
+        setSelectedShipment(updatedShipment); 
+        loadData(); // Reload financial data too
+    };
+
+    const handleInvoiceCharges = async (charges: QuoteCharge[], shipment: Shipment) => {
+         const chargesToInvoice = charges.filter(c => !c.financialEntryId);
+         if (chargesToInvoice.length === 0) {
+            toast({ variant: 'destructive', title: 'Nenhuma taxa nova para faturar.'});
+            return { updatedCharges: shipment.charges };
+        }
+
+        const newEntries: Omit<FinancialEntry, 'id'>[] = [];
+        const entryMap = new Map<string, { partner: string; charges: QuoteCharge[] }>();
+
+        chargesToInvoice.forEach(charge => {
+            const sacado = charge.sacado || shipment.customer;
+            if (!entryMap.has(sacado)) {
+                entryMap.set(sacado, { partner: sacado, charges: [] });
+            }
+            entryMap.get(sacado)!.charges.push(charge);
+        });
+
+        entryMap.forEach(({ partner, charges }) => {
+            const totalAmount = charges.reduce((sum, ch) => sum + ch.sale, 0);
+            const currency = charges[0].saleCurrency;
+            
+            newEntries.push({
+                type: 'credit',
+                partner: partner,
+                invoiceId: `INV-${shipment.id}-${partner.slice(0,3).toUpperCase()}`,
+                status: 'Aberto',
+                dueDate: addDays(new Date(), partner.paymentTerm || 30).toISOString(),
+                amount: totalAmount,
+                currency: currency,
+                processId: shipment.id,
+                payments: [],
+                expenseType: 'Operacional',
+                description: `Serviços de frete ref. processo ${shipment.id}`
+            });
+        });
+
+        const response = await addFinancialEntriesAction(newEntries);
+        let finalCharges = [...shipment.charges];
+
+        if (response.success && response.data) {
+            let entryIndex = response.data.length - newEntries.length;
+            newEntries.forEach(newEntry => {
+                 const originalCharges = entryMap.get(newEntry.partner)!.charges;
+                 originalCharges.forEach(chargeToUpdate => {
+                     const idx = finalCharges.findIndex(c => c.id === chargeToUpdate.id);
+                     if(idx > -1) {
+                         finalCharges[idx].financialEntryId = response.data[entryIndex].id;
+                     }
+                 });
+                 entryIndex++;
+            });
+            setEntries(response.data);
+            saveFinancialEntries(response.data);
+            toast({ title: `${newEntries.length} fatura(s) gerada(s)!`, className: 'bg-success text-success-foreground' });
+        } else {
+             toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
+        }
+        return { updatedCharges: finalCharges };
+    }
 
     return (
         <div className="space-y-8">
@@ -870,6 +956,15 @@ export function FinancialPageClient() {
             findEntryForPayment={findEntryForPayment}
             findShipmentForEntry={findShipmentForEntry}
             onEntryUpdate={handleDetailsEntryUpdate}
+        />
+        
+        <ShipmentDetailsSheet
+            shipment={selectedShipment}
+            partners={partners}
+            open={isSheetOpen}
+            onOpenChange={setIsSheetOpen}
+            onUpdate={handleUpdateShipment}
+            onInvoiceCharges={handleInvoiceCharges}
         />
 
     </div>

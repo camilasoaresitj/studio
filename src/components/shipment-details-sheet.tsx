@@ -62,8 +62,6 @@ const shipmentDetailsSchema = z.object({
   notifyId: z.string().optional(),
   purchaseOrderNumber: z.string().optional(),
   invoiceNumber: z.string().optional(),
-  origin: z.string().min(1, "Origem é obrigatória."),
-  destination: z.string().min(1, "Destino é obrigatória."),
   charges: z.array(z.any()).optional(), // Simplified for the main sheet
 });
 
@@ -75,6 +73,7 @@ interface ShipmentDetailsSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onUpdate: (updatedShipment: Shipment) => void;
+    onInvoiceCharges: (charges: QuoteCharge[], shipment: Shipment) => Promise<{ updatedCharges: QuoteCharge[] }>;
 }
 
 const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string }) => {
@@ -175,7 +174,7 @@ const PartnerCombobox = ({
 };
 
 
-export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
+export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate, onInvoiceCharges }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('timeline');
     const [isUpdating, setIsUpdating] = useState(false);
@@ -435,6 +434,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         shipment={shipment}
                                         partners={partners}
                                         onOpenDetails={handleOpenDetailsDialog}
+                                        onInvoiceCharges={onInvoiceCharges}
                                     />
                                 </TabsContent>
                                 <TabsContent value="documents">

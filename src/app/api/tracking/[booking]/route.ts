@@ -71,7 +71,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     const headers = getAuthHeaders();
     
-    // **CORRECTION:** The API uses a singular 'shipmentType' parameter.
     const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
     
     console.log('➡️  GET Shipment URL:', getShipmentUrl);
@@ -129,7 +128,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      // Use the corrected URL for the post-creation GET request as well
       const getShipmentUrlAfterCreate = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
       console.log('➡️  GET Shipment URL (After Create):', getShipmentUrlAfterCreate);
       res = await fetch(getShipmentUrlAfterCreate, { headers });
@@ -147,21 +145,13 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
     }
 
-    // Handle case where shipment is registered but tracking data is not yet available
-    if (res.status === 204 || (Array.isArray(data) && data.length === 0) || (data && Object.keys(data).length === 0)) {
-        return NextResponse.json({
-            status: 'processing',
-            message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
-        }, { status: 202 });
-    }
-
     const firstShipment = Array.isArray(data) ? data[0] : data;
     
     console.log('📥 GET Shipment Response Body (parsed):', JSON.stringify(firstShipment, null, 2));
 
 
-    // If still processing, return the partial data
-    if (firstShipment.state === 'PROCESSING' && firstShipment.fallback) {
+    // If still processing, but we have fallback data, return that.
+    if (firstShipment?.state === 'PROCESSING' && firstShipment.fallback) {
         return NextResponse.json({
             status: 'processing',
             message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
@@ -169,6 +159,13 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: 202 });
     }
 
+    // Handle case where shipment is registered but no data (not even fallback) is available yet
+    if (res.status === 204 || !firstShipment || Object.keys(firstShipment).length === 0) {
+        return NextResponse.json({
+            status: 'processing',
+            message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
+        }, { status: 202 });
+    }
 
     const eventos = (firstShipment?.shipmentEvents || []).map((ev: any) => ({
       eventName: ev.name,

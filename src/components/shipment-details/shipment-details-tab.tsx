@@ -78,11 +78,12 @@ type DetailsFormData = z.infer<typeof detailsFormSchema>;
 interface ShipmentDetailsTabProps {
     shipment: Shipment;
     partners: Partner[];
-    onRefreshTracking: () => Promise<{ success: boolean; error?: string }>;
+    onUpdate: (updatedShipment: Partial<Shipment>) => void; // Allow partial updates
     isTracking: boolean;
+    setIsTracking: (isTracking: boolean) => void;
 }
 
-export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners, onRefreshTracking, isTracking }, ref) => {
+export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners, onUpdate, isTracking, setIsTracking }, ref) => {
     const [trackingError, setTrackingError] = useState<string | null>(null);
 
     const form = useForm<DetailsFormData>({
@@ -105,10 +106,36 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
     }));
     
     const handleRefreshTracking = async () => {
+        if (!shipment?.bookingNumber || !shipment?.carrier) {
+            setTrackingError("Número do booking e transportadora são necessários para o rastreamento.");
+            return;
+        }
+        setIsTracking(true);
         setTrackingError(null);
-        const result = await onRefreshTracking();
-        if (!result.success) {
-            setTrackingError(result.error || 'Ocorreu um erro desconhecido.');
+        try {
+            const res = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
+            const data = await res.json();
+            
+            if (!res.ok) {
+                 throw new Error(data.detail || data.error || `HTTP error! status: ${res.status}`);
+            }
+
+            if(data.status === 'ready' || (data.status === 'processing' && data.shipment)) {
+                onUpdate({
+                    lastTrackingUpdate: new Date(),
+                    vesselName: data.shipment.vesselName || shipment.vesselName,
+                    voyageNumber: data.shipment.voyageNumber || shipment.voyageNumber,
+                    etd: data.shipment.departureDate ? new Date(data.shipment.departureDate) : shipment.etd,
+                    eta: data.shipment.arrivalDate ? new Date(data.shipment.arrivalDate) : shipment.eta,
+                });
+            } else {
+                 setTrackingError(data.message || "Status de rastreamento desconhecido.");
+            }
+        } catch (error: any) {
+            console.error("Tracking failed:", error);
+            setTrackingError(error.message);
+        } finally {
+            setIsTracking(false);
         }
     };
 

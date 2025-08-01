@@ -49,9 +49,10 @@ type DocumentsFormData = z.infer<typeof documentsFormSchema>;
 
 interface ShipmentDocumentsTabProps {
     shipment: Shipment;
+    onUpdate: (shipment: Partial<Shipment>) => void;
 }
 
-export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDocumentsTabProps>(({ shipment }, ref) => {
+export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDocumentsTabProps>(({ shipment, onUpdate }, ref) => {
     const { toast } = useToast();
     const [documentPreviews, setDocumentPreviews] = useState<Record<string, string>>({});
     const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
@@ -70,21 +71,39 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
     useImperativeHandle(ref, () => ({
         submit: async () => {
             const values = form.getValues();
-            // We need to merge the uploaded files into the shipment data before returning
+            const currentShipmentMilestones = shipment.milestones || [];
+            
             const updatedDocuments = (values.documents || []).map(doc => {
                 const uploadedFile = uploadedFiles[doc.name];
                 if (uploadedFile) {
                     return {
                         ...doc,
-                        status: 'uploaded' as const,
+                        status: doc.status === 'pending' ? 'uploaded' : doc.status,
                         fileName: uploadedFile.name,
                         uploadedAt: new Date(),
                     };
                 }
                 return doc;
             });
+            
+            // Check if HBL was just approved
+            const hblDoc = updatedDocuments.find(d => (d.name === 'Draft HBL' || d.name === 'Original HBL') && d.status === 'approved');
+            const hblMilestoneExists = currentShipmentMilestones.some(m => m.name === 'HBL Aprovado');
+            let updatedMilestones = [...currentShipmentMilestones];
+            
+            if (hblDoc && !hblMilestoneExists) {
+                updatedMilestones.push({
+                    name: 'HBL Aprovado',
+                    status: 'completed',
+                    predictedDate: new Date(),
+                    effectiveDate: new Date(),
+                    details: `HBL aprovado pelo usuário.`
+                });
+            }
+
             return { 
                 documents: updatedDocuments,
+                milestones: updatedMilestones,
                 mblPrintingAtDestination: values.mblPrintingAtDestination,
                 mblPrintingAuthDate: values.mblPrintingAuthDate,
                 courier: values.courierName,
@@ -98,6 +117,13 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
         if (!file) return;
 
         setUploadedFiles(prev => ({ ...prev, [docName]: file }));
+        
+        // Also update the form state to reflect the upload
+        const currentDocs = form.getValues('documents') || [];
+        const updatedDocs = currentDocs.map(doc => 
+            doc.name === docName ? { ...doc, status: 'uploaded', fileName: file.name, uploadedAt: new Date() } : doc
+        );
+        form.setValue('documents', updatedDocs);
 
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -122,7 +148,21 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
         }
     };
     
+     const handleApproveDocument = (docNameToApprove: string) => {
+        const currentDocs = form.getValues('documents') || [];
+        const updatedDocs = currentDocs.map(doc =>
+            doc.name === docNameToApprove ? { ...doc, status: 'approved' } : doc
+        );
+        form.setValue('documents', updatedDocs);
+
+        toast({
+            title: `Documento "${docNameToApprove}" marcado como aprovado.`,
+            description: 'Clique em "Salvar Alterações" para confirmar.',
+        });
+    };
+    
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
+    const documents = form.watch('documents') || [];
 
     return (
         <Form {...form}>
@@ -143,7 +183,7 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {(shipment.documents || []).map((doc, index) => {
+                                {documents.map((doc, index) => {
                                     const previewUrl = documentPreviews[doc.name];
                                     const hasFile = doc.fileName || uploadedFiles[doc.name];
                                     return (
@@ -179,7 +219,9 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                                                 <label htmlFor={`upload-${doc.name}`} className="cursor-pointer"><Upload className="mr-2 h-4 w-4"/> Anexar</label>
                                             </Button>
                                             <Input id={`upload-${doc.name}`} type="file" className="hidden" onChange={(e) => handleDocumentUpload(doc.name, e.target.files ? e.target.files[0] : null)} />
-                                            <Button variant="ghost" size="sm" disabled={doc.status !== 'uploaded'}><FileCheck className="mr-2 h-4 w-4"/> Aprovar</Button>
+                                            <Button variant="ghost" size="sm" onClick={() => handleApproveDocument(doc.name)} disabled={doc.status !== 'uploaded'}>
+                                                <FileCheck className="mr-2 h-4 w-4"/> Aprovar
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 )})}

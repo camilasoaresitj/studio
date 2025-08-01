@@ -5,7 +5,7 @@ import React, { forwardRef, useImperativeHandle, useState, useMemo } from 'react
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -20,14 +20,8 @@ import {
     Calendar as CalendarIcon, 
     PlusCircle, 
     Trash2, 
-    RefreshCw, 
-    Loader2
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
-
 
 const containerDetailSchema = z.object({
   id: z.string().optional(),
@@ -39,14 +33,16 @@ const containerDetailSchema = z.object({
   measurement: z.string().optional(),
   freeTime: z.string().optional(),
   type: z.string().optional(),
+  effectiveReturnDate: z.date().optional().nullable(),
+  effectiveGateInDate: z.date().optional().nullable(),
 });
 
 const transshipmentDetailSchema = z.object({
   id: z.string().optional(),
   port: z.string().min(1, "Obrigatório"),
   vessel: z.string().min(1, "Obrigatório"),
-  etd: z.date().optional(),
-  eta: z.date().optional(),
+  etd: z.date().optional().nullable(),
+  eta: z.date().optional().nullable(),
 });
 
 const detailsFormSchema = z.object({
@@ -56,12 +52,8 @@ const detailsFormSchema = z.object({
   masterBillNumber: z.string().optional(),
   houseBillNumber: z.string().optional(),
   bookingNumber: z.string().optional(),
-  etd: z.date().optional(),
-  eta: z.date().optional(),
-  origin: z.string().optional(), 
-  destination: z.string().optional(), 
-  collectionAddress: z.string().optional(),
-  deliveryAddress: z.string().optional(),
+  etd: z.date().optional().nullable(),
+  eta: z.date().optional().nullable(),
   dischargeTerminal: z.string().optional(),
   terminalRedestinacaoId: z.string().optional(),
   containers: z.array(containerDetailSchema).optional(),
@@ -81,17 +73,15 @@ interface ShipmentDetailsTabProps {
 }
 
 export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners }, ref) => {
-    const [isUpdating, setIsUpdating] = useState(false);
-    const [trackingError, setTrackingError] = useState<string | null>(null);
-    const { toast } = useToast();
-
+    
     const form = useForm<DetailsFormData>({
         resolver: zodResolver(detailsFormSchema),
         defaultValues: {
             ...shipment,
-            etd: shipment.etd ? new Date(shipment.etd) : undefined,
-            eta: shipment.eta ? new Date(shipment.eta) : undefined,
+            etd: shipment.etd ? new Date(shipment.etd) : null,
+            eta: shipment.eta ? new Date(shipment.eta) : null,
             transshipments: (shipment.transshipments || []).map(t => ({...t, etd: t.etd ? new Date(t.etd) : undefined, eta: t.eta ? new Date(t.eta) : undefined })),
+            containers: (shipment.containers || []).map(c => ({...c, effectiveReturnDate: c.effectiveReturnDate ? new Date(c.effectiveReturnDate) : undefined, effectiveGateInDate: c.effectiveGateInDate ? new Date(c.effectiveGateInDate) : undefined })),
         }
     });
 
@@ -131,10 +121,28 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
         <Form {...form}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
-                    <CardHeader><CardTitle className="text-lg">Informações do Processo</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-lg">Informações da Viagem</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        {/* Tracking Error Alert can be placed here */}
-                        {/* The rest of the form fields... */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="carrier" render={({ field }) => (<FormItem><FormLabel>Transportadora</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="bookingNumber" render={({ field }) => (<FormItem><FormLabel>Booking Number</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                        </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="vesselName" render={({ field }) => (<FormItem><FormLabel>Navio / Voo</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="voyageNumber" render={({ field }) => (<FormItem><FormLabel>Viagem / Voo nº</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <FormField control={form.control} name="masterBillNumber" render={({ field }) => (<FormItem><FormLabel>Master BL / AWB</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                           <FormField control={form.control} name="houseBillNumber" render={({ field }) => (<FormItem><FormLabel>House BL / AWB</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <FormField control={form.control} name="etd" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>ETD</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-auto h-4 w-4 opacity-50" />{field.value ? format(new Date(field.value), "PPP") : <span>Selecione</span>}</Button></FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>)} />
+                             <FormField control={form.control} name="eta" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>ETA</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-auto h-4 w-4 opacity-50" />{field.value ? format(new Date(field.value), "PPP") : <span>Selecione</span>}</Button></FormControl></PopoverTrigger><PopoverContent><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>)} />
+                        </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (<FormItem><FormLabel>Terminal de Descarga</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{terminalPartners.map(t => <SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                            <FormField control={form.control} name="terminalRedestinacaoId" render={({ field }) => (<FormItem><FormLabel>Terminal de Redestinação</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{terminalPartners.map(t => <SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                        </div>
                     </CardContent>
                 </Card>
                  <div className="space-y-4">
@@ -146,18 +154,43 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader><CardTitle className="text-lg">Detalhes dos Contêineres</CardTitle></CardHeader>
+                        <CardHeader className="flex flex-row justify-between items-center">
+                            <CardTitle className="text-lg">Detalhes dos Contêineres</CardTitle>
+                             <Button type="button" size="sm" variant="outline" onClick={() => appendContainer({ number: '', seal: '', tare: '', grossWeight: '' })}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                            </Button>
+                        </CardHeader>
                         <CardContent className="space-y-2">
                              {containerFields.map((field, index) => (
-                                <div key={field.id} className="grid grid-cols-2 md:grid-cols-8 gap-2 items-center p-2 border rounded-md relative">
+                                <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end p-2 border rounded-md relative">
                                     <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                     <div className="col-span-2"><Label>Nº Contêiner</Label><FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="MSCU1234567" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div><Label>Lacre</Label><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="SEAL12345" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div><Label>Tara (Kg)</Label><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="2250" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div><Label>Peso Bruto</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div><Label>Volumes</Label><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="1000" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div><Label>M³</Label><FormField control={form.control} name={`containers.${index}.measurement`} render={({ field }) => <Input placeholder="28.5" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div><Label>Free Time</Label><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input {...field} value={shipment.details.freeTime} className="h-8 mt-1" disabled/>} /></div>
+                                    <div className="col-span-2 md:col-span-1"><Label>Lacre</Label><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="SEAL12345" {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-2 md:col-span-1"><Label>Tara (Kg)</Label><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="2250" {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-2 md:col-span-1"><Label>Peso Bruto</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-2 md:col-span-1"><Label>Volumes</Label><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="1000" {...field} className="h-8 mt-1"/>} /></div>
+                                </div>
+                            ))}
+                            <div className="flex justify-end gap-4 text-sm font-semibold pt-2">
+                                <span>Total Contêineres: {containerTotals.qty}</span>
+                                <span>Peso Total: {containerTotals.weight.toLocaleString('pt-BR')} Kg</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                      <Card>
+                        <CardHeader className="flex flex-row justify-between items-center">
+                            <CardTitle className="text-lg">Transbordos</CardTitle>
+                            <Button type="button" size="sm" variant="outline" onClick={() => appendTransshipment({ port: '', vessel: '' })}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {transshipmentFields.map((field, index) => (
+                                <div key={field.id} className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end p-2 border rounded-md relative">
+                                    <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeTransshipment(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                    <div className="col-span-2"><Label>Porto</Label><FormField control={form.control} name={`transshipments.${index}.port`} render={({ field }) => <Input {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-2"><Label>Navio/Voo</Label><FormField control={form.control} name={`transshipments.${index}.vessel`} render={({ field }) => <Input {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-1"><Label>ETA</Label><FormField control={form.control} name={`transshipments.${index}.eta`} render={({ field }) => (<Popover><PopoverTrigger asChild><FormControl><Button variant="outline" size="sm" className="h-8 w-full justify-start text-xs"><CalendarIcon className="mr-1 h-3 w-3" />{field.value ? format(new Date(field.value), "dd/MM/yy") : 'Data'}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent></Popover>)} /></div>
                                 </div>
                             ))}
                         </CardContent>

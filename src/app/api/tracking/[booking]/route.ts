@@ -65,13 +65,12 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const carrierName = url.searchParams.get('carrierName');
   const type = (url.searchParams.get('type') || 'bookingNumber') as 'bookingNumber' | 'containerNumber' | 'mblNumber';
 
-  const CREATE_URL = `${BASE_URL}/createShipments`; // Corrected: plural endpoint
-  const SHIPMENT_URL = `${BASE_URL}/shipments`; // Plural endpoint
+  const CREATE_URL = `${BASE_URL}/createShipments`;
+  const SHIPMENT_URL = `${BASE_URL}/shipments`;
 
   try {
     const headers = getAuthHeaders();
     
-    // Corrected GET URL parameter name
     const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
     
     console.log('➡️  GET Shipment URL:', getShipmentUrl);
@@ -82,7 +81,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       data = await safelyParseJSON(res);
     }
 
-    // Check if the response is empty or an empty array, and creation is not skipped
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0) || (data && Object.keys(data).length === 0) )) {
       const carrierInfo = findCarrierByName(carrierName || '');
 
@@ -115,11 +113,15 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       if (!createRes.ok) {
         let errorBody;
-        try { errorBody = JSON.parse(rawResponseText); } catch { errorBody = rawResponseText; }
+        try { 
+            errorBody = JSON.parse(rawResponseText); 
+        } catch { 
+            errorBody = rawResponseText; 
+        }
         
-        const detailMessage = typeof errorBody === 'string' && errorBody.toLowerCase().includes('<html>')
-            ? 'Resposta HTML inválida recebida do servidor CargoFlows. O payload pode estar incompleto ou mal formatado.'
-            : errorBody;
+        const detailMessage = typeof errorBody === 'object' && errorBody !== null && 'message' in errorBody 
+            ? errorBody.message 
+            : rawResponseText;
 
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
@@ -147,22 +149,19 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
     }
 
-    // Handle array response by taking the first element
     const firstShipment = Array.isArray(data) ? data[0] : data;
     
     console.log('📥 GET Shipment Response Body (parsed):', JSON.stringify(firstShipment, null, 2));
 
 
-    // If still processing, but we have fallback data, return that.
     if (firstShipment?.state === 'PROCESSING' && firstShipment.fallback) {
         return NextResponse.json({
             status: 'processing',
             message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
-            shipment: firstShipment.fallback, // Send partial shipment data from fallback
+            shipment: firstShipment.fallback,
         }, { status: 202 });
     }
 
-    // Handle case where shipment is registered but no data (not even fallback) is available yet
     if (res.status === 204 || !firstShipment || Object.keys(firstShipment).length === 0) {
         return NextResponse.json({
             status: 'processing',

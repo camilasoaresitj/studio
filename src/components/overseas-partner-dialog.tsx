@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -25,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { runExtractPartnerInfo } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import type { Partner } from './partners-registry';
-import type { Quote } from './customer-quotes-list';
+import type { Quote } from '@/lib/initial-data';
 import { Label } from './ui/label';
 
 const contactSchema = z.object({

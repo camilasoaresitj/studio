@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Partner } from '@/lib/partners-data';
-import type { Quote } from '@/components/customer-quotes-list';
+import type { Quote } from '@/lib/initial-data';
 
 const CreateEmailCampaignInputSchema = z.object({
   instruction: z.string().describe('The natural language instruction for the email campaign.'),

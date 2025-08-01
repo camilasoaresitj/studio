@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Quote } from '@/components/customer-quotes-list';
+import type { Quote } from '@/lib/initial-data';
 import { useToast } from '@/hooks/use-toast';
 
 // In a real app, you would fetch this data from your database using the ID.

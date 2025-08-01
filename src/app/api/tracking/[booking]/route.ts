@@ -6,14 +6,9 @@ import { findCarrierByName } from '@/lib/carrier-data';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
-// Corrected to singular endpoints as per user feedback
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 const CREATE_URL = `${BASE_URL}/createShipment`;
 const SHIPMENT_URL = `${BASE_URL}/shipment`;
-
-let cachedCarriers: any[] | null = null;
-let lastCacheTime = 0;
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24h
 
 async function safelyParseJSON(response: Response) {
     const text = await response.text();
@@ -51,7 +46,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     const headers = getAuthHeaders();
     
-    // Corrected GET URL to use specific query parameter based on type
     const getShipmentUrl = `${SHIPMENT_URL}?${type}=${trackingId}`;
     
     console.log('➡️  GET Shipment URL:', getShipmentUrl);

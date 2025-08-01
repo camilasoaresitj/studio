@@ -24,7 +24,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exchangeRateService } from '@/services/exchange-rate-service';
-import { addDays, format } from 'date-fns';
 
 const quoteChargeSchemaForSheet = z.object({
   id: z.string(),
@@ -39,8 +38,8 @@ const quoteChargeSchemaForSheet = z.object({
   supplier: z.string().min(1, 'Obrigatório'),
   sacado: z.string().optional(),
   approvalStatus: z.enum(['aprovada', 'pendente', 'rejeitada']),
-  justification: z.string().optional(), 
-  financialEntryId: z.string().nullable().optional(), 
+  justification: z.string().optional(),
+  financialEntryId: z.string().nullable().optional(),
 });
 
 const financialsFormSchema = z.object({
@@ -53,7 +52,7 @@ interface ShipmentFinancialsTabProps {
     shipment: Shipment;
     partners: Partner[];
     onOpenDetails: (charge: QuoteCharge) => void;
-    handleInvoiceCharges: (charges: QuoteCharge[], shipment: Shipment) => Promise<{ updatedCharges: QuoteCharge[] }>;
+    onInvoiceCharges: (charges: QuoteCharge[], shipment: Shipment) => Promise<{ updatedCharges: QuoteCharge[] }>;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -105,7 +104,7 @@ const chargeTypeOptions = [
     'Percentual',
 ];
 
-export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, handleInvoiceCharges }, ref) => {
+export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onInvoiceCharges }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
@@ -148,9 +147,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             toast({ variant: 'destructive', title: 'Nenhuma taxa selecionada.'});
             return;
         }
-
-        const { updatedCharges } = await handleInvoiceCharges(chargesToInvoice as QuoteCharge[], shipment);
         
+        const { updatedCharges } = await onInvoiceCharges(chargesToInvoice as QuoteCharge[], shipment);
+
         form.setValue('charges', updatedCharges as any);
         setSelectedChargeIds(new Set());
     };
@@ -301,11 +300,11 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                 </CardContent>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 p-4 pt-0">
                     <Card>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Custo Total</CardTitle></CardHeader>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Custo Total (em BRL)</CardTitle></CardHeader>
                         <CardContent className="p-2 text-base font-semibold font-mono">BRL {totals.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Venda Total</CardTitle></CardHeader>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Venda Total (em BRL)</CardTitle></CardHeader>
                         <CardContent className="p-2 text-base font-semibold font-mono">BRL {totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</CardContent>
                     </Card>
                     <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>

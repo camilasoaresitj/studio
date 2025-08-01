@@ -338,10 +338,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     };
     
     const handleInvoiceCharges = async (charges: QuoteCharge[]): Promise<{ updatedCharges: QuoteCharge[] }> => {
+        if (!shipment) return { updatedCharges: [] };
+        
         const chargesToInvoice = charges.filter(c => !c.financialEntryId);
         if (chargesToInvoice.length === 0) {
            toast({ variant: 'destructive', title: 'Nenhuma taxa nova para faturar.'});
-           return { updatedCharges: shipment?.charges || [] };
+           return { updatedCharges: shipment.charges || [] };
        }
 
        const newEntries: Omit<FinancialEntry, 'id'>[] = [];
@@ -380,7 +382,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
        let finalCharges = [...(shipment.charges || [])];
 
        if (response.success && response.data) {
-           let entryIndex = response.data.length - newEntries.length;
            newEntries.forEach(newEntry => {
                 const newEntryData = response.data.find(e => e.invoiceId === newEntry.invoiceId);
                 const originalCharges = entryMap.get(newEntry.partner)!.charges;
@@ -390,7 +391,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         finalCharges[idx].financialEntryId = newEntryData.id;
                     }
                 });
-                entryIndex++;
            });
            toast({ title: `${newEntries.length} fatura(s) gerada(s)!`, className: 'bg-success text-success-foreground' });
        } else {

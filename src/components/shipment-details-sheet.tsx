@@ -568,7 +568,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     toast({ title: 'Rastreamento Sincronizado', description: `Nenhum novo evento acionável encontrado. ${data.eventos.length} eventos totais.` });
                 }
             } else if (data.status === 'processing') {
-                 toast({ title: 'Rastreamento em Processamento', description: data.message });
+                toast({
+                    title: 'Rastreamento Iniciado com Sucesso!',
+                    description: data.message,
+                    className: 'bg-primary text-primary-foreground',
+                });
             } else {
                  toast({ title: 'Rastreamento Encontrado', description: `${data.eventos?.length || 0} eventos encontrados.` });
             }

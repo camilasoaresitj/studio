@@ -591,7 +591,7 @@ export function FinancialPageClient() {
             const processMatch = !textFilters.processId || entry.processId.toLowerCase().includes(textFilters.processId.toLowerCase());
             return statusMatch && partnerMatch && invoiceMatch && processMatch;
         });
-    }, [entries, statusFilter, textFilters]);
+    }, [entries, statusFilter, textFilters, getEntryStatus]);
     
     const handleSaveAccount = (account: BankAccount) => {
         const updatedAccounts = [...accounts];

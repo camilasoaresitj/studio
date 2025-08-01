@@ -71,7 +71,7 @@ const findRelevantClients = (instruction: string, partners: Partner[], quotes: Q
     partners.forEach(partner => {
         if (partner.roles.cliente && partner.kpi?.manual?.mainRoutes) {
             const hasMatchingRoute = partner.kpi.manual.mainRoutes.some(route => {
-                const routeLower = route.toLowerCase();
+                const routeLower = route.value.toLowerCase();
                 return routeLower.includes(originNorm) && routeLower.includes(destinationNorm);
             });
             if (hasMatchingRoute) {

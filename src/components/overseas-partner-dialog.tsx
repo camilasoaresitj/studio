@@ -100,7 +100,7 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
       toast({ variant: 'destructive', title: 'Nenhum parceiro selecionado' });
       return;
     }
-    const selectedPartner = partners.find(p => p.id.toString() === selectedPartnerId);
+    const selectedPartner = partners.find(p => p.id?.toString() === selectedPartnerId);
     if (selectedPartner) {
       onPartnerConfirmed(selectedPartner, quote);
     }
@@ -109,8 +109,8 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
   const handleCreateConfirm = (data: PartnerFormData) => {
     const newPartnerData: Partner = {
         ...data,
-        id: Math.max(...partners.map(p => p.id), 0) + 1, // Create a new temporary ID
-    };
+        id: Math.max(...partners.map(p => p.id ?? 0), 0) + 1, // Create a new temporary ID
+    } as Partner;
     onPartnerConfirmed(newPartnerData, quote);
   };
 
@@ -125,9 +125,9 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
       const { data } = response;
       form.setValue('name', data.name);
       form.setValue('cnpj', data.cnpj);
-      form.setValue('address', data.address);
+      form.setValue('address', data.address as any);
       if (data.contacts && data.contacts.length > 0) {
-        replace(data.contacts);
+        replace(data.contacts.map(c => ({...c, department: c.departments[0] || 'Outro' })) as any);
       }
       toast({ title: 'Dados preenchidos com sucesso!', className: 'bg-success text-success-foreground' });
     } else {
@@ -156,7 +156,7 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
                      <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                         <PopoverTrigger asChild>
                             <Button variant="outline" role="combobox" aria-expanded={isPopoverOpen} className="w-full justify-between font-normal">
-                                {selectedPartnerId ? partners.find(p => p.id.toString() === selectedPartnerId)?.name : `Selecione um parceiro...`}
+                                {selectedPartnerId ? partners.find(p => p.id?.toString() === selectedPartnerId)?.name : `Selecione um parceiro...`}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                         </PopoverTrigger>
@@ -171,11 +171,11 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
                                             value={partner.name}
                                             key={partner.id}
                                             onSelect={() => {
-                                                setSelectedPartnerId(partner.id.toString());
+                                                setSelectedPartnerId(partner.id!.toString());
                                                 setIsPopoverOpen(false);
                                             }}
                                             >
-                                        <Check className={cn("mr-2 h-4 w-4", selectedPartnerId === partner.id.toString() ? "opacity-100" : "opacity-0")}/>
+                                        <Check className={cn("mr-2 h-4 w-4", selectedPartnerId === partner.id!.toString() ? "opacity-100" : "opacity-0")}/>
                                         {partner.name}
                                         </CommandItem>
                                     ))}

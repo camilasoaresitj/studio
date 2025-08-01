@@ -34,8 +34,11 @@ export function buildTrackingPayload(input: TrackingInput) {
     [type]: trackingNumber,
   };
 
-  if (type === 'mblNumber' && oceanLine) {
+  if (oceanLine) {
     formDataObject.oceanLine = oceanLine;
+  }
+  
+  if (type === 'mblNumber' && oceanLine) {
     // Add mandatory productNumber for MBL as per documentation
     formDataObject.productNumber = "DEFAULT_PRODUCT"; 
   }

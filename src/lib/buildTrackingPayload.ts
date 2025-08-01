@@ -33,13 +33,14 @@ export function buildTrackingPayload(input: TrackingInput) {
     [type]: trackingNumber,
   };
 
-  if (oceanLine) {
+  // The API seems to require oceanLine for container and booking lookups to be reliable
+  if (oceanLine && (type === 'containerNumber' || type === 'bookingNumber')) {
     formDataObject.oceanLine = oceanLine;
   }
   
   // Correct payload structure per user's curl example
   return {
-    formData: [formDataObject],
     uploadType: uploadType,
+    formData: [formDataObject],
   };
 }

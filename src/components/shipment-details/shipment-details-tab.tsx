@@ -106,7 +106,7 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
     }));
     
     const handleRefreshTracking = async () => {
-        const { carrier, bookingNumber } = form.getValues();
+        const { bookingNumber, carrier } = form.getValues();
         if (!bookingNumber || !carrier) {
             setTrackingError("Número do booking e transportadora são necessários para o rastreamento.");
             return;

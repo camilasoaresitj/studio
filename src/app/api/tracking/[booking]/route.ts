@@ -103,7 +103,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       
       const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo.name });
       console.log('🔍 Diagnóstico completo:');
-      console.log('URL:', `${BASE_URL}/createShipments`);
+      console.log('URL:', CREATE_URL);
       console.log('Headers:', JSON.stringify(headers, null, 2));
       console.log('Payload:', JSON.stringify(payload, null, 2));
       console.log('Carrier Info:', JSON.stringify(carrierInfo, null, 2));

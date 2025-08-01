@@ -1,4 +1,3 @@
-
 // src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
 import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
@@ -19,7 +18,7 @@ async function safelyParseJSON(response: Response) {
     } catch (e) {
         if (text.trim().startsWith('<html>')) {
             console.error("Received HTML response instead of JSON:", text.substring(0, 500));
-            throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada.");
+            throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada e se as chaves de API estão corretas.");
         }
         throw new Error(`Resposta inválida da API: ${text}`);
     }
@@ -63,7 +62,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const url = new URL(req.url);
   const skipCreate = url.searchParams.get('skipCreate') === 'true';
   const carrierName = url.searchParams.get('carrierName');
-  const type = url.searchParams.get('type') || 'bookingNumber';
+  const type = (url.searchParams.get('type') || 'bookingNumber') as 'bookingNumber' | 'containerNumber' | 'mblNumber';
 
   try {
     const headers = getAuthHeaders();
@@ -92,7 +91,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: 400 });
       }
       
-      const payload = buildTrackingPayload({ [type]: trackingId, oceanLine: carrierInfo.name });
+      const payload = buildTrackingPayload({ type, [type]: trackingId, oceanLine: carrierInfo.name });
       console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
 
       const createRes = await fetch(`${BASE_URL}/createShipments`, {
@@ -109,11 +108,13 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         let errorBody;
         try { errorBody = JSON.parse(rawResponseText); } catch { errorBody = rawResponseText; }
         
+        const detailMessage = typeof errorBody === 'string' && errorBody.toLowerCase().includes('<html>')
+            ? 'Resposta HTML inválida recebida do servidor CargoFlows. O payload pode estar incompleto ou mal formatado.'
+            : errorBody;
+
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
-          detail: typeof errorBody === 'string' && errorBody.toLowerCase().includes('<html>')
-            ? 'Resposta HTML inválida recebida do servidor CargoFlows. O payload pode estar incompleto ou mal formatado.'
-            : errorBody,
+          detail: detailMessage,
           payload: payload,
         }, { status: createRes.status });
       }

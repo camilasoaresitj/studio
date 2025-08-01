@@ -1,48 +1,45 @@
-
 interface TrackingInput {
   bookingNumber?: string;
   containerNumber?: string;
   mblNumber?: string;
-  oceanLine?: string; 
+  oceanLine?: string;
+  type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
 }
 
+/**
+ * Constrói o payload para a API da Cargo-flows com base no tipo de rastreamento.
+ * @param input Objeto contendo o número de rastreamento, o nome da transportadora e o tipo de número.
+ * @returns O payload formatado para a API da Cargo-flows.
+ */
 export function buildTrackingPayload(input: TrackingInput) {
-  const { bookingNumber, containerNumber, mblNumber, oceanLine } = input;
+  const { type, oceanLine, ...numbers } = input;
 
-  // Montagem do payload para consulta por número de contêiner.
-  if (containerNumber) {
-    return {
-      uploadType: 'FORM_BY_CONTAINER_NUMBER',
-      formData: [{
-        containerNumber,
-        // Cargo-flows docs state oceanLine is required for container tracking
-        oceanLine: oceanLine || "Hapag Lloyd", // Fallback, but should be provided
-      }]
-    };
-  }
+  const getUploadType = () => {
+    switch (type) {
+      case 'bookingNumber':
+        return 'FORM_BY_BOOKING_NUMBER';
+      case 'containerNumber':
+        return 'FORM_BY_CONTAINER_NUMBER';
+      case 'mblNumber':
+        return 'FORM_BY_MBL_NUMBER';
+      default:
+        throw new Error(`Tipo de rastreamento inválido: ${type}`);
+    }
+  };
 
-  // Montagem do payload para consulta por número de MBL.
-  if (mblNumber) {
-    return {
-      uploadType: 'FORM_BY_MBL_NUMBER',
-      formData: [{
-        mblNumber,
-        oceanLine: oceanLine || "Hapag Lloyd", // Fallback
-      }]
-    };
-  }
+  const getFormData = () => {
+    const trackingNumber = numbers[type];
+    if (!trackingNumber) {
+      throw new Error(`Número de ${type} não fornecido.`);
+    }
+    if (!oceanLine) {
+        throw new Error('Nome da transportadora (oceanLine) é obrigatório.');
+    }
+    return [{ [type]: trackingNumber, oceanLine }];
+  };
 
-  // Montagem do payload para consulta por número de Booking.
-  if (bookingNumber) {
-    return {
-      uploadType: 'FORM_BY_BOOKING_NUMBER',
-      formData: [{
-        bookingNumber,
-        oceanLine: oceanLine || "Hapag Lloyd", // Fallback
-      }]
-    };
-  }
-
-  // Lança um erro se nenhum identificador for fornecido.
-  throw new Error('É necessário informar pelo menos um identificador: container, booking ou MBL.');
+  return {
+    uploadType: getUploadType(),
+    formData: getFormData(),
+  };
 }

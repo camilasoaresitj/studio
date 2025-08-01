@@ -17,9 +17,9 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { getFees, Fee } from '@/lib/fees-data';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
-import { Badge } from '../ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { addFinancialEntriesAction } from '@/app/actions';
@@ -278,11 +278,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     <TableHead className="w-10"></TableHead>
                                     <TableHead className="w-[150px]">Taxa</TableHead>
                                     <TableHead className="w-[150px]">Fornecedor</TableHead>
-                                    <TableHead className="w-[200px]">Custo</TableHead>
-                                    <TableHead className="w-[120px] text-right">Custo (BRL)</TableHead>
+                                    <TableHead className="w-[200px] text-right">Custo</TableHead>
                                     <TableHead className="w-[150px]">Sacado</TableHead>
-                                    <TableHead className="w-[200px]">Venda</TableHead>
-                                    <TableHead className="w-[120px] text-right">Venda (BRL)</TableHead>
+                                    <TableHead className="w-[200px] text-right">Venda</TableHead>
                                     <TableHead className="w-[50px]">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -291,7 +289,6 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     const charge = watchedCharges?.[index];
                                     if (!charge) return null;
                                     const isFaturado = !!charge.financialEntryId;
-                                    const { costBRL, saleBRL } = calculateBRLValues(charge);
                                     
                                     return (
                                         <TableRow key={field.id} data-state={isFaturado ? 'selected' : ''}>
@@ -324,30 +321,24 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                     <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
                                                 )} />
                                             </TableCell>
-                                            <TableCell className="p-1 align-top">
+                                            <TableCell className="p-1 align-top text-right">
                                                  <div className="flex gap-1">
                                                     <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
                                                     <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} />
                                                 </div>
-                                            </TableCell>
-                                            <TableCell className="p-1 align-top text-right font-mono text-sm">
-                                                {costBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
                                                 <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
                                                     <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
                                                 )} />
                                             </TableCell>
-                                            <TableCell className="p-1 align-top">
+                                            <TableCell className="p-1 align-top text-right">
                                                 <div className="flex gap-1">
                                                     <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
                                                     <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} />
                                                 </div>
                                                 {charge.approvalStatus === 'pendente' && <Badge variant="default" className="mt-1">Pendente</Badge>}
                                                 {charge.approvalStatus === 'rejeitada' && <Badge variant="destructive" className="mt-1">Rejeitada</Badge>}
-                                            </TableCell>
-                                            <TableCell className="p-1 align-top text-right font-mono text-sm">
-                                                 {saleBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
                                             <TableCell className="p-1 align-top text-center">
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)} disabled={isFaturado}><Trash2 className="h-4 w-4 text-destructive" /></Button>

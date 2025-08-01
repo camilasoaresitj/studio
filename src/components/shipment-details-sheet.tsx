@@ -494,7 +494,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                         shipment={shipment}
                                         partners={partners}
                                         onOpenDetails={handleOpenDetailsDialog}
-                                        handleInvoiceCharges={handleInvoiceCharges}
+                                        onInvoiceCharges={handleInvoiceCharges}
                                     />
                                 </TabsContent>
                                 <TabsContent value="documents">

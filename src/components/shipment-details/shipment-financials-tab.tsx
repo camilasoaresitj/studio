@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exchangeRateService } from '@/services/exchange-rate-service';
+import { addDays, format } from 'date-fns';
 
 const quoteChargeSchemaForSheet = z.object({
   id: z.string(),
@@ -51,7 +52,7 @@ interface ShipmentFinancialsTabProps {
     shipment: Shipment;
     partners: Partner[];
     onOpenDetails: (charge: QuoteCharge) => void;
-    onInvoiceCharges: (charges: QuoteCharge[], shipment: Shipment) => Promise<{ updatedCharges: QuoteCharge[] }>;
+    onUpdateShipment: (updatedShipment: Shipment) => void;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -92,7 +93,18 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
     );
 }
 
-export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onInvoiceCharges }, ref) => {
+const chargeTypeOptions = [
+    'Contêiner',
+    'BL',
+    'Processo',
+    'W/M',
+    'KG',
+    'AWB',
+    'Fixo',
+    'Percentual',
+];
+
+export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onUpdateShipment }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
@@ -136,11 +148,65 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             return;
         }
 
-        const { updatedCharges } = await onInvoiceCharges(chargesToInvoice as QuoteCharge[], shipment);
+        const newEntries: Omit<import('@/lib/financials-data').FinancialEntry, 'id'>[] = [];
+        const entryMap = new Map<string, { partner: string; charges: QuoteCharge[] }>();
 
-        form.setValue('charges', updatedCharges as any);
+        chargesToInvoice.forEach(charge => {
+            const sacado = charge.sacado || shipment.customer;
+            if (!entryMap.has(sacado)) {
+                entryMap.set(sacado, { partner: sacado, charges: [] });
+            }
+            entryMap.get(sacado)!.charges.push(charge as QuoteCharge);
+        });
+
+        const partnerDetails = partners.find(p => p.name === shipment.customer);
+
+        entryMap.forEach(({ partner, charges }) => {
+            const totalAmount = charges.reduce((sum, ch) => sum + ch.sale, 0);
+            const currency = charges[0].saleCurrency;
+            
+            newEntries.push({
+                type: 'credit',
+                partner: partner,
+                invoiceId: `INV-${shipment.id}-${partner.slice(0,3).toUpperCase()}`,
+                status: 'Aberto',
+                dueDate: addDays(new Date(), partnerDetails?.paymentTerm || 30).toISOString(),
+                amount: totalAmount,
+                currency: currency,
+                processId: shipment.id,
+                payments: [],
+                expenseType: 'Operacional',
+                description: `Serviços de frete ref. processo ${shipment.id}`
+            });
+        });
+
+        const response = await addFinancialEntriesAction(newEntries);
+        
+        if (response.success && response.data) {
+            let entryIndex = response.data.length - newEntries.length;
+            const updatedCharges = [...(watchedCharges || [])];
+
+            newEntries.forEach(newEntry => {
+                 const newEntryData = response.data.find(e => e.invoiceId === newEntry.invoiceId);
+                 const originalCharges = entryMap.get(newEntry.partner)!.charges;
+                 originalCharges.forEach(chargeToUpdate => {
+                     const idx = updatedCharges.findIndex(c => c.id === chargeToUpdate.id);
+                     if(idx > -1 && newEntryData) {
+                         updatedCharges[idx].financialEntryId = newEntryData.id;
+                     }
+                 });
+                 entryIndex++;
+            });
+            form.setValue('charges', updatedCharges as any);
+            onUpdateShipment({ ...shipment, charges: updatedCharges as QuoteCharge[] });
+            toast({ title: `${newEntries.length} fatura(s) gerada(s)!`, className: 'bg-success text-success-foreground' });
+        } else {
+             toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
+        }
+        
         setSelectedChargeIds(new Set());
     };
+
 
     const calculateBRLValues = React.useCallback((charge: QuoteCharge) => {
         const chargeCost = Number(charge.cost) || 0;
@@ -232,8 +298,12 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     <TableHead className="w-10"></TableHead>
                                     <TableHead>Taxa</TableHead>
                                     <TableHead>Fornecedor</TableHead>
+                                    <TableHead>Cobrança por</TableHead>
+                                    <TableHead>Tipo Cont.</TableHead>
+                                    <TableHead className="text-right">Custo</TableHead>
                                     <TableHead className="text-right">Custo Total</TableHead>
                                     <TableHead>Sacado</TableHead>
+                                    <TableHead className="text-right">Venda</TableHead>
                                     <TableHead className="text-right">Venda Total</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
@@ -253,50 +323,27 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                     disabled={isFaturado}
                                                 />
                                             </TableCell>
-                                            <TableCell className="p-1 align-top">
+                                            <TableCell className="p-1 align-top min-w-[200px]">
                                                 <div className="flex items-center gap-1">
-                                                    {isFaturado ? (
+                                                    {isFaturado && (
                                                         <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenDetails(charge as QuoteCharge)}>
-                                                                        <FileText className="h-4 w-4 text-primary" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent><p>Ver Fatura</p></TooltipContent>
-                                                            </Tooltip>
+                                                            <Tooltip><TooltipTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenDetails(charge as QuoteCharge)}><FileText className="h-4 w-4 text-primary" /></Button>
+                                                            </TooltipTrigger><TooltipContent><p>Ver Fatura</p></TooltipContent></Tooltip>
                                                         </TooltipProvider>
-                                                    ) : null}
-                                                    <span className={cn(isFaturado && "text-muted-foreground text-xs")}>{charge.name}</span>
+                                                    )}
+                                                    <span className={cn(isFaturado && "text-muted-foreground")}>{charge.name}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="p-1 align-top">
-                                                <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="p-1 align-top text-right">
-                                                 <div className="flex gap-1">
-                                                    <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                    <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} />
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="p-1 align-top">
-                                                <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="p-1 align-top text-right">
-                                                <div className="flex gap-1">
-                                                    <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
-                                                    <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} />
-                                                </div>
-                                                {charge.approvalStatus === 'pendente' && <Badge variant="default" className="mt-1">Pendente</Badge>}
-                                                {charge.approvalStatus === 'rejeitada' && <Badge variant="destructive" className="mt-1">Rejeitada</Badge>}
-                                            </TableCell>
-                                            <TableCell className="p-1 align-top text-center">
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)} disabled={isFaturado}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                            </TableCell>
+                                            <TableCell className="p-1 align-top min-w-[150px]"><FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} /></TableCell>
+                                            <TableCell className="p-1 align-top min-w-[150px]"><FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{chargeTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>)} /></TableCell>
+                                            <TableCell className="p-1 align-top min-w-[150px]"><FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado || charge.type !== 'Contêiner'}><SelectTrigger className="h-8"><SelectValue placeholder="N/A"/></SelectTrigger><SelectContent><SelectItem value="Todos">Todos</SelectItem><SelectItem value="Dry">Dry</SelectItem><SelectItem value="Reefer">Reefer</SelectItem><SelectItem value="Especiais">Especiais</SelectItem></SelectContent></Select>)} /></TableCell>
+                                            <TableCell className="p-1 align-top text-right min-w-[150px]"><FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} /></TableCell>
+                                            <TableCell className="p-1 align-top text-right min-w-[150px]"><div className="flex gap-1"><FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} /><span>{(charge.cost || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></div></TableCell>
+                                            <TableCell className="p-1 align-top min-w-[150px]"><FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} /></TableCell>
+                                            <TableCell className="p-1 align-top text-right min-w-[150px]"><FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} /></TableCell>
+                                            <TableCell className="p-1 align-top text-right min-w-[150px]"><div className="flex gap-1"><FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} /><span>{(charge.sale || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></div></TableCell>
+                                            <TableCell className="p-1 align-top text-center"><Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)} disabled={isFaturado}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
                                         </TableRow>
                                     );
                                 })}

@@ -139,6 +139,8 @@ export function getPartners(): Partner[] {
       contacts: (p.contacts || []).map((c: any) => ({
           ...c,
           despachanteId: c.despachanteId === undefined ? null : c.despachanteId,
+          loginEmail: c.loginEmail || '',
+          password: c.password || '',
       })),
       kpi: {
         manual: {

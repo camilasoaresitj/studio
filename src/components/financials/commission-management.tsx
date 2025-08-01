@@ -12,6 +12,7 @@ import { addFinancialEntriesAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import { CommissionDetailsDialog } from './commission-details-dialog'; 
+import { getFinancialEntries } from '@/lib/financials-data';
 
 interface CommissionManagementProps {
   partners: Partner[];
@@ -43,6 +44,7 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
 
   useEffect(() => {
     const commissionPartners = partners.filter(p => p.roles.comissionado && p.commissionAgreement?.amount);
+    const financialEntries = getFinancialEntries();
 
     const data = commissionPartners.map(partner => {
       const commissionableClientNames = new Set(partner.commissionAgreement?.commissionClients || []);
@@ -68,9 +70,12 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
           commissionValue = agreement.amount!;
         }
         
-        // Check if a payment has been made for this commission
-        // This is a simulation. A real app would check financial entries.
-        const isPaid = (typeof window !== 'undefined' && localStorage.getItem(`commission_paid_${shipment.id}`) === 'true');
+        const isPaid = financialEntries.some(e => 
+            e.type === 'debit' &&
+            e.processId === shipment.id &&
+            e.partner === partner.name &&
+            e.description?.toLowerCase().includes('comissão')
+        );
 
         return {
           shipment,
@@ -112,10 +117,7 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
         description: `Pagamento de comissão ref. processo ${shipment.shipment.id}`
     }]);
 
-    // 2. Mark as paid locally for UI update
-    localStorage.setItem(`commission_paid_${shipment.shipment.id}`, 'true');
-
-    // 3. Refresh data and show toast
+    // 2. Refresh data and show toast
     const updatedData = commissionData.map(cd => {
         if (cd.partner.id === partner.id) {
             return {

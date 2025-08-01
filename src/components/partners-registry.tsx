@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
@@ -106,7 +105,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
       vat: '',
       scac: '',
       roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
-      contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] }],
+      contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'], loginEmail: '', password: '', despachanteId: null }],
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       tipoCliente: { importacao: false, exportacao: false, empresaNoExterior: false },
       tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
@@ -361,7 +360,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const handleAddRoute = () => {
     if (routeInput.trim()) {
-        appendRoute(routeInput.trim() as any);
+        appendRoute({ value: routeInput.trim() });
         setRouteInput('');
     }
   };
@@ -548,7 +547,7 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                             <div className="flex flex-wrap gap-2">
                                 {mainRoutes.map((route, index) => (
                                     <Badge key={route.id} variant="secondary">
-                                        {(route as any).value}
+                                        {route.value}
                                         <button type="button" onClick={() => removeRoute(index)} className="ml-2 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2">
                                             <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                                         </button>

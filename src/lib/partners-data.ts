@@ -107,7 +107,7 @@ export const partnerSchema = z.object({
   observations: z.string().optional(),
   kpi: z.object({
     manual: z.object({
-        mainRoutes: z.array(z.string()).optional().describe("Principais rotas informadas manualmente."),
+        mainRoutes: z.array(z.object({ value: z.string() })).optional().describe("Principais rotas informadas manualmente."),
         mainModals: z.array(z.enum(['Marítimo', 'Aéreo'])).optional().describe("Principais modais informados manualmente."),
     }).optional(),
     automatic: z.object({
@@ -136,6 +136,12 @@ export function getPartners(): Partner[] {
       ...p,
       createdAt: p.createdAt ? new Date(p.createdAt) : undefined,
       demurrageAgreementDueDate: p.demurrageAgreementDueDate ? new Date(p.demurrageAgreementDueDate) : undefined,
+      kpi: {
+        manual: {
+            mainRoutes: p.kpi?.manual?.mainRoutes?.map((route: string) => ({ value: route })) || [],
+            mainModals: p.kpi?.manual?.mainModals || [],
+        }
+      }
     })) as Partner[];
 }
 

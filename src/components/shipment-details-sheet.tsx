@@ -26,7 +26,8 @@ import {
     Clock,
     ChevronsUpDown,
     Check,
-    X
+    X,
+    Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -300,6 +301,10 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </DropdownMenuContent>
                              </DropdownMenu>
                             <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
+                            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+                                <X className="h-5 w-5" />
+                                <span className="sr-only">Fechar</span>
+                            </Button>
                         </div>
                     </div>
                 </SheetHeader>

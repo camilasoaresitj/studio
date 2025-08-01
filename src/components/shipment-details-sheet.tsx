@@ -152,7 +152,26 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             if (activeFormSubmit) {
                 const formData = await activeFormSubmit();
                 
-                const updatedShipmentData = { ...shipment, ...formData };
+                let updatedShipmentData = { ...shipment, ...formData };
+
+                // Special logic for HBL approval milestone creation
+                if (activeTab === 'documents') {
+                    const originalHblStatus = shipment.documents?.find(d => d.name === 'Draft HBL' || d.name === 'Original HBL')?.status;
+                    const newHbl = formData.documents?.find((d: DocumentStatus) => d.name === 'Draft HBL' || d.name === 'Original HBL');
+                    const hblMilestoneExists = updatedShipmentData.milestones.some(m => m.name === 'HBL Aprovado');
+                    
+                    if (newHbl?.status === 'approved' && originalHblStatus !== 'approved' && !hblMilestoneExists) {
+                        const newMilestone: Milestone = {
+                            name: 'HBL Aprovado',
+                            status: 'completed',
+                            predictedDate: new Date(),
+                            effectiveDate: new Date(),
+                            details: `HBL aprovado pelo usuário.`
+                        };
+                        updatedShipmentData.milestones = [...updatedShipmentData.milestones, newMilestone];
+                    }
+                }
+
                 onUpdate(updatedShipmentData);
 
                 toast({

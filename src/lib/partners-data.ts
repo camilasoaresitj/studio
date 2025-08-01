@@ -131,7 +131,7 @@ const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v13';
 
 // SERVER-SAFE: Reads from JSON, no localStorage.
 export function getPartners(): Partner[] {
-    // Rehydrate dates from the JSON import
+    // Rehydrate dates and add missing fields from the JSON import
     return initialPartnersData.map((p: any) => ({
       ...p,
       createdAt: p.createdAt ? new Date(p.createdAt) : undefined,

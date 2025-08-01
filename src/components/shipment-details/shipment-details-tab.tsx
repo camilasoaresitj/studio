@@ -164,9 +164,9 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
     const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
     const carrierPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && (p.tipoFornecedor?.ciaMaritima || p.tipoFornecedor?.ciaAerea) && p.scac), [partners]);
 
-    const showCollectionAddress = shipment.details.incoterm === 'EXW';
+    const showCollectionAddress = shipment.details?.incoterm === 'EXW';
     const deliveryTerms = ['DAP', 'DPU', 'DDP', 'DDU'];
-    const showDeliveryAddress = deliveryTerms.includes(shipment.details.incoterm);
+    const showDeliveryAddress = deliveryTerms.includes(shipment.details?.incoterm || '');
 
     return (
         <Form {...form}>
@@ -288,3 +288,5 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
 });
 
 ShipmentDetailsTab.displayName = 'ShipmentDetailsTab';
+
+    

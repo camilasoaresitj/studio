@@ -4,8 +4,8 @@ import { NextResponse } from 'next/server';
 import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
 import { findCarrierByName } from '@/lib/carrier-data';
 
-const API_KEY = process.env.CARGOFLOWS_API_KEY;
-const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
+const API_KEY = process.env.NEXT_PUBLIC_CARGOFLOWS_API_KEY;
+const ORG_TOKEN = process.env.NEXT_PUBLIC_CARGOFLOWS_ORG_TOKEN;
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 
 let cachedCarriers: any[] | null = null;

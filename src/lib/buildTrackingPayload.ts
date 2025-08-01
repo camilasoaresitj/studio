@@ -3,7 +3,7 @@
 interface TrackingInput {
   type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
   trackingNumber: string;
-  oceanLine?: string; // This should be the carrier's full name
+  oceanLine: string; // This should be the carrier's full name
 }
 
 /**
@@ -21,16 +21,12 @@ export function buildTrackingPayload(input: TrackingInput) {
     case 'bookingNumber':
       uploadType = 'FORM_BY_BOOKING_NUMBER';
       formDataObject.bookingNumber = trackingNumber;
-      if (oceanLine) {
-        formDataObject.oceanLine = oceanLine;
-      }
+      formDataObject.oceanLine = oceanLine;
       break;
     case 'containerNumber':
       uploadType = 'FORM_BY_CONTAINER_NUMBER';
       formDataObject.containerNumber = trackingNumber;
-      if (oceanLine) {
-        formDataObject.oceanLine = oceanLine;
-      }
+      formDataObject.oceanLine = oceanLine;
       break;
     case 'mblNumber':
       uploadType = 'FORM_BY_MBL_NUMBER';

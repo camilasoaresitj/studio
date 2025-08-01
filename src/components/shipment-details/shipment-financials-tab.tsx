@@ -24,6 +24,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/comp
 import { Checkbox } from '@/components/ui/checkbox';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { addFinancialEntriesAction } from '@/app/actions';
+import { addDays } from 'date-fns';
 
 const quoteChargeSchemaForSheet = z.object({
   id: z.string(),
@@ -282,9 +283,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     <TableHead className="w-10"></TableHead>
                                     <TableHead>Taxa</TableHead>
                                     <TableHead>Fornecedor</TableHead>
-                                    <TableHead className="text-right">Custo</TableHead>
+                                    <TableHead className="text-right">Custo Total</TableHead>
                                     <TableHead>Sacado</TableHead>
-                                    <TableHead className="text-right">Venda</TableHead>
+                                    <TableHead className="text-right">Venda Total</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -376,3 +377,4 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
 });
 
 ShipmentFinancialsTab.displayName = 'ShipmentFinancialsTab';
+

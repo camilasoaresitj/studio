@@ -1,13 +1,11 @@
 
-'use client';
-
 import type { Partner } from '@/lib/partners-data';
-import { addDays, isValid, subDays } from 'date-fns';
+import { isValid } from 'date-fns';
 import type { PartialPayment } from './financials-data';
 import initialShipmentsData from './shipments.json';
 import { updateShipment as updateShipmentAction } from '@/app/actions';
 
-const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v12';
+export const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v12';
 
 // --- Type Definitions ---
 
@@ -232,7 +230,7 @@ export type Shipment = {
 };
 
 // SERVER-SIDE SAFE: Reads from JSON, no localStorage.
-export function getShipments(): Shipment[] {
+export async function getShipments(): Promise<Shipment[]> {
     return initialShipmentsData.map((shipment: any) => {
          const safeDate = (dateString: string | Date | undefined | null): Date | undefined => {
             if (!dateString) return undefined;
@@ -258,95 +256,13 @@ export function getShipments(): Shipment[] {
     }) as Shipment[];
 }
 
-// CLIENT-SIDE ONLY: Reads from localStorage.
-export function getStoredShipments(): Shipment[] {
-  if (typeof window === 'undefined') {
-    return [];
-  }
-  try {
-    const storedShipments = localStorage.getItem(SHIPMENTS_STORAGE_KEY);
-    if (!storedShipments) {
-        const initialData: Shipment[] = getShipments(); // Load from JSON on first client load
-        localStorage.setItem(SHIPMENTS_STORAGE_KEY, JSON.stringify(initialData));
-        return initialData;
-    };
-    
-    const parsed = JSON.parse(storedShipments) as any[];
-    return parsed.map(shipment => {
-        const safeDate = (dateString: string | Date | undefined | null): Date | undefined => {
-            if (!dateString) return undefined;
-            const date = new Date(dateString);
-            return isValid(date) ? date : undefined;
-        };
-
-        const safeMilestoneDate = (dateString: string | Date | undefined | null): Date | null => {
-             if (!dateString) return null;
-             const date = new Date(dateString);
-             return isValid(date) ? date : null;
-        }
-
-        return {
-            ...shipment,
-            modal: shipment.modal || (shipment.details?.cargo.includes('kg') ? 'air' : 'ocean'), // Add modal fallback
-            etd: safeDate(shipment.etd),
-            eta: safeDate(shipment.eta),
-            mblPrintingAuthDate: safeDate(shipment.mblPrintingAuthDate),
-            containers: shipment.containers?.map((c: any) => ({
-                ...c,
-                effectiveReturnDate: safeDate(c.effectiveReturnDate),
-                effectiveGateInDate: safeDate(c.effectiveGateInDate),
-            })) || [],
-            documents: shipment.documents?.map((d: any) => ({
-                ...d,
-                uploadedAt: safeDate(d.uploadedAt),
-            })) || [],
-            transshipments: shipment.transshipments?.map((t: any) => ({
-                ...t,
-                etd: safeDate(t.etd),
-                eta: safeDate(t.eta),
-            })) || [],
-            milestones: (shipment.milestones || []).map((m: any) => ({
-                ...m,
-                predictedDate: safeMilestoneDate(m.predictedDate || m.dueDate),
-                effectiveDate: safeMilestoneDate(m.effectiveDate || m.completedDate),
-            })).filter((m: Milestone) => m.predictedDate !== null),
-            blDraftHistory: shipment.blDraftHistory ? {
-                ...shipment.blDraftHistory,
-                sentAt: safeDate(shipment.blDraftHistory.sentAt),
-                revisions: (shipment.blDraftHistory.revisions || []).map((r: any) => ({
-                    ...r,
-                    date: safeDate(r.date),
-                })),
-            } : undefined,
-            approvalLogs: (shipment.approvalLogs || []).map((log: any) => ({
-                ...log,
-                timestamp: safeDate(log.timestamp)
-            })),
-        };
-    });
-  } catch (error) {
-    console.error("Failed to parse shipments from localStorage", error);
-    return [];
-  }
-}
-
-// CLIENT-SIDE ONLY: Saves data and notifies other components
-export function saveShipments(shipments: Shipment[]): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(SHIPMENTS_STORAGE_KEY, JSON.stringify(shipments));
-    window.dispatchEvent(new Event('shipmentsUpdated'));
-  }
-}
-
-// CLIENT-SIDE SAFE: wrapper to call server action
-export async function updateShipment(shipment: Shipment): Promise<Shipment[]> {
-    return updateShipmentAction(shipment);
-}
-
-// CLIENT-SIDE SAFE: wrapper to call server action
+// SERVER-SIDE SAFE: wrapper to call server action to get a single shipment
 export async function getShipmentById(id: string): Promise<Shipment | undefined> {
-    const shipments = getStoredShipments();
+    const shipments = await getShipments();
     return shipments.find(s => s.id === id);
 }
 
-    
+// SERVER-SIDE SAFE: wrapper to call server action to update a shipment
+export async function updateShipment(shipment: Shipment): Promise<Shipment[]> {
+    return updateShipmentAction(shipment);
+}

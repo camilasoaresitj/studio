@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle, List, FileText, Ship, Anchor } from 'lucide-react';
-import { getStoredShipments } from '@/lib/shipment-data';
+import { getStoredShipments } from '@/lib/shipment-data-client';
 import type { Shipment } from '@/lib/shipment-data';
 import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { getInitialQuotes } from '@/lib/initial-data';

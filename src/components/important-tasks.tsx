@@ -3,7 +3,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle, CalendarCheck2 } from 'lucide-react';
-import { getStoredShipments, Shipment } from '@/lib/shipment-data';
+import { getStoredShipments, Shipment } from '@/lib/shipment-data-client';
 import { useState, useEffect, useMemo } from 'react';
 import { isToday, isPast, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';

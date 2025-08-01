@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import type { Shipment } from '@/lib/shipment-data';
-import { getStoredShipments, saveShipments } from '@/lib/shipment-data';
+import { getStoredShipments, saveShipments } from '@/lib/shipment-data-client';
 import { getStoredPartners, type Partner } from '@/lib/partners-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ImportantTasks } from '@/components/important-tasks';

@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CalendarCheck2 } from 'lucide-react';
-import { getStoredShipments, Shipment, ContainerDetail } from '@/lib/shipment-data';
+import { getStoredShipments, Shipment, ContainerDetail } from '@/lib/shipment-data-client';
 import { DemurrageDetailsDialog } from '@/components/demurrage-details-dialog';
 import { DemurrageTariff, getStoredDemurrageTariffs } from '@/lib/demurrage-tariffs-data';
 import { LtiTariff, getStoredLtiTariffs } from '@/lib/lti-tariffs-data';

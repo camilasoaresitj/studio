@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -512,7 +513,15 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.detail || data.error || 'Erro desconhecido');
+                let description = 'Ocorreu um erro desconhecido.';
+                if (data.detail && data.payloadSent) {
+                    description = `Detalhe: ${data.detail}. Payload Enviado: ${JSON.stringify(data.payloadSent)}`;
+                } else if (data.detail) {
+                    description = data.detail;
+                } else if (data.error) {
+                    description = data.error;
+                }
+                throw new Error(description);
             }
             
             if (data.status === 'ready' && Array.isArray(data.eventos) && data.eventos.length > 0) {
@@ -561,7 +570,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             }
 
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Erro ao Rastrear', description: error.message });
+            toast({ variant: 'destructive', title: 'Erro ao Rastrear', description: error.message, duration: 10000 });
         } finally {
             setIsUpdating(false);
         }

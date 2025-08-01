@@ -28,6 +28,7 @@ export function buildTrackingPayload(input: TrackingInput) {
       formData: [{
         uploadType: 'FORM_BY_MBL_NUMBER',
         mblNumber,
+        ...(oceanLine && { oceanLine }),
       }]
     };
   }
@@ -39,6 +40,7 @@ export function buildTrackingPayload(input: TrackingInput) {
       formData: [{
         uploadType: 'FORM_BY_BOOKING_NUMBER',
         bookingNumber,
+        ...(oceanLine && { oceanLine }),
       }]
     };
   }

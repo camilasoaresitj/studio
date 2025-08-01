@@ -104,7 +104,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: 400 });
       }
       
-      const payload = buildTrackingPayload({ [type]: trackingId });
+      const payload = buildTrackingPayload({ [type]: trackingId, oceanLine: carrierInfo.scac });
 
       console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
 

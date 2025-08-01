@@ -119,7 +119,7 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                     <CardTitle>Gestão de Documentos</CardTitle>
                     <CardDescription>Anexe, aprove e gerencie os documentos do processo.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="border rounded-lg">
                         <Table>
                             <TableHeader>
@@ -175,16 +175,14 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                         </Table>
                     </div>
 
-                    <Separator className="my-6" />
-
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Configurações de Impressão</h3>
-                        <div className="flex flex-col md:flex-row gap-6 p-4 border rounded-lg">
+                        <div className="flex flex-col gap-6 p-4 border rounded-lg">
                              <FormField
                                 control={form.control}
                                 name="mblPrintingAtDestination"
                                 render={({ field }) => (
-                                    <FormItem className="flex items-center gap-4 space-y-0">
+                                    <FormItem className="flex items-center justify-between gap-4 space-y-0">
                                         <div className="space-y-0.5">
                                             <FormLabel>Emissão MBL no Destino</FormLabel>
                                             <p className="text-xs text-muted-foreground">Ative para Express Release ou envio por Courrier.</p>
@@ -228,7 +226,6 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                             />
                         </div>
                     </div>
-
                 </CardContent>
             </Card>
         </Form>

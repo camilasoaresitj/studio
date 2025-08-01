@@ -5,10 +5,4 @@ export const ai = genkit({
   plugins: [
     googleAI(),
   ],
-  telemetry: {
-    instrumentation: {
-      enabled: process.env.NODE_ENV !== 'development',
-    },
-    enabled: process.env.NODE_ENV !== 'development',
-  }
 });

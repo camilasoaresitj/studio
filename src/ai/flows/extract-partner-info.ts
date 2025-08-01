@@ -11,13 +11,14 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro']);
+const departmentEnum = z.enum(['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro', 'Despachante']);
 
 const ContactSchema = z.object({
   name: z.string().describe('The full name of the contact person.'),
   email: z.string().describe('The email address of the contact.'),
   phone: z.string().describe('The phone number of the contact.'),
   departments: z.array(departmentEnum).describe('A list of departments for the contact. Infer if possible, otherwise use "Outro".'),
+  despachanteId: z.number().optional().describe('If the contact is a customs broker (Despachante), this should be their ID number if available.'),
 });
 
 const AddressSchema = z.object({
@@ -58,7 +59,7 @@ const extractPartnerInfoPrompt = ai.definePrompt({
 **Extraction Rules:**
 - Carefully parse the text to identify the company name, address details, and one or more contacts.
 - For each contact, you must find a name, email, and phone number.
-- A contact can be associated with multiple departments. Extract all relevant departments into the 'departments' array. Valid departments are: 'Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro'.
+- A contact can be associated with multiple departments. Extract all relevant departments into the 'departments' array. Valid departments are: 'Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Outro', 'Despachante'.
 - For the address, extract all available components (street, city, country, etc.).
 - If a piece of information is not available in the text, return an empty string "" for that field, or an empty array [] for lists. Do not use "N/A" or "unknown".
 - Be precise. Extract the information exactly as it is written, but place it in the correct field.

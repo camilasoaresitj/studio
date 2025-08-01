@@ -3,13 +3,13 @@
 interface TrackingInput {
   type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
   trackingNumber: string;
-  oceanLine?: string; // This should be the SCAC code
+  oceanLine?: string; // This should be the carrier's full name
 }
 
 /**
  * Constrói o payload para a API da Cargo-flows com base no tipo de rastreamento,
  * seguindo a estrutura especificada na documentação.
- * @param input Objeto contendo o número de rastreamento, o código SCAC da transportadora e o tipo de número.
+ * @param input Objeto contendo o número de rastreamento, o nome da transportadora e o tipo de número.
  * @returns O payload formatado para a API da Cargo-flows.
  */
 export function buildTrackingPayload(input: TrackingInput) {
@@ -30,7 +30,6 @@ export function buildTrackingPayload(input: TrackingInput) {
 
   const uploadType = getUploadType();
   const formDataObject: { [key: string]: any } = {
-    uploadType: uploadType,
     [type]: trackingNumber,
   };
 
@@ -38,13 +37,9 @@ export function buildTrackingPayload(input: TrackingInput) {
     formDataObject.oceanLine = oceanLine;
   }
   
-  // Per documentation, productNumber is required for MBL. It also appears to be implicitly required for Booking to avoid errors.
-  if (type === 'mblNumber' || type === 'bookingNumber') {
-    formDataObject.productNumber = "DEFAULT_PRODUCT"; 
-  }
-
-  // Correct payload structure: root object with only formData array
+  // Correct payload structure per user's curl example
   return {
     formData: [formDataObject],
+    uploadType: uploadType,
   };
 }

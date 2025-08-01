@@ -87,10 +87,10 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0) || (data && Object.keys(data).length === 0) )) {
       const carrierInfo = findCarrierByName(carrierName || '');
 
-      if (!carrierName || !carrierInfo || !carrierInfo.scac) {
+      if (!carrierName || !carrierInfo) {
           return NextResponse.json({
             error: 'Transportadora inválida ou não encontrada.',
-            detail: `Nenhuma transportadora com nome '${carrierName}' e código SCAC foi localizada. Verifique o nome e tente novamente.`
+            detail: `Nenhuma transportadora com nome '${carrierName}' foi localizada. Verifique o nome e tente novamente.`
           }, { status: 400 });
       }
 
@@ -101,7 +101,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: 400 });
       }
       
-      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo.scac });
+      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo.name });
       console.log('🔍 Diagnóstico completo:');
       console.log('URL:', `${BASE_URL}/createShipments`);
       console.log('Headers:', JSON.stringify(headers, null, 2));

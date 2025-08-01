@@ -334,7 +334,10 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                 name: String(row.contact_name || 'Contato Principal'),
                 email: String(row.contact_email || 'email@a-definir.com'),
                 phone: String(row.contact_phone || '000000000'),
-                departments: ['Comercial']
+                departments: ['Comercial'],
+                despachanteId: null,
+                loginEmail: '',
+                password: '',
             }]
           };
           onPartnerSaved(newPartner);

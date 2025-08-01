@@ -17,38 +17,34 @@ async function safelyParseJSON(response: Response) {
     try {
         return JSON.parse(text);
     } catch (e) {
-        // If we get HTML, it's likely an error page from the API provider.
         if (text.trim().startsWith('<html>')) {
             console.error("Received HTML response instead of JSON:", text.substring(0, 500));
             throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada.");
         }
-        // For other non-json responses
         throw new Error(`Resposta inválida da API: ${text}`);
     }
 }
 
-
-// Endpoint para listar carriers com cache de 24h
-export async function OPTIONS() {
-  if (!API_KEY || !ORG_TOKEN) {
-    return NextResponse.json({
-      error: 'Credenciais ausentes',
-      detail: 'Configure CARGOFLOWS_API_KEY e CARGOFLOWS_ORG_TOKEN.'
-    }, { status: 500 });
-  }
-
-  const now = Date.now();
-  if (cachedCarriers && now - lastCacheTime < CACHE_DURATION) {
-    return NextResponse.json({ carriers: cachedCarriers, cached: true });
-  }
-
-  try {
-    const res = await fetch(`${BASE_URL}/carrierList`, {
-      headers: {
+const getAuthHeaders = () => {
+    if (!API_KEY || !ORG_TOKEN) {
+        throw new Error('As credenciais da API da Cargo-flows não estão configuradas.');
+    }
+    return {
         'X-DPW-ApiKey': API_KEY,
-        'X-DPW-Org-Token': ORG_TOKEN
-      }
-    });
+        'X-DPW-Org-Token': ORG_TOKEN,
+        'Content-Type': 'application/json',
+        'accept': 'application/json'
+    };
+};
+
+export async function OPTIONS() {
+  try {
+    const headers = getAuthHeaders();
+    const now = Date.now();
+    if (cachedCarriers && now - lastCacheTime < CACHE_DURATION) {
+        return NextResponse.json({ carriers: cachedCarriers, cached: true });
+    }
+    const res = await fetch(`${BASE_URL}/carrierList`, { headers });
     if (!res.ok) {
         const errorText = await res.text();
         throw new Error(`Erro na API Cargo-flows: ${res.status} ${errorText}`);
@@ -67,28 +63,17 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const url = new URL(req.url);
   const skipCreate = url.searchParams.get('skipCreate') === 'true';
   const carrierName = url.searchParams.get('carrierName');
-  const type = url.searchParams.get('type') || 'bookingNumber'; // 'bookingNumber', 'mblNumber', 'containerNumber'
-
-  if (!API_KEY || !ORG_TOKEN) {
-    return NextResponse.json({
-      error: 'As credenciais da API da Cargo-flows não estão configuradas.',
-      detail: 'Verifique as variáveis de ambiente CARGOFLOWS_API_KEY e CARGOFLOWS_ORG_TOKEN.'
-    }, { status: 500 });
-  }
+  const type = url.searchParams.get('type') || 'bookingNumber';
 
   try {
-    let res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}&_limit=1`, {
-      headers: {
-        'X-DPW-ApiKey': API_KEY,
-        'X-DPW-Org-Token': ORG_TOKEN
-      }
-    });
+    const headers = getAuthHeaders();
+
+    let res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}&_limit=1`, { headers });
 
     let data;
     if (res.status !== 204) {
       data = await safelyParseJSON(res);
     }
-
 
     if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0))) {
       const carrierInfo = findCarrierByName(carrierName || '');
@@ -108,16 +93,11 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
       
       const payload = buildTrackingPayload({ [type]: trackingId, oceanLine: carrierInfo.name });
-
       console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
 
       const createRes = await fetch(`${BASE_URL}/createShipments`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-DPW-ApiKey': API_KEY,
-          'X-DPW-Org-Token': ORG_TOKEN
-        },
+        headers,
         body: JSON.stringify(payload)
       });
       
@@ -140,12 +120,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}&_limit=1`, {
-        headers: {
-          'X-DPW-ApiKey': API_KEY,
-          'X-DPW-Org-Token': ORG_TOKEN
-        }
-      });
+      res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}&_limit=1`, { headers });
 
       if (!res.ok) {
         const errorText = await res.text();

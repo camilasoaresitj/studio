@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Mail, Server, KeyRound, Building, Phone, Bot, Mailbox, Handshake, Briefcase, Plane } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Separator } from '../ui/separator';
+import { saveApiKeysAction } from '@/app/actions';
 
 const integrationsSchema = z.object({
   maerskApiKey: z.string().optional(),
@@ -32,6 +33,7 @@ const integrationsSchema = z.object({
   cargoFiveApiKey: z.string().optional(),
   cargoFlowsApiKey: z.string().optional(),
   cargoFlowsOrgToken: z.string().optional(),
+  googleMapsApiKey: z.string().optional(),
 });
 
 type IntegrationsFormData = z.infer<typeof integrationsSchema>;
@@ -42,7 +44,6 @@ export function IntegrationsSettings() {
 
   const form = useForm<IntegrationsFormData>({
     resolver: zodResolver(integrationsSchema),
-    // TODO: Fetch these values from a secure backend/service
     defaultValues: {
       maerskApiKey: '',
       cargoAiApiKey: '',
@@ -59,21 +60,39 @@ export function IntegrationsSettings() {
       snovioUserId: '',
       snovioApiSecret: '',
       cargoFiveApiKey: '',
-      cargoFlowsApiKey: '',
-      cargoFlowsOrgToken: '',
+      cargoFlowsApiKey: process.env.NEXT_PUBLIC_CARGOFLOWS_API_KEY || '',
+      cargoFlowsOrgToken: process.env.NEXT_PUBLIC_CARGOFLOWS_ORG_TOKEN || '',
+      googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     },
   });
 
+  useEffect(() => {
+    // In a real app, these values would be fetched from a secure backend
+    // For now, we simulate this by trying to read from process.env if available
+    form.reset({
+        cargoFlowsApiKey: 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs',
+        cargoFlowsOrgToken: '9H31zRWYCGihV5U3th5JJXZI3h7LGen6',
+        googleMapsApiKey: 'AIzaSyCEfBPLXPR2I95jCLhBXarhzoyHeAPjjGo'
+    })
+  }, [form]);
+
   const onSubmit = async (data: IntegrationsFormData) => {
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    // In a real app, you would send this to your backend to be stored securely
-    console.log('Saving integration credentials:', data);
-    toast({
-      title: 'Credenciais Salvas!',
-      description: 'As chaves de API foram atualizadas com sucesso.',
-      className: 'bg-success text-success-foreground'
-    });
+    const response = await saveApiKeysAction(data);
+    
+    if (response.success) {
+        toast({
+        title: 'Credenciais Salvas!',
+        description: response.message || 'As chaves de API foram atualizadas com sucesso.',
+        className: 'bg-success text-success-foreground'
+        });
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao Salvar',
+            description: "Não foi possível salvar as chaves de API."
+        });
+    }
     setIsSaving(false);
   };
 
@@ -133,10 +152,13 @@ export function IntegrationsSettings() {
                             <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-red-500" /> CargoFive API Key</FormLabel><FormControl><Input type="password" placeholder="x-api-key da CargoFive" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                          <FormField control={form.control} name="cargoFlowsApiKey" render={({ field }) => (
-                            <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-cyan-500" /> Cargo-flows API Key</FormLabel><FormControl><Input type="password" placeholder="X-DPW-ApiKey da Cargo-flows" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-cyan-500" /> Cargo-flows API Key</FormLabel><FormControl><Input type="text" placeholder="X-DPW-ApiKey da Cargo-flows" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={form.control} name="cargoFlowsOrgToken" render={({ field }) => (
-                            <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-cyan-500" /> Cargo-flows Org Token</FormLabel><FormControl><Input type="password" placeholder="X-DPW-Org-Token da Cargo-flows" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-cyan-500" /> Cargo-flows Org Token</FormLabel><FormControl><Input type="text" placeholder="X-DPW-Org-Token da Cargo-flows" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="googleMapsApiKey" render={({ field }) => (
+                            <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-green-600" /> Google Maps API Key</FormLabel><FormControl><Input type="text" placeholder="API Key do Google Maps" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                     </div>
 

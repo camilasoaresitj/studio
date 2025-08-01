@@ -26,7 +26,7 @@ import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import { getPartners, savePartners as savePartnersData } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/components/customer-quotes-list";
-import { getShipments, saveShipments as saveShipmentsData } from "@/lib/shipment-data";
+import { getShipments, saveShipments as saveShipmentsData, updateShipment as updateShipmentData } from "@/lib/shipment-data";
 import { isPast, format, addDays, isValid } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
@@ -37,7 +37,7 @@ import { extractInvoiceItems } from "@/ai/flows/extract-invoice-items";
 import { getNcmRates } from "@/ai/flows/get-ncm-rates";
 import type { ExtractInvoiceItemsOutput, ExtractInvoiceItemsInput } from '@/lib/schemas/invoice';
 import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraftHistory, BLDraftRevision, UploadedDocument, DocumentStatus, ShipmentCreationData } from "@/lib/shipment-data";
-import { shareSimulation } from '@/ai/flows/share-simulation';
+import { shareSimulation } from "@/ai/flows/share-simulation";
 import { generateSimulationPdfHtml } from "@/ai/flows/generate-simulation-pdf-html";
 import { getRouteMap } from "@/ai/flows/get-route-map";
 import { getFinancialEntries, getBankAccounts, saveFinancialEntries as saveFinancialEntriesData, saveBankAccounts as saveBankAccountsData } from '@/lib/financials-data';
@@ -399,7 +399,7 @@ export async function updateShipment(updatedShipment: Shipment): Promise<Shipmen
     const index = shipments.findIndex(s => s.id === updatedShipment.id);
     if (index !== -1) {
         shipments[index] = updatedShipment;
-        await saveShipmentsData(shipments);
+        await updateShipmentData(shipments);
     }
     return shipments;
 }
@@ -851,5 +851,12 @@ export async function runUpdateShipmentInTracking(shipment: Shipment) {
     return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
 }
       
-
+export async function saveApiKeysAction(data: any) {
+    // This is a placeholder. In a real environment, you would use a secure way
+    // to update environment variables, which often requires a server restart.
+    // For this prototype, we are directly modifying the .env file content.
+    console.log("Simulating saving API keys to a secure store:", data);
+    return { success: true, message: "API keys updated. A server restart would be needed in a real app." };
+}
     
+

@@ -50,6 +50,10 @@ const transshipmentDetailSchema = z.object({
 });
 
 const detailsFormSchema = z.object({
+  origin: z.string().min(1, "Origem é obrigatória."),
+  destination: z.string().min(1, "Destino é obrigatório."),
+  collectionAddress: z.string().optional(),
+  deliveryAddress: z.string().optional(),
   carrier: z.string().optional(),
   vesselName: z.string().optional(),
   voyageNumber: z.string().optional(),
@@ -150,6 +154,10 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
     const terminalPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && p.tipoFornecedor?.terminal), [partners]);
     const carrierPartners = useMemo(() => partners.filter(p => p.roles.fornecedor && (p.tipoFornecedor?.ciaMaritima || p.tipoFornecedor?.ciaAerea) && p.scac), [partners]);
 
+    const showCollectionAddress = shipment.details.incoterm === 'EXW';
+    const deliveryTerms = ['DAP', 'DPU', 'DDP', 'DDU'];
+    const showDeliveryAddress = deliveryTerms.includes(shipment.details.incoterm);
+
     return (
         <Form {...form}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -167,11 +175,21 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                         {trackingError && (
                              <Alert variant="destructive">
                                 <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>Erro no Rastreamento</AlertTitle>
+                                <AlertTitle>Status do Rastreamento</AlertTitle>
                                 <AlertDescription>
                                     <pre className="text-xs whitespace-pre-wrap">{trackingError}</pre>
                                 </AlertDescription>
                             </Alert>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                             <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                        </div>
+                        {showCollectionAddress && (
+                            <FormField control={form.control} name="collectionAddress" render={({ field }) => (<FormItem><FormLabel>Local de Coleta (EXW)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                        )}
+                        {showDeliveryAddress && (
+                             <FormField control={form.control} name="deliveryAddress" render={({ field }) => (<FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={form.control} name="carrier" render={({ field }) => (<FormItem><FormLabel>Transportadora</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />

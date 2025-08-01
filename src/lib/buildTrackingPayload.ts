@@ -7,6 +7,16 @@ interface TrackingInput {
 }
 
 /**
+ * Converte uma string de camelCase para snake_case.
+ * @param str A string em camelCase (ex: bookingNumber).
+ * @returns A string em snake_case (ex: booking_number).
+ */
+function toSnakeCase(str: string): string {
+    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+
+/**
  * Constrói o payload para a API da Cargo-flows com base no tipo de rastreamento.
  * @param input Objeto contendo o número de rastreamento, o nome da transportadora e o tipo de número.
  * @returns O payload formatado para a API da Cargo-flows.
@@ -35,7 +45,11 @@ export function buildTrackingPayload(input: TrackingInput) {
     if (!oceanLine) {
         throw new Error('Nome da transportadora (oceanLine) é obrigatório.');
     }
-    return [{ [type]: trackingNumber, oceanLine }];
+    
+    // Converte a chave do tipo de rastreamento para o formato snake_case exigido pela API.
+    const trackingKey = toSnakeCase(type);
+    
+    return [{ [trackingKey]: trackingNumber, oceanLine }];
   };
 
   return {

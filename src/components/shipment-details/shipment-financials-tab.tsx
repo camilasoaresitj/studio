@@ -151,40 +151,51 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             return;
         }
 
-        const creditCharges = chargesToInvoice.filter(c => c.sacado === shipment.customer);
-        const debitCharges = chargesToInvoice.filter(c => c.sacado !== shipment.customer);
-
         const newEntries: Omit<import('/src/lib/financials-data').FinancialEntry, 'id'>[] = [];
+        const updatedChargeMap = new Map<string, QuoteCharge>();
+
+        // Agrupa por sacado para gerar uma fatura por parceiro
+        const bySacado = chargesToInvoice.reduce((acc, charge) => {
+            const key = charge.sacado || 'N/A';
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(charge);
+            return acc;
+        }, {} as Record<string, QuoteCharge[]>);
         
-        // Generate Credit Entry (Fatura para o Cliente)
-        if (creditCharges.length > 0) {
-            const totalCredit = creditCharges.reduce((sum, c) => sum + c.sale, 0);
-            const financialEntryId = `fin-credit-${shipment.id}-${Date.now()}`;
+        for (const sacadoName of Object.keys(bySacado)) {
+            const partnerCharges = bySacado[sacadoName];
+            const isCredit = sacadoName === shipment.customer;
+            const entryType = isCredit ? 'credit' : 'debit';
+            const invoicePrefix = isCredit ? 'INV' : 'BILL';
+            const financialEntryId = `fin-${entryType}-${shipment.id}-${sacadoName.slice(0,3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+
+            const { total, currency } = partnerCharges.reduce((acc, charge) => {
+                const value = isCredit ? charge.sale : charge.cost;
+                const curr = isCredit ? charge.saleCurrency : charge.costCurrency;
+                // Simple logic: assumes all charges for one partner have the same currency. A real app would group by currency too.
+                acc.total += value;
+                acc.currency = curr;
+                return acc;
+            }, { total: 0, currency: 'BRL' as QuoteCharge['saleCurrency'] });
+
             newEntries.push({
-                type: 'credit', partner: shipment.customer,
-                invoiceId: `INV-${shipment.id.replace('PROC-','')}`, dueDate: new Date().toISOString(),
-                amount: totalCredit, currency: 'BRL', // Assuming BRL for simplicity
+                type: entryType, partner: sacadoName,
+                invoiceId: `${invoicePrefix}-${shipment.id.replace('PROC-','')}`, dueDate: new Date().toISOString(),
+                amount: total, currency: currency,
                 processId: shipment.id, status: 'Aberto', expenseType: 'Operacional'
             });
-            creditCharges.forEach(c => updateCharge(chargesFields.findIndex(f => f.id === c.id), { ...c, financialEntryId }));
+
+            partnerCharges.forEach(c => {
+                 updatedChargeMap.set(c.id, { ...c, financialEntryId });
+            });
         }
 
-        // Generate Debit Entries (Faturas dos Fornecedores)
-        const suppliers = [...new Set(debitCharges.map(c => c.supplier))];
-        suppliers.forEach(supplier => {
-            const supplierCharges = debitCharges.filter(c => c.supplier === supplier);
-            const totalDebit = supplierCharges.reduce((sum, c) => sum + c.cost, 0);
-            const financialEntryId = `fin-debit-${supplier.replace(/\s+/g, '')}-${Date.now()}`;
-             newEntries.push({
-                type: 'debit', partner: supplier,
-                invoiceId: `BILL-${shipment.id.replace('PROC-','')}`, dueDate: new Date().toISOString(),
-                amount: totalDebit, currency: 'BRL', // Assuming BRL
-                processId: shipment.id, status: 'Aberto', expenseType: 'Operacional'
-            });
-            supplierCharges.forEach(c => updateCharge(chargesFields.findIndex(f => f.id === c.id), { ...c, financialEntryId }));
-        });
-
         await addFinancialEntriesAction(newEntries);
+        
+        // Update the form state to reflect the invoicing
+        const newCharges = chargesFields.map(c => updatedChargeMap.get(c.id) || c);
+        form.setValue('charges', newCharges);
+
         toast({ title: `${newEntries.length} fatura(s) gerada(s) com sucesso!`, className: 'bg-success text-success-foreground' });
         setSelectedChargeIds(new Set());
     };
@@ -220,12 +231,12 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             saleTotals[charge.saleCurrency] = (saleTotals[charge.saleCurrency] || 0) + chargeSale;
         });
 
-        const { costBRL, saleBRL } = watchedCharges.reduce((acc, charge) => {
+        const { costBRL, saleBRL } = watchedCharges?.reduce((acc, charge) => {
             const { costBRL, saleBRL } = calculateBRLValues(charge);
             acc.costBRL += costBRL;
             acc.saleBRL += saleBRL;
             return acc;
-        }, { costBRL: 0, saleBRL: 0 });
+        }, { costBRL: 0, saleBRL: 0 }) || { costBRL: 0, saleBRL: 0 };
 
         return {
             cost: costTotals,

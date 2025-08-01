@@ -22,7 +22,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
-import { addFinancialEntriesAction } from '@/app/actions';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 
 const quoteChargeSchemaForSheet = z.object({
@@ -52,6 +51,7 @@ interface ShipmentFinancialsTabProps {
     shipment: Shipment;
     partners: Partner[];
     onOpenDetails: (charge: QuoteCharge) => void;
+    onInvoiceCharges: (chargesToInvoice: QuoteCharge[]) => Promise<QuoteCharge[]>;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -92,11 +92,7 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
     );
 }
 
-const containerTypeOptions = ['Todos', 'Dry', 'Reefer', 'Especiais'];
-const chargeTypeOptions = ['Contêiner', 'BL', 'Processo', 'W/M', 'KG', 'AWB', 'Fixo', 'Percentual'];
-
-
-export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails }, ref) => {
+export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onInvoiceCharges }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
@@ -151,72 +147,16 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             return;
         }
 
-        const newEntries: Omit<import('/src/lib/financials-data').FinancialEntry, 'id'>[] = [];
-        const updatedChargeMap = new Map<string, QuoteCharge>();
-
-        // Agrupa por sacado para gerar uma fatura por parceiro
-        const bySacado = chargesToInvoice.reduce((acc, charge) => {
-            const key = charge.sacado || 'N/A';
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(charge);
-            return acc;
-        }, {} as Record<string, QuoteCharge[]>);
+        const updatedChargesFromParent = await onInvoiceCharges(chargesToInvoice);
         
-        for (const sacadoName of Object.keys(bySacado)) {
-            const partnerCharges = bySacado[sacadoName];
-            const isCredit = sacadoName === shipment.customer;
-            const entryType = isCredit ? 'credit' : 'debit';
-            const invoicePrefix = isCredit ? 'INV' : 'BILL';
-            const financialEntryId = `fin-${entryType}-${shipment.id}-${sacadoName.slice(0,3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+        // Update the form state with the new financialEntryId
+        const newChargesForForm = chargesFields.map(c => {
+            const updatedVersion = updatedChargesFromParent.find(uc => uc.id === c.id);
+            return updatedVersion || c;
+        });
+        form.setValue('charges', newChargesForForm as any);
 
-            const { total, currency } = partnerCharges.reduce((acc, charge) => {
-                const value = isCredit ? charge.sale : charge.cost;
-                const curr = isCredit ? charge.saleCurrency : charge.costCurrency;
-                // Simple logic: assumes all charges for one partner have the same currency. A real app would group by currency too.
-                acc.total += value;
-                acc.currency = curr;
-                return acc;
-            }, { total: 0, currency: 'BRL' as QuoteCharge['saleCurrency'] });
-
-            newEntries.push({
-                type: entryType, partner: sacadoName,
-                invoiceId: `${invoicePrefix}-${shipment.id.replace('PROC-','')}`, dueDate: new Date().toISOString(),
-                amount: total, currency: currency,
-                processId: shipment.id, status: 'Aberto', expenseType: 'Operacional'
-            });
-
-            partnerCharges.forEach(c => {
-                 updatedChargeMap.set(c.id, { ...c, financialEntryId });
-            });
-        }
-
-        await addFinancialEntriesAction(newEntries);
-        
-        // Update the form state to reflect the invoicing
-        const newCharges = chargesFields.map(c => updatedChargeMap.get(c.id) || c);
-        form.setValue('charges', newCharges);
-
-        toast({ title: `${newEntries.length} fatura(s) gerada(s) com sucesso!`, className: 'bg-success text-success-foreground' });
         setSelectedChargeIds(new Set());
-    };
-
-    const calculateBRLValues = (charge: QuoteCharge) => {
-        const costPartner = partners.find(p => p.name === charge.supplier);
-        const salePartner = partners.find(p => p.name === charge.sacado);
-
-        const costAgio = costPartner?.exchangeRateAgio ?? 0;
-        const saleAgio = salePartner?.exchangeRateAgio ?? 0;
-        
-        const costPtax = exchangeRates[charge.costCurrency] || 1;
-        const salePtax = exchangeRates[charge.saleCurrency] || 1;
-        
-        const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + costAgio / 100);
-        const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + saleAgio / 100);
-
-        return {
-            costBRL: charge.cost * costRate,
-            saleBRL: charge.sale * saleRate,
-        };
     };
 
     const totals = React.useMemo(() => {
@@ -230,13 +170,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             costTotals[charge.costCurrency] = (costTotals[charge.costCurrency] || 0) + chargeCost;
             saleTotals[charge.saleCurrency] = (saleTotals[charge.saleCurrency] || 0) + chargeSale;
         });
-
-        const { costBRL, saleBRL } = watchedCharges?.reduce((acc, charge) => {
-            const { costBRL, saleBRL } = calculateBRLValues(charge);
-            acc.costBRL += costBRL;
-            acc.saleBRL += saleBRL;
-            return acc;
-        }, { costBRL: 0, saleBRL: 0 }) || { costBRL: 0, saleBRL: 0 };
+        
+        const costBRL = 0;
+        const saleBRL = 0;
 
         return {
             cost: costTotals,
@@ -296,10 +232,8 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     <TableHead className="w-[150px]">Taxa</TableHead>
                                     <TableHead className="w-[150px]">Fornecedor</TableHead>
                                     <TableHead className="w-[200px] text-right">Custo</TableHead>
-                                    <TableHead className="text-right">Custo Total</TableHead>
                                     <TableHead className="w-[150px]">Sacado</TableHead>
                                     <TableHead className="w-[200px] text-right">Venda</TableHead>
-                                    <TableHead className="text-right">Venda Total</TableHead>
                                     <TableHead className="w-[50px]">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -346,9 +280,6 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                     <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} />
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="p-1 align-top text-right font-mono text-sm">
-                                                {charge.costCurrency} {charge.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            </TableCell>
                                             <TableCell className="p-1 align-top">
                                                 <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
                                                     <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
@@ -361,9 +292,6 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                 </div>
                                                 {charge.approvalStatus === 'pendente' && <Badge variant="default" className="mt-1">Pendente</Badge>}
                                                 {charge.approvalStatus === 'rejeitada' && <Badge variant="destructive" className="mt-1">Rejeitada</Badge>}
-                                            </TableCell>
-                                             <TableCell className="p-1 align-top text-right font-mono text-sm">
-                                                {charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                             </TableCell>
                                             <TableCell className="p-1 align-top text-center">
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)} disabled={isFaturado}><Trash2 className="h-4 w-4 text-destructive" /></Button>

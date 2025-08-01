@@ -32,7 +32,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { BankAccountDialog } from '@/components/financials/bank-account-form';
 import { NfseGenerationDialog } from '@/components/financials/nfse-generation-dialog';
-import type { Shipment } from '@/lib/shipment-data';
+import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import { getStoredShipments } from '@/lib/shipment-data-client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';

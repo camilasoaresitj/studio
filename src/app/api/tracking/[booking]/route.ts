@@ -1,3 +1,4 @@
+
 // src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
 import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
@@ -115,7 +116,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         return NextResponse.json({
           error: 'Erro ao registrar o embarque na Cargo-flows.',
           detail: detailMessage,
-          payload: payload,
+          payloadSent: payload, // Adicionado para depuração
         }, { status: createRes.status });
       }
 

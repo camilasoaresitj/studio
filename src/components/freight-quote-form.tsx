@@ -31,7 +31,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import type { Rate as LocalRate } from './rates-table';
-import type { Fee } from './fees-registry';
+import type { Fee } from '@/lib/fees-data';
 import { QuoteCostSheet } from './quote-cost-sheet';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

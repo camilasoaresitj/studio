@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -291,7 +291,7 @@ export function FinancialPageClient() {
         return entry.amount - totalPaid;
     };
     
-    const getEntryStatus = (entry: FinancialEntry): { status: Status, variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+    const getEntryStatus = useCallback((entry: FinancialEntry): { status: Status, variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
         if (entry.status === 'Pago') return { status: 'Pago', variant: 'outline' };
         if (entry.status === 'Renegociado') return { status: 'Renegociado', variant: 'secondary' };
         if (entry.status === 'Jurídico') return { status: 'Jurídico', variant: 'destructive' };
@@ -305,7 +305,7 @@ export function FinancialPageClient() {
 
         if (isPast(new Date(entry.dueDate)) && !isToday(new Date(entry.dueDate))) return { status: 'Vencido', variant: 'destructive' };
         return { status: 'Aberto', variant: 'secondary' };
-    };
+    }, []);
 
     const handleSettlePayment = async () => {
         if (!entryToSettle || !settlementAccountId || !settlementAmount) return;

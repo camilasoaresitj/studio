@@ -88,8 +88,6 @@ export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePaymen
             if(associatedShipment) {
                 const initialEditedRates: Record<string, { costRate?: number; saleRate?: number }> = {};
                 associatedShipment.charges.forEach(charge => {
-                    // This function now depends on state that is set within this effect.
-                    // To solve this, we can pass the newly fetched data directly.
                     const costPartner = partnersData.find(p => p.name === charge.supplier);
                     const salePartner = partnersData.find(p => p.name === charge.sacado);
                     const costAgio = costPartner?.exchangeRateAgio ?? 0;

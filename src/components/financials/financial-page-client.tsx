@@ -70,7 +70,7 @@ interface EntriesTableProps {
     handleResendInvoice: (entry: FinancialEntry) => void;
     getEntryStatus: (entry: FinancialEntry) => { status: Status; variant: 'default' | 'secondary' | 'destructive' | 'outline' };
     getBalanceInBRL: (entry: FinancialEntry) => number;
-    handleLegalEntryUpdate: (entryId: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: any) => void;
+    handleLegalEntryUpdate: (entryId: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: any) => Promise<void>;
 }
 
 

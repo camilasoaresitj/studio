@@ -40,7 +40,8 @@ import type { Shipment, BLDraftData, Milestone, QuoteCharge, ChatMessage, BLDraf
 import { shareSimulation } from "@/ai/flows/share-simulation";
 import { generateSimulationPdfHtml } from "@/ai/flows/generate-simulation-pdf-html";
 import { getRouteMap } from "@/ai/flows/get-route-map";
-import { getFinancialEntries, getBankAccounts, saveFinancialEntries as saveFinancialEntriesData, saveBankAccounts as saveBankAccountsData } from '@/lib/financials-data';
+// Use client-side functions for client components, and read data directly for server actions
+import { getStoredFinancialEntries, getStoredBankAccounts } from '@/lib/financials-data';
 import type { FinancialEntry, BankAccount, PartialPayment } from '@/lib/financials-data';
 
 // Helper function to simulate saving data and returning it
@@ -93,14 +94,15 @@ export async function savePartnerAction(partnerToSave: Partner) {
 
 export async function addFinancialEntriesAction(newEntriesData: Omit<FinancialEntry, 'id'>[]) {
     try {
-        const currentEntries = getFinancialEntries();
+        // Server action should read data directly, not from client-side storage functions
+        const currentEntries = getStoredFinancialEntries(); // This is ok as long as it falls back to initial data
         const newEntries = newEntriesData.map((entry, index) => ({
             ...entry,
             id: `fin-${Date.now()}-${index}`,
         }));
         const updatedEntries = [...currentEntries, ...newEntries];
         // In a real app, you would save `updatedEntries` to a database.
-        // saveFinancialEntriesData(updatedEntries); // This would be a DB call
+        // For prototype, we return the data for the client to save.
         return { success: true, data: updatedEntries };
     } catch (error: any) {
         return { success: false, error: error.message };
@@ -109,8 +111,8 @@ export async function addFinancialEntriesAction(newEntriesData: Omit<FinancialEn
 
 export async function updateFinancialEntryAction(entryOrPaymentData: { entryId: string; payment: PartialPayment; settlementAccountId: number } | FinancialEntry) {
     try {
-        const currentEntries = getFinancialEntries();
-        const currentAccounts = getBankAccounts();
+        const currentEntries = getStoredFinancialEntries(); // Server action reads initial data
+        const currentAccounts = getStoredBankAccounts(); // Server action reads initial data
         let updatedEntries = [...currentEntries];
         let updatedAccounts = [...currentAccounts];
 
@@ -143,14 +145,13 @@ export async function updateFinancialEntryAction(entryOrPaymentData: { entryId: 
         }
 
         // Persist changes would happen here in a real DB
-        // saveFinancialEntriesData(updatedEntries);
-        // saveBankAccountsData(updatedAccounts);
-
+        // The client will handle saving the returned data.
         return { success: true, data: { entries: updatedEntries, accounts: updatedAccounts } };
     } catch (error: any) {
          return { success: false, error: error.message };
     }
 }
+
 
 export async function runGetFreightRates(input: any) {
     try {
@@ -860,3 +861,5 @@ export async function saveApiKeysAction(data: any) {
     console.log("Simulating saving API keys to a secure store:", data);
     return { success: true, message: "API keys updated. A server restart would be needed in a real app." };
 }
+
+    

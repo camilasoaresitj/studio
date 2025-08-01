@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertCircle, DollarSign, Settings, ArrowRight } from 'lucide-react';
-import { getFinancialEntries, saveFinancialEntries, FinancialEntry } from '@/lib/financials-data';
+import { getStoredFinancialEntries, saveFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { getStoredShipments, saveShipments } from '@/lib/shipment-data-client';
 import type { Shipment, QuoteCharge, ApprovalLog } from '@/lib/shipment-data';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +24,7 @@ export function ApprovalsPanel() {
     const { toast } = useToast();
 
     const fetchPendingItems = () => {
-        const financialEntries = getFinancialEntries();
+        const financialEntries = getStoredFinancialEntries();
         const shipments = getStoredShipments();
 
         const pendingFinancial: ApprovalItem[] = financialEntries
@@ -62,7 +62,7 @@ export function ApprovalsPanel() {
         if (!viewingItem) return;
 
         if (viewingItem.type === 'finance') {
-            const updatedEntries = getFinancialEntries().map(e => {
+            const updatedEntries = getStoredFinancialEntries().map(e => {
                 if (e.id === viewingItem.item.id) {
                     const newStatus: FinancialEntry['status'] = approved ? 'Aberto' : 'Pendente de Aprovação';
                     return { ...e, status: newStatus };

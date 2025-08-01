@@ -334,6 +334,16 @@ export async function runMonitorTasks(emailSubject: string, emailContent: string
     }
 }
 
+export async function runGetCourierStatus(input: any) {
+    try {
+        const data = await getCourierStatus(input);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Get Courier Status Action Failed", error);
+        return { success: false, error: error.message || "Failed to get courier status" };
+    }
+}
+
 export async function runConsultNfse(input: any) {
     try {
         const data = await consultNfseItajai(input);
@@ -861,5 +871,3 @@ export async function saveApiKeysAction(data: any) {
     console.log("Simulating saving API keys to a secure store:", data);
     return { success: true, message: "API keys updated. A server restart would be needed in a real app." };
 }
-
-    

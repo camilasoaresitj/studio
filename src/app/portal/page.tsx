@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle, List, FileText, Ship, Anchor } from 'lucide-react';
 import { getStoredShipments } from '@/lib/shipment-data-client';
 import type { Shipment } from '@/lib/shipment-data';
-import { getFinancialEntries, FinancialEntry } from '@/lib/financials-data';
+import { getStoredFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { getInitialQuotes } from '@/lib/initial-data';
 import type { Quote } from '@/components/customer-quotes-list';
 import { useRouter } from 'next/navigation';
@@ -51,7 +51,7 @@ export default function CustomerPortalPage() {
             const customerShipments = allShipments.filter(s => s.customer === customerId);
             setShipments(customerShipments);
 
-            const allInvoices = getFinancialEntries();
+            const allInvoices = getStoredFinancialEntries();
             const customerInvoices = allInvoices.filter(i => i.partner === customerId && i.type === 'credit');
             setInvoices(customerInvoices);
             

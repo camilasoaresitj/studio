@@ -12,7 +12,7 @@ import { addFinancialEntriesAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import { CommissionDetailsDialog } from './commission-details-dialog'; 
-import { getFinancialEntries } from '@/lib/financials-data';
+import { getStoredFinancialEntries } from '@/lib/financials-data';
 
 interface CommissionManagementProps {
   partners: Partner[];
@@ -44,7 +44,7 @@ export function CommissionManagement({ partners, shipments, exchangeRates }: Com
 
   useEffect(() => {
     const commissionPartners = partners.filter(p => p.roles.comissionado && p.commissionAgreement?.amount);
-    const financialEntries = getFinancialEntries();
+    const financialEntries = getStoredFinancialEntries();
 
     const data = commissionPartners.map(partner => {
       const commissionableClientNames = new Set(partner.commissionAgreement?.commissionClients || []);

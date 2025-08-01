@@ -1,8 +1,11 @@
 
 'use client';
 
-import { getShipments, SHIPMENTS_STORAGE_KEY, type Shipment } from './shipment-data';
+import { getShipments, SHIPMENTS_STORAGE_KEY } from './shipment-data';
+import type { Shipment, ContainerDetail } from './shipment-data';
 import { isValid } from 'date-fns';
+
+export type { Shipment, ContainerDetail };
 
 // CLIENT-SIDE ONLY: Reads from localStorage.
 export function getStoredShipments(): Shipment[] {

@@ -12,26 +12,26 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetClose,
 } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { Form, FormControl, FormField, FormItem, FormLabel } from './ui/form';
+import { Form } from './ui/form';
 
-import type { Shipment, Milestone, Partner, QuoteCharge, FinancialEntry } from '@/lib/shipment-data';
+import type { Shipment, Partner, QuoteCharge, FinancialEntry } from '@/lib/shipment-data';
 import { 
     Save, 
     GanttChart, 
     Link as LinkIcon, 
-    RefreshCw, 
-    Loader2, 
     Printer,
     Clock,
     ChevronsUpDown,
-    Check
+    Check,
+    X
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, addFinancialEntriesAction } from '@/app/actions';
+import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf } from '@/app/actions';
 import { BLDraftForm } from './bl-draft-form';
 import { CustomsClearanceTab } from './customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
@@ -44,9 +44,6 @@ import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-ta
 import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
 import { FinancialDetailsDialog } from './financials/financial-details-dialog';
 import { getStoredFinancialEntries } from '@/lib/financials-data';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
-import { cn } from '@/lib/utils';
 
 
 const shipmentDetailsSchema = z.object({
@@ -102,70 +99,6 @@ const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string })
         </div>
     );
 };
-
-const PartnerCombobox = ({
-  partners,
-  value,
-  onValueChange,
-  placeholder,
-}: {
-  partners: Partner[];
-  value: string | undefined;
-  onValueChange: (value: string) => void;
-  placeholder: string;
-}) => {
-  const [open, setOpen] = useState(false);
-  const selectedPartner = partners.find((p) => p.id?.toString() === value);
-
-  return (
-    <div className="space-y-1">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <FormControl>
-            <Button
-              variant="outline"
-              role="combobox"
-              className={cn("w-full justify-between font-normal", !value && "text-muted-foreground")}
-            >
-              {selectedPartner ? selectedPartner.name : placeholder}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </FormControl>
-        </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-          <Command>
-            <CommandInput placeholder="Buscar parceiro..." />
-            <CommandList>
-              <CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
-              <CommandGroup>
-                {partners.map((partner) => (
-                  <CommandItem
-                    value={partner.name}
-                    key={partner.id}
-                    onSelect={() => {
-                      onValueChange(partner.id!.toString());
-                      setOpen(false);
-                    }}
-                  >
-                    <Check className={cn("mr-2 h-4 w-4", partner.id?.toString() === value ? "opacity-100" : "opacity-0")} />
-                    {partner.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      {selectedPartner && (
-        <div className="text-xs text-muted-foreground p-2 border rounded-md bg-secondary/50">
-          <p className="truncate">{selectedPartner.address?.street}, {selectedPartner.address?.number}</p>
-          <p>{selectedPartner.cnpj || selectedPartner.vat}</p>
-        </div>
-      )}
-    </div>
-  );
-};
-
 
 export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
@@ -331,192 +264,112 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             toast({ variant: 'destructive', title: 'Fatura não encontrada', description: 'Não foi possível localizar o lançamento financeiro associado.' });
         }
     };
-    
-    const handleInvoiceCharges = async (charges: QuoteCharge[], shipment: Shipment): Promise<{ updatedCharges: QuoteCharge[] }> => {
-        if (!shipment) return { updatedCharges: [] };
-        
-        const chargesToInvoice = charges.filter(c => !c.financialEntryId);
-        if (chargesToInvoice.length === 0) {
-           toast({ variant: 'destructive', title: 'Nenhuma taxa nova para faturar.'});
-           return { updatedCharges: shipment.charges || [] };
-       }
 
-       const newEntries: Omit<FinancialEntry, 'id'>[] = [];
-       const entryMap = new Map<string, { partner: string; charges: QuoteCharge[] }>();
-
-       chargesToInvoice.forEach(charge => {
-           const sacado = charge.sacado || shipment.customer;
-           if (!entryMap.has(sacado)) {
-               entryMap.set(sacado, { partner: sacado, charges: [] });
-           }
-           entryMap.get(sacado)!.charges.push(charge);
-       });
-       
-       const partnerDetails = partners.find(p => p.name === shipment.customer);
-
-       entryMap.forEach(({ partner, charges }) => {
-           const totalAmount = charges.reduce((sum, ch) => sum + ch.sale, 0);
-           const currency = charges[0].saleCurrency;
-           
-           newEntries.push({
-               type: 'credit',
-               partner: partner,
-               invoiceId: `INV-${shipment.id}-${partner.slice(0,3).toUpperCase()}`,
-               status: 'Aberto',
-               dueDate: addDays(new Date(), partnerDetails?.paymentTerm || 30).toISOString(),
-               amount: totalAmount,
-               currency: currency,
-               processId: shipment.id,
-               payments: [],
-               expenseType: 'Operacional',
-               description: `Serviços de frete ref. processo ${shipment.id}`
-           });
-       });
-
-       const response = await addFinancialEntriesAction(newEntries);
-       let finalCharges = [...(shipment.charges || [])];
-
-       if (response.success && response.data) {
-           newEntries.forEach(newEntry => {
-                const newEntryData = response.data.find(e => e.invoiceId === newEntry.invoiceId);
-                const originalCharges = entryMap.get(newEntry.partner)!.charges;
-                originalCharges.forEach(chargeToUpdate => {
-                    const idx = finalCharges.findIndex(c => c.id === chargeToUpdate.id);
-                    if(idx > -1 && newEntryData) {
-                        finalCharges[idx].financialEntryId = newEntryData.id;
-                    }
-                });
-           });
-           toast({ title: `${newEntries.length} fatura(s) gerada(s)!`, className: 'bg-success text-success-foreground' });
-       } else {
-            toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
-       }
-       return { updatedCharges: finalCharges };
-   };
-
-    if (!shipment) {
-        return (
-            <Sheet open={open} onOpenChange={onOpenChange}>
-                 <SheetContent className="sm:max-w-7xl w-full p-0 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                 </SheetContent>
-            </Sheet>
-        );
-    }
+    if (!shipment) return null;
     
     return (
         <>
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="sm:max-w-7xl w-full p-0">
-                <div className="flex flex-col h-full">
-                <Form {...form}>
-                    <SheetHeader className="p-4 border-b space-y-2">
-                        <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-primary/10 p-3 rounded-full">
-                                    <GanttChart className="h-8 w-8 text-primary"/>
-                                </div>
-                                <div>
-                                    <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
-                                    <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
-                                        <span>Ref. Cliente: {shipment.purchaseOrderNumber}</span>
-                                        <Separator orientation="vertical" className="h-4"/>
-                                        <span>Invoice: {shipment.invoiceNumber}</span>
-                                    </div>
+            <SheetContent className="sm:max-w-7xl w-full p-0 flex flex-col">
+                <SheetHeader className="p-4 border-b space-y-2">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-primary/10 p-3 rounded-full">
+                                <GanttChart className="h-8 w-8 text-primary"/>
+                            </div>
+                            <div>
+                                <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
+                                <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
+                                    <span>Ref. Cliente: {shipment.purchaseOrderNumber}</span>
+                                    <Separator orientation="vertical" className="h-4"/>
+                                    <span>Invoice: {shipment.invoiceNumber}</span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                 {foreignLocationClock && (
-                                    <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
-                                )}
-                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" disabled={isGenerating}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuItem onClick={() => generatePdf('client')}>Fatura do Cliente</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => generatePdf('agent')}>Invoice do Agente</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => generatePdf('hbl')}>HBL</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                 </DropdownMenu>
-                                <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
-                                <Button type="button" onClick={handleMasterSave} disabled={isUpdating}>
-                                    {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                                    Salvar Alterações
-                                </Button>
-                            </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2 items-start pt-2">
-                             <FormField control={form.control} name="shipperId" render={({ field }) => (<FormItem><FormLabel>Shipper</FormLabel><PartnerCombobox partners={partners} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
-                             <FormField control={form.control} name="consigneeId" render={({ field }) => (<FormItem><FormLabel>Consignee</FormLabel><PartnerCombobox partners={partners} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
-                             <FormField control={form.control} name="notifyId" render={({ field }) => (<FormItem><FormLabel>Notify</FormLabel><PartnerCombobox partners={partners} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
-                             <FormField control={form.control} name="agentId" render={({ field }) => (<FormItem><FormLabel>Agente</FormLabel><PartnerCombobox partners={partners.filter(p=> p.roles.agente)} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
+                        <div className="flex items-center gap-2">
+                             {foreignLocationClock && (
+                                <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
+                            )}
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" disabled={isGenerating}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={() => generatePdf('client')}>Fatura do Cliente</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => generatePdf('agent')}>Invoice do Agente</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => generatePdf('hbl')}>HBL</DropdownMenuItem>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
+                            <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
                         </div>
-                    </SheetHeader>
-                    
-                    <div className="flex-grow overflow-y-auto">
-                        <Tabs value={activeTab} onValueChange={setActiveTab}>
-                            <div className="p-4 border-b">
-                            <TabsList>
-                                <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                                <TabsTrigger value="details">Detalhes</TabsTrigger>
-                                <TabsTrigger value="financials">Financeiro</TabsTrigger>
-                                <TabsTrigger value="documents">Documentos</TabsTrigger>
-                                <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>
-                                <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
-                            </TabsList>
-                            </div>
-
-                            <div className="p-4">
-                                <TabsContent value="timeline">
-                                    <ShipmentTimelineTab
-                                        ref={(el) => { if (el) formRefs.current['timeline'] = el; }}
-                                        shipment={shipment}
-                                        onUpdate={onUpdate}
-                                    />
-                                </TabsContent>
-                                <TabsContent value="details">
-                                     <ShipmentDetailsTab
-                                        ref={(el) => { if (el) formRefs.current['details'] = el; }}
-                                        shipment={shipment}
-                                        partners={partners}
-                                        onUpdate={onUpdate}
-                                        isTracking={isTracking}
-                                        setIsTracking={setIsTracking}
-                                    />
-                                </TabsContent>
-                                <TabsContent value="financials">
-                                     <ShipmentFinancialsTab
-                                        ref={(el) => { if (el) formRefs.current['financials'] = el; }}
-                                        shipment={shipment}
-                                        partners={partners}
-                                        onOpenDetails={handleOpenDetailsDialog}
-                                        onInvoiceCharges={handleInvoiceCharges}
-                                    />
-                                </TabsContent>
-                                <TabsContent value="documents">
-                                     <ShipmentDocumentsTab
-                                        ref={(el) => { if (el) formRefs.current['documents'] = el; }}
-                                        shipment={shipment}
-                                    />
-                                </TabsContent>
-                                <TabsContent value="bl_draft">
-                                     <BLDraftForm
-                                        ref={(el) => { if (el) formRefs.current['bl_draft'] = el as any; }}
-                                        shipment={shipment} 
-                                        onUpdate={onUpdate} 
-                                        isSheet 
-                                    />
-                                </TabsContent>
-                                <TabsContent value="desembaraco">
-                                    <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate}/>
-                                </TabsContent>
-                            </div>
-                        </Tabs>
                     </div>
-                </Form>
+                </SheetHeader>
+                <div className="flex-grow overflow-y-auto">
+                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <div className="p-4 border-b">
+                        <TabsList>
+                            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                            <TabsTrigger value="details">Detalhes</TabsTrigger>
+                            <TabsTrigger value="financials">Financeiro</TabsTrigger>
+                            <TabsTrigger value="documents">Documentos</TabsTrigger>
+                            <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>
+                            <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
+                        </TabsList>
+                        </div>
+                        <div className="p-4">
+                            <TabsContent value="timeline">
+                                <ShipmentTimelineTab
+                                    ref={(el) => { if (el) formRefs.current['timeline'] = el; }}
+                                    shipment={shipment}
+                                    onUpdate={onUpdate}
+                                />
+                            </TabsContent>
+                            <TabsContent value="details">
+                                 <ShipmentDetailsTab
+                                    ref={(el) => { if (el) formRefs.current['details'] = el; }}
+                                    shipment={shipment}
+                                    partners={partners}
+                                    onUpdate={onUpdate}
+                                    isTracking={isTracking}
+                                    setIsTracking={setIsTracking}
+                                />
+                            </TabsContent>
+                            <TabsContent value="financials">
+                                 <ShipmentFinancialsTab
+                                    ref={(el) => { if (el) formRefs.current['financials'] = el; }}
+                                    shipment={shipment}
+                                    partners={partners}
+                                    onOpenDetails={handleOpenDetailsDialog}
+                                    onInvoiceCharges={() => Promise.resolve({updatedCharges:[]})}
+                                />
+                            </TabsContent>
+                            <TabsContent value="documents">
+                                 <ShipmentDocumentsTab
+                                    ref={(el) => { if (el) formRefs.current['documents'] = el; }}
+                                    shipment={shipment}
+                                />
+                            </TabsContent>
+                            <TabsContent value="bl_draft">
+                                 <BLDraftForm
+                                    ref={(el) => { if (el) formRefs.current['bl_draft'] = el as any; }}
+                                    shipment={shipment} 
+                                    onUpdate={onUpdate} 
+                                    isSheet 
+                                />
+                            </TabsContent>
+                            <TabsContent value="desembaraco">
+                                <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate}/>
+                            </TabsContent>
+                        </div>
+                    </Tabs>
                 </div>
-            </SheetContent>
+                 <div className="p-4 border-t flex justify-end">
+                    <Button type="button" onClick={handleMasterSave} disabled={isUpdating}>
+                        {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                        Salvar Todas as Alterações
+                    </Button>
+                </div>
+                </SheetContent>
         </Sheet>
         <FinancialDetailsDialog
             entry={detailsEntry}

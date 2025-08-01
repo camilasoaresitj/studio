@@ -51,7 +51,7 @@ interface ShipmentFinancialsTabProps {
     shipment: Shipment;
     partners: Partner[];
     onOpenDetails: (charge: QuoteCharge) => void;
-    onInvoiceCharges: (chargesToInvoice: QuoteCharge[]) => Promise<QuoteCharge[]>;
+    onInvoiceCharges?: (chargesToInvoice: QuoteCharge[]) => Promise<QuoteCharge[]>;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -147,6 +147,11 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             return;
         }
 
+        if (!onInvoiceCharges) {
+             toast({ variant: 'destructive', title: 'Função de faturamento não implementada.'});
+            return;
+        }
+
         const updatedChargesFromParent = await onInvoiceCharges(chargesToInvoice);
         
         // Update the form state with the new financialEntryId
@@ -231,9 +236,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     <TableHead className="w-10"></TableHead>
                                     <TableHead className="w-[150px]">Taxa</TableHead>
                                     <TableHead className="w-[150px]">Fornecedor</TableHead>
-                                    <TableHead className="w-[200px] text-right">Custo</TableHead>
+                                    <TableHead className="w-[200px] text-right">Custo Total</TableHead>
                                     <TableHead className="w-[150px]">Sacado</TableHead>
-                                    <TableHead className="w-[200px] text-right">Venda</TableHead>
+                                    <TableHead className="w-[200px] text-right">Venda Total</TableHead>
                                     <TableHead className="w-[50px]">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -312,7 +317,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                         <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Venda Total</CardTitle></CardHeader>
                         <CardContent className="p-2 text-base font-semibold font-mono">{formatTotals(totals.sale)}</CardContent>
                     </Card>
-                    <Card className={cn(totals.profitBRL < 0 ? 'border-destructive' : 'border-success')}>
+                    <Card className={cn(totals.profitBRL < 0 ? "border-destructive" : "border-success")}>
                         <CardHeader className="p-2 pb-0"><CardTitle className="text-sm font-normal text-muted-foreground">Resultado (em BRL)</CardTitle></CardHeader>
                         <CardContent className={cn("p-2 text-base font-semibold font-mono", totals.profitBRL < 0 ? "text-destructive" : "text-success")}>
                             {totals.profitBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

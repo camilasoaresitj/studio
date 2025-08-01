@@ -64,6 +64,7 @@ export const baseFreightQuoteFormSchema = z.object({
   roadShipment: z.object({
     truckType: z.string().optional(),
     pieces: z.array(airPieceSchema).optional(),
+    border: z.string().optional(),
   }),
 
   optionalServices: z.object({

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Trash2, PlusCircle, Save, ChevronsUpDown, Check, Wallet, FileText } from 'lucide-react';
 import type { Shipment, Partner, QuoteCharge } from '@/lib/shipment-data';
 import { cn } from '@/lib/utils';
@@ -52,7 +53,7 @@ interface ShipmentFinancialsTabProps {
     shipment: Shipment;
     partners: Partner[];
     onOpenDetails: (charge: QuoteCharge) => void;
-    onUpdateShipment: (updatedShipment: Shipment) => void;
+    handleInvoiceCharges: (charges: QuoteCharge[], shipment: Shipment) => Promise<{ updatedCharges: QuoteCharge[] }>;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -104,7 +105,7 @@ const chargeTypeOptions = [
     'Percentual',
 ];
 
-export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onUpdateShipment }, ref) => {
+export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, handleInvoiceCharges }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
@@ -141,69 +142,16 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
 
     const watchedCharges = form.watch('charges');
 
-    const handleInvoiceSelected = async () => {
+    const handleInvoiceSelectedWrapper = async () => {
         const chargesToInvoice = watchedCharges?.filter(c => selectedChargeIds.has(c.id)) || [];
         if (chargesToInvoice.length === 0) {
             toast({ variant: 'destructive', title: 'Nenhuma taxa selecionada.'});
             return;
         }
 
-        const newEntries: Omit<import('@/lib/financials-data').FinancialEntry, 'id'>[] = [];
-        const entryMap = new Map<string, { partner: string; charges: QuoteCharge[] }>();
-
-        chargesToInvoice.forEach(charge => {
-            const sacado = charge.sacado || shipment.customer;
-            if (!entryMap.has(sacado)) {
-                entryMap.set(sacado, { partner: sacado, charges: [] });
-            }
-            entryMap.get(sacado)!.charges.push(charge as QuoteCharge);
-        });
-
-        const partnerDetails = partners.find(p => p.name === shipment.customer);
-
-        entryMap.forEach(({ partner, charges }) => {
-            const totalAmount = charges.reduce((sum, ch) => sum + ch.sale, 0);
-            const currency = charges[0].saleCurrency;
-            
-            newEntries.push({
-                type: 'credit',
-                partner: partner,
-                invoiceId: `INV-${shipment.id}-${partner.slice(0,3).toUpperCase()}`,
-                status: 'Aberto',
-                dueDate: addDays(new Date(), partnerDetails?.paymentTerm || 30).toISOString(),
-                amount: totalAmount,
-                currency: currency,
-                processId: shipment.id,
-                payments: [],
-                expenseType: 'Operacional',
-                description: `Serviços de frete ref. processo ${shipment.id}`
-            });
-        });
-
-        const response = await addFinancialEntriesAction(newEntries);
+        const { updatedCharges } = await handleInvoiceCharges(chargesToInvoice as QuoteCharge[], shipment);
         
-        if (response.success && response.data) {
-            let entryIndex = response.data.length - newEntries.length;
-            const updatedCharges = [...(watchedCharges || [])];
-
-            newEntries.forEach(newEntry => {
-                 const newEntryData = response.data.find(e => e.invoiceId === newEntry.invoiceId);
-                 const originalCharges = entryMap.get(newEntry.partner)!.charges;
-                 originalCharges.forEach(chargeToUpdate => {
-                     const idx = updatedCharges.findIndex(c => c.id === chargeToUpdate.id);
-                     if(idx > -1 && newEntryData) {
-                         updatedCharges[idx].financialEntryId = newEntryData.id;
-                     }
-                 });
-                 entryIndex++;
-            });
-            form.setValue('charges', updatedCharges as any);
-            onUpdateShipment({ ...shipment, charges: updatedCharges as QuoteCharge[] });
-            toast({ title: `${newEntries.length} fatura(s) gerada(s)!`, className: 'bg-success text-success-foreground' });
-        } else {
-             toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
-        }
-        
+        form.setValue('charges', updatedCharges as any);
         setSelectedChargeIds(new Set());
     };
 
@@ -281,7 +229,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                     <div className="flex justify-between items-center">
                         <CardTitle>Planilha de Custos e Vendas</CardTitle>
                         <div className="flex items-center gap-2">
-                             <Button type="button" variant="secondary" size="sm" onClick={handleInvoiceSelected} disabled={selectedChargeIds.size === 0}>
+                             <Button type="button" variant="secondary" size="sm" onClick={handleInvoiceSelectedWrapper} disabled={selectedChargeIds.size === 0}>
                                 <FileText className="mr-2 h-4 w-4"/> Faturar Selecionados ({selectedChargeIds.size})
                             </Button>
                             <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `custom-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'pendente', financialEntryId: null })}>

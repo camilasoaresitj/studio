@@ -663,67 +663,6 @@ export function FinancialPageClient() {
         loadData(); // Reload financial data too
     };
 
-    const handleInvoiceCharges = async (charges: QuoteCharge[], shipment: Shipment) => {
-         const chargesToInvoice = charges.filter(c => !c.financialEntryId);
-         if (chargesToInvoice.length === 0) {
-            toast({ variant: 'destructive', title: 'Nenhuma taxa nova para faturar.'});
-            return { updatedCharges: shipment.charges };
-        }
-
-        const newEntries: Omit<FinancialEntry, 'id'>[] = [];
-        const entryMap = new Map<string, { partner: string; charges: QuoteCharge[] }>();
-
-        chargesToInvoice.forEach(charge => {
-            const sacado = charge.sacado || shipment.customer;
-            if (!entryMap.has(sacado)) {
-                entryMap.set(sacado, { partner: sacado, charges: [] });
-            }
-            entryMap.get(sacado)!.charges.push(charge);
-        });
-
-        entryMap.forEach(({ partner, charges }) => {
-            const totalAmount = charges.reduce((sum, ch) => sum + ch.sale, 0);
-            const currency = charges[0].saleCurrency;
-            
-            newEntries.push({
-                type: 'credit',
-                partner: partner,
-                invoiceId: `INV-${shipment.id}-${partner.slice(0,3).toUpperCase()}`,
-                status: 'Aberto',
-                dueDate: addDays(new Date(), partner.paymentTerm || 30).toISOString(),
-                amount: totalAmount,
-                currency: currency,
-                processId: shipment.id,
-                payments: [],
-                expenseType: 'Operacional',
-                description: `Serviços de frete ref. processo ${shipment.id}`
-            });
-        });
-
-        const response = await addFinancialEntriesAction(newEntries);
-        let finalCharges = [...shipment.charges];
-
-        if (response.success && response.data) {
-            let entryIndex = response.data.length - newEntries.length;
-            newEntries.forEach(newEntry => {
-                 const originalCharges = entryMap.get(newEntry.partner)!.charges;
-                 originalCharges.forEach(chargeToUpdate => {
-                     const idx = finalCharges.findIndex(c => c.id === chargeToUpdate.id);
-                     if(idx > -1) {
-                         finalCharges[idx].financialEntryId = response.data[entryIndex].id;
-                     }
-                 });
-                 entryIndex++;
-            });
-            setEntries(response.data);
-            saveFinancialEntries(response.data);
-            toast({ title: `${newEntries.length} fatura(s) gerada(s)!`, className: 'bg-success text-success-foreground' });
-        } else {
-             toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
-        }
-        return { updatedCharges: finalCharges };
-    }
-
     return (
         <div className="space-y-8">
             <header>
@@ -964,7 +903,7 @@ export function FinancialPageClient() {
             open={isSheetOpen}
             onOpenChange={setIsSheetOpen}
             onUpdate={handleUpdateShipment}
-            onInvoiceCharges={handleInvoiceCharges}
+            onInvoiceCharges={() => Promise.resolve({updatedCharges: []})}
         />
 
     </div>

@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -15,7 +15,9 @@ import {
     FileCheck,
     Download,
     CalendarIcon,
-    Package
+    Package,
+    Loader2,
+    Search
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -34,7 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Separator } from '../ui/separator';
+import { getCourierStatus as runGetCourierStatus } from '@/app/actions';
 
 const documentsFormSchema = z.object({
     documents: z.array(z.any()).optional(),
@@ -49,13 +51,14 @@ type DocumentsFormData = z.infer<typeof documentsFormSchema>;
 
 interface ShipmentDocumentsTabProps {
     shipment: Shipment;
-    onUpdate: (shipment: Partial<Shipment>) => void;
 }
 
-export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDocumentsTabProps>(({ shipment, onUpdate }, ref) => {
+export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDocumentsTabProps>(({ shipment }, ref) => {
     const { toast } = useToast();
     const [documentPreviews, setDocumentPreviews] = useState<Record<string, string>>({});
     const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
+    const [isTrackingCourier, setIsTrackingCourier] = useState(false);
+    const [courierStatus, setCourierStatus] = useState<string | null>(shipment.courierLastStatus || null);
 
     const form = useForm<DocumentsFormData>({
         defaultValues: {
@@ -67,6 +70,18 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
             courierSentDate: shipment.courierSentDate ? new Date(shipment.courierSentDate) : null,
         }
     });
+    
+     useEffect(() => {
+        form.reset({
+            documents: shipment.documents || [],
+            mblPrintingAtDestination: shipment.mblPrintingAtDestination,
+            mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : null,
+            courierName: shipment.courier,
+            courierTrackingNumber: shipment.courierNumber,
+            courierSentDate: shipment.courierSentDate ? new Date(shipment.courierSentDate) : null,
+        });
+        setCourierStatus(shipment.courierLastStatus || null);
+    }, [shipment, form]);
 
     useImperativeHandle(ref, () => ({
         submit: async () => {
@@ -86,12 +101,13 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                 return doc;
             });
             
-            // Check if HBL was just approved
             const hblDoc = updatedDocuments.find(d => (d.name === 'Draft HBL' || d.name === 'Original HBL') && d.status === 'approved');
+            const originalHblDoc = shipment.documents?.find(d => (d.name === 'Draft HBL' || d.name === 'Original HBL'));
+
             const hblMilestoneExists = currentShipmentMilestones.some(m => m.name === 'HBL Aprovado');
             let updatedMilestones = [...currentShipmentMilestones];
             
-            if (hblDoc && !hblMilestoneExists) {
+            if (hblDoc && originalHblDoc?.status !== 'approved' && !hblMilestoneExists) {
                 updatedMilestones.push({
                     name: 'HBL Aprovado',
                     status: 'completed',
@@ -109,6 +125,7 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                 courier: values.courierName,
                 courierNumber: values.courierTrackingNumber,
                 courierSentDate: values.courierSentDate,
+                courierLastStatus: courierStatus,
             };
         }
     }));
@@ -118,7 +135,6 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
 
         setUploadedFiles(prev => ({ ...prev, [docName]: file }));
         
-        // Also update the form state to reflect the upload
         const currentDocs = form.getValues('documents') || [];
         const updatedDocs = currentDocs.map(doc => 
             doc.name === docName ? { ...doc, status: 'uploaded', fileName: file.name, uploadedAt: new Date() } : doc
@@ -143,6 +159,12 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+        } else if(doc.content) {
+            const newWindow = window.open();
+            if(newWindow) {
+                newWindow.document.write(doc.content);
+                newWindow.document.close();
+            }
         } else {
             toast({ variant: "destructive", title: "Arquivo não encontrado", description: "O arquivo não foi anexado nesta sessão." });
         }
@@ -160,6 +182,26 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
             description: 'Clique em "Salvar Alterações" para confirmar.',
         });
     };
+    
+    const handleTrackCourier = async () => {
+        const courierName = form.getValues('courierName');
+        const trackingNumber = form.getValues('courierTrackingNumber');
+
+        if (!courierName || !trackingNumber) {
+            toast({ variant: 'destructive', title: 'Dados incompletos', description: 'Preencha o nome do courier e o número de rastreio.'});
+            return;
+        }
+
+        setIsTrackingCourier(true);
+        setCourierStatus('Rastreando...');
+        const response = await runGetCourierStatus({ courier: courierName, trackingNumber });
+        if (response.success && response.data) {
+            setCourierStatus(response.data.lastStatus);
+        } else {
+            setCourierStatus(`Erro: ${response.error}`);
+        }
+        setIsTrackingCourier(false);
+    }
     
     const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
     const documents = form.watch('documents') || [];
@@ -288,7 +330,15 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                                         <FormItem><FormLabel>Courrier</FormLabel><FormControl><Input placeholder="Ex: DHL, FedEx" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                      <FormField control={form.control} name="courierTrackingNumber" render={({ field }) => (
-                                        <FormItem><FormLabel>Nº de Rastreio</FormLabel><FormControl><Input placeholder="Ex: 1234567890" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Nº de Rastreio</FormLabel>
+                                            <div className="flex gap-2">
+                                                <FormControl><Input placeholder="Ex: 1234567890" {...field} /></FormControl>
+                                                <Button type="button" variant="secondary" onClick={handleTrackCourier} disabled={isTrackingCourier}>
+                                                    {isTrackingCourier ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}
+                                                </Button>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}/>
                                      <FormField control={form.control} name="courierSentDate" render={({ field }) => (
                                         <FormItem className="flex flex-col">
@@ -305,6 +355,12 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                                             <FormMessage />
                                         </FormItem>
                                     )}/>
+                                    {courierStatus && (
+                                        <div className="pt-2">
+                                            <p className="text-sm font-semibold">Último Status:</p>
+                                            <p className="text-sm text-muted-foreground p-2 bg-muted rounded-md">{courierStatus}</p>
+                                        </div>
+                                    )}
                                  </div>
                              </div>
                         )}

@@ -1,3 +1,4 @@
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -12,6 +13,15 @@ const nextConfig = {
     '@genkit-ai/firebase',
     '@genkit-ai/google-cloud',
   ],
+  webpack: (config) => {
+    config.ignoreWarnings = [
+        /require\.extensions/, 
+        /Critical dependency/,
+        /Module not found: Can't resolve '@opentelemetry\/winston-transport'/,
+        /Module not found: Can't resolve '@opentelemetry\/exporter-jaeger'/
+    ];
+    return config;
+  }
 }
 
 module.exports = nextConfig

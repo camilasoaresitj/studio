@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -23,6 +23,7 @@ import { Badge } from '../ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { addFinancialEntriesAction } from '@/app/actions';
+import { exchangeRateService } from '@/services/exchange-rate-service';
 
 const quoteChargeSchemaForSheet = z.object({
     id: z.string(),
@@ -99,6 +100,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
+    const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
 
     const form = useForm<FinancialsFormData>({
         resolver: zodResolver(financialsFormSchema),
@@ -106,6 +108,14 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             charges: shipment.charges || [],
         }
     });
+    
+    React.useEffect(() => {
+        const fetchRates = async () => {
+            const rates = await exchangeRateService.getRates();
+            setExchangeRates(rates);
+        };
+        fetchRates();
+    }, []);
 
     useImperativeHandle(ref, () => ({
         submit: async () => {
@@ -179,6 +189,25 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
         setSelectedChargeIds(new Set());
     };
 
+    const calculateBRLValues = (charge: QuoteCharge) => {
+        const costPartner = partners.find(p => p.name === charge.supplier);
+        const salePartner = partners.find(p => p.name === charge.sacado);
+
+        const costAgio = costPartner?.exchangeRateAgio ?? 0;
+        const saleAgio = salePartner?.exchangeRateAgio ?? 0;
+        
+        const costPtax = exchangeRates[charge.costCurrency] || 1;
+        const salePtax = exchangeRates[charge.saleCurrency] || 1;
+        
+        const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + costAgio / 100);
+        const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + saleAgio / 100);
+
+        return {
+            costBRL: charge.cost * costRate,
+            saleBRL: charge.sale * saleRate,
+        };
+    };
+
     return (
         <Form {...form}>
             <Card>
@@ -203,11 +232,11 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     <TableHead className="w-10"></TableHead>
                                     <TableHead className="w-[150px]">Taxa</TableHead>
                                     <TableHead className="w-[150px]">Fornecedor</TableHead>
-                                    <TableHead className="w-[120px]">Cobrança por</TableHead>
-                                    <TableHead className="w-[120px]">Tipo Cont.</TableHead>
                                     <TableHead className="w-[200px]">Custo</TableHead>
+                                    <TableHead className="w-[120px] text-right">Custo (BRL)</TableHead>
                                     <TableHead className="w-[150px]">Sacado</TableHead>
                                     <TableHead className="w-[200px]">Venda</TableHead>
+                                    <TableHead className="w-[120px] text-right">Venda (BRL)</TableHead>
                                     <TableHead className="w-[50px]">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -216,7 +245,8 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     const charge = watchedCharges?.[index];
                                     if (!charge) return null;
                                     const isFaturado = !!charge.financialEntryId;
-                                    const isContainerCharge = charge.type === 'Contêiner';
+                                    const { costBRL, saleBRL } = calculateBRLValues(charge);
+                                    
                                     return (
                                         <TableRow key={field.id} data-state={isFaturado ? 'selected' : ''}>
                                             <TableCell className="p-1 align-top">
@@ -249,20 +279,13 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                 )} />
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
-                                                <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{chargeTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="p-1 align-top">
-                                                 <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado || !isContainerCharge}><SelectTrigger className="h-8"><SelectValue /></SelectTrigger><SelectContent>{containerTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="p-1 align-top">
                                                  <div className="flex gap-1">
                                                     <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select>)} />
                                                     <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} />
                                                 </div>
+                                            </TableCell>
+                                            <TableCell className="p-1 align-top text-right font-mono text-sm">
+                                                {costBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
                                             <TableCell className="p-1 align-top">
                                                 <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
@@ -276,6 +299,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                 </div>
                                                 {charge.approvalStatus === 'pendente' && <Badge variant="default" className="mt-1">Pendente</Badge>}
                                                 {charge.approvalStatus === 'rejeitada' && <Badge variant="destructive" className="mt-1">Rejeitada</Badge>}
+                                            </TableCell>
+                                            <TableCell className="p-1 align-top text-right font-mono text-sm">
+                                                 {saleBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </TableCell>
                                             <TableCell className="p-1 align-top text-center">
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)} disabled={isFaturado}><Trash2 className="h-4 w-4 text-destructive" /></Button>

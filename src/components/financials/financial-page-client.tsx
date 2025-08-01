@@ -75,7 +75,7 @@ const EntriesTable = ({
 }: {
     tableEntries: FinancialEntry[];
     selectedRows: Set<string>;
-    toggleRowSelection: (id: string) => void;
+    toggleRowSelection: (id: string, isChecked: boolean) => void;
     isLegalTable?: boolean;
     handleProcessClick: (entry: FinancialEntry) => void;
     handleLegalEntryUpdate: (entryId: string, field: 'legalStatus' | 'processoJudicial' | 'legalComments', value: any) => void;
@@ -99,11 +99,7 @@ const EntriesTable = ({
                     <Checkbox
                         checked={selectedRows.size > 0 && tableEntries.length > 0 && tableEntries.every(e => selectedRows.has(e.id))}
                         onCheckedChange={(checked) => {
-                            if (checked) {
-                                setSelectedRows(new Set(tableEntries.map(e => e.id)));
-                            } else {
-                                setSelectedRows(new Set());
-                            }
+                            tableEntries.forEach(e => toggleRowSelection(e.id, !!checked));
                         }}
                         aria-label="Selecionar todos"
                     />
@@ -129,7 +125,7 @@ const EntriesTable = ({
                             {!isLegalTable && <TableCell>
                                 <Checkbox
                                     checked={selectedRows.has(entry.id)}
-                                    onCheckedChange={() => toggleRowSelection(entry.id)}
+                                    onCheckedChange={(checked) => toggleRowSelection(entry.id, !!checked)}
                                     aria-label="Selecionar linha"
                                 />
                             </TableCell>}
@@ -446,13 +442,13 @@ export function FinancialPageClient() {
         setIsGenerating(false);
     }
 
-    const toggleRowSelection = (id: string) => {
+    const toggleRowSelection = (id: string, isChecked: boolean) => {
         setSelectedRows(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(id)) {
-                newSet.delete(id);
-            } else {
+            if (isChecked) {
                 newSet.add(id);
+            } else {
+                newSet.delete(id);
             }
             return newSet;
         });
@@ -594,6 +590,40 @@ export function FinancialPageClient() {
             return statusMatch && partnerMatch && invoiceMatch && processMatch;
         });
     }, [entries, statusFilter, textFilters]);
+    
+    const handleSaveAccount = (account: BankAccount) => {
+        const updatedAccounts = [...accounts];
+        if (editingAccount && editingAccount.id) {
+            const index = updatedAccounts.findIndex(a => a.id === editingAccount.id);
+            if (index > -1) {
+                updatedAccounts[index] = { ...account, id: editingAccount.id };
+            }
+        } else {
+            const newId = Math.max(0, ...accounts.map(a => a.id)) + 1;
+            updatedAccounts.push({ ...account, id: newId });
+        }
+        setAccounts(updatedAccounts);
+        saveBankAccounts(updatedAccounts);
+        setEditingAccount(null);
+    };
+
+    const handleSaveEntry = async (entryData: Omit<FinancialEntry, 'id'>) => {
+        const response = await addFinancialEntriesAction([entryData]);
+        if (response.success && response.data) {
+            setEntries(response.data);
+            toast({
+                title: "Despesa enviada para aprovação!",
+                className: 'bg-success text-success-foreground'
+            });
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao salvar despesa',
+                description: response.error
+            });
+        }
+        setIsEntryDialogOpen(false);
+    };
 
     return (
         <div className="space-y-8">
@@ -675,7 +705,7 @@ export function FinancialPageClient() {
                             ))}
                         </div>
                         <EntriesTable
-                            tableEntries={filteredEntries}
+                            tableEntries={filteredEntries.filter(e => e.status !== 'Jurídico')}
                             selectedRows={selectedRows}
                             toggleRowSelection={toggleRowSelection}
                             handleProcessClick={handleProcessClick}
@@ -708,7 +738,7 @@ export function FinancialPageClient() {
                 </TabsContent>
                 
                 <TabsContent value="comissoes" className="mt-6">
-                    <CommissionManagement partners={partners} shipments={allShipments} exchangeRates={ptaxRates} />
+                    <CommissionManagement partners={partners.filter(p => p.roles.comissionado)} shipments={allShipments} exchangeRates={ptaxRates} />
                 </TabsContent>
 
                 <TabsContent value="consulta_nfse" className="mt-6">
@@ -790,8 +820,8 @@ export function FinancialPageClient() {
             </AlertDialogContent>
         </AlertDialog>
 
-        <BankAccountDialog isOpen={!!editingAccount} onClose={() => setEditingAccount(null)} onSave={() => {}} account={editingAccount} />
-        <FinancialEntryDialog isOpen={isEntryDialogOpen} onClose={() => setIsEntryDialogOpen(false)} onSave={() => {}} />
+        <BankAccountDialog isOpen={!!editingAccount} onClose={() => setEditingAccount(null)} onSave={handleSaveAccount} account={editingAccount} />
+        <FinancialEntryDialog isOpen={isEntryDialogOpen} onClose={() => setIsEntryDialogOpen(false)} onSave={handleSaveEntry} />
         
         <BankAccountStatementDialog
             account={statementAccount}

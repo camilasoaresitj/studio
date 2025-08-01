@@ -2,7 +2,6 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { getStoredShipments, updateShipment } from '@/lib/shipment-data';
 import type { Shipment, Milestone, DocumentStatus } from '@/lib/shipment-data';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -21,6 +20,7 @@ import { Loader2 } from 'lucide-react';
 import { findPortByTerm } from '@/lib/ports';
 import React from 'react';
 import { ShipmentMap } from './shipment-map';
+import { getStoredShipments, saveShipments } from '@/lib/shipment-data-client';
 
 const MilestoneIcon = ({ status, predictedDate, isTransshipment }: { status: Milestone['status'], predictedDate?: Date | null, isTransshipment?: boolean }) => {
     if (!predictedDate || !isValid(predictedDate)) {
@@ -79,20 +79,22 @@ const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string })
     );
 };
 
-export function ClientPortalPage({ id }: { id: string }) {
-    const [shipment, setShipment] = useState<Shipment | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+export function ClientPortalPage({ initialShipment, id }: { initialShipment: Shipment | undefined, id: string }) {
+    const [shipment, setShipment] = useState<Shipment | null>(initialShipment || null);
+    const [isLoading, setIsLoading] = useState(!initialShipment);
     const router = useRouter();
 
     useEffect(() => {
-      setIsLoading(true);
-      const allShipments = getStoredShipments();
-      const data = allShipments.find(s => s.id === id);
-      if (data) {
-        setShipment(data);
+      if (!initialShipment) {
+        setIsLoading(true);
+        const allShipments = getStoredShipments();
+        const data = allShipments.find(s => s.id === id);
+        if (data) {
+          setShipment(data);
+        }
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    }, [id]);
+    }, [id, initialShipment]);
     
     const sortedMilestones = useMemo(() => {
         if (!shipment?.milestones) return [];
@@ -302,13 +304,13 @@ export function ClientPortalPage({ id }: { id: string }) {
                                     </CardContent>
                                 </Card>
                                  <div className="lg:col-span-1">
-                                     {shipment.bookingNumber ? (
-                                        <ShipmentMap shipmentNumber={shipment.bookingNumber} />
+                                     {shipment.id ? (
+                                        <ShipmentMap shipmentNumber={shipment.id} />
                                     ) : (
                                         <Card>
                                             <CardContent className="flex flex-col items-center justify-center h-96 text-center text-muted-foreground">
                                                 <MapIcon className="h-12 w-12 mb-4" />
-                                                <p>É necessário um Booking Number para visualizar o mapa da rota.</p>
+                                                <p>É necessário um ID de Processo para visualizar o mapa da rota.</p>
                                             </CardContent>
                                         </Card>
                                     )}

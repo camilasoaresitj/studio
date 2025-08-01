@@ -63,7 +63,7 @@ const shipmentDetailsSchema = z.object({
   purchaseOrderNumber: z.string().optional(),
   invoiceNumber: z.string().optional(),
   origin: z.string().min(1, "Origem é obrigatória."),
-  destination: z.string().min(1, "Destino é obrigatório."),
+  destination: z.string().min(1, "Destino é obrigatória."),
   charges: z.array(z.any()).optional(), // Simplified for the main sheet
 });
 
@@ -340,69 +340,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             toast({ variant: 'destructive', title: 'Fatura não encontrada', description: 'Não foi possível localizar o lançamento financeiro associado.' });
         }
     };
-    
-    const handleInvoiceCharges = async (chargesToInvoice: QuoteCharge[]): Promise<QuoteCharge[]> => {
-        if (chargesToInvoice.length === 0) {
-            toast({ variant: 'destructive', title: 'Nenhuma taxa selecionada.'});
-            return [];
-        }
-
-        const newEntries: Omit<import('@/lib/financials-data').FinancialEntry, 'id'>[] = [];
-        const entryMap = new Map<string, { partner: string; charges: QuoteCharge[] }>();
-
-        // Group charges by 'sacado' to create one invoice per partner
-        chargesToInvoice.forEach(charge => {
-            const sacado = charge.sacado || shipment!.customer;
-            if (!entryMap.has(sacado)) {
-                entryMap.set(sacado, { partner: sacado, charges: [] });
-            }
-            entryMap.get(sacado)!.charges.push(charge);
-        });
-
-        entryMap.forEach(({ partner, charges }) => {
-            const totalAmount = charges.reduce((sum, ch) => sum + ch.sale, 0);
-            const currency = charges[0].saleCurrency; // Assuming all charges for one invoice have the same currency
-            
-            newEntries.push({
-                type: 'credit',
-                partner: partner,
-                invoiceId: `INV-${shipment!.id}-${partner.slice(0,3).toUpperCase()}`,
-                status: 'Aberto',
-                dueDate: addDays(new Date(), 30).toISOString(),
-                amount: totalAmount,
-                currency: currency,
-                processId: shipment!.id,
-                payments: [],
-                expenseType: 'Operacional',
-                description: `Serviços de frete ref. processo ${shipment!.id}`
-            });
-        });
-
-        const response = await addFinancialEntriesAction(newEntries);
-
-        if (response.success && response.data) {
-            const allCurrentCharges = form.getValues('charges') as QuoteCharge[];
-            let entryIndexOffset = response.data.length - newEntries.length;
-
-            newEntries.forEach(newEntry => {
-                 const originalCharges = entryMap.get(newEntry.partner)!.charges;
-                 originalCharges.forEach(chargeToUpdate => {
-                     const idx = allCurrentCharges.findIndex(c => c.id === chargeToUpdate.id);
-                     if(idx > -1) {
-                         allCurrentCharges[idx].financialEntryId = response.data[entryIndexOffset].id;
-                     }
-                 });
-                 entryIndexOffset++;
-            });
-            
-            toast({ title: `${newEntries.length} fatura(s) gerada(s) com sucesso!`, className: 'bg-success text-success-foreground' });
-            return allCurrentCharges;
-        } else {
-             toast({ variant: 'destructive', title: 'Erro ao faturar', description: response.error });
-             return chargesToInvoice; // Return original charges on failure
-        }
-    };
-
 
     if (!shipment) {
         return (
@@ -436,6 +373,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                                 {foreignLocationClock && (
+                                    <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
+                                )}
                                  <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="outline" disabled={isGenerating}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button>
@@ -453,13 +393,11 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </Button>
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-2 items-start pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2 items-start pt-2">
                              <FormField control={form.control} name="shipperId" render={({ field }) => (<FormItem><FormLabel>Shipper</FormLabel><PartnerCombobox partners={partners} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
                              <FormField control={form.control} name="consigneeId" render={({ field }) => (<FormItem><FormLabel>Consignee</FormLabel><PartnerCombobox partners={partners} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
                              <FormField control={form.control} name="notifyId" render={({ field }) => (<FormItem><FormLabel>Notify</FormLabel><PartnerCombobox partners={partners} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
                              <FormField control={form.control} name="agentId" render={({ field }) => (<FormItem><FormLabel>Agente</FormLabel><PartnerCombobox partners={partners.filter(p=> p.roles.agente)} placeholder="Selecione..." value={field.value} onValueChange={field.onChange} /></FormItem>)} />
-                             <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>)} />
-                             <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>)} />
                         </div>
                     </SheetHeader>
                     
@@ -534,4 +472,3 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         </>
     );
 }
-

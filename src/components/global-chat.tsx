@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getStoredShipments, type Shipment, type ChatMessage } from '@/lib/shipment-data-client';
+import { getStoredShipments, saveShipments, type Shipment, type ChatMessage } from '@/lib/shipment-data-client';
 import { updateShipment } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';

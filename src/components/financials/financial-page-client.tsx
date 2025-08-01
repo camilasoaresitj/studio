@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { BankAccountDialog } from '@/components/financials/bank-account-form';
 import { NfseGenerationDialog } from '@/components/financials/nfse-generation-dialog';
 import type { Shipment } from '@/lib/shipment-data';
+import { getStoredShipments } from '@/lib/shipment-data-client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BankAccountStatementDialog } from '@/components/financials/bank-account-statement-dialog';
 import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote, savePartnerAction, addFinancialEntriesAction, updateFinancialEntryAction } from '@/app/actions';
@@ -41,7 +42,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
-import { getStoredShipments } from '@/lib/shipment-data';
 import { FinancialEntryDialog } from '@/components/financials/financial-entry-dialog';
 import { RenegotiationDialog } from '@/components/financials/renegotiation-dialog';
 import { NfseConsulta } from '@/components/financials/nfse-consulta';

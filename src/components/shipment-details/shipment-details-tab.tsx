@@ -20,8 +20,12 @@ import {
     Calendar as CalendarIcon, 
     PlusCircle, 
     Trash2, 
+    RefreshCw,
+    Loader2,
+    AlertTriangle,
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 const containerDetailSchema = z.object({
   id: z.string().optional(),
@@ -73,7 +77,9 @@ interface ShipmentDetailsTabProps {
 }
 
 export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners }, ref) => {
-    
+    const [isTracking, setIsTracking] = useState(false);
+    const [trackingError, setTrackingError] = useState<string | null>(null);
+
     const form = useForm<DetailsFormData>({
         resolver: zodResolver(detailsFormSchema),
         defaultValues: {
@@ -92,6 +98,33 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             return form.getValues();
         }
     }));
+
+    const handleRefreshTracking = async () => {
+        if (!shipment.bookingNumber || !shipment.carrier) {
+            setTrackingError("Número do booking e transportadora são necessários para o rastreamento.");
+            return;
+        }
+        setIsTracking(true);
+        setTrackingError(null);
+        try {
+            const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
+            const data = await response.json();
+            if (!response.ok) {
+                const errorMessage = `Erro ${response.status}: ${data.error || 'Erro desconhecido'}. Detalhe: ${data.detail ? JSON.stringify(data.detail) : 'Nenhum detalhe adicional.'}`;
+                throw new Error(errorMessage);
+            }
+            if(data.status === 'processing') {
+                // This is not an error, but an informational state.
+                 setTrackingError(`Rastreamento iniciado. Status: ${data.message}`);
+            } else {
+                 // Logic to update milestones based on tracking data would go here
+            }
+        } catch (error: any) {
+            setTrackingError(error.message);
+        } finally {
+            setIsTracking(false);
+        }
+    };
 
     const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
         control: form.control,
@@ -121,8 +154,25 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
         <Form {...form}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
-                    <CardHeader><CardTitle className="text-lg">Informações da Viagem</CardTitle></CardHeader>
+                    <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <CardTitle className="text-lg">Informações da Viagem</CardTitle>
+                            <Button size="sm" type="button" variant="outline" onClick={handleRefreshTracking} disabled={isTracking}>
+                                {isTracking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                                Rastrear
+                            </Button>
+                        </div>
+                    </CardHeader>
                     <CardContent className="space-y-4">
+                        {trackingError && (
+                             <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Erro no Rastreamento</AlertTitle>
+                                <AlertDescription>
+                                    <pre className="text-xs whitespace-pre-wrap">{trackingError}</pre>
+                                </AlertDescription>
+                            </Alert>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={form.control} name="carrier" render={({ field }) => (<FormItem><FormLabel>Transportadora</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                             <FormField control={form.control} name="bookingNumber" render={({ field }) => (<FormItem><FormLabel>Booking Number</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
@@ -142,6 +192,11 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={form.control} name="dischargeTerminal" render={({ field }) => (<FormItem><FormLabel>Terminal de Descarga</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{terminalPartners.map(t => <SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
                             <FormField control={form.control} name="terminalRedestinacaoId" render={({ field }) => (<FormItem><FormLabel>Terminal de Redestinação</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{terminalPartners.map(t => <SelectItem key={t.id} value={t.id!.toString()}>{t.name}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                        </div>
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <FormField control={form.control} name="ceMaster" render={({ field }) => (<FormItem><FormLabel>CE Master</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="ceHouse" render={({ field }) => (<FormItem><FormLabel>CE House</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="manifesto" render={({ field }) => (<FormItem><FormLabel>Manifesto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                         </div>
                     </CardContent>
                 </Card>

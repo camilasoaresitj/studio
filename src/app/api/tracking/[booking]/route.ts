@@ -1,4 +1,3 @@
-
 // src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
 import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
@@ -31,7 +30,7 @@ const getAuthHeaders = () => {
     }
     return {
         'X-DPW-ApiKey': API_KEY,
-        'X-DPW-Org-Token': ORG_TOKEN,
+        'X-DPW-Token': ORG_TOKEN, // Corrected header name
         'Content-Type': 'application/json',
         'accept': 'application/json'
     };
@@ -65,10 +64,20 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const carrierName = url.searchParams.get('carrierName');
   const type = (url.searchParams.get('type') || 'bookingNumber') as 'bookingNumber' | 'containerNumber' | 'mblNumber';
 
+  const CREATE_URL = `${BASE_URL}/createShipments`; // Use plural endpoint
+  const SHIPMENT_URL = `${BASE_URL}/shipments`; // Use plural endpoint
+
   try {
     const headers = getAuthHeaders();
+    
+    const paramMap = {
+      bookingNumber: "bookingNumber",
+      containerNumber: "containerNumber",
+      mblNumber: "mblNumber"
+    };
+    const paramName = paramMap[type];
 
-    let res = await fetch(`${BASE_URL}/shipment?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}`, { headers });
+    let res = await fetch(`${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${paramName}=${trackingId}`, { headers });
 
     let data;
     if (res.status !== 204) {
@@ -95,7 +104,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo.name });
       console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
 
-      const createRes = await fetch(`${BASE_URL}/createShipment`, {
+      const createRes = await fetch(CREATE_URL, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload)
@@ -122,7 +131,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      res = await fetch(`${BASE_URL}/shipment?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}`, { headers });
+      res = await fetch(`${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${paramName}=${trackingId}`, { headers });
 
       if (!res.ok) {
         const errorText = await res.text();

@@ -71,7 +71,7 @@
     },
     {
         "id": 3,
-        "name": "Maersk Line",
+        "name": "Maersk",
         "nomeFantasia": "Maersk",
         "createdAt": "2022-01-15T00:00:00.000Z",
         "roles": { "cliente": false, "fornecedor": true, "agente": false, "comissionado": false },

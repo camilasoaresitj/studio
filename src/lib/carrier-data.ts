@@ -5,7 +5,7 @@ export interface Carrier {
     type: 'INTERMODAL_SHIPMENT' | 'AIR_SHIPMENT' | 'OUTSOURCED_LOGISTICS_SHIPMENT';
 }
 
-// Data sourced from Cargo-flows GET /carrierList API
+// Data sourced from Cargo-flows GET /carrierList API, names adjusted for accuracy
 const CARRIER_DATA: Omit<Carrier, 'type'>[] = [
   { name: "ACL", scac: "ACLU" },
   { name: "Admiral", scac: "ADMU" },
@@ -22,7 +22,7 @@ const CARRIER_DATA: Omit<Carrier, 'type'>[] = [
   { name: "Blue Water Lines", scac: "BWLU" },
   { name: "Blue World Lines", scac: "BWLE" },
   { name: "CaroTrans", scac: "CROS" },
-  { name: "CMA-CGM", scac: "CMDU" },
+  { name: "CMA CGM", scac: "CMDU" },
   { name: "CNC", scac: "11DX" },
   { name: "Containerships", scac: "CSHP" },
   { name: "COSCO", scac: "COSU" },
@@ -53,7 +53,7 @@ const CARRIER_DATA: Omit<Carrier, 'type'>[] = [
   { name: "KMTC", scac: "KMTU" },
   { name: "Lynden", scac: "LTIA" },
   { name: "MacAndrews", scac: "MCAW" },
-  { name: "Maersk Line", scac: "MAEU" },
+  { name: "Maersk", scac: "MAEU" },
   { name: "MainFreight", scac: "MFGT" },
   { name: "Marfret", scac: "MFUS" },
   { name: "Mariana Express Lines", scac: "MEXU" },

@@ -14,7 +14,8 @@ import {
     Upload, 
     FileCheck,
     Download,
-    CalendarIcon
+    CalendarIcon,
+    Package
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +40,9 @@ const documentsFormSchema = z.object({
     documents: z.array(z.any()).optional(),
     mblPrintingAtDestination: z.boolean().optional(),
     mblPrintingAuthDate: z.date().optional().nullable(),
+    courierName: z.string().optional(),
+    courierTrackingNumber: z.string().optional(),
+    courierSentDate: z.date().optional().nullable(),
 });
 
 type DocumentsFormData = z.infer<typeof documentsFormSchema>;
@@ -57,6 +61,9 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
             documents: shipment.documents || [],
             mblPrintingAtDestination: shipment.mblPrintingAtDestination,
             mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : null,
+            courierName: shipment.courier,
+            courierTrackingNumber: shipment.courierNumber,
+            courierSentDate: shipment.courierSentDate ? new Date(shipment.courierSentDate) : null,
         }
     });
 
@@ -80,6 +87,9 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                 documents: updatedDocuments,
                 mblPrintingAtDestination: values.mblPrintingAtDestination,
                 mblPrintingAuthDate: values.mblPrintingAuthDate,
+                courier: values.courierName,
+                courierNumber: values.courierTrackingNumber,
+                courierSentDate: values.courierSentDate,
             };
         }
     }));
@@ -112,6 +122,8 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
         }
     };
     
+    const mblPrintingAtDestination = form.watch('mblPrintingAtDestination');
+
     return (
         <Form {...form}>
             <Card>
@@ -176,8 +188,8 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Configurações de Impressão</h3>
-                        <div className="flex flex-col gap-6 p-4 border rounded-lg">
+                        <div className="p-4 border rounded-lg">
+                            <h3 className="text-base font-semibold mb-4">Configurações de Impressão</h3>
                              <FormField
                                 control={form.control}
                                 name="mblPrintingAtDestination"
@@ -200,7 +212,7 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                                 control={form.control}
                                 name="mblPrintingAuthDate"
                                 render={({ field }) => (
-                                    <FormItem className="flex flex-col">
+                                    <FormItem className="flex flex-col mt-4">
                                         <FormLabel>Data de Autorização de Impressão</FormLabel>
                                         <Popover>
                                             <PopoverTrigger asChild>
@@ -225,6 +237,35 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                                 )}
                             />
                         </div>
+                        
+                        {!mblPrintingAtDestination && (
+                             <div className="p-4 border rounded-lg animate-in fade-in-50 duration-500">
+                                <h3 className="text-base font-semibold mb-4 flex items-center gap-2"><Package/> Envio dos Documentos Originais por Courrier</h3>
+                                 <div className="space-y-4">
+                                     <FormField control={form.control} name="courierName" render={({ field }) => (
+                                        <FormItem><FormLabel>Courrier</FormLabel><FormControl><Input placeholder="Ex: DHL, FedEx" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                     <FormField control={form.control} name="courierTrackingNumber" render={({ field }) => (
+                                        <FormItem><FormLabel>Nº de Rastreio</FormLabel><FormControl><Input placeholder="Ex: 1234567890" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                     <FormField control={form.control} name="courierSentDate" render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel>Data de Envio</FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild><FormControl>
+                                                    <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                        {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl></PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent>
+                                            </Popover>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                 </div>
+                             </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>

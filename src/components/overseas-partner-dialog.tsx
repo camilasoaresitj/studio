@@ -79,7 +79,7 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
       type: 'Fornecedor',
       cnpj: '',
       paymentTerm: undefined,
-      exchangeRateAgio: undefined,
+      exchangeRateAgio: 0,
       address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
       contacts: [{ name: '', email: '', phone: '', departments: ['Operacional'] }],
     },
@@ -128,7 +128,7 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
     }
     setIsAiLoading(true);
     const response = await runExtractPartnerInfo(aiAutofillText);
-    if (response.success) {
+    if (response.success && response.data) {
       const { data } = response;
       form.setValue('name', data.name);
       form.setValue('cnpj', data.cnpj);

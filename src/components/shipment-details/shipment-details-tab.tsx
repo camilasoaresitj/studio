@@ -106,14 +106,15 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
     }));
     
     const handleRefreshTracking = async () => {
-        if (!shipment?.bookingNumber || !shipment?.carrier) {
+        const currentCarrierName = form.getValues('carrier');
+        if (!shipment?.bookingNumber || !currentCarrierName) {
             setTrackingError("Número do booking e transportadora são necessários para o rastreamento.");
             return;
         }
         setIsTracking(true);
         setTrackingError(null);
         try {
-            const res = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
+            const res = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(currentCarrierName)}`);
             const data = await res.json();
             
             if (!res.ok) {
@@ -202,7 +203,17 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                              <FormField control={form.control} name="deliveryAddress" render={({ field }) => (<FormItem><FormLabel>Local de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="carrier" render={({ field }) => (<FormItem><FormLabel>Transportadora</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="carrier" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Transportadora</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            {carrierPartners.map(c => <SelectItem key={c.id} value={c.name}>{c.name} ({c.scac})</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                            )} />
                             <FormField control={form.control} name="bookingNumber" render={({ field }) => (<FormItem><FormLabel>Booking Number</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -288,5 +299,3 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
 });
 
 ShipmentDetailsTab.displayName = 'ShipmentDetailsTab';
-
-    

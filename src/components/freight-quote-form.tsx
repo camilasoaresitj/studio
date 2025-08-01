@@ -423,6 +423,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
         shipper: partners.find(p => p.id?.toString() === values.shipperId),
         consignee: partners.find(p => p.id?.toString() === values.consigneeId),
         agent: partners.find(p => p.id?.toString() === values.agentId),
+        carrier: rate.carrier,
     };
     setActiveQuote(newQuote);
     onQuoteCreated(newQuote);

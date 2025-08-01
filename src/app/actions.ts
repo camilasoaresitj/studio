@@ -551,7 +551,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
   }
 }
 
-async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
+async function createShipment(quoteData: ShipmentCreationData & { carrier?: string }): Promise<Shipment> {
   const allPartners = getPartners();
   const allShipments = getShipments();
   const shipper = allPartners.find(p => p.id?.toString() === quoteData.shipperId);
@@ -623,7 +623,6 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
   if (!isImport) { baseDocuments.push({ name: 'Extrato DUE', status: 'pending' }); }
   const uploadedDocuments: DocumentStatus[] = quoteData.uploadedDocs.map(doc => ({ name: doc.name, status: 'uploaded', fileName: doc.file.name, uploadedAt: new Date() }));
   const documents: DocumentStatus[] = baseDocuments.map(doc => uploadedDocuments.find(ud => ud.name === doc.name) || doc);
-  const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
   const shipmentId = `PROC-${quoteData.id.replace('COT-', '')}-${Date.now().toString().slice(-5)}`;
 
   const newShipment: Shipment = {
@@ -639,7 +638,7 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
     terminalRedestinacaoId: quoteData.terminalRedestinacaoId,
     charges: quoteData.charges.map(c => ({ ...c, approvalStatus: 'aprovada' })),
     details: quoteData.details, 
-    carrier: freightCharge?.supplier, 
+    carrier: quoteData.carrier, 
     milestones, 
     documents, 
     etd, 
@@ -656,13 +655,14 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
     // Road specific fields from quoteData if they exist
     border: quoteData.roadShipment?.border,
     // Courier specific fields from quoteData if they exist
-    courier: quoteData.modal === 'courier' ? freightCharge?.supplier : undefined,
+    courier: quoteData.modal === 'courier' ? quoteData.carrier : undefined,
   };
 
   if (isImport && agent) {
     const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
     const agentPortalUrl = typeof window !== 'undefined' ? `${window.location.origin}/agent-portal/${shipmentId}` : `/agent-portal/${shipmentId}`;
     const profitAgreement = agent.profitAgreements?.find(pa => pa.modal === 'FCL' && pa.direction === 'IMPORTACAO');
+    const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
     
     await runSendShippingInstructions({
       shipmentId: newShipment.id, agentName: agent.name, agentEmail: agent.contacts[0]?.email || 'agent@example.com',
@@ -685,7 +685,7 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
 }
 
 export async function runApproveQuote(
-    quote: Quote, 
+    quote: Quote & { carrier?: string }, 
     notifyName: string, 
     terminalId: string | undefined, 
     responsibleUser: string, 
@@ -706,6 +706,7 @@ export async function runApproveQuote(
             invoiceNumber: invoiceNumber,
             purchaseOrderNumber: poNumber,
             uploadedDocs: uploadedDocs,
+            carrier: quote.carrier, // Pass the carrier correctly
         });
         return { success: true };
     } catch(e: any) {

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -25,7 +24,7 @@ import type { Partner } from '@/lib/partners-data';
 const documentTypes = ['Invoice', 'Packing List', 'Negociação NET', 'Outros'];
 
 interface ApproveQuoteDialogProps {
-  quote: Quote | null;
+  quote: Quote & { carrier?: string } | null;
   partners: Partner[];
   onApprovalConfirmed: () => void;
   onPartnerSaved: (partner: Partner) => void;

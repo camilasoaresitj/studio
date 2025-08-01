@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, PlusCircle, ChevronsUpDown, Check, Wallet, FileText } from 'lucide-react';
+import { Trash2, PlusCircle, Save, ChevronsUpDown, Check, Wallet, FileText } from 'lucide-react';
 import type { Shipment, Partner, QuoteCharge } from '@/lib/shipment-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -254,6 +254,23 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
         return parts.length > 0 ? parts.join(' | ') : 'N/A';
     };
 
+    const handleFeeSelection = (feeName: string, index: number) => {
+        const fee = fees.find(f => f.name === feeName);
+        if (fee) {
+          updateCharge(index, {
+            ...watchedCharges[index],
+            name: fee.name,
+            type: fee.unit,
+            cost: parseFloat(fee.value) || 0,
+            costCurrency: fee.currency,
+            sale: parseFloat(fee.value) || 0,
+            saleCurrency: fee.currency,
+            approvalStatus: 'pendente',
+          });
+        }
+    };
+
+
     return (
         <Form {...form}>
             <Card>
@@ -279,8 +296,10 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                     <TableHead className="w-[150px]">Taxa</TableHead>
                                     <TableHead className="w-[150px]">Fornecedor</TableHead>
                                     <TableHead className="w-[200px] text-right">Custo</TableHead>
+                                    <TableHead className="text-right">Custo Total</TableHead>
                                     <TableHead className="w-[150px]">Sacado</TableHead>
                                     <TableHead className="w-[200px] text-right">Venda</TableHead>
+                                    <TableHead className="text-right">Venda Total</TableHead>
                                     <TableHead className="w-[50px]">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -327,6 +346,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                     <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => <Input type="number" {...field} className="h-8" disabled={isFaturado}/>} />
                                                 </div>
                                             </TableCell>
+                                            <TableCell className="p-1 align-top text-right font-mono text-sm">
+                                                {charge.costCurrency} {charge.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </TableCell>
                                             <TableCell className="p-1 align-top">
                                                 <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
                                                     <Select onValueChange={field.onChange} value={field.value} disabled={isFaturado}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>
@@ -339,6 +361,9 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                                                 </div>
                                                 {charge.approvalStatus === 'pendente' && <Badge variant="default" className="mt-1">Pendente</Badge>}
                                                 {charge.approvalStatus === 'rejeitada' && <Badge variant="destructive" className="mt-1">Rejeitada</Badge>}
+                                            </TableCell>
+                                             <TableCell className="p-1 align-top text-right font-mono text-sm">
+                                                {charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                             </TableCell>
                                             <TableCell className="p-1 align-top text-center">
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(index)} disabled={isFaturado}><Trash2 className="h-4 w-4 text-destructive" /></Button>

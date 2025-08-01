@@ -157,7 +157,7 @@ export function IntegrationsSettings() {
                             <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-cyan-500" /> Cargo-flows API Key</FormLabel><FormControl><Input type="text" placeholder="X-DPW-ApiKey da Cargo-flows" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={form.control} name="cargoFlowsOrgToken" render={({ field }) => (
-                            <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-cyan-500" /> Cargo-flows Org Token</FormLabel><FormControl><Input type="text" placeholder="X-DPW-Org-Token da Cargo-flows" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-cyan-500" /> Cargo-flows Org Token</FormLabel><FormControl><Input type="text" placeholder="X-DPW-Token da Cargo-flows" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={form.control} name="googleMapsApiKey" render={({ field }) => (
                             <FormItem><FormLabel className="flex items-center gap-2"><Handshake className="h-4 w-4 text-green-600" /> Google Maps API Key</FormLabel><FormControl><Input type="text" placeholder="API Key do Google Maps" {...field} /></FormControl><FormMessage /></FormItem>

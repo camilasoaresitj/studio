@@ -4,7 +4,7 @@
 import { Suspense } from 'react';
 import { ClientPortalPage } from '@/components/client-portal-page';
 import Loading from './loading';
-import { getShipmentById } from '@/lib/shipment-data';
+import { getShipmentById } from '@/lib/shipment-data-client';
 
 // This is now an async Server Component.
 export default async function ShipmentDetailPage({ params }: { params: { id: string } }) {

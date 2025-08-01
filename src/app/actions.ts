@@ -26,7 +26,7 @@ import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import { getPartners, savePartners as savePartnersData } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/components/customer-quotes-list";
-import { getShipments, saveShipments as saveShipmentsData, updateShipment as updateShipmentData } from "@/lib/shipment-data";
+import { getShipments } from "@/lib/shipment-data";
 import { isPast, format, addDays, isValid } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
@@ -389,17 +389,18 @@ export async function runCreateEmailCampaign(instruction: string) {
 
 // Shipment data actions
 export async function getShipmentById(id: string): Promise<Shipment | undefined> {
-    const shipments = await getShipments();
+    const shipments = getShipments();
     return shipments.find(s => s.id === id);
 }
 
 
 export async function updateShipment(updatedShipment: Shipment): Promise<Shipment[]> {
-    const shipments = await getShipments();
+    const shipments = getShipments();
     const index = shipments.findIndex(s => s.id === updatedShipment.id);
     if (index !== -1) {
         shipments[index] = updatedShipment;
-        await updateShipmentData(shipments);
+        // In a real app, this would be a database call.
+        // For the prototype, the client will handle saving to localStorage.
     }
     return shipments;
 }
@@ -407,7 +408,7 @@ export async function updateShipment(updatedShipment: Shipment): Promise<Shipmen
 
 export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftData): Promise<{ success: boolean; data?: Shipment[]; error?: string }> {
   try {
-    const allShipments = await getShipments();
+    const allShipments = getShipments();
     const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
     if (shipmentIndex === -1) {
         throw new Error("Shipment not found");
@@ -531,7 +532,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
     updatedShipment.milestones.sort((a,b) => (a.predictedDate?.getTime() ?? 0) - (b.predictedDate?.getTime() ?? 0));
 
     allShipments[shipmentIndex] = updatedShipment;
-    await saveShipmentsData(allShipments);
+    // Client will save to localStorage
     return { success: true, data: allShipments };
   } catch (error: any) {
     console.error("Submit BL Draft Action Failed", error);
@@ -541,7 +542,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
 
 async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
   const allPartners = getPartners();
-  const allShipments = await getShipments();
+  const allShipments = getShipments();
   const shipper = allPartners.find(p => p.id?.toString() === quoteData.shipperId);
   const consignee = allPartners.find(p => p.id?.toString() === quoteData.consigneeId);
   const agent = allPartners.find(p => p.id?.toString() === quoteData.agentId);
@@ -667,7 +668,8 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
 
   
   allShipments.unshift(newShipment);
-  await saveShipmentsData(allShipments);
+  // This will be handled on the client-side
+  // await saveShipmentsData(allShipments);
   return newShipment;
 }
 
@@ -701,9 +703,9 @@ export async function runApproveQuote(
 }
 
 
-export async function updateShipmentFromAgent(shipmentId: string, agentData: any): Promise<{ success: boolean, error?: string }> {
+export async function updateShipmentFromAgent(shipmentId: string, agentData: any): Promise<{ success: boolean, data?: Shipment, error?: string }> {
     try {
-        const shipments = await getShipments();
+        const shipments = getShipments();
         const shipmentIndex = shipments.findIndex(s => s.id === shipmentId);
 
         if (shipmentIndex === -1) {
@@ -730,9 +732,9 @@ export async function updateShipmentFromAgent(shipmentId: string, agentData: any
         };
 
         shipments[shipmentIndex] = updatedShipment;
-        await saveShipmentsData(shipments);
+        // Client will handle saving
         
-        return { success: true };
+        return { success: true, data: updatedShipment };
 
     } catch (error: any) {
         console.error("Update from Agent failed", error);
@@ -742,7 +744,7 @@ export async function updateShipmentFromAgent(shipmentId: string, agentData: any
 
 export async function addManualMilestone(shipmentId: string, milestone: Omit<Milestone, 'status' | 'effectiveDate'>) {
     try {
-        const allShipments = await getShipments();
+        const allShipments = getShipments();
         const shipmentIndex = allShipments.findIndex(s => s.id === shipmentId);
 
         if (shipmentIndex === -1) {
@@ -763,7 +765,7 @@ export async function addManualMilestone(shipmentId: string, milestone: Omit<Mil
         };
 
         allShipments[shipmentIndex] = updatedShipment;
-        await saveShipmentsData(allShipments);
+        // Client will handle saving
         return { success: true, data: updatedShipment };
 
     } catch (error: any) {
@@ -858,5 +860,3 @@ export async function saveApiKeysAction(data: any) {
     console.log("Simulating saving API keys to a secure store:", data);
     return { success: true, message: "API keys updated. A server restart would be needed in a real app." };
 }
-    
-

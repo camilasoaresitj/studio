@@ -230,7 +230,7 @@ export type Shipment = {
 };
 
 // SERVER-SIDE SAFE: Reads from JSON, no localStorage.
-export async function getShipments(): Promise<Shipment[]> {
+export function getShipments(): Shipment[] {
     return initialShipmentsData.map((shipment: any) => {
          const safeDate = (dateString: string | Date | undefined | null): Date | undefined => {
             if (!dateString) return undefined;
@@ -258,11 +258,6 @@ export async function getShipments(): Promise<Shipment[]> {
 
 // SERVER-SIDE SAFE: wrapper to call server action to get a single shipment
 export async function getShipmentById(id: string): Promise<Shipment | undefined> {
-    const shipments = await getShipments();
+    const shipments = getShipments();
     return shipments.find(s => s.id === id);
-}
-
-// SERVER-SIDE SAFE: wrapper to call server action to update a shipment
-export async function updateShipment(shipment: Shipment): Promise<Shipment[]> {
-    return updateShipmentAction(shipment);
 }

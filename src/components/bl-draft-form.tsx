@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import type { Shipment, BLDraftHistory, BLDraftData } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
-import { saveShipments } from '@/lib/shipment-data';
+import { saveShipments } from '@/lib/shipment-data-client';
 import { runSubmitBLDraft } from '@/app/actions';
 import { Loader2, Send, FileText, AlertTriangle, CheckCircle, Ship, Trash2, PlusCircle, History } from 'lucide-react';
 import { Textarea } from './ui/textarea';

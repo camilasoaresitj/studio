@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertCircle, DollarSign, Settings, ArrowRight } from 'lucide-react';
 import { getFinancialEntries, saveFinancialEntries, FinancialEntry } from '@/lib/financials-data';
-import { getStoredShipments, saveShipments, Shipment, QuoteCharge, ApprovalLog } from '@/lib/shipment-data';
+import { getStoredShipments, saveShipments, Shipment, QuoteCharge, ApprovalLog } from '@/lib/shipment-data-client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';

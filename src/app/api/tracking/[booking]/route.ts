@@ -71,14 +71,9 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     const headers = getAuthHeaders();
     
-    const paramMap = {
-      bookingNumber: "bookingNumber",
-      containerNumber: "containerNumber",
-      mblNumber: "mblNumber"
-    };
-    const paramName = paramMap[type];
-
-    const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${paramName}=${trackingId}`;
+    // **CORRECTION:** The API uses a generic 'shipmentReferenceNumber' for GET requests, not the specific type name.
+    const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
+    
     console.log('➡️  GET Shipment URL:', getShipmentUrl);
     let res = await fetch(getShipmentUrl, { headers });
 
@@ -134,7 +129,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      const getShipmentUrlAfterCreate = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${paramName}=${trackingId}`;
+      // Use the corrected URL for the post-creation GET request as well
+      const getShipmentUrlAfterCreate = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
       console.log('➡️  GET Shipment URL (After Create):', getShipmentUrlAfterCreate);
       res = await fetch(getShipmentUrlAfterCreate, { headers });
 

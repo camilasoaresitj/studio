@@ -73,6 +73,9 @@ export const portsAndAirports: Port[] = [
 ];
 
 export function findPortByTerm(term: string): Port | undefined {
+    if (typeof term !== 'string') {
+        return undefined;
+    }
     const searchTerm = term.toLowerCase().split(',')[0].trim();
     if (!searchTerm) return undefined;
     

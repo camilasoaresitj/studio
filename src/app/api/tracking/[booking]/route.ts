@@ -15,13 +15,16 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24h
 async function safelyParseJSON(response: Response) {
     const text = await response.text();
     try {
+        if (text === '') return null; // Handle empty responses gracefully
         return JSON.parse(text);
     } catch (e) {
-        if (text.trim().startsWith('<html>')) {
+        if (text.trim().toLowerCase().startsWith('<html>')) {
             console.error("Received HTML response instead of JSON:", text.substring(0, 500));
+            // This specific error message will be caught and shown to the user.
             throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada e se as chaves de API estão corretas.");
         }
-        throw new Error(`Resposta inválida da API: ${text}`);
+        // For other parsing errors, throw a more generic message.
+        throw new Error(`Falha ao analisar a resposta da API. Conteúdo recebido: ${text.substring(0, 200)}`);
     }
 }
 
@@ -75,7 +78,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     
     console.log('➡️  GET Shipment URL:', getShipmentUrl);
     let res = await fetch(getShipmentUrl, { headers });
-
+    
     let data;
     if (res.status !== 204) {
       data = await safelyParseJSON(res);
@@ -120,7 +123,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }
         
         const detailMessage = typeof errorBody === 'object' && errorBody !== null && 'message' in errorBody 
-            ? errorBody.message 
+            ? (errorBody as any).message 
             : rawResponseText;
 
         return NextResponse.json({
@@ -135,15 +138,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       const getShipmentUrlAfterCreate = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&shipmentReferenceNumber=${trackingId}`;
       console.log('➡️  GET Shipment URL (After Create):', getShipmentUrlAfterCreate);
       res = await fetch(getShipmentUrlAfterCreate, { headers });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        return NextResponse.json({
-          error: 'Erro ao buscar shipment após a criação.',
-          detail: errorText,
-        }, { status: res.status });
-      }
-
+      
       if (res.status !== 204) {
         data = await safelyParseJSON(res);
       }
@@ -177,9 +172,11 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
     return NextResponse.json({ status: 'ready', eventos, shipment: firstShipment });
   } catch (err: any) {
+    // This block will now catch errors from safelyParseJSON, including the HTML one.
+    console.error("ERRO GERAL NA ROTA DE TRACKING:", err);
     return NextResponse.json({
-      error: 'Erro inesperado no servidor.',
-      detail: err.message,
+      error: 'Erro inesperado no servidor de rastreamento.',
+      detail: err.message, // The clear message from safelyParseJSON will be here
     }, { status: 500 });
   }
 }

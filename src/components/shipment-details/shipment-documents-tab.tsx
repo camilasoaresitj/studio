@@ -2,18 +2,19 @@
 'use client';
 
 import React, { useState, forwardRef, useImperativeHandle } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Form } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import type { Shipment, DocumentStatus } from '@/lib/shipment-data';
 import { 
     Upload, 
     FileCheck,
-    Download
+    Download,
+    CalendarIcon
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -27,9 +28,17 @@ import {
 } from '@/components/ui/table';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import Image from 'next/image';
+import { Switch } from '../ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Calendar } from '../ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { Separator } from '../ui/separator';
 
 const documentsFormSchema = z.object({
     documents: z.array(z.any()).optional(),
+    mblPrintingAtDestination: z.boolean().optional(),
+    mblPrintingAuthDate: z.date().optional().nullable(),
 });
 
 type DocumentsFormData = z.infer<typeof documentsFormSchema>;
@@ -46,6 +55,8 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
     const form = useForm<DocumentsFormData>({
         defaultValues: {
             documents: shipment.documents || [],
+            mblPrintingAtDestination: shipment.mblPrintingAtDestination,
+            mblPrintingAuthDate: shipment.mblPrintingAuthDate ? new Date(shipment.mblPrintingAuthDate) : null,
         }
     });
 
@@ -65,7 +76,11 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                 }
                 return doc;
             });
-            return { documents: updatedDocuments };
+            return { 
+                documents: updatedDocuments,
+                mblPrintingAtDestination: values.mblPrintingAtDestination,
+                mblPrintingAuthDate: values.mblPrintingAuthDate,
+            };
         }
     }));
     
@@ -159,6 +174,61 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
                             </TableBody>
                         </Table>
                     </div>
+
+                    <Separator className="my-6" />
+
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">Configurações de Impressão</h3>
+                        <div className="flex flex-col md:flex-row gap-6 p-4 border rounded-lg">
+                             <FormField
+                                control={form.control}
+                                name="mblPrintingAtDestination"
+                                render={({ field }) => (
+                                    <FormItem className="flex items-center gap-4 space-y-0">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Emissão MBL no Destino</FormLabel>
+                                            <p className="text-xs text-muted-foreground">Ative para Express Release ou envio por Courrier.</p>
+                                        </div>
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="mblPrintingAuthDate"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel>Data de Autorização de Impressão</FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <FormControl>
+                                                    <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                        {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={field.value ? new Date(field.value) : undefined}
+                                                    onSelect={field.onChange}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    </div>
+
                 </CardContent>
             </Card>
         </Form>

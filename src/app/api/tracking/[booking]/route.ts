@@ -59,10 +59,11 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: Request, { params }: { params: { booking: string } }) {
-  const bookingNumber = params.booking;
+  const trackingId = params.booking;
   const url = new URL(req.url);
   const skipCreate = url.searchParams.get('skipCreate') === 'true';
   const carrierName = url.searchParams.get('carrierName');
+  const type = url.searchParams.get('type') || 'bookingNumber'; // 'bookingNumber', 'mblNumber', 'containerNumber'
 
   if (!API_KEY || !ORG_TOKEN) {
     return NextResponse.json({
@@ -72,7 +73,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   }
 
   try {
-    let res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=1`, {
+    let res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}&_limit=1`, {
       headers: {
         'X-DPW-ApiKey': API_KEY,
         'X-DPW-Org-Token': ORG_TOKEN
@@ -96,14 +97,14 @@ export async function GET(req: Request, { params }: { params: { booking: string 
           }, { status: 400 });
       }
 
-      if (!bookingNumber) {
+      if (!trackingId) {
         return NextResponse.json({
           error: 'Payload incompleto',
-          detail: 'O número do booking é obrigatório.'
+          detail: 'O número de rastreamento é obrigatório.'
         }, { status: 400 });
       }
       
-      const payload = buildTrackingPayload({ bookingNumber });
+      const payload = buildTrackingPayload({ [type]: trackingId });
 
       console.log('🧾 Enviando payload para Cargo-flows:', JSON.stringify(payload, null, 2));
 
@@ -136,7 +137,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&bookingNumber=${bookingNumber}&_limit=1`, {
+      res = await fetch(`${BASE_URL}/shipments?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}&_limit=1`, {
         headers: {
           'X-DPW-ApiKey': API_KEY,
           'X-DPW-Org-Token': ORG_TOKEN
@@ -168,13 +169,13 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }, { status: 202 });
     }
 
-    const eventos = data.flatMap((shipment: any) =>
-      (shipment.shipmentEvents || []).map((ev: any) => ({
-        eventName: ev.name,
-        location: ev.location,
-        actualTime: ev.actualTime || ev.estimateTime
-      }))
-    );
+    const firstShipment = Array.isArray(data) ? data[0] : data;
+    const eventos = (firstShipment?.shipmentEvents || []).map((ev: any) => ({
+      eventName: ev.name,
+      location: ev.location,
+      actualTime: ev.actualTime || ev.estimateTime,
+      shipment: firstShipment, // Passando os dados do embarque junto com os eventos
+    }));
 
     return NextResponse.json({ status: 'ready', eventos });
   } catch (err: any) {

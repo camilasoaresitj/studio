@@ -498,14 +498,17 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     };
 
     const handleRefreshTracking = async () => {
-        if (!shipment?.bookingNumber || !shipment.carrier) {
-            toast({ variant: 'destructive', title: 'Dados Incompletos', description: 'É necessário ter um Booking Number e uma Transportadora definidos para o rastreamento.' });
+        const trackingNumber = shipment?.bookingNumber || shipment?.masterBillNumber || shipment?.containers?.[0]?.number;
+        const trackingType = shipment?.bookingNumber ? 'bookingNumber' : (shipment?.masterBillNumber ? 'mblNumber' : 'containerNumber');
+        
+        if (!trackingNumber || !shipment?.carrier) {
+            toast({ variant: 'destructive', title: 'Dados Incompletos', description: 'É necessário ter um Carrier e um Booking/MBL/Container Number para rastrear.' });
             return;
         }
 
         setIsUpdating(true);
         try {
-            const response = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}`);
+            const response = await fetch(`/api/tracking/${trackingNumber}?carrierName=${encodeURIComponent(shipment.carrier)}&type=${trackingType}`);
             const data = await response.json();
 
             if (!response.ok) {
@@ -517,7 +520,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 let newEventsCount = 0;
                 let masterDataUpdated = false;
 
-                // Update Master Data if available from the first event object
                 const trackingShipmentData = data.eventos[0]?.shipment;
                 if (trackingShipmentData) {
                     if (trackingShipmentData.vesselName) form.setValue('vesselName', trackingShipmentData.vesselName);
@@ -530,7 +532,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     masterDataUpdated = true;
                 }
                 
-                // Update Milestones
                 data.eventos.forEach((evento: any) => {
                     const milestoneName = mapEventToMilestone(evento.eventName);
                     if (milestoneName) {

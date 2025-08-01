@@ -208,165 +208,159 @@ export const ShipmentDocumentsTab = forwardRef<{ submit: () => Promise<any> }, S
 
     return (
         <Form {...form}>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Gestão de Documentos</CardTitle>
-                    <CardDescription>Anexe, aprove e gerencie os documentos do processo.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Documento</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Arquivo</TableHead>
-                                    <TableHead className="text-right">Ações</TableHead>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="border rounded-lg">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Documento</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Arquivo</TableHead>
+                                <TableHead className="text-right">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {documents.map((doc, index) => {
+                                const previewUrl = documentPreviews[doc.name];
+                                const hasFile = doc.fileName || uploadedFiles[doc.name];
+                                return (
+                                <TableRow key={index}>
+                                    <TableCell className="font-medium">{doc.name}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={doc.status === 'approved' ? 'success' : (doc.status === 'uploaded' ? 'default' : 'secondary')}>
+                                            {doc.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        {hasFile ? (
+                                             <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <a href="#" className="text-primary hover:underline" onClick={(e) => { e.preventDefault(); handleDownload(doc); }}>
+                                                            {uploadedFiles[doc.name]?.name || doc.fileName}
+                                                        </a>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        {previewUrl ? (
+                                                            <Image src={previewUrl} alt={`Preview de ${doc.fileName}`} width={200} height={200} className="object-contain" />
+                                                        ) : (
+                                                            <p>Pré-visualização indisponível.</p>
+                                                        )}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ) : 'N/A'}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button asChild variant="outline" size="sm" className="mr-2">
+                                            <label htmlFor={`upload-${doc.name}`} className="cursor-pointer"><Upload className="mr-2 h-4 w-4"/> Anexar</label>
+                                        </Button>
+                                        <Input id={`upload-${doc.name}`} type="file" className="hidden" onChange={(e) => handleDocumentUpload(doc.name, e.target.files ? e.target.files[0] : null)} />
+                                        <Button variant="ghost" size="sm" onClick={() => handleApproveDocument(doc.name)} disabled={doc.status !== 'uploaded'}>
+                                            <FileCheck className="mr-2 h-4 w-4"/> Aprovar
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {documents.map((doc, index) => {
-                                    const previewUrl = documentPreviews[doc.name];
-                                    const hasFile = doc.fileName || uploadedFiles[doc.name];
-                                    return (
-                                    <TableRow key={index}>
-                                        <TableCell className="font-medium">{doc.name}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={doc.status === 'approved' ? 'success' : (doc.status === 'uploaded' ? 'default' : 'secondary')}>
-                                                {doc.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {hasFile ? (
-                                                 <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <a href="#" className="text-primary hover:underline" onClick={(e) => { e.preventDefault(); handleDownload(doc); }}>
-                                                                {uploadedFiles[doc.name]?.name || doc.fileName}
-                                                            </a>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            {previewUrl ? (
-                                                                <Image src={previewUrl} alt={`Preview de ${doc.fileName}`} width={200} height={200} className="object-contain" />
-                                                            ) : (
-                                                                <p>Pré-visualização indisponível.</p>
-                                                            )}
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            ) : 'N/A'}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button asChild variant="outline" size="sm" className="mr-2">
-                                                <label htmlFor={`upload-${doc.name}`} className="cursor-pointer"><Upload className="mr-2 h-4 w-4"/> Anexar</label>
-                                            </Button>
-                                            <Input id={`upload-${doc.name}`} type="file" className="hidden" onChange={(e) => handleDocumentUpload(doc.name, e.target.files ? e.target.files[0] : null)} />
-                                            <Button variant="ghost" size="sm" onClick={() => handleApproveDocument(doc.name)} disabled={doc.status !== 'uploaded'}>
-                                                <FileCheck className="mr-2 h-4 w-4"/> Aprovar
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )})}
-                            </TableBody>
-                        </Table>
-                    </div>
+                            )})}
+                        </TableBody>
+                    </Table>
+                </div>
 
-                    <div className="space-y-4">
-                        <div className="p-4 border rounded-lg">
-                            <h3 className="text-base font-semibold mb-4">Configurações de Impressão</h3>
-                             <FormField
-                                control={form.control}
-                                name="mblPrintingAtDestination"
-                                render={({ field }) => (
-                                    <FormItem className="flex items-center justify-between gap-4 space-y-0">
-                                        <div className="space-y-0.5">
-                                            <FormLabel>Emissão MBL no Destino</FormLabel>
-                                            <p className="text-xs text-muted-foreground">Ative para Express Release ou envio por Courrier.</p>
-                                        </div>
-                                        <FormControl>
-                                            <Switch
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
+                <div className="space-y-4">
+                    <div className="p-4 border rounded-lg">
+                        <h3 className="text-base font-semibold mb-4">Configurações de Impressão</h3>
+                         <FormField
+                            control={form.control}
+                            name="mblPrintingAtDestination"
+                            render={({ field }) => (
+                                <FormItem className="flex items-center justify-between gap-4 space-y-0">
+                                    <div className="space-y-0.5">
+                                        <FormLabel>Emissão MBL no Destino</FormLabel>
+                                        <p className="text-xs text-muted-foreground">Ative para Express Release ou envio por Courrier.</p>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="mblPrintingAuthDate"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col mt-4">
+                                    <FormLabel>Data de Autorização de Impressão</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                                <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                    {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                                mode="single"
+                                                selected={field.value ? new Date(field.value) : undefined}
+                                                onSelect={field.onChange}
+                                                initialFocus
                                             />
-                                        </FormControl>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    
+                    {!mblPrintingAtDestination && (
+                         <div className="p-4 border rounded-lg animate-in fade-in-50 duration-500">
+                            <h3 className="text-base font-semibold mb-4 flex items-center gap-2"><Package/> Envio dos Documentos Originais por Courrier</h3>
+                             <div className="space-y-4">
+                                 <FormField control={form.control} name="courierName" render={({ field }) => (
+                                    <FormItem><FormLabel>Courrier</FormLabel><FormControl><Input placeholder="Ex: DHL, FedEx" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                 <FormField control={form.control} name="courierTrackingNumber" render={({ field }) => (
+                                    <FormItem><FormLabel>Nº de Rastreio</FormLabel>
+                                        <div className="flex gap-2">
+                                            <FormControl><Input placeholder="Ex: 1234567890" {...field} /></FormControl>
+                                            <Button type="button" variant="secondary" onClick={handleTrackCourier} disabled={isTrackingCourier}>
+                                                {isTrackingCourier ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}
+                                            </Button>
+                                        </div>
+                                        <FormMessage />
                                     </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="mblPrintingAuthDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col mt-4">
-                                        <FormLabel>Data de Autorização de Impressão</FormLabel>
+                                )}/>
+                                 <FormField control={form.control} name="courierSentDate" render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel>Data de Envio</FormLabel>
                                         <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                        {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar
-                                                    mode="single"
-                                                    selected={field.value ? new Date(field.value) : undefined}
-                                                    onSelect={field.onChange}
-                                                    initialFocus
-                                                />
-                                            </PopoverContent>
+                                            <PopoverTrigger asChild><FormControl>
+                                                <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                    {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </FormControl></PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent>
                                         </Popover>
                                         <FormMessage />
                                     </FormItem>
+                                )}/>
+                                {courierStatus && (
+                                    <div className="pt-2">
+                                        <p className="text-sm font-semibold">Último Status:</p>
+                                        <p className="text-sm text-muted-foreground p-2 bg-muted rounded-md">{courierStatus}</p>
+                                    </div>
                                 )}
-                            />
-                        </div>
-                        
-                        {!mblPrintingAtDestination && (
-                             <div className="p-4 border rounded-lg animate-in fade-in-50 duration-500">
-                                <h3 className="text-base font-semibold mb-4 flex items-center gap-2"><Package/> Envio dos Documentos Originais por Courrier</h3>
-                                 <div className="space-y-4">
-                                     <FormField control={form.control} name="courierName" render={({ field }) => (
-                                        <FormItem><FormLabel>Courrier</FormLabel><FormControl><Input placeholder="Ex: DHL, FedEx" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="courierTrackingNumber" render={({ field }) => (
-                                        <FormItem><FormLabel>Nº de Rastreio</FormLabel>
-                                            <div className="flex gap-2">
-                                                <FormControl><Input placeholder="Ex: 1234567890" {...field} /></FormControl>
-                                                <Button type="button" variant="secondary" onClick={handleTrackCourier} disabled={isTrackingCourier}>
-                                                    {isTrackingCourier ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}
-                                                </Button>
-                                            </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="courierSentDate" render={({ field }) => (
-                                        <FormItem className="flex flex-col">
-                                            <FormLabel>Data de Envio</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild><FormControl>
-                                                    <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                        {field.value ? format(new Date(field.value), "PPP") : <span>Selecione a data</span>}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </FormControl></PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent>
-                                            </Popover>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                    {courierStatus && (
-                                        <div className="pt-2">
-                                            <p className="text-sm font-semibold">Último Status:</p>
-                                            <p className="text-sm text-muted-foreground p-2 bg-muted rounded-md">{courierStatus}</p>
-                                        </div>
-                                    )}
-                                 </div>
                              </div>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
+                         </div>
+                    )}
+                </div>
+            </div>
         </Form>
     );
 });

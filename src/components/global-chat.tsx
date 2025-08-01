@@ -20,9 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/
 
 
 interface GlobalChatProps {
-    shipment?: Shipment; // Make shipment optional for the global view
-    onUpdate?: (shipment: Shipment) => void;
-    // Props for sheet mode
     isOpen?: boolean;
     onOpenChange?: (open: boolean) => void;
 }
@@ -34,8 +31,7 @@ const DepartmentIcon = ({ department }: { department: ChatMessage['department'] 
     return null;
 }
 
-// Renaming back to GlobalChat as it's used in the sidebar for a global view
-export function GlobalChat({ isOpen, onOpenChange, shipment, onUpdate }: GlobalChatProps) {
+export function GlobalChat({ isOpen, onOpenChange }: GlobalChatProps) {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
     const [newMessage, setNewMessage] = useState('');
@@ -44,8 +40,6 @@ export function GlobalChat({ isOpen, onOpenChange, shipment, onUpdate }: GlobalC
     const { toast } = useToast();
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     
-    const isSheet = isOpen !== undefined && onOpenChange !== undefined;
-
     const conversations = useMemo(() => {
         return shipments
             .filter(s => s.chatMessages && s.chatMessages.length > 0)
@@ -62,12 +56,10 @@ export function GlobalChat({ isOpen, onOpenChange, shipment, onUpdate }: GlobalC
     }, [shipments]);
 
     useEffect(() => {
-        if (isSheet && isOpen) {
+        if (isOpen) {
             setShipments(getStoredShipments());
-        } else if (!isSheet && shipment) {
-             setSelectedShipment(shipment);
         }
-    }, [isOpen, isSheet, shipment]);
+    }, [isOpen]);
     
     useEffect(() => {
         if (selectedShipment && scrollAreaRef.current) {
@@ -76,7 +68,7 @@ export function GlobalChat({ isOpen, onOpenChange, shipment, onUpdate }: GlobalC
     }, [selectedShipment, selectedShipment?.chatMessages]);
 
     const handleSendMessage = async () => {
-        const shipmentToUpdate = selectedShipment || shipment;
+        const shipmentToUpdate = selectedShipment;
         if (!newMessage.trim() || !shipmentToUpdate) return;
         setIsLoading(true);
 
@@ -100,19 +92,12 @@ export function GlobalChat({ isOpen, onOpenChange, shipment, onUpdate }: GlobalC
             return msg;
         });
         
-        // This is the main fix: correctly distinguishing between sheet and embedded mode
-        if (isSheet) {
-            // In sheet mode, it manages its own state and saves globally
-            const updatedShipments = await updateShipment(updatedShipmentData);
-            const updatedShipmentFromServer = updatedShipments.find(s => s.id === updatedShipmentData.id);
-            if (updatedShipmentFromServer) {
-                setSelectedShipment(updatedShipmentFromServer);
-            }
-            setShipments(getStoredShipments()); // Refresh the conversation list
-        } else if (onUpdate) {
-            // In embedded mode, it calls the parent's update function
-            onUpdate(updatedShipmentData);
+        const updatedShipments = await updateShipment(updatedShipmentData);
+        const updatedShipmentFromServer = updatedShipments.find(s => s.id === updatedShipmentData.id);
+        if (updatedShipmentFromServer) {
+            setSelectedShipment(updatedShipmentFromServer);
         }
+        setShipments(getStoredShipments()); // Refresh the conversation list
         
         setNewMessage('');
         setIsLoading(false);
@@ -126,8 +111,8 @@ export function GlobalChat({ isOpen, onOpenChange, shipment, onUpdate }: GlobalC
          <div className="flex flex-col h-full">
              <ScrollArea className="flex-grow p-4" ref={scrollAreaRef as any}>
                 <div className="space-y-4">
-                    {(selectedShipment || shipment)?.chatMessages?.map((msg, index) => {
-                        const currentShipment = selectedShipment || shipment;
+                    {selectedShipment?.chatMessages?.map((msg, index) => {
+                        const currentShipment = selectedShipment;
                         const isUser = msg.sender !== 'Cliente';
                         const showAvatar = (currentShipment?.chatMessages?.[index - 1]?.sender !== msg.sender);
                         return (
@@ -161,8 +146,8 @@ export function GlobalChat({ isOpen, onOpenChange, shipment, onUpdate }: GlobalC
             </ScrollArea>
             <div className="p-4 border-t space-y-3 shrink-0">
                 <RadioGroup value={department} onValueChange={(v) => setDepartment(v as any)} className="flex gap-4">
-                    <Label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="Operacional" id="op-dept" />Para Operacional</Label>
-                    <Label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="Financeiro" id="fin-dept" />Para Financeiro</Label>
+                    <Label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="Operacional" id="op-dept-global" />Para Operacional</Label>
+                    <Label className="flex items-center gap-2 cursor-pointer"><RadioGroupItem value="Financeiro" id="fin-dept-global" />Para Financeiro</Label>
                 </RadioGroup>
                 <div className="flex gap-2">
                     <Input
@@ -179,72 +164,57 @@ export function GlobalChat({ isOpen, onOpenChange, shipment, onUpdate }: GlobalC
             </div>
         </div>
     );
-
-    if (isSheet) {
-        return (
-            <Sheet open={isOpen} onOpenChange={onOpenChange}>
-                <SheetContent side="right" className="w-full sm:max-w-md md:max-w-lg p-0 flex flex-col">
-                    <SheetHeader className="p-4 border-b">
-                        <SheetTitle className="flex items-center gap-2">
-                            {selectedShipment && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedShipment(null)}>
-                                    <ArrowLeft className="h-5 w-5" />
-                                </Button>
-                            )}
-                            <MessageSquare className="h-6 w-6" />
-                            {selectedShipment ? `Chat: ${selectedShipment.id}` : 'Conversas'}
-                        </SheetTitle>
-                        {selectedShipment && (
-                            <SheetDescription>
-                                Cliente: {selectedShipment.customer}
-                            </SheetDescription>
-                        )}
-                    </SheetHeader>
-                    
-                    <div className="flex-grow overflow-y-auto">
-                    {!selectedShipment ? (
-                        <ScrollArea className="h-full">
-                            {conversations.length > 0 ? conversations.map(({ shipment, lastMessage, hasUnread }) => (
-                                <div key={shipment.id} className={cn("flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-accent", hasUnread && "bg-primary/10 font-bold")} onClick={() => handleSelectConversation(shipment)}>
-                                    <Avatar className="relative">
-                                        <AvatarFallback>{shipment.customer?.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                        {hasUnread && <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-destructive ring-2 ring-background" />}
-                                    </Avatar>
-                                    <div className="flex-grow overflow-hidden">
-                                        <p className="font-semibold truncate">{shipment.id} - {shipment.customer}</p>
-                                        <p className={cn("text-sm truncate", hasUnread ? "text-foreground" : "text-muted-foreground")}>
-                                            {lastMessage.sender === 'Cliente' ? '' : 'Você: '}{lastMessage.message}
-                                        </p>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground text-right shrink-0">
-                                        {formatDistanceToNow(new Date(lastMessage.timestamp), { addSuffix: true, locale: ptBR })}
-                                    </div>
-                                </div>
-                            )) : (
-                                <div className="text-center text-muted-foreground p-8">
-                                    <p>Nenhuma conversa ativa.</p>
-                                </div>
-                            )}
-                        </ScrollArea>
-                    ) : (
-                        chatContent
-                    )}
-                    </div>
-                </SheetContent>
-            </Sheet>
-        );
-    }
     
-    // Non-sheet version for embedding in pages
     return (
-        <Card className="flex flex-col h-[600px]">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Chat do Processo</CardTitle>
-                <CardDescription>Comunique-se com o cliente e equipes internas sobre este embarque.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow overflow-hidden flex flex-col p-0">
-                {chatContent}
-            </CardContent>
-        </Card>
-    )
+        <Sheet open={isOpen} onOpenChange={onOpenChange}>
+            <SheetContent side="right" className="w-full sm:max-w-md md:max-w-lg p-0 flex flex-col">
+                <SheetHeader className="p-4 border-b">
+                    <SheetTitle className="flex items-center gap-2">
+                        {selectedShipment && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedShipment(null)}>
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                        )}
+                        <MessageSquare className="h-6 w-6" />
+                        {selectedShipment ? `Chat: ${selectedShipment.id}` : 'Conversas'}
+                    </SheetTitle>
+                    {selectedShipment && (
+                        <SheetDescription>
+                            Cliente: {selectedShipment.customer}
+                        </SheetDescription>
+                    )}
+                </SheetHeader>
+                
+                <div className="flex-grow overflow-y-auto">
+                {!selectedShipment ? (
+                    <ScrollArea className="h-full">
+                        {conversations.length > 0 ? conversations.map(({ shipment, lastMessage, hasUnread }) => (
+                            <div key={shipment.id} className={cn("flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-accent", hasUnread && "bg-primary/10 font-bold")} onClick={() => handleSelectConversation(shipment)}>
+                                <Avatar className="relative">
+                                    <AvatarFallback>{shipment.customer?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                    {hasUnread && <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-destructive ring-2 ring-background" />}
+                                </Avatar>
+                                <div className="flex-grow overflow-hidden">
+                                    <p className="font-semibold truncate">{shipment.id} - {shipment.customer}</p>
+                                    <p className={cn("text-sm truncate", hasUnread ? "text-foreground" : "text-muted-foreground")}>
+                                        {lastMessage.sender === 'Cliente' ? '' : 'Você: '}{lastMessage.message}
+                                    </p>
+                                </div>
+                                <div className="text-xs text-muted-foreground text-right shrink-0">
+                                    {formatDistanceToNow(new Date(lastMessage.timestamp), { addSuffix: true, locale: ptBR })}
+                                </div>
+                            </div>
+                        )) : (
+                            <div className="text-center text-muted-foreground p-8">
+                                <p>Nenhuma conversa ativa.</p>
+                            </div>
+                        )}
+                    </ScrollArea>
+                ) : (
+                    chatContent
+                )}
+                </div>
+            </SheetContent>
+        </Sheet>
+    );
 }

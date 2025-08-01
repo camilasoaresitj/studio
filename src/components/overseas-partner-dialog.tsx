@@ -109,8 +109,14 @@ export function OverseasPartnerDialog({ quote, partners, onPartnerConfirmed, onC
   const handleCreateConfirm = (data: PartnerFormData) => {
     const newPartnerData: Partner = {
         ...data,
-        id: Math.max(...partners.map(p => p.id ?? 0), 0) + 1, // Create a new temporary ID
-    } as Partner;
+        id: Math.max(...partners.map(p => p.id ?? 0), 0) + 1,
+        roles: {
+            cliente: data.type === 'Cliente',
+            fornecedor: data.type === 'Fornecedor',
+            agente: data.type === 'Agente',
+            comissionado: false
+        }
+    };
     onPartnerConfirmed(newPartnerData, quote);
   };
 

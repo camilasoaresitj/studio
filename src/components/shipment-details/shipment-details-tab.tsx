@@ -51,7 +51,7 @@ const transshipmentDetailSchema = z.object({
 
 const detailsFormSchema = z.object({
   origin: z.string().min(1, "Origem é obrigatória."),
-  destination: z.string().min(1, "Destino é obrigatório."),
+  destination: z.string().min(1, "Destino é obrigatória."),
   collectionAddress: z.string().optional(),
   deliveryAddress: z.string().optional(),
   carrier: z.string().optional(),
@@ -106,15 +106,15 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
     }));
     
     const handleRefreshTracking = async () => {
-        const currentCarrierName = form.getValues('carrier');
-        if (!shipment?.bookingNumber || !currentCarrierName) {
+        const { carrier, bookingNumber } = form.getValues();
+        if (!bookingNumber || !carrier) {
             setTrackingError("Número do booking e transportadora são necessários para o rastreamento.");
             return;
         }
         setIsTracking(true);
         setTrackingError(null);
         try {
-            const res = await fetch(`/api/tracking/${shipment.bookingNumber}?carrierName=${encodeURIComponent(currentCarrierName)}`);
+            const res = await fetch(`/api/tracking/${bookingNumber}?carrierName=${encodeURIComponent(carrier)}`);
             const data = await res.json();
             
             if (!res.ok) {

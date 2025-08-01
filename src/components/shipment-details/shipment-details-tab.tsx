@@ -78,7 +78,7 @@ type DetailsFormData = z.infer<typeof detailsFormSchema>;
 interface ShipmentDetailsTabProps {
     shipment: Shipment;
     partners: Partner[];
-    onUpdate: (updatedShipment: Partial<Shipment>) => void; // Allow partial updates
+    onUpdate: (updatedShipment: Partial<Shipment>) => void;
     isTracking: boolean;
     setIsTracking: (isTracking: boolean) => void;
 }

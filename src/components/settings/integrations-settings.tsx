@@ -60,19 +60,21 @@ export function IntegrationsSettings() {
       snovioUserId: '',
       snovioApiSecret: '',
       cargoFiveApiKey: '',
-      cargoFlowsApiKey: process.env.NEXT_PUBLIC_CARGOFLOWS_API_KEY || '',
-      cargoFlowsOrgToken: process.env.NEXT_PUBLIC_CARGOFLOWS_ORG_TOKEN || '',
-      googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+      cargoFlowsApiKey: '',
+      cargoFlowsOrgToken: '',
+      googleMapsApiKey: '',
     },
   });
 
   useEffect(() => {
-    // In a real app, these values would be fetched from a secure backend
-    // For now, we simulate this by trying to read from process.env if available
+    // In a real app, these values would be fetched from a secure backend.
+    // For this prototype, we'll populate with the values from your .env for display.
+    // Note: This only works for NEXT_PUBLIC_ variables on the client-side.
+    // Secure keys should be handled differently in production.
     form.reset({
-        cargoFlowsApiKey: 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs',
-        cargoFlowsOrgToken: '9H31zRWYCGihV5U3th5JJXZI3h7LGen6',
-        googleMapsApiKey: 'AIzaSyCEfBPLXPR2I95jCLhBXarhzoyHeAPjjGo'
+        cargoFlowsApiKey: process.env.NEXT_PUBLIC_CARGOFLOWS_API_KEY || '',
+        cargoFlowsOrgToken: process.env.NEXT_PUBLIC_CARGOFLOWS_ORG_TOKEN || '',
+        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
     })
   }, [form]);
 

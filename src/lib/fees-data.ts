@@ -7,7 +7,7 @@ export const feeSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   value: z.string().min(1, 'Valor é obrigatório'),
   currency: z.enum(['BRL', 'USD', 'EUR', 'JPY', 'CHF', 'GBP']),
-  type: z.enum(['Fixo', 'Percentual', 'W/M', 'Opcional', 'KG']),
+  type: z.enum(['Fixo', 'Percentual', 'W/M', 'Opcional', 'KG', 'Por CBM/Ton']),
   unit: z.string().min(1, 'Unidade é obrigatória'),
   modal: z.enum(['Marítimo', 'Aéreo', 'Ambos']),
   direction: z.enum(['Importação', 'Exportação', 'Ambos']),
@@ -31,8 +31,8 @@ const initialFeesData: Fee[] = [
     { id: 22, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'Contêiner', modal: 'Marítimo', direction: 'Importação', chargeType: 'FCL', containerType: 'Todos'},
     
     // Importação Marítima LCL
-    { id: 5, name: 'THC', value: '50', currency: 'BRL', type: 'W/M', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50, containerType: 'Todos' },
-    { id: 6, name: 'DESOVA', value: '50', currency: 'BRL', type: 'W/M', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50, containerType: 'Todos' },
+    { id: 5, name: 'THC', value: '50', currency: 'BRL', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50, containerType: 'Todos' },
+    { id: 6, name: 'DESOVA', value: '50', currency: 'BRL', type: 'Por CBM/Ton', unit: 'W/M', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', minValue: 50, containerType: 'Todos' },
     { id: 7, name: 'BL FEE', value: '200', currency: 'BRL', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', containerType: 'Todos' },
     { id: 23, name: 'DESCONSOLIDAÇÃO', value: '100', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', containerType: 'Todos'},
     { id: 24, name: 'TRS', value: '10', currency: 'USD', type: 'Fixo', unit: 'BL', modal: 'Marítimo', direction: 'Importação', chargeType: 'LCL', containerType: 'Todos'},

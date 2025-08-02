@@ -47,6 +47,7 @@ import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-ta
 import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
 import { FinancialDetailsDialog } from './financials/financial-details-dialog';
 import { getStoredFinancialEntries } from '@/lib/financials-data';
+import { cn } from '@/lib/utils';
 
 
 const shipmentDetailsSchema = z.object({

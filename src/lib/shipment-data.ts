@@ -185,6 +185,7 @@ export type Shipment = {
   mblPrintingAuthDate?: Date;
   courier?: string; // Simplified courier name
   courierNumber?: string;
+  courierSentDate?: Date;
   courierLastStatus?: string;
   vesselName?: string;
   voyageNumber?: string;

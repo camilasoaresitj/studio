@@ -116,13 +116,25 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
         }
     });
     
-    const handleRefreshTracking = async (trackingId: string, type: 'bookingNumber' | 'containerNumber' | 'mblNumber', carrierName: string) => {
+    const handleRefreshTracking = async () => {
+        const trackingId = shipment.bookingNumber || shipment.masterBillNumber || shipment.containers?.[0]?.number;
+        if (!trackingId) {
+            toast({ variant: 'destructive', title: "Dados Insuficientes", description: "Não há Booking, Master BL ou Contêiner para rastrear." });
+            return;
+        }
+
+        let type: 'bookingNumber' | 'containerNumber' | 'mblNumber' = 'bookingNumber';
+        if (shipment.bookingNumber) type = 'bookingNumber';
+        else if (shipment.masterBillNumber) type = 'mblNumber';
+        else if (shipment.containers?.[0]?.number) type = 'containerNumber';
+
         setIsUpdating(true);
         setTrackingError(null);
 
         const pollTracking = async (retries = 5): Promise<any> => {
             try {
-                const response = await fetch(`/api/tracking/${trackingId}?type=${type}&carrierName=${encodeURIComponent(carrierName)}`);
+                // Ensure carrierName is passed
+                const response = await fetch(`/api/tracking/${trackingId}?type=${type}&carrierName=${encodeURIComponent(shipment.carrier || '')}`);
                 const data = await response.json();
                 
                 if (response.ok) {
@@ -208,7 +220,7 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
                                 <CardDescription>Acompanhe e atualize os marcos do embarque.</CardDescription>
                             </div>
                             <div className="flex gap-2">
-                                <Button size="sm" type="button" variant="secondary" onClick={() => handleRefreshTracking(shipment.bookingNumber || '', 'bookingNumber', shipment.carrier || '')} disabled={isUpdating || !shipment.bookingNumber}>
+                                <Button size="sm" type="button" variant="secondary" onClick={handleRefreshTracking} disabled={isUpdating}>
                                     {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
                                     Rastrear
                                 </Button>

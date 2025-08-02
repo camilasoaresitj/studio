@@ -22,6 +22,7 @@ import type { Partner } from '@/lib/partners-data';
 interface PartnersRegistryProps {
   partners: Partner[];
   onPartnerSaved: (partner: Partner) => void;
+  filterRole?: 'cliente' | 'fornecedor' | 'agente' | 'comissionado';
 }
 
 const supplierTypes = [
@@ -42,7 +43,7 @@ const supplierTypes = [
     { id: 'advogado', label: 'Advogado' },
 ];
 
-export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryProps) {
+export function PartnersRegistry({ partners, onPartnerSaved, filterRole }: PartnersRegistryProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [filters, setFilters] = useState({ name: '', country: '', state: '', type: '' });
@@ -82,13 +83,16 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
 
   const filteredPartners = useMemo(() => {
     return partners.filter((partner) => {
+        if (filterRole && !partner.roles[filterRole]) {
+            return false;
+        }
         const nameMatch = partner.name.toLowerCase().includes(filters.name.toLowerCase());
         const countryMatch = !filters.country || (partner.address.country || '').toLowerCase().includes(filters.country.toLowerCase());
         const stateMatch = !filters.state || (partner.address.state || '').toLowerCase().includes(filters.state.toLowerCase());
         const typeMatch = !filters.type || getPartnerTypeString(partner).toLowerCase().includes(filters.type.toLowerCase());
         return nameMatch && countryMatch && stateMatch && typeMatch;
     });
-  }, [partners, filters]);
+  }, [partners, filters, filterRole]);
   
   const handleFilterChange = (field: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
@@ -147,7 +151,10 @@ export function PartnersRegistry({ partners, onPartnerSaved }: PartnersRegistryP
                 despachanteId: null,
                 loginEmail: '',
                 password: '',
-            }]
+            }],
+            // Adding missing required fields with default values
+            paymentTerm: 30,
+            exchangeRateAgio: 0,
           };
           onPartnerSaved(newPartner);
           return newPartner;

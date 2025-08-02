@@ -2,7 +2,7 @@
 import { getAuthHeaders } from './apiUtils';
 import { EnhancedPollingError } from './errors';
 
-const SHIPMENT_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1/shipments';
+const SHIPMENT_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1/shipment';
 
 class HtmlResponseError extends Error {
   constructor(htmlPreview: string) {

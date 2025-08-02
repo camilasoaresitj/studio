@@ -247,6 +247,11 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                                             <code>{JSON.stringify(trackingError.diagnostic, null, 2)}</code>
                                         </pre>
                                     )}
+                                     {trackingError.payload && (
+                                        <pre className="mt-2 text-xs bg-destructive/10 p-2 rounded-md overflow-x-auto">
+                                            <code>Payload Enviado: {JSON.stringify(trackingError.payload, null, 2)}</code>
+                                        </pre>
+                                    )}
                                 </AlertDescription>
                             </Alert>
                         )}

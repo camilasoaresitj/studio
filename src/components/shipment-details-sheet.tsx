@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import {
   Sheet,
@@ -339,6 +340,15 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
                                 <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
                                      <span>Cliente: {shipment.customer}</span>
+                                     <Separator orientation="vertical" className="h-4"/>
+                                      <span className="flex items-center gap-1.5">
+                                        Última Sincronização: 
+                                        <span className="font-semibold text-foreground">
+                                            {shipment.lastTrackingUpdate 
+                                                ? format(new Date(shipment.lastTrackingUpdate), 'dd/MM/yy HH:mm', { locale: ptBR }) 
+                                                : 'Nunca'}
+                                        </span>
+                                    </span>
                                 </div>
                             </div>
                         </div>

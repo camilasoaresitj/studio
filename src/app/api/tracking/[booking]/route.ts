@@ -29,7 +29,7 @@ const getAuthHeaders = () => {
     }
     return {
         'X-DPW-ApiKey': API_KEY,
-        'X-DPW-Token': ORG_TOKEN,
+        'X-DPW-Org-Token': ORG_TOKEN, // Corrected from X-DPW-Token
         'Content-Type': 'application/json',
         'accept': 'application/json'
     };
@@ -110,7 +110,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     if (carrierName) {
         getShipmentUrl += `&carrierName=${encodeURIComponent(carrierName)}`;
     }
-
+    
     console.log('➡️  Polling for Shipment:', getShipmentUrl);
     
     const getRes = await fetch(getShipmentUrl, { headers, cache: 'no-store' });

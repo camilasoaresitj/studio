@@ -1,9 +1,10 @@
+
 // /src/lib/buildTrackingPayload.ts
 
 interface TrackingInput {
   type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
   trackingNumber: string;
-  oceanLine?: string; // SCAC code for the carrier
+  oceanLine?: string | null; // SCAC code for the carrier, now optional
 }
 
 /**
@@ -33,7 +34,8 @@ export function buildTrackingPayload(input: TrackingInput) {
       throw new Error(`Invalid tracking type: ${type}`);
   }
 
-  // A API da Cargo-flows espera o SCAC code no campo oceanLine para a criação.
+  // A API da Cargo-flows espera o SCAC code no campo oceanLine.
+  // Será incluído apenas se fornecido, para permitir fallbacks.
   if (oceanLine) {
     formDataItem.oceanLine = oceanLine;
   }

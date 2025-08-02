@@ -36,113 +36,91 @@ const getAuthHeaders = () => {
     };
 };
 
+// Helper function to create a shipment with a given payload
+async function tryCreateShipment(payload: any, headers: HeadersInit) {
+    console.log('➡️  Tentando criar embarque com payload:', JSON.stringify(payload, null, 2));
+    const createRes = await fetch(CREATE_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
+    return createRes;
+}
+
 export async function GET(req: Request, { params }: { params: { booking: string } }) {
   const trackingId = params.booking;
   const url = new URL(req.url);
-  const skipCreate = url.searchParams.get('skipCreate') === 'true';
   const carrierName = url.searchParams.get('carrierName');
   const type = (url.searchParams.get('type') || 'bookingNumber') as 'bookingNumber' | 'containerNumber' | 'mblNumber';
 
   try {
     const headers = getAuthHeaders();
     
+    // 1. Tenta buscar o embarque primeiro
     const getShipmentUrl = `${SHIPMENT_URL}?${type}=${trackingId}`;
     console.log('➡️  GET Shipment URL:', getShipmentUrl);
-    let res = await fetch(getShipmentUrl, { headers });
+    const getRes = await fetch(getShipmentUrl, { headers });
     
-    let data;
-    // Handle 204 No Content and 404 Not Found as "shipment not found"
-    if (res.status === 204 || res.status === 404) {
-      data = null;
-    } else if (res.ok) {
-      data = await safelyParseJSON(res);
-    } else {
-      const errorBody = await safelyParseJSON(res);
-      console.error('❌ GET Shipment Initial Error:', errorBody);
-      return NextResponse.json({
-          error: 'Erro ao buscar embarque na Cargo-flows.',
-          detail: errorBody?.message || JSON.stringify(errorBody),
-      }, { status: res.status });
+    if (getRes.ok && getRes.status !== 204) {
+        const data = await safelyParseJSON(getRes);
+        const firstShipment = Array.isArray(data) ? data[0] : data;
+        if (firstShipment) {
+             console.log('✅ Embarque encontrado com sucesso na primeira busca.');
+             return NextResponse.json({ status: 'ready', shipment: firstShipment });
+        }
     }
 
-    // If shipment not found and creation is not skipped, try to create it.
-    if (!skipCreate && (!data || (Array.isArray(data) && data.length === 0))) {
-      console.log('ℹ️ Embarque não encontrado. Tentando criar...');
-      
-      const carrier = findCarrierByName(carrierName || '');
-      if (!carrier || !carrier.scac) {
-        throw new Error(`Transportadora "${carrierName}" não encontrada ou não possui SCAC code.`);
-      }
+    // 2. Se não encontrado, tenta criar (com fallbacks)
+    console.log('ℹ️ Embarque não encontrado. Iniciando fluxo de criação...');
+    const carrier = findCarrierByName(carrierName || '');
 
-      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier.scac });
-      
-      console.log('🔍 Diagnóstico de Criação:');
-      console.log('URL:', CREATE_URL);
-      console.log('Headers:', JSON.stringify(headers, null, 2));
-      console.log('Payload:', JSON.stringify(payload, null, 2));
+    // Tentativa 1: Criar com SCAC Code (padrão da indústria)
+    const payloadWithScac = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier?.scac });
+    let createRes = await tryCreateShipment(payloadWithScac, headers);
+    
+    // Fallback: Se a criação com SCAC falhar, tenta criar sem o oceanLine
+    if (createRes.status === 404 || createRes.status === 400) {
+        console.warn('⚠️  Criação com SCAC falhou. Tentando fallback sem oceanLine...');
+        const payloadWithoutOceanLine = buildTrackingPayload({ type, trackingNumber: trackingId });
+        createRes = await tryCreateShipment(payloadWithoutOceanLine, headers);
+    }
 
-      const createRes = await fetch(CREATE_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-      });
-      
-      if (!createRes.ok) {
+    if (!createRes.ok) {
         const errorBody = await safelyParseJSON(createRes);
-        console.error('❌ CREATE Shipment Error:', errorBody);
+        console.error('❌ CREATE Shipment Error (Final):', errorBody);
         return NextResponse.json({
-          error: 'Erro ao registrar o embarque na Cargo-flows.',
+          error: 'Erro ao registrar o embarque na Cargo-flows após todas as tentativas.',
           detail: errorBody?.message || JSON.stringify(errorBody),
-          payloadSent: payload,
+          payloadSent: payloadWithScac, // Mostra o payload principal que foi tentado
         }, { status: createRes.status });
-      }
-      
-      console.log('✅ Embarque criado com sucesso. Aguardando processamento...');
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for processing
-
-      console.log('➡️  GET Shipment URL (After Create):', getShipmentUrl);
-      res = await fetch(getShipmentUrl, { headers });
-      
-      if (res.status === 204 || res.status === 404) {
-        data = null;
-      } else if (res.ok) {
-        data = await safelyParseJSON(res);
-      } else {
-         const errorBody = await safelyParseJSON(res);
-         console.error('❌ GET Shipment After Create Error:', errorBody);
-         return NextResponse.json({
-             error: 'Erro ao buscar embarque após a criação.',
-             detail: errorBody?.message || JSON.stringify(errorBody),
-         }, { status: res.status });
-      }
     }
 
-    const firstShipment = Array.isArray(data) ? data[0] : data;
-    
-    console.log('📥 GET Shipment Response Body (parsed final):', JSON.stringify(firstShipment, null, 2));
+    console.log('✅ Embarque criado com sucesso. Aguardando processamento...');
+    await new Promise(resolve => setTimeout(resolve, 5000)); // Aguarda processamento
 
-    if (firstShipment?.state === 'PROCESSING' && firstShipment.fallback) {
-        return NextResponse.json({
-            status: 'processing',
-            message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
-            shipment: firstShipment.fallback,
-        }, { status: 202 });
-    }
+    console.log('➡️  GET Shipment URL (Após Criação):', getShipmentUrl);
+    const finalGetRes = await fetch(getShipmentUrl, { headers });
+      
+    if (finalGetRes.ok && finalGetRes.status !== 204) {
+        const finalData = await safelyParseJSON(finalGetRes);
+        const firstShipment = Array.isArray(finalData) ? finalData[0] : finalData;
 
-    if (!firstShipment || Object.keys(firstShipment).length === 0) {
-        return NextResponse.json({
-            status: 'processing',
-            message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis. Tente novamente em alguns minutos.',
-        }, { status: 202 });
+        if (firstShipment?.state === 'PROCESSING' && firstShipment.fallback) {
+            return NextResponse.json({
+                status: 'processing',
+                message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
+                shipment: firstShipment.fallback,
+            }, { status: 202 });
+        }
+        
+        return NextResponse.json({ status: 'ready', shipment: firstShipment });
     }
     
-    const eventos = (firstShipment?.shipmentEvents || []).map((ev: any) => ({
-      eventName: ev.name,
-      location: ev.location,
-      actualTime: ev.actualTime || ev.estimateTime,
-    }));
+    return NextResponse.json({
+        status: 'processing',
+        message: 'O embarque foi registrado com sucesso, mas os dados de rastreio ainda não estão disponíveis. Tente novamente em alguns minutos.',
+    }, { status: 202 });
 
-    return NextResponse.json({ status: 'ready', eventos, shipment: firstShipment });
   } catch (err: any) {
     console.error("❌ ERRO GERAL NA ROTA DE TRACKING:", err);
     return NextResponse.json({

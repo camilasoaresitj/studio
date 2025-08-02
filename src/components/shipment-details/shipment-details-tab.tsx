@@ -76,6 +76,14 @@ const detailsFormSchema = z.object({
 
 type DetailsFormData = z.infer<typeof detailsFormSchema>;
 
+interface TrackingError {
+    title: string;
+    detail: string;
+    payload?: any;
+    diagnostic?: any;
+}
+
+
 interface ShipmentDetailsTabProps {
     shipment: Shipment;
     partners: Partner[];
@@ -85,7 +93,7 @@ interface ShipmentDetailsTabProps {
 }
 
 export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners, onUpdate, isTracking, setIsTracking }, ref) => {
-    const [trackingError, setTrackingError] = useState<{ title: string; detail: string } | null>(null);
+    const [trackingError, setTrackingError] = useState<TrackingError | null>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const { toast } = useToast();
 
@@ -153,9 +161,11 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             const data = await res.json();
             
             if (!res.ok) {
-                 if (res.status === 404 || res.status === 202) {
-                    if (!isPolling) startPolling(trackingId, type, carrier);
-                    return; 
+                 if (res.status === 400 || res.status === 404 || res.status === 202) {
+                    if (data.status === 'not_found' || data.status === 'creating') {
+                        if (!isPolling) startPolling(trackingId, type, carrier);
+                        return;
+                    }
                  }
                  throw data;
             }
@@ -185,7 +195,9 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
             setTrackingError({
                 title: error.error || 'Erro ao Carregar Rastreamento',
-                detail: error.detail || "Ocorreu um erro inesperado."
+                detail: error.detail || "Ocorreu um erro inesperado.",
+                payload: error.payload,
+                diagnostic: error.diagnostic,
             });
             setIsTracking(false);
         }
@@ -259,6 +271,22 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                                 <AlertTitle>{trackingError.title}</AlertTitle>
                                 <AlertDescription>
                                     <p><b>Detalhes:</b> {trackingError.detail}</p>
+                                    {trackingError.payload && (
+                                        <div className="mt-2">
+                                            <b>Payload Enviado:</b>
+                                            <pre className="text-xs bg-black/20 p-2 rounded-md mt-1 overflow-auto">
+                                                {JSON.stringify(trackingError.payload, null, 2)}
+                                            </pre>
+                                        </div>
+                                    )}
+                                    {trackingError.diagnostic && (
+                                        <div className="mt-2">
+                                            <b>Diagnóstico da API:</b>
+                                            <pre className="text-xs bg-black/20 p-2 rounded-md mt-1 overflow-auto">
+                                                {JSON.stringify(trackingError.diagnostic, null, 2)}
+                                            </pre>
+                                        </div>
+                                    )}
                                 </AlertDescription>
                             </Alert>
                         )}

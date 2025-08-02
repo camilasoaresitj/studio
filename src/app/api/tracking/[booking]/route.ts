@@ -37,6 +37,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const url = new URL(req.url);
   const type = (url.searchParams.get('type') || 'bookingNumber') as 'bookingNumber' | 'containerNumber' | 'mblNumber';
   const carrierName = url.searchParams.get('carrierName');
+  
+  let createPayload: any = null;
 
   try {
     const headers = getAuthHeaders();
@@ -70,7 +72,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
 
-    const createPayload = buildTrackingPayload({
+    createPayload = buildTrackingPayload({
         type: type,
         trackingNumber: trackingId,
         oceanLine: carrier?.name || undefined,
@@ -94,8 +96,10 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     return NextResponse.json({
         status: 'not_found',
         message: 'The shipment could not be found, and an attempt to create it failed. This might be due to a data sync delay. The system will keep trying.',
-        error: errorBody?.errors?.[0]?.message || 'Unknown creation error'
-    }, { status: 404 });
+        error: errorBody?.errors?.[0]?.message || 'Unknown creation error',
+        payload: createPayload,
+        diagnostic: errorBody
+    }, { status: 400 });
 
 
   } catch (err: any) {
@@ -103,6 +107,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     return NextResponse.json({
       error: 'Unexpected error in the tracking server.',
       detail: err.message,
+      payload: createPayload,
     }, { status: 500 });
   }
 }

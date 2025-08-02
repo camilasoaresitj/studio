@@ -100,7 +100,7 @@ const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string })
     );
 };
 
-export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate }: ShipmentDetailsSheetProps) {
+export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate: onMasterUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('timeline');
     const [isUpdating, setIsUpdating] = useState(false);
@@ -141,6 +141,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         }
         return null;
     }, [shipment]);
+
+    const onUpdate = (updatedData: Partial<Shipment>) => {
+        if (!shipment) return;
+        const updatedShipment = { ...shipment, ...updatedData };
+        onMasterUpdate(updatedShipment);
+    };
     
     const handleMasterSave = async () => {
         if (!shipment) return;
@@ -167,7 +173,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 ...combinedTabData
             };
 
-            onUpdate(updatedShipmentData);
+            onMasterUpdate(updatedShipmentData);
 
             toast({
                 title: "Processo Atualizado!",

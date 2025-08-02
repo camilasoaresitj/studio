@@ -1,4 +1,4 @@
-// /src/app/api/tracking/[trackingId]/route.ts
+// /src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
 import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
 import { pollShipmentStatus } from '@/lib/shipmentPoller';
@@ -18,7 +18,7 @@ async function attemptCreateShipment(trackingId: string, type: string, carrierNa
   
   const internalShipment = await getShipmentById(trackingId); 
 
-  const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: oceanLine, shipment: internalShipment });
+  const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: oceanLine, shipment: internalShipment || undefined });
   
   console.log("📦 Creating Shipment with payload:", JSON.stringify(payload, null, 2));
 

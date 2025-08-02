@@ -16,7 +16,7 @@ export function buildTrackingPayload(input: TrackingInput) {
   }
 
   const formDataItem: Record<string, any> = {};
-
+  
   // Prioritize MBL for tracking
   if (shipment?.masterBillNumber) {
     formDataItem[getTrackingFieldName('mblNumber')] = shipment.masterBillNumber;

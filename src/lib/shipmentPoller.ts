@@ -4,21 +4,27 @@ import { EnhancedPollingError } from './errors';
 
 const SHIPMENT_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1/shipments';
 
+class HtmlResponseError extends Error {
+  constructor(htmlPreview: string) {
+    super(`Received HTML response: ${htmlPreview}`);
+    this.name = 'HtmlResponseError';
+  }
+}
+
 async function safelyParseJSON(response: Response) {
     const text = await response.text();
     
-    // Check if the response is likely HTML
     if (text.trim().startsWith('<')) {
         console.error("Failed to parse API response: Received HTML instead of JSON.", text.substring(0, 500));
-        throw new Error(`Unexpected API response. Server returned HTML.`);
+        throw new HtmlResponseError(text.substring(0, 200));
     }
 
     try {
         if (text === '') return null;
         return JSON.parse(text);
-    } catch (e) {
+    } catch (e: any) {
         console.error("Failed to parse API response as JSON:", text.substring(0, 500));
-        throw new Error(`Failed to parse API response. Content received: ${text.substring(0, 200)}`);
+        throw new Error(`Invalid JSON response: ${e.message}`);
     }
 }
 
@@ -46,7 +52,6 @@ export async function pollShipmentStatus(trackingNumber: string, type: string, c
       });
 
       if (response.status === 204) {
-          // No content, shipment not found, continue to next attempt
           console.log(`Polling attempt ${attempts + 1}: Received 204 No Content.`);
           attempts++;
           continue;
@@ -63,7 +68,6 @@ export async function pollShipmentStatus(trackingNumber: string, type: string, c
         }
       }
 
-      // If response is not ok, but not 204, it's a server error
       if (!response.ok) {
           const errorBody = await safelyParseJSON(response).catch(e => ({ message: e.message }));
           throw new Error(`API Error ${response.status}: ${errorBody?.message || 'Unknown API Error'}`);

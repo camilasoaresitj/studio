@@ -129,7 +129,7 @@ export function ShipmentMap({ shipmentNumber }: ShipmentMapProps) {
     if (shipmentNumber) {
         fetchAndInitializeMap();
     } else {
-        setError("Número do embarque não fornecido.");
+        setError("Número do embarque/booking não fornecido.");
         setIsLoading(false);
     }
   }, [shipmentNumber]);

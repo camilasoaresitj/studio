@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { Form } from './ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 
 import type { Shipment, Partner, QuoteCharge, FinancialEntry } from '@/lib/shipment-data';
 import { 
@@ -36,6 +36,9 @@ import { BLDraftForm } from './bl-draft-form';
 import { CustomsClearanceTab } from './customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from './ui/input';
 
 // Import new tab components
 import { ShipmentTimelineTab } from './shipment-details/shipment-timeline-tab';
@@ -97,6 +100,56 @@ const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string })
                 <span className="font-mono ml-1 font-bold text-primary">{time}</span>
             </div>
         </div>
+    );
+};
+
+interface PartnerSelectorProps {
+    label: string;
+    partners: Partner[];
+    field: any;
+}
+
+const PartnerSelector = ({ label, partners, field }: PartnerSelectorProps) => {
+    const [open, setOpen] = useState(false);
+    const selectedPartner = partners.find(p => p.id?.toString() === field.value);
+
+    return (
+        <FormItem>
+            <FormLabel>{label}</FormLabel>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-8">
+                            {field.value ? selectedPartner?.name : "Selecione..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                        <CommandInput placeholder="Buscar parceiro..." />
+                        <CommandList>
+                            <CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
+                            <CommandGroup>
+                                {partners.map(p => (
+                                    <CommandItem value={p.name} key={p.id} onSelect={() => { field.onChange(p.id!.toString()); setOpen(false); }}>
+                                        <Check className={cn("mr-2 h-4 w-4", p.id?.toString() === field.value ? "opacity-100" : "opacity-0")} />
+                                        {p.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+             {selectedPartner && (
+                <div className="text-xs text-muted-foreground mt-1 p-2 border rounded-md bg-secondary/50">
+                    <p className="truncate"><strong>CNPJ/VAT:</strong> {selectedPartner.cnpj || selectedPartner.vat || 'N/A'}</p>
+                    <p className="truncate"><strong>End:</strong> {`${selectedPartner.address.street || ''}, ${selectedPartner.address.city || ''}`}</p>
+                </div>
+            )}
+            <FormMessage />
+        </FormItem>
     );
 };
 
@@ -312,12 +365,34 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             </Button>
                         </div>
                     </div>
+                     <Form {...form}>
+                        <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                            <FormField control={form.control} name="shipperId" render={({ field }) => (
+                                <PartnerSelector label="Shipper" partners={partners} field={field} />
+                            )}/>
+                            <FormField control={form.control} name="consigneeId" render={({ field }) => (
+                                <PartnerSelector label="Consignee" partners={partners} field={field} />
+                            )}/>
+                            <FormField control={form.control} name="agentId" render={({ field }) => (
+                                <PartnerSelector label="Agente" partners={partners.filter(p=>p.roles.agente)} field={field} />
+                            )}/>
+                            <FormField control={form.control} name="notifyId" render={({ field }) => (
+                                <PartnerSelector label="Notify" partners={partners} field={field} />
+                            )}/>
+                             <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                                <FormItem><FormLabel>Purchase Order</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl></FormItem>
+                            )}/>
+                             <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                <FormItem><FormLabel>Invoice Number</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl></FormItem>
+                            )}/>
+                        </form>
+                    </Form>
                 </SheetHeader>
                 <div className="flex-grow overflow-y-auto">
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <div className="p-4 border-b">
                         <TabsList>
-                            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                            <TabsTrigger value="timeline">Timeline e Rastreamento</TabsTrigger>
                             <TabsTrigger value="details">Detalhes</TabsTrigger>
                             <TabsTrigger value="financials">Financeiro</TabsTrigger>
                             <TabsTrigger value="documents">Documentos</TabsTrigger>

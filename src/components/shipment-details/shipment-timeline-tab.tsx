@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { useState, useMemo, forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -79,11 +79,14 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
 
     const form = useForm<TimelineFormData>({
         resolver: zodResolver(timelineFormSchema),
-        defaultValues: {
+    });
+
+    useEffect(() => {
+        form.reset({
             milestones: (shipment.milestones || []).map(m => ({...m, predictedDate: new Date(m.predictedDate!), effectiveDate: m.effectiveDate ? new Date(m.effectiveDate) : null})),
             operationalNotes: shipment.operationalNotes || '',
-        }
-    });
+        });
+    }, [shipment, form]);
 
     useImperativeHandle(ref, () => ({
         submit: async () => {
@@ -124,6 +127,9 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
             return dateA - dateB;
         });
     }, [form, shipment.milestones]); 
+
+    // Use a stable identifier for the map component
+    const mapIdentifier = shipment.bookingNumber || shipment.masterBillNumber || shipment.id;
 
     return (
         <Form {...form}>
@@ -191,12 +197,12 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
                     </CardContent>
                 </Card>
                 <div className="lg:col-span-1">
-                    {shipment.id ? (
-                        <ShipmentMap shipmentNumber={shipment.id} />
+                    {mapIdentifier ? (
+                        <ShipmentMap shipmentNumber={mapIdentifier} />
                     ) : (
                         <div className="text-center p-8 text-muted-foreground h-full flex flex-col justify-center items-center border rounded-lg bg-muted/50">
                             <MapIcon className="mx-auto h-12 w-12 mb-4" />
-                            <p>É necessário um ID de Processo para visualizar o mapa da rota.</p>
+                            <p>É necessário um Booking/Master para visualizar o mapa da rota.</p>
                         </div>
                     )}
                 </div>

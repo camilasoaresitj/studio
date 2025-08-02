@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
 import { findCarrierByName } from '@/lib/carrier-data';
+import { getShipmentById } from '@/app/actions';
 import { Milestone, ContainerDetail, TransshipmentDetail } from '@/lib/shipment-data';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
@@ -146,9 +147,12 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
     const oceanLine = carrier?.scac || undefined;
+    
+    // Attempt to find the full shipment data to enrich the creation payload
+    const internalShipment = await getShipmentById(trackingId); // Assuming trackingId can be the process ID
 
-    // Build the payload once, with the carrier info if available.
-    finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: oceanLine });
+    // Build the payload with the carrier info and full shipment data if available.
+    finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: oceanLine, shipment: internalShipment });
     
     console.log("📦 Creating Shipment with payload:", JSON.stringify(finalPayload, null, 2));
     const createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(finalPayload) });

@@ -117,7 +117,7 @@ export const updateCargoFlowsShipment = ai.defineTool(
   async (payload) => {
     const apiKey = process.env.CARGOFLOWS_API_KEY;
     const orgToken = process.env.CARGOFLOWS_ORG_TOKEN;
-    const API_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1/updateShipments';
+    const API_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1/updateShipment';
     
     if (!apiKey || !orgToken) {
       throw new Error('Cargo-flows API credentials are not configured.');

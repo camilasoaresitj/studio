@@ -247,7 +247,7 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
                         </div>
                     </FormItem>
 
-                    {watchedRoles.cliente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                    {watchedRoles?.cliente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <h4 className="font-semibold text-sm">Tipo de Cliente</h4>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 items-center">
                              <FormField control={form.control} name="tipoCliente.importacao" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Importação</FormLabel></FormItem> )} />
@@ -257,17 +257,17 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
                         </div>
                     </div>}
 
-                    {watchedRoles.fornecedor && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                    {watchedRoles?.fornecedor && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <h4 className="font-semibold text-sm">Tipo de Fornecedor</h4>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
                             {supplierTypes.map(type => (
                                  <FormField key={type.id} control={form.control} name={`tipoFornecedor.${type.id as keyof NonNullable<PartnerFormData['tipoFornecedor']>}`} render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">{type.label}</FormLabel></FormItem> )} />
                             ))}
                         </div>
-                         {(watchedFornecedor.ciaMaritima || watchedFornecedor.ciaAerea) && <FormField control={form.control} name="demurrageAgreementDueDate" render={({ field }) => ( <FormItem className="flex flex-col mt-4"><FormLabel>Venc. Termo Demurrage</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-9 w-48", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-auto h-4 w-4 opacity-50" />{field.value ? format(new Date(field.value), "dd/MM/yy") : <span>Selecione</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem> )} />}
+                         {(watchedFornecedor?.ciaMaritima || watchedFornecedor?.ciaAerea) && <FormField control={form.control} name="demurrageAgreementDueDate" render={({ field }) => ( <FormItem className="flex flex-col mt-4"><FormLabel>Venc. Termo Demurrage</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal h-9 w-48", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-auto h-4 w-4 opacity-50" />{field.value ? format(new Date(field.value), "dd/MM/yy") : <span>Selecione</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem> )} />}
                     </div>}
                     
-                    {watchedRoles.agente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                    {watchedRoles?.agente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <h4 className="font-semibold text-sm">Tipo de Agente</h4>
                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <FormField control={form.control} name="tipoAgente.fcl" render={({ field }) => (<FormItem className="flex items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">FCL</FormLabel></FormItem> )} />
@@ -277,7 +277,7 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
                         </div>
                     </div>}
                     
-                    {watchedRoles.fornecedor && watchedFornecedor?.despachante && partner?.clientsLinked && partner.clientsLinked.length > 0 && (
+                    {watchedRoles?.fornecedor && watchedFornecedor?.despachante && partner?.clientsLinked && partner.clientsLinked.length > 0 && (
                         <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                             <h4 className="font-semibold text-sm flex items-center gap-2"><LinkIcon className="h-4 w-4"/> Clientes Vinculados</h4>
                             <div className="flex flex-wrap gap-2">
@@ -350,10 +350,10 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
                     
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="paymentTerm" render={({ field }) => ( <FormItem><FormLabel>Prazo de Pagamento (dias)</FormLabel><FormControl><Input type="number" placeholder="30" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        {!watchedRoles.agente && <FormField control={form.control} name="exchangeRateAgio" render={({ field }) => ( <FormItem><FormLabel>Ágio sobre Câmbio (%)</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} /></FormControl><FormMessage /></FormItem> )} />}
+                        {!watchedRoles?.agente && <FormField control={form.control} name="exchangeRateAgio" render={({ field }) => ( <FormItem><FormLabel>Ágio sobre Câmbio (%)</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} /></FormControl><FormMessage /></FormItem> )} />}
                     </div>
                     
-                    {(watchedRoles.fornecedor || watchedRoles.agente) && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                    {(watchedRoles?.fornecedor || watchedRoles?.agente) && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <div className="flex justify-between items-center">
                             <h4 className="font-semibold text-sm">Taxas Padrão do Parceiro</h4>
                             <Button type="button" size="sm" variant="outline" onClick={() => appendFee({ name: '', value: 0, currency: 'USD', unit: 'BL', containerType: 'Todos' })}>
@@ -368,13 +368,13 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
                                 <FormField control={form.control} name={`standardFees.${index}.value`} render={({ field }) => (<FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" placeholder="150" className="h-9" {...field} /></FormControl></FormItem>)}/>
                                 <FormField control={form.control} name={`standardFees.${index}.currency`} render={({ field }) => (<FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="BRL">BRL</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent></Select></FormItem>)}/>
                                 <FormField control={form.control} name={`standardFees.${index}.containerType`} render={({ field }) => (<FormItem><FormLabel>Tipo Cont.</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Todos">Todos</SelectItem><SelectItem value="Dry">Dry</SelectItem><SelectItem value="Reefer">Reefer</SelectItem><SelectItem value="Especiais">Especiais</SelectItem></SelectContent></Select></FormItem>)}/>
-                                {watchedRoles.agente && <FormField control={form.control} name={`standardFees.${index}.incoterm`} render={({ field }) => (<FormItem><FormLabel>Incoterm</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Todos"/></SelectTrigger></FormControl><SelectContent><SelectItem value="Todos">Todos</SelectItem>{incotermOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>)} />}
+                                {watchedRoles?.agente && <FormField control={form.control} name={`standardFees.${index}.incoterm`} render={({ field }) => (<FormItem><FormLabel>Incoterm</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Todos"/></SelectTrigger></FormControl><SelectContent><SelectItem value="Todos">Todos</SelectItem>{incotermOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>)} />}
                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeFee(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                             </div>
                         ))}
                     </div>}
 
-                    {watchedRoles.agente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                    {watchedRoles?.agente && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <div className="flex justify-between items-center">
                             <h4 className="font-semibold text-sm">Acordo de Lucro (Profit Share)</h4>
                             <Button type="button" size="sm" variant="outline" onClick={() => appendProfit({ modal: 'FCL', direction: 'IMPORTACAO', amount: 50, unit: 'por_container', currency: 'USD' })}>
@@ -393,7 +393,7 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
                     </div>}
 
 
-                    {watchedRoles.comissionado && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
+                    {watchedRoles?.comissionado && <div className="space-y-2 p-3 border rounded-lg animate-in fade-in-50">
                         <h4 className="font-semibold text-sm">Acordo de Comissão</h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                              <FormField control={form.control} name="commissionAgreement.unit" render={({ field }) => (
@@ -552,7 +552,7 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
                                 />
                                 </div>
                             )}
-                        {watchedRoles.cliente && (
+                        {watchedRoles?.cliente && (
                             <div className="p-3 border rounded-lg bg-secondary/50">
                                 <h5 className="text-sm font-semibold mb-2">Acesso ao Portal do Cliente</h5>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">

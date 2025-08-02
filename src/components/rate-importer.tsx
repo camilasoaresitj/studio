@@ -48,7 +48,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
     setResults([]);
     setError(null);
     const response = await runExtractRatesFromText(values.textInput);
-    if (response.success && response.data.length > 0) {
+    if (response.success && response.data && response.data.length > 0) {
       setResults(response.data);
       onRatesImported(response.data);
       toast({

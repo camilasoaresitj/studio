@@ -145,8 +145,9 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     
     console.log(`ℹ️ Shipment not found for ${type} ${trackingId}. Attempting to create...`);
     
+    // CRITICAL FIX: Use the carrier NAME for oceanLine, not the SCAC code.
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
-    const oceanLine = carrier?.scac || undefined;
+    const oceanLine = carrier?.name || undefined;
     
     // Attempt to find the full shipment data to enrich the creation payload
     const internalShipment = await getShipmentById(trackingId); // Assuming trackingId can be the process ID

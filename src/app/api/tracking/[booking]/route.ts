@@ -69,8 +69,12 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     if (!skipCreate && (!data || (Array.isArray(data) && data.length === 0))) {
       console.log('ℹ️ Embarque não encontrado. Tentando criar...');
       
-      // O payload de criação agora não inclui mais o 'oceanLine', permitindo que a API o infira.
-      const payload = buildTrackingPayload({ type, trackingNumber: trackingId });
+      const carrier = findCarrierByName(carrierName || '');
+      if (!carrier || !carrier.scac) {
+        throw new Error(`Transportadora "${carrierName}" não encontrada ou não possui SCAC code.`);
+      }
+
+      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier.scac });
       
       console.log('🔍 Diagnóstico de Criação:');
       console.log('URL:', CREATE_URL);

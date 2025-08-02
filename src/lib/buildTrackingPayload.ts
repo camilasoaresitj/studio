@@ -3,17 +3,16 @@
 interface TrackingInput {
   type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
   trackingNumber: string;
-  // O campo oceanLine foi removido da entrada, pois a API pode inferi-lo.
+  oceanLine?: string; // SCAC code for the carrier
 }
 
 /**
  * Builds the payload for the Cargo-flows API based on the tracking type.
- * A API infere a transportadora a partir do número de rastreamento.
- * @param input Object containing tracking number and type.
+ * @param input Object containing tracking number, type, and optional oceanLine (SCAC).
  * @returns The formatted payload for the Cargo-flows API.
  */
 export function buildTrackingPayload(input: TrackingInput) {
-  const { type, trackingNumber } = input;
+  const { type, trackingNumber, oceanLine } = input;
 
   const formDataItem: { [key: string]: any } = {};
 
@@ -33,8 +32,12 @@ export function buildTrackingPayload(input: TrackingInput) {
     default:
       throw new Error(`Invalid tracking type: ${type}`);
   }
+
+  // A API da Cargo-flows espera o SCAC code no campo oceanLine para a criação.
+  if (oceanLine) {
+    formDataItem.oceanLine = oceanLine;
+  }
   
-  // O payload final deve ser um objeto com uma chave 'formData', que é um array.
   return {
     formData: [formDataItem],
   };

@@ -9,7 +9,6 @@ import { getAuthHeaders } from '@/lib/apiUtils';
 
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 const CREATE_URL = `${BASE_URL}/createShipments`;
-const SHIPMENT_URL = `${BASE_URL}/shipments`;
 
 // Type guard to validate the tracking type
 type TrackingType = "containerNumber" | "mblNumber" | "bookingNumber";

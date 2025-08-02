@@ -15,15 +15,14 @@ export function buildTrackingPayload(input: TrackingInput) {
     throw new Error(`Invalid tracking number: must be a non-empty string. Received: ${trackingNumber}`);
   }
 
-  const formDataItem: Record<string, any> = {};
-  
-  // Prioritize MBL for tracking
-  if (shipment?.masterBillNumber) {
-    formDataItem[getTrackingFieldName('mblNumber')] = shipment.masterBillNumber;
-  } else {
-    formDataItem[getTrackingFieldName(type)] = trackingNumber;
-  }
+  // Determine the primary tracking type and number, prioritizing MBL if available in the shipment data.
+  const primaryType = shipment?.masterBillNumber ? 'mblNumber' : type;
+  const primaryTrackingNumber = shipment?.masterBillNumber || trackingNumber;
 
+  const formDataItem: Record<string, any> = {
+      [getTrackingFieldName(primaryType)]: primaryTrackingNumber,
+  };
+  
   if (oceanLine) {
     if (typeof oceanLine !== 'string') {
       throw new Error(`oceanLine must be a string. Received: ${typeof oceanLine}`);
@@ -32,7 +31,7 @@ export function buildTrackingPayload(input: TrackingInput) {
   }
   
   if (shipment) {
-      formDataItem.shipmentNumber = shipment.id; // Corrected from shipmentReference
+      formDataItem.shipmentNumber = shipment.id;
       formDataItem.mblNumber = shipment.masterBillNumber;
       formDataItem.hblNumber = shipment.houseBillNumber;
       formDataItem.bookingNumber = shipment.bookingNumber;
@@ -47,37 +46,33 @@ export function buildTrackingPayload(input: TrackingInput) {
       formDataItem.totalWeight = shipment.grossWeight;
       formDataItem.weightUom = 'KG';
 
-      if (type !== 'containerNumber' && shipment.containers && shipment.containers.length > 0) {
+      if (shipment.containers && shipment.containers.length > 0) {
         formDataItem.containerNumber = shipment.containers[0].number;
       }
   }
 
   return {
     formData: [formDataItem],
-    uploadType: getUploadType(shipment?.masterBillNumber ? 'mblNumber' : type)
+    uploadType: getUploadType(primaryType)
   };
 }
 
-function getUploadType(type: string): string {
+function getUploadType(type: 'bookingNumber' | 'containerNumber' | 'mblNumber'): string {
   const uploadTypes: Record<string, string> = {
     bookingNumber: 'FORM_BY_BOOKING_NUMBER',
     containerNumber: 'FORM_BY_CONTAINER_NUMBER',
     mblNumber: 'FORM_BY_MBL_NUMBER'
   };
 
-  if (!uploadTypes[type]) {
-    throw new Error(`Invalid tracking type: ${type}. Valid types are: ${Object.keys(uploadTypes).join(', ')}`);
-  }
-
   return uploadTypes[type];
 }
 
-function getTrackingFieldName(type: string): string {
+function getTrackingFieldName(type: 'bookingNumber' | 'containerNumber' | 'mblNumber'): string {
   const fieldNames: Record<string, string> = {
     bookingNumber: 'bookingNumber',
     containerNumber: 'containerNumber',
     mblNumber: 'mblNumber'
   };
 
-  return fieldNames[type] || type;
+  return fieldNames[type];
 }

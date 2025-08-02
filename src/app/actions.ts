@@ -26,7 +26,7 @@ import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import { getPartners, savePartners as savePartnersData } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/lib/initial-data";
-import { getShipments } from "@/lib/shipment-data";
+import { getShipments, saveShipments as saveShipmentsData } from "@/lib/shipment-data";
 import { isPast, format, addDays, isValid } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
@@ -717,7 +717,7 @@ export async function runApproveQuote(
 
 export async function updateShipmentFromAgent(shipmentId: string, agentData: any): Promise<{ success: boolean, data?: Shipment, error?: string }> {
     try {
-        const shipments = getShipments();
+        let shipments = getShipments();
         const shipmentIndex = shipments.findIndex(s => s.id === shipmentId);
 
         if (shipmentIndex === -1) {
@@ -744,7 +744,7 @@ export async function updateShipmentFromAgent(shipmentId: string, agentData: any
         };
 
         shipments[shipmentIndex] = updatedShipment;
-        // Client will handle saving
+        await saveShipmentsData(shipments);
         
         return { success: true, data: updatedShipment };
 

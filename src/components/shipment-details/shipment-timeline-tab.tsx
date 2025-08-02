@@ -192,7 +192,7 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
             if (!dateB) return -1;
             return dateA - dateB;
         });
-    }, [form, shipment.milestones]); 
+    }, [form]); 
 
     // Use a stable identifier for the map component
     const mapIdentifier = shipment.bookingNumber || shipment.masterBillNumber || shipment.id;

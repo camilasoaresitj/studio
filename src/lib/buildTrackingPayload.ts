@@ -1,3 +1,4 @@
+
 // /src/lib/buildTrackingPayload.ts
 import type { Shipment } from './shipment-data';
 
@@ -10,7 +11,7 @@ interface TrackingInput {
 }
 
 /**
- * Builds a comprehensive payload for the Cargo-flows API.
+ * Builds a comprehensive payload for the Cargo-flows API's formData.
  * It uses the full shipment object to include as much detail as possible.
  * 
  * @param input Object containing tracking info and the full shipment object.

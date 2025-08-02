@@ -1,7 +1,9 @@
 
 export function getAuthHeaders() {
-    const API_KEY = process.env.CARGOFLOWS_API_KEY;
-    const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
+    // Hardcoded keys for debugging the persistent 'Unauthorized' error.
+    // In a production environment, these should be loaded from secure environment variables.
+    const API_KEY = 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
+    const ORG_TOKEN = 'k6mWheLX7hsmc4QXDm4w3T7GKu35XOGo';
 
     if (!API_KEY || !ORG_TOKEN) {
         throw new Error('Cargo-flows API credentials are not configured.');

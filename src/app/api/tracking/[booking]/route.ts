@@ -146,13 +146,13 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
 
-    // First attempt: with SCAC code
+    // First attempt: with carrier name
     finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier?.name || undefined });
     
-    console.log("📦 Creating Shipment (Attempt 1 with SCAC):", JSON.stringify(finalPayload, null, 2));
+    console.log("📦 Creating Shipment (Attempt 1 with carrier):", JSON.stringify(finalPayload, null, 2));
     let createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(finalPayload) });
 
-    if (!createRes.ok && createRes.status === 404) {
+    if (!createRes.ok) {
         console.log("⚠️ Attempt 1 failed. Retrying without oceanLine (Fallback)...");
         // Fallback attempt: without oceanLine
         finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId });

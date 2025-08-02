@@ -26,19 +26,27 @@ async function attemptCreateShipment(trackingId: string, type: TrackingType, car
   
   console.log("📦 Creating Shipment with payload:", JSON.stringify(payload, null, 2));
 
-  const createRes = await fetch(CREATE_URL, { 
-    method: 'POST', 
-    headers: getAuthHeaders(), 
-    body: JSON.stringify(payload) 
-  });
+  try {
+    const createRes = await fetch(CREATE_URL, { 
+      method: 'POST', 
+      headers: getAuthHeaders(), 
+      body: JSON.stringify(payload) 
+    });
 
-  if (!createRes.ok) {
-    const errorBody = await createRes.text();
-    console.error(`❌ Failed to create shipment. Status: ${createRes.status}`, errorBody);
-    throw new Error(`API creation failed with status ${createRes.status}: ${errorBody}`);
+    if (!createRes.ok) {
+      const errorBody = await createRes.text();
+      console.error(`❌ Failed to create shipment. Status: ${createRes.status}`, errorBody);
+      // Incluindo o payload no erro para diagnóstico
+      throw new EnhancedPollingError(new Error(`API creation failed with status ${createRes.status}: ${errorBody}`), trackingId, 1, payload);
+    }
+    return await createRes.json();
+  } catch (error) {
+    if (error instanceof EnhancedPollingError) {
+      throw error; // Repassa o erro já enriquecido
+    }
+    // Encapsula outros erros (ex: fetch)
+    throw new EnhancedPollingError(error, trackingId, 1, payload);
   }
-
-  return await createRes.json();
 }
 
 export async function GET(req: Request, { params }: { params: { booking: string } }) {
@@ -58,7 +66,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     // 1. Tentar encontrar shipment existente
     console.log(`Polling for ${typeParam}: ${trackingId}`);
-    let pollingResult = await pollShipmentStatus(trackingId, typeParam, carrierName);
+    let pollingResult = await pollShipmentStatus(trackingNumber, typeParam, carrierName);
     
     if (pollingResult.status === 'found') {
       console.log('✅ Shipment found via polling.');

@@ -23,7 +23,7 @@ export class EnhancedPollingError extends Error {
       attempts: this.attempts,
       code: 'POLLING_FAILURE',
       timestamp: new Date().toISOString(),
-      ...(this.lastPayload && { lastPayload: this.lastPayload })
+      ...(this.lastPayload && { payload: this.lastPayload })
     };
   }
 }

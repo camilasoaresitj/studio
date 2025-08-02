@@ -99,14 +99,18 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
 
     const form = useForm<DetailsFormData>({
         resolver: zodResolver(detailsFormSchema),
-        defaultValues: {
+    });
+
+    useEffect(() => {
+        form.reset({
             ...shipment,
             etd: shipment.etd ? new Date(shipment.etd) : null,
             eta: shipment.eta ? new Date(shipment.eta) : null,
             transshipments: (shipment.transshipments || []).map(t => ({...t, etd: t.etd ? new Date(t.etd) : undefined, eta: t.eta ? new Date(t.eta) : undefined })),
             containers: (shipment.containers || []).map(c => ({...c, effectiveReturnDate: c.effectiveReturnDate ? new Date(c.effectiveReturnDate) : undefined, effectiveGateInDate: c.effectiveGateInDate ? new Date(c.effectiveGateInDate) : undefined })),
-        }
-    });
+        });
+    }, [shipment, form]);
+
 
     useImperativeHandle(ref, () => ({
         submit: async () => {
@@ -413,3 +417,5 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
 });
 
 ShipmentDetailsTab.displayName = 'ShipmentDetailsTab';
+
+    

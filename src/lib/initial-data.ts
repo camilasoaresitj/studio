@@ -41,6 +41,7 @@ export type Quote = {
   shipper?: Partner;
   consignee?: Partner;
   agent?: Partner;
+  carrier?: string;
 };
 
 
@@ -87,6 +88,7 @@ export function getInitialQuotes(): Quote[] {
         destination: 'Roterdã, NL', 
         status: 'Enviada', 
         date: '15/07/2024',
+        carrier: 'Maersk',
         details: { cargo: '1x20GP', transitTime: '25-30 dias', validity: '31/12/2024', freeTime: '14 dias', incoterm: 'FOB' },
         charges: [
             { id: 'charge-1', name: 'FRETE MARÍTIMO', type: 'Contêiner', cost: 2500, costCurrency: 'USD', sale: 2800, saleCurrency: 'USD', supplier: 'Maersk Line', sacado: 'Nexus Imports', approvalStatus: 'aprovada' },
@@ -102,15 +104,16 @@ export function getInitialQuotes(): Quote[] {
         destination: 'Miami, US', 
         status: 'Aprovada', 
         date: '14/07/2024', 
+        carrier: 'American Airlines Cargo',
         details: { cargo: '500kg', transitTime: '1 dia', validity: '31/10/2024', freeTime: 'N/A', incoterm: 'FCA' },
         charges: [
             { id: 'charge-5', name: 'FRETE AÉREO', type: 'KG', cost: 4.20 * 500, costCurrency: 'USD', sale: 4.50 * 500, saleCurrency: 'USD', supplier: 'American Airlines Cargo', sacado: 'TechFront Solutions', approvalStatus: 'aprovada' },
             { id: 'charge-6', name: 'HANDLING FEE', type: 'AWB', cost: 50, costCurrency: 'USD', sale: 60, saleCurrency: 'USD', supplier: 'Aeroporto MIA', sacado: 'TechFront Solutions', approvalStatus: 'aprovada' },
         ]
       },
-      { id: 'COT-00123', customer: 'Global Foods Ltda', origin: 'Paranaguá, BR', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', details: { cargo: '1x40HC', transitTime: '35-40 dias', validity: '31/12/2024', freeTime: '7 dias', incoterm: 'CFR' }, charges: [] },
-      { id: 'COT-00122', customer: 'Nexus Imports', origin: 'Itajaí, BR', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', details: { cargo: '1x20GP', transitTime: '28-32 dias', validity: '30/11/2024', freeTime: '21 dias', incoterm: 'FOB' }, charges: [] },
-      { id: 'COT-00121', customer: 'AutoParts Express', origin: 'Guarulhos, BR', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', details: { cargo: '100kg', transitTime: '1-2 dias', validity: '30/11/2024', freeTime: 'N/A', incoterm: 'CPT' }, charges: [] },
+      { id: 'COT-00123', customer: 'Global Foods Ltda', carrier: 'CMA CGM', origin: 'Paranaguá, BR', destination: 'Xangai, CN', status: 'Perdida', date: '12/07/2024', details: { cargo: '1x40HC', transitTime: '35-40 dias', validity: '31/12/2024', freeTime: '7 dias', incoterm: 'CFR' }, charges: [] },
+      { id: 'COT-00122', customer: 'Nexus Imports', carrier: 'Hapag-Lloyd', origin: 'Itajaí, BR', destination: 'Hamburgo, DE', status: 'Rascunho', date: '11/07/2024', details: { cargo: '1x20GP', transitTime: '28-32 dias', validity: '30/11/2024', freeTime: '21 dias', incoterm: 'FOB' }, charges: [] },
+      { id: 'COT-00121', customer: 'AutoParts Express', carrier: 'LATAM Cargo', origin: 'Guarulhos, BR', destination: 'JFK, US', status: 'Enviada', date: '10/07/2024', details: { cargo: '100kg', transitTime: '1-2 dias', validity: '30/11/2024', freeTime: 'N/A', incoterm: 'CPT' }, charges: [] },
     ];
     return initialQuotes;
 }

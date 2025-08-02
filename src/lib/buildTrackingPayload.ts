@@ -3,49 +3,48 @@
 interface TrackingInput {
   type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
   trackingNumber: string;
-  oceanLine?: string; // This should be the carrier's full name, optional for MBL
+  oceanLine?: string; // Carrier's full name
 }
 
 /**
- * Builds the payload for the Cargo-flows API based on the tracking type,
- * following the corrected structure from user feedback and documentation.
+ * Builds the payload for the Cargo-flows API based on the tracking type.
  * @param input Object containing tracking number, carrier name, and type.
  * @returns The formatted payload for the Cargo-flows API.
  */
 export function buildTrackingPayload(input: TrackingInput) {
   const { type, trackingNumber, oceanLine } = input;
 
-  let uploadType: string;
-  const formDataObject: { [key: string]: any } = {};
+  const formDataItem: { [key: string]: any } = {};
 
   switch (type) {
     case 'bookingNumber':
-      uploadType = 'FORM_BY_BOOKING_NUMBER';
-      formDataObject.bookingNumber = trackingNumber;
+      formDataItem.uploadType = 'FORM_BY_BOOKING_NUMBER';
+      formDataItem.bookingNumber = trackingNumber;
+      // As per documentation/user feedback, oceanLine is crucial for booking number tracking.
       if (oceanLine) {
-        formDataObject.oceanLine = oceanLine;
+        formDataItem.oceanLine = oceanLine;
+      } else {
+        // This case should ideally be validated before calling the function.
+        console.warn("oceanLine is recommended for booking number tracking.");
       }
       break;
     case 'containerNumber':
-      uploadType = 'FORM_BY_CONTAINER_NUMBER';
-      formDataObject.containerNumber = trackingNumber;
+      formDataItem.uploadType = 'FORM_BY_CONTAINER_NUMBER';
+      formDataItem.containerNumber = trackingNumber;
       if (oceanLine) {
-        formDataObject.oceanLine = oceanLine;
+        formDataItem.oceanLine = oceanLine;
       }
       break;
     case 'mblNumber':
-      uploadType = 'FORM_BY_MBL_NUMBER';
-      formDataObject.mblNumber = trackingNumber;
-      // oceanLine is typically not needed for MBL tracking
+      formDataItem.uploadType = 'FORM_BY_MBL_NUMBER';
+      formDataItem.mblNumber = trackingNumber;
       break;
     default:
-      // This is a safeguard, but the type system should prevent this.
-      throw new Error(`Tipo de rastreamento inválido: ${type}`);
+      throw new Error(`Invalid tracking type: ${type}`);
   }
   
-  // The root object contains uploadType and the formData array.
+  // The root object should only contain the formData array.
   return {
-    uploadType: uploadType,
-    formData: [formDataObject],
+    formData: [formDataItem],
   };
 }

@@ -52,11 +52,14 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     let res = await fetch(getShipmentUrl, { headers });
     
     let data;
+    // Handle 204 No Content explicitly
     if (res.status !== 204) {
       data = await safelyParseJSON(res);
+    } else {
+      data = null; // Ensure data is null for 204 response
     }
 
-    if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0) || (data && Object.keys(data).length === 0) )) {
+    if (!skipCreate && (res.status === 204 || (Array.isArray(data) && data.length === 0) || !data )) {
       const carrierInfo = findCarrierByName(carrierName || '');
 
       if ((type === 'bookingNumber' || type === 'containerNumber') && (!carrierName || !carrierInfo)) {
@@ -117,6 +120,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       
       if (res.status !== 204) {
         data = await safelyParseJSON(res);
+      } else {
+        data = null;
       }
     }
 

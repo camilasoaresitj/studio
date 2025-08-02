@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { forwardRef, useImperativeHandle, useState, useMemo, useEffect, useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,13 +20,8 @@ import {
     Calendar as CalendarIcon, 
     PlusCircle, 
     Trash2, 
-    RefreshCw,
-    Loader2,
-    AlertTriangle,
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { useToast } from '@/hooks/use-toast';
 
 const containerDetailSchema = z.object({
   id: z.string().optional(),
@@ -76,27 +71,13 @@ const detailsFormSchema = z.object({
 
 type DetailsFormData = z.infer<typeof detailsFormSchema>;
 
-interface TrackingError {
-    title: string;
-    detail: string;
-    payload?: any;
-    diagnostic?: any;
-}
-
-
 interface ShipmentDetailsTabProps {
     shipment: Shipment;
     partners: Partner[];
-    onUpdate: (updatedShipment: Partial<Shipment>) => void;
-    isTracking: boolean;
-    setIsTracking: (isTracking: boolean) => void;
 }
 
-export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners, onUpdate, isTracking, setIsTracking }, ref) => {
-    const [trackingError, setTrackingError] = useState<TrackingError | null>(null);
-    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const { toast } = useToast();
-
+export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners }, ref) => {
+    
     const form = useForm<DetailsFormData>({
         resolver: zodResolver(detailsFormSchema),
     });
@@ -119,129 +100,6 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             return form.getValues();
         }
     }));
-
-     useEffect(() => {
-        // Clear any ongoing polling when the component unmounts or the shipment changes
-        return () => {
-            if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
-            }
-        };
-    }, []);
-    
-    const handleRefreshTracking = async (isPolling = false) => {
-        const { bookingNumber, carrier, masterBillNumber, containers } = form.getValues();
-        let trackingId: string | undefined;
-        let type: 'bookingNumber' | 'containerNumber' | 'mblNumber' = 'bookingNumber';
-
-        // Determine the best tracking number to use
-        if (bookingNumber) {
-            trackingId = bookingNumber;
-            type = 'bookingNumber';
-        } else if (containers && containers.length > 0 && containers[0].number) {
-            trackingId = containers[0].number;
-            type = 'containerNumber';
-        } else if (masterBillNumber) {
-            trackingId = masterBillNumber;
-            type = 'mblNumber';
-        }
-
-        if (!trackingId) {
-            setTrackingError({
-                title: "Dados Incompletos",
-                detail: "Número de booking, contêiner ou MBL é necessário para o rastreamento."
-            });
-            return;
-        }
-
-        if (!isPolling) {
-             setIsTracking(true);
-             setTrackingError(null);
-             if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-        }
-       
-        try {
-            const res = await fetch(`/api/tracking/${trackingId}?type=${type}&carrierName=${encodeURIComponent(carrier || '')}`, { cache: 'no-store' });
-            const data = await res.json();
-            
-            if (!res.ok) {
-                 if (res.status === 400 || res.status === 404 || res.status === 202) {
-                    if (data.status === 'not_found' || data.status === 'creating') {
-                        if (!isPolling) startPolling(trackingId, type, carrier);
-                        return;
-                    }
-                 }
-                 throw data;
-            }
-            
-            // Success
-            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-            setIsTracking(false);
-            setTrackingError(null);
-
-            const updateData = data.shipment;
-            
-            // Merge milestones: keep existing effective dates, update others
-            const existingMilestones = new Map((shipment.milestones || []).map(m => [m.name, m]));
-            const newMilestones = updateData.milestones.map((newM: any) => {
-                const existing = existingMilestones.get(newM.name);
-                if (existing && existing.effectiveDate) {
-                    return { ...newM, effectiveDate: existing.effectiveDate };
-                }
-                return newM;
-            });
-
-            onUpdate({
-                lastTrackingUpdate: new Date(),
-                vesselName: updateData.vesselName || shipment.vesselName,
-                voyageNumber: updateData.voyageNumber || shipment.voyageNumber,
-                etd: updateData.etd ? new Date(updateData.etd) : shipment.etd,
-                eta: updateData.eta ? new Date(updateData.eta) : shipment.eta,
-                origin: updateData.origin || shipment.origin,
-                destination: updateData.destination || shipment.destination,
-                containers: updateData.containers && updateData.containers.length > 0 ? updateData.containers : shipment.containers,
-                transshipments: updateData.transshipments && updateData.transshipments.length > 0 ? updateData.transshipments : shipment.transshipments,
-                milestones: newMilestones,
-            });
-            
-             toast({
-                title: "Rastreamento Sincronizado!",
-                description: `Dados atualizados para ${type}: ${trackingId}.`,
-                className: 'bg-success text-success-foreground'
-            });
-
-        } catch (error: any) {
-            console.error("Tracking failed:", error);
-            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-            setTrackingError({
-                title: error.error || 'Erro ao Carregar Rastreamento',
-                detail: error.detail || "Ocorreu um erro inesperado.",
-                payload: error.payload,
-                diagnostic: error.diagnostic,
-            });
-            setIsTracking(false);
-        }
-    };
-    
-    const startPolling = (trackingId: string, type: string, carrier?: string) => {
-        let attempts = 0;
-        const maxAttempts = 6; // Poll for ~1 minute (6 attempts * 10 seconds)
-
-        pollingIntervalRef.current = setInterval(async () => {
-            attempts++;
-            if (attempts > maxAttempts) {
-                clearInterval(pollingIntervalRef.current!);
-                setIsTracking(false);
-                setTrackingError({
-                    title: "Embarque Não Encontrado",
-                    detail: "Não foi possível localizar o embarque na API após várias tentativas. Pode haver um atraso na sincronização dos dados ou o número pode estar incorreto."
-                });
-                return;
-            }
-            await handleRefreshTracking(true); // isPolling = true
-        }, 10000); // Poll every 10 seconds
-    };
-
 
     const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
         control: form.control,
@@ -278,38 +136,9 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle className="text-lg">Informações da Viagem</CardTitle>
-                            <Button size="sm" type="button" variant="outline" onClick={() => handleRefreshTracking(false)} disabled={isTracking}>
-                                {isTracking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                                {isTracking ? 'Rastreando...' : 'Rastrear'}
-                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {trackingError && (
-                             <Alert variant="destructive">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>{trackingError.title}</AlertTitle>
-                                <AlertDescription>
-                                    <p><b>Detalhes:</b> {trackingError.detail}</p>
-                                    {trackingError.payload && (
-                                        <div className="mt-2">
-                                            <b>Payload Enviado:</b>
-                                            <pre className="text-xs bg-black/20 p-2 rounded-md mt-1 overflow-auto">
-                                                {JSON.stringify(trackingError.payload, null, 2)}
-                                            </pre>
-                                        </div>
-                                    )}
-                                    {trackingError.diagnostic && (
-                                        <div className="mt-2">
-                                            <b>Diagnóstico da API:</b>
-                                            <pre className="text-xs bg-black/20 p-2 rounded-md mt-1 overflow-auto">
-                                                {JSON.stringify(trackingError.diagnostic, null, 2)}
-                                            </pre>
-                                        </div>
-                                    )}
-                                </AlertDescription>
-                            </Alert>
-                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                              <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />

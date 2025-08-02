@@ -105,7 +105,12 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     const headers = getAuthHeaders();
     
-    const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}`;
+    // Construct the GET URL with carrierName if available, which is crucial for finding existing shipments.
+    let getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}`;
+    if (carrierName) {
+        getShipmentUrl += `&carrierName=${encodeURIComponent(carrierName)}`;
+    }
+
     console.log('➡️  Polling for Shipment:', getShipmentUrl);
     
     const getRes = await fetch(getShipmentUrl, { headers, cache: 'no-store' });
@@ -145,14 +150,11 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     
     console.log(`ℹ️ Shipment not found for ${type} ${trackingId}. Attempting to create...`);
     
-    // CRITICAL FIX: Use the carrier NAME for oceanLine, not the SCAC code.
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
     const oceanLine = carrier?.name || undefined;
     
-    // Attempt to find the full shipment data to enrich the creation payload
-    const internalShipment = await getShipmentById(trackingId); // Assuming trackingId can be the process ID
+    const internalShipment = await getShipmentById(trackingId); 
 
-    // Build the payload with the carrier info and full shipment data if available.
     finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: oceanLine, shipment: internalShipment });
     
     console.log("📦 Creating Shipment with payload:", JSON.stringify(finalPayload, null, 2));
@@ -173,7 +175,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         status: 'not_found',
         message: 'The shipment could not be found, and an attempt to create it failed. This might be due to a data sync delay. The system will keep trying.',
         error: errorBody?.errors?.[0]?.message || 'Unknown creation error',
-        payload: finalPayload, // Send the last used payload for debugging
+        payload: finalPayload,
         diagnostic: errorBody
     }, { status: 400 });
 
@@ -183,7 +185,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     return NextResponse.json({
       error: 'Unexpected error in the tracking server.',
       detail: err.message,
-      payload: finalPayload, // Return the payload that was attempted
+      payload: finalPayload,
     }, { status: 500 });
   }
 }
+

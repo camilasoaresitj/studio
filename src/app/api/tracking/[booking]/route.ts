@@ -42,7 +42,13 @@ const transformEventsToMilestones = (events: any[], transshipments: any[]): Mile
 
     return events.map(event => {
         const isTransshipmentEvent = event.location?.portName && transshipmentPorts.has(event.location.portName);
-        const status: Milestone['status'] = event.status === 'COMPLETED' ? 'completed' : 'in_progress';
+        
+        let status: Milestone['status'] = 'pending';
+        if (event.status === 'COMPLETED') {
+            status = 'completed';
+        } else if (event.status === 'IN_TRANSIT' || event.status === 'IN_PROGRESS') {
+            status = 'in_progress';
+        }
 
         return {
             name: event.milestoneName || 'Status Update',
@@ -141,7 +147,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     let finalPayload;
 
     // First attempt: with SCAC code
-    finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier?.scac || undefined });
+    finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier?.name || undefined });
     
     console.log("📦 Creating Shipment (Attempt 1 with SCAC):", JSON.stringify(finalPayload, null, 2));
     let createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(finalPayload) });

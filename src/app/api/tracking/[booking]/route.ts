@@ -147,19 +147,11 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
     const oceanLine = carrier?.scac || undefined;
 
-    // First attempt: with carrier name
+    // Build the payload once, with the carrier info if available.
     finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: oceanLine });
     
-    console.log("📦 Creating Shipment (Attempt 1 with carrier):", JSON.stringify(finalPayload, null, 2));
-    let createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(finalPayload) });
-
-    if (!createRes.ok) {
-        console.log("⚠️ Attempt 1 failed. Retrying without oceanLine (Fallback)...");
-        // Fallback attempt: without oceanLine
-        finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId });
-        console.log("📦 Creating Shipment (Attempt 2 Fallback):", JSON.stringify(finalPayload, null, 2));
-        createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(finalPayload) });
-    }
+    console.log("📦 Creating Shipment with payload:", JSON.stringify(finalPayload, null, 2));
+    const createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(finalPayload) });
 
     if (createRes.ok) {
         console.log('✅ Shipment creation initiated. The frontend will now poll for the result.');

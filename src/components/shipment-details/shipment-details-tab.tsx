@@ -159,7 +159,6 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
 
         const pollTracking = async (retries = 5): Promise<any> => {
             try {
-                // Pass carrierName to the API route
                 const response = await fetch(`/api/tracking/${trackingId}?type=${type}&carrierName=${encodeURIComponent(shipment.carrier || '')}`);
                 const data = await response.json();
                 
@@ -205,7 +204,6 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                 }
             });
 
-            // Call onUpdate to save the fetched data to the shipment
             onUpdate({ 
                 ...shipment, 
                 ...trackingData,

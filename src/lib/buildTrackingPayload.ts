@@ -32,7 +32,7 @@ export function buildTrackingPayload(input: TrackingInput) {
   }
   
   if (shipment) {
-      formDataItem.shipmentReference = shipment.id;
+      formDataItem.shipmentNumber = shipment.id; // Corrected from shipmentReference
       formDataItem.mblNumber = shipment.masterBillNumber;
       formDataItem.hblNumber = shipment.houseBillNumber;
       formDataItem.bookingNumber = shipment.bookingNumber;

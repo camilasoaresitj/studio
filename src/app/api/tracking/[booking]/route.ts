@@ -146,6 +146,15 @@ export async function GET(req: Request, { params }: { params: { booking: string 
             }
              return NextResponse.json({ status: 'ready', shipment: mappedData });
         }
+    } else if (getRes.status !== 204 && !getRes.ok) {
+        // If there was an actual error during GET, return it
+        const errorBody = await safelyParseJSON(getRes);
+        console.error(`❌ GET request failed with status: ${getRes.status}`, errorBody);
+        return NextResponse.json({
+            status: 'error',
+            message: 'Failed to poll for existing shipment.',
+            error: errorBody?.errors?.[0]?.message || 'Unknown polling error',
+        }, { status: getRes.status });
     }
     
     console.log(`ℹ️ Shipment not found for ${type} ${trackingId}. Attempting to create...`);

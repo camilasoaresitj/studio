@@ -99,7 +99,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const type = (url.searchParams.get('type') || 'bookingNumber') as 'bookingNumber' | 'containerNumber' | 'mblNumber';
   const carrierName = url.searchParams.get('carrierName');
   
-  let createPayload: any = null;
+  let finalPayload: any = null;
 
   try {
     const headers = getAuthHeaders();
@@ -145,7 +145,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     console.log(`ℹ️ Shipment not found for ${type} ${trackingId}. Attempting to create...`);
     
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
-    let finalPayload;
 
     // First attempt: with SCAC code
     finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier?.name || undefined });
@@ -186,7 +185,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     return NextResponse.json({
       error: 'Unexpected error in the tracking server.',
       detail: err.message,
-      payload: createPayload,
+      payload: finalPayload, // Return the payload that was attempted
     }, { status: 500 });
   }
 }

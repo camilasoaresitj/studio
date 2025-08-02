@@ -173,8 +173,8 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                         }
                     } else if (data.status === 'ready' && data.shipment) {
                         return data.shipment;
-                    } else if (data.status === 'not_found' || data.status === 'failed') {
-                         throw new Error(data.message || 'Falha ao rastrear');
+                    } else {
+                         throw { ...(data || { message: "Falha ao rastrear" }), diagnostic: data };
                     }
                 } else {
                     throw { ...(data || { message: "Erro desconhecido" }), diagnostic: data };
@@ -384,5 +384,3 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
 });
 
 ShipmentDetailsTab.displayName = 'ShipmentDetailsTab';
-
-    

@@ -1,12 +1,12 @@
 
 export function getAuthHeaders() {
-    // Hardcoded keys for debugging the persistent 'Unauthorized' error.
-    // In a production environment, these should be loaded from secure environment variables.
-    const API_KEY = 'dL6SngaHRXZfvzGA716lioRD7ZsRC9hs';
-    const ORG_TOKEN = 'k6mWheLX7hsmc4QXDm4w3T7GKu35XOGo';
+    // As chaves são carregadas a partir de variáveis de ambiente,
+    // que é a forma segura e correta para ambientes de produção.
+    const API_KEY = process.env.CARGOFLOWS_API_KEY;
+    const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 
     if (!API_KEY || !ORG_TOKEN) {
-        throw new Error('Cargo-flows API credentials are not configured.');
+        throw new Error('As credenciais da API Cargo-flows (CARGOFLOWS_API_KEY, CARGOFLOWS_ORG_TOKEN) não estão configuradas no ambiente.');
     }
     return {
         'X-DPW-ApiKey': API_KEY,
@@ -15,4 +15,3 @@ export function getAuthHeaders() {
         'accept': 'application/json'
     };
 };
-

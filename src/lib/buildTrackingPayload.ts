@@ -9,7 +9,7 @@ interface TrackingInput {
 /**
  * Builds the payload for the Cargo-flows API based on the tracking type.
  * This version matches the official documentation with a top-level uploadType.
- * @param input Object containing tracking number, type, and optional oceanLine (SCAC).
+ * @param input Object containing tracking number, type, and optional oceanLine (carrier name).
  * @returns The formatted payload for the Cargo-flows API.
  */
 export function buildTrackingPayload(input: TrackingInput) {

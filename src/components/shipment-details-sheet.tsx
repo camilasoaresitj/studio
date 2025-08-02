@@ -338,9 +338,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <div>
                                 <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
                                 <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
-                                    <span>Ref. Cliente: {shipment.purchaseOrderNumber}</span>
-                                    <Separator orientation="vertical" className="h-4"/>
-                                    <span>Invoice: {shipment.invoiceNumber}</span>
+                                     <span>Cliente: {shipment.customer}</span>
                                 </div>
                             </div>
                         </div>

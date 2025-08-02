@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useMemo, forwardRef, useImperativeHandle, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -73,8 +73,9 @@ interface ShipmentTimelineTabProps {
 export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, ShipmentTimelineTabProps>(({ shipment, onUpdate }, ref) => {
     const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
-    const [trackingError, setTrackingError] = useState<string | null>(null);
     const { toast } = useToast();
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [trackingError, setTrackingError] = useState<any | null>(null);
 
     const form = useForm<TimelineFormData>({
         resolver: zodResolver(timelineFormSchema),
@@ -122,7 +123,7 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
             if (!dateB) return -1;
             return dateA - dateB;
         });
-    }, [form]); 
+    }, [form, shipment.milestones]); 
 
     return (
         <Form {...form}>

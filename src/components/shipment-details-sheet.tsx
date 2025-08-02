@@ -42,7 +42,6 @@ import { ShipmentTimelineTab } from './shipment-details/shipment-timeline-tab';
 import { ShipmentDetailsTab } from './shipment-details/shipment-details-tab';
 import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-tab';
 import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
-import { ShipmentTrackingTab } from './shipment-details/shipment-tracking-tab';
 import { FinancialDetailsDialog } from './financials/financial-details-dialog';
 import { getStoredFinancialEntries } from '@/lib/financials-data';
 
@@ -319,7 +318,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         <div className="p-4 border-b">
                         <TabsList>
                             <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                            <TabsTrigger value="tracking">Rastreamento</TabsTrigger>
                             <TabsTrigger value="details">Detalhes</TabsTrigger>
                             <TabsTrigger value="financials">Financeiro</TabsTrigger>
                             <TabsTrigger value="documents">Documentos</TabsTrigger>
@@ -331,12 +329,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <TabsContent value="timeline">
                                 <ShipmentTimelineTab
                                     ref={(el) => { if (el) formRefs.current['timeline'] = el; }}
-                                    shipment={shipment}
-                                    onUpdate={onUpdate}
-                                />
-                            </TabsContent>
-                             <TabsContent value="tracking">
-                                 <ShipmentTrackingTab
                                     shipment={shipment}
                                     onUpdate={onUpdate}
                                 />

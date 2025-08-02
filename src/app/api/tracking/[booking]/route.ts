@@ -7,7 +7,7 @@ const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 const SHIPMENT_URL = `${BASE_URL}/shipments`;
-const CREATE_URL = `${BASE_URL}/createShipments`; // Corrected to plural form
+const CREATE_URL = `${BASE_URL}/createShipments`;
 
 async function safelyParseJSON(response: Response) {
     const text = await response.text();
@@ -73,7 +73,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     const createPayload = buildTrackingPayload({
         type: type,
         trackingNumber: trackingId,
-        oceanLine: carrier?.name || undefined, // Use full name if available
+        oceanLine: carrier?.name || undefined,
     });
     
     console.log("📦 Creating Shipment with Payload:", JSON.stringify(createPayload, null, 2));

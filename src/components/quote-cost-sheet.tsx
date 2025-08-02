@@ -11,13 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Separator } from './ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { Trash2, PlusCircle, Save, ChevronsUpDown, Check, Wallet, FileText } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
 import type { Partner } from '@/lib/partners-data';
 import { cn } from '@/lib/utils';
-import { ScrollArea } from './ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
@@ -400,7 +400,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
                     <Card>
-                        <CardHeader className="p-2"><CardTitle className="text-base">Custo Total (em BRL)</CardTitle></CardHeader>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-base">Custo Total (em BRL)</CardTitle></CardHeader>
                         <CardContent className="p-2 pt-0 text-sm">
                             <div className="flex justify-between font-semibold text-base">
                                 <span>BRL:</span>
@@ -409,7 +409,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader className="p-2"><CardTitle className="text-base">Venda Total (em BRL)</CardTitle></CardHeader>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-base">Venda Total (em BRL)</CardTitle></CardHeader>
                         <CardContent className="p-2 pt-0 text-sm">
                             <div className="flex justify-between font-semibold text-base">
                                 <span>BRL:</span>
@@ -418,7 +418,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         </CardContent>
                     </Card>
                     <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
-                        <CardHeader className="p-2"><CardTitle className="text-base">Resultado (Lucro)</CardTitle></CardHeader>
+                        <CardHeader className="p-2 pb-0"><CardTitle className="text-base">Resultado (Lucro)</CardTitle></CardHeader>
                         <CardContent className={cn("p-2 pt-0 text-sm font-semibold text-base", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
                             <div className="flex justify-between">
                                 <span>BRL:</span>

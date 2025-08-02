@@ -31,13 +31,13 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf } from '@/app/actions';
+import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking } from '@/app/actions';
 import { BLDraftForm } from './bl-draft-form';
 import { CustomsClearanceTab } from './customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Input } from './ui/input';
 
 // Import new tab components
@@ -227,9 +227,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
             onMasterUpdate(updatedShipmentData);
 
+            // After local update, send update to Cargo-flows
+            await runUpdateShipmentInTracking(updatedShipmentData);
+
             toast({
-                title: "Processo Atualizado!",
-                description: "As alterações foram salvas com sucesso.",
+                title: "Processo Atualizado e Sincronizado!",
+                description: "As alterações foram salvas e enviadas para o sistema de rastreamento.",
                 className: "bg-success text-success-foreground",
             });
         } catch (error: any) {

@@ -107,6 +107,57 @@ const cargoFiveRateTool = ai.defineTool(
   }
 );
 
+export const updateCargoFlowsShipment = ai.defineTool(
+  {
+    name: 'updateCargoFlowsShipment',
+    description: 'Updates an existing shipment on the Cargo-flows API using a PUT request.',
+    inputSchema: z.any(),
+    outputSchema: z.any() 
+  },
+  async (payload) => {
+    const apiKey = process.env.NEXT_PUBLIC_CARGOFLOWS_API_KEY;
+    const orgToken = process.env.NEXT_PUBLIC_CARGOFLOWS_ORG_TOKEN;
+    const API_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1/updateShipments';
+    
+    if (!apiKey || !orgToken) {
+      throw new Error('Cargo-flows API credentials are not configured.');
+    }
+    
+    try {
+      console.log('Updating Cargo-flows shipment with payload:', JSON.stringify(payload, null, 2));
+      
+      const response = await fetch(API_URL, {
+          method: 'PUT',
+          headers: {
+            'X-DPW-ApiKey': apiKey,
+            'X-DPW-Org-Token': orgToken,
+            'Content-Type': 'application/json',
+            'accept': 'application/json'
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Error updating Cargo-flows shipment:', {
+              url: API_URL,
+              payload,
+              status: response.status,
+              errorData,
+          });
+          throw new Error(errorData.message || JSON.stringify(errorData));
+      }
+      
+      return await response.json();
+
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to update shipment in Cargo-flows');
+    }
+  }
+);
+
+
 const getFreightRatesFlow = ai.defineFlow(
   {
     name: 'getFreightRatesFlow',

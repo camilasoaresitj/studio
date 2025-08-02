@@ -10,7 +10,7 @@ import { generateQuotePdfHtml } from "@/ai/flows/generate-quote-pdf-html";
 import { generateClientInvoiceHtml } from "@/ai/flows/generate-client-invoice-html";
 import { generateAgentInvoiceHtml } from "@/ai/flows/generate-agent-invoice-html";
 import { generateHblHtml } from "@/ai/flows/generate-hbl-html";
-import { getFreightRates, getAirFreightRates, getRoadFreightRates } from "@/ai/flows/get-freight-rates";
+import { getFreightRates, getAirFreightRates, getRoadFreightRates, updateCargoFlowsShipment } from "@/ai/flows/get-freight-rates";
 import { getCourierRates } from "@/ai/flows/get-courier-rates";
 import { monitorEmailForTasks } from "@/ai/flows/monitor-email-for-tasks";
 import { requestAgentQuote } from "@/ai/flows/request-agent-quote";
@@ -857,12 +857,29 @@ export async function runGetRouteMap(shipmentNumber: string) {
 }
 
 export async function runUpdateShipmentInTracking(shipment: Shipment) {
-    // This is a placeholder for a more complex action.
-    // In a real app, this would likely call an external tracking API
-    // to register or update the shipment details.
-    console.log(`Simulating update in tracking system for shipment ${shipment.id}`);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { success: true, message: `Shipment ${shipment.id} updated in tracking system.` };
+    console.log(`Attempting to update shipment ${shipment.id} in Cargo-flows...`);
+    
+    // Construct the payload with only the fields that can be updated
+    const payload = {
+        formData: [
+            {
+                shipmentNumber: shipment.id, // Assuming internal ID is the reference
+                hbl_number: shipment.houseBillNumber,
+                consignee: shipment.consignee?.name,
+                notifyParty: shipment.notifyName,
+                // Add other updatable fields as needed, checking against the guide
+            }
+        ]
+    };
+
+    try {
+        const result = await updateCargoFlowsShipment(payload);
+        console.log(`Successfully updated shipment ${shipment.id} in Cargo-flows.`, result);
+        return { success: true, message: `Shipment ${shipment.id} updated in tracking system.`, data: result };
+    } catch (error: any) {
+        console.error(`Failed to update shipment ${shipment.id} in Cargo-flows:`, error);
+        return { success: false, error: error.message || "Unknown error during shipment update." };
+    }
 }
       
 export async function saveApiKeysAction(data: any) {

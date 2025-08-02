@@ -11,8 +11,13 @@ const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 const CREATE_URL = `${BASE_URL}/createShipments`;
 const SHIPMENT_URL = `${BASE_URL}/shipments`;
 
+// Type guard to validate the tracking type
+type TrackingType = "containerNumber" | "mblNumber" | "bookingNumber";
+function isValidTrackingType(type: string): type is TrackingType {
+    return ["containerNumber", "mblNumber", "bookingNumber"].includes(type);
+}
 
-async function attemptCreateShipment(trackingId: string, type: string, carrierName: string | null) {
+async function attemptCreateShipment(trackingId: string, type: TrackingType, carrierName: string | null) {
   const carrier = carrierName ? findCarrierByName(carrierName) : null;
   const oceanLine = carrier?.name || undefined;
   
@@ -40,13 +45,21 @@ async function attemptCreateShipment(trackingId: string, type: string, carrierNa
 export async function GET(req: Request, { params }: { params: { booking: string } }) {
   const trackingId = params.booking;
   const url = new URL(req.url);
-  const type = url.searchParams.get('type') || 'bookingNumber';
+  const typeParam = url.searchParams.get('type') || 'bookingNumber';
+  
+  if (!isValidTrackingType(typeParam)) {
+      return NextResponse.json({
+          status: 'error',
+          message: `Invalid tracking type provided: ${typeParam}. Must be one of 'bookingNumber', 'containerNumber', or 'mblNumber'.`
+      }, { status: 400 });
+  }
+
   const carrierName = url.searchParams.get('carrierName');
 
   try {
     // 1. Tentar encontrar shipment existente
-    console.log(`Polling for ${type}: ${trackingId}`);
-    let pollingResult = await pollShipmentStatus(trackingId, type, carrierName);
+    console.log(`Polling for ${typeParam}: ${trackingId}`);
+    let pollingResult = await pollShipmentStatus(trackingId, typeParam, carrierName);
     
     if (pollingResult.status === 'found') {
       console.log('✅ Shipment found via polling.');
@@ -58,12 +71,12 @@ export async function GET(req: Request, { params }: { params: { booking: string 
 
     // 2. Se não encontrado, tentar criar
     console.log(`ℹ️ Shipment not found. Attempting to create...`);
-    const createResponse = await attemptCreateShipment(trackingId, type, carrierName);
+    const createResponse = await attemptCreateShipment(trackingId, typeParam, carrierName);
     console.log(`✅ Creation initiated for ${trackingId}.`, createResponse);
     
     // 3. Verificar novamente após criação
     console.log(`Verifying shipment creation for ${trackingId}...`);
-    const verification = await pollShipmentStatus(trackingId, type, carrierName, 8); // More attempts after creation
+    const verification = await pollShipmentStatus(trackingId, typeParam, carrierName, 8); // More attempts after creation
     
     if (verification.status === 'found') {
         console.log('✅ Shipment found after creation.');

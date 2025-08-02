@@ -145,9 +145,10 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     console.log(`ℹ️ Shipment not found for ${type} ${trackingId}. Attempting to create...`);
     
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
+    const oceanLine = carrier?.scac || undefined;
 
     // First attempt: with carrier name
-    finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier?.name || undefined });
+    finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: oceanLine });
     
     console.log("📦 Creating Shipment (Attempt 1 with carrier):", JSON.stringify(finalPayload, null, 2));
     let createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(finalPayload) });

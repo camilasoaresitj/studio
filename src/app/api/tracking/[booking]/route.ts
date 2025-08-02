@@ -7,7 +7,7 @@ const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 const SHIPMENT_URL = `${BASE_URL}/shipments`;
-const CREATE_URL = `${BASE_URL}/createShipments`;
+const CREATE_URL = `${BASE_URL}/createShipment`; // Corrected: singular form
 
 async function safelyParseJSON(response: Response) {
     const text = await response.text();
@@ -43,8 +43,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     const headers = getAuthHeaders();
     
-    // The only strategy is now to poll for the shipment, not create it.
-    const getShipmentUrl = `${SHIPMENT_URL}?${type}=${trackingId}`;
+    // Corrected: Added mandatory shipmentType parameter
+    const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}`;
     console.log('➡️  Polling for Shipment:', getShipmentUrl);
     
     const getRes = await fetch(getShipmentUrl, { headers, cache: 'no-store' });

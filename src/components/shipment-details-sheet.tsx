@@ -55,8 +55,6 @@ const shipmentDetailsSchema = z.object({
   consigneeId: z.string().optional(),
   agentId: z.string().optional(),
   notifyId: z.string().optional(),
-  purchaseOrderNumber: z.string().optional(),
-  invoiceNumber: z.string().optional(),
   charges: z.array(z.any()).optional(), // Simplified for the main sheet
 });
 
@@ -145,8 +143,8 @@ const PartnerSelector = ({ label, partners, field }: PartnerSelectorProps) => {
             </Popover>
              {selectedPartner && (
                 <div className="text-xs text-muted-foreground mt-1 p-2 border rounded-md bg-secondary/50">
-                    <p className="truncate"><strong>CNPJ/VAT:</strong> {selectedPartner.cnpj || selectedPartner.vat || 'N/A'}</p>
                     <p className="truncate"><strong>End:</strong> {`${selectedPartner.address.street || ''}, ${selectedPartner.address.city || ''}`}</p>
+                    <p className="truncate"><strong>CNPJ/VAT:</strong> {selectedPartner.cnpj || selectedPartner.vat || 'N/A'}</p>
                 </div>
             )}
             <FormMessage />
@@ -174,8 +172,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 consigneeId: shipment.consignee?.id?.toString(),
                 agentId: shipment.agent?.id?.toString(),
                 notifyId: partners.find(p => p.name === shipment.notifyName)?.id?.toString(),
-                purchaseOrderNumber: shipment.purchaseOrderNumber,
-                invoiceNumber: shipment.invoiceNumber,
                 charges: shipment.charges,
             });
         }

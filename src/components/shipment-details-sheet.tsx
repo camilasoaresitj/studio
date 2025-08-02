@@ -18,7 +18,9 @@ import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 
-import type { Shipment, Partner, QuoteCharge, FinancialEntry } from '@/lib/shipment-data';
+import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
+import type { Partner } from '@/lib/partners-data';
+import type { FinancialEntry } from '@/lib/financials-data';
 import { 
     Save, 
     GanttChart, 

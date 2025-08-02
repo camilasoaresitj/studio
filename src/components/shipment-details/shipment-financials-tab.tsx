@@ -209,7 +209,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
     
     const handleFeeSelection = (feeName: string, index: number) => {
         const fee = fees.find(f => f.name === feeName);
-        if (fee) {
+        if (fee && watchedCharges && watchedCharges[index]) {
           updateCharge(index, {
             ...watchedCharges[index],
             name: fee.name,

@@ -14,7 +14,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { Shipment, Partner, Milestone } from '@/lib/shipment-data';
+import type { Shipment, Milestone } from '@/lib/shipment-data';
+import type { Partner } from '@/lib/partners-data';
 import { cn } from '@/lib/utils';
 import { 
     Calendar as CalendarIcon, 

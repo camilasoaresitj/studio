@@ -10,8 +10,7 @@ const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 const SHIPMENT_URL = `${BASE_URL}/shipments`;
-// Correct the CREATE_URL to include shipmentType as a query parameter
-const CREATE_URL = `${BASE_URL}/createShipment?shipmentType=INTERMODAL_SHIPMENT`;
+const CREATE_URL = `${BASE_URL}/createShipment`;
 
 async function safelyParseJSON(response: Response) {
     const text = await response.text();
@@ -152,7 +151,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     console.log(`ℹ️ Shipment not found for ${type} ${trackingId}. Attempting to create...`);
     
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
-    // Use the full carrier name for oceanLine as per API behavior.
     const oceanLine = carrier?.name || undefined;
     
     // Fetch full internal shipment details to enrich the creation payload.

@@ -11,8 +11,8 @@ interface TrackingInput {
 }
 
 /**
- * Builds a comprehensive payload for the Cargo-flows API's formData.
- * It uses the full shipment object to include as much detail as possible.
+ * Builds a comprehensive payload for the Cargo-flows API.
+ * The structure now matches the curl example, with uploadType at the top level.
  * 
  * @param input Object containing tracking info and the full shipment object.
  * @returns The properly formatted payload for shipment creation.
@@ -25,9 +25,8 @@ export function buildTrackingPayload(input: TrackingInput) {
     throw new Error(`Invalid tracking number: must be a non-empty string. Received: ${trackingNumber}`);
   }
 
-  // Base formData with required tracking info
+  // formDataItem contains the specific details of the shipment
   const formDataItem: Record<string, any> = {
-    uploadType: getUploadType(type),
     [getTrackingFieldName(type)]: trackingNumber
   };
 
@@ -63,7 +62,8 @@ export function buildTrackingPayload(input: TrackingInput) {
   }
 
   return {
-    formData: [formDataItem]
+    formData: [formDataItem],
+    uploadType: getUploadType(type) // uploadType is at the top level
   };
 }
 

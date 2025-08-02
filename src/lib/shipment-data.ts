@@ -3,7 +3,6 @@ import type { Partner } from '@/lib/partners-data';
 import { isValid } from 'date-fns';
 import type { PartialPayment } from './financials-data';
 import initialShipmentsData from './shipments.json';
-import { updateShipment as updateShipmentAction } from '@/app/actions';
 
 export const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v12';
 

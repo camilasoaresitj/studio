@@ -36,7 +36,7 @@ import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { getStoredFees, Fee } from '@/lib/fees-data';
-import { runExtractPartnerInfo, savePartnerAction } from '@/app/actions';
+import { runExtractPartnerInfo } from '@/app/actions';
 import { partnerSchema, type Partner } from '@/lib/partners-data';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -52,7 +52,6 @@ interface PartnerDialogProps {
 }
 
 const departmentEnum = ['Comercial', 'Operacional', 'Financeiro', 'Importação', 'Exportação', 'Despachante', 'Outro'];
-const mainModalsEnum = ['Marítimo', 'Aéreo'];
 const incotermOptions = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
 
 const supplierTypes = [
@@ -316,7 +315,7 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
                             <FormItem>
                                 <FormLabel>Principais Modais</FormLabel>
                                 <div className="flex gap-4">
-                                {mainModalsEnum.map((item) => (
+                                {(["Marítimo", "Aéreo"] as const).map((item) => (
                                     <FormField
                                         key={item}
                                         control={form.control}

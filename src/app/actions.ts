@@ -26,7 +26,7 @@ import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import { getPartners, savePartners as savePartnersData } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/lib/initial-data";
-import { getShipments, saveShipments as saveShipmentsData } from "@/lib/shipment-data";
+import { getShipments, saveShipmentsData } from "@/lib/shipment-data";
 import { isPast, format, addDays, isValid } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';

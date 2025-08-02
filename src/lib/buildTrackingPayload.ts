@@ -1,7 +1,6 @@
 // /src/lib/buildTrackingPayload.ts
 import type { Shipment } from './shipment-data';
 
-// This interface now accepts a full Shipment object for richer payloads.
 interface TrackingInput {
   type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
   trackingNumber: string;
@@ -9,14 +8,6 @@ interface TrackingInput {
   shipment?: Shipment; // Optional full shipment data
 }
 
-/**
- * Builds a comprehensive payload for the Cargo-flows API.
- * The structure now matches the curl example, with uploadType at the top level.
- * 
- * @param input Object containing tracking info and the full shipment object.
- * @returns The properly formatted payload for shipment creation.
- * @throws Error with a detailed message if validation fails.
- */
 export function buildTrackingPayload(input: TrackingInput) {
   const { type, trackingNumber, oceanLine, shipment } = input;
 
@@ -24,12 +15,15 @@ export function buildTrackingPayload(input: TrackingInput) {
     throw new Error(`Invalid tracking number: must be a non-empty string. Received: ${trackingNumber}`);
   }
 
-  // formDataItem contains the specific details of the shipment
-  const formDataItem: Record<string, any> = {
-    [getTrackingFieldName(type)]: trackingNumber
-  };
+  const formDataItem: Record<string, any> = {};
 
-  // Add ocean line if available
+  // Prioritize MBL for tracking
+  if (shipment?.masterBillNumber) {
+    formDataItem[getTrackingFieldName('mblNumber')] = shipment.masterBillNumber;
+  } else {
+    formDataItem[getTrackingFieldName(type)] = trackingNumber;
+  }
+
   if (oceanLine) {
     if (typeof oceanLine !== 'string') {
       throw new Error(`oceanLine must be a string. Received: ${typeof oceanLine}`);
@@ -37,7 +31,6 @@ export function buildTrackingPayload(input: TrackingInput) {
     formDataItem.oceanLine = oceanLine;
   }
   
-  // Enrich with detailed shipment data if provided
   if (shipment) {
       formDataItem.shipmentReference = shipment.id;
       formDataItem.mblNumber = shipment.masterBillNumber;
@@ -54,7 +47,6 @@ export function buildTrackingPayload(input: TrackingInput) {
       formDataItem.totalWeight = shipment.grossWeight;
       formDataItem.weightUom = 'KG';
 
-      // Add container number if not the primary tracking ID
       if (type !== 'containerNumber' && shipment.containers && shipment.containers.length > 0) {
         formDataItem.containerNumber = shipment.containers[0].number;
       }
@@ -62,11 +54,10 @@ export function buildTrackingPayload(input: TrackingInput) {
 
   return {
     formData: [formDataItem],
-    uploadType: getUploadType(type) // uploadType is at the top level
+    uploadType: getUploadType(shipment?.masterBillNumber ? 'mblNumber' : type)
   };
 }
 
-// Helper to get the correct uploadType value
 function getUploadType(type: string): string {
   const uploadTypes: Record<string, string> = {
     bookingNumber: 'FORM_BY_BOOKING_NUMBER',
@@ -81,7 +72,6 @@ function getUploadType(type: string): string {
   return uploadTypes[type];
 }
 
-// Helper to get the correct field name for each type
 function getTrackingFieldName(type: string): string {
   const fieldNames: Record<string, string> = {
     bookingNumber: 'bookingNumber',

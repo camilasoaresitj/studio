@@ -1,10 +1,9 @@
-
 // /src/lib/buildTrackingPayload.ts
 
 interface TrackingInput {
   type: 'bookingNumber' | 'containerNumber' | 'mblNumber';
   trackingNumber: string;
-  scac: string; // Carrier's SCAC code
+  scac: string; // Carrier's SCAC code is used for the oceanLine field
 }
 
 /**
@@ -21,7 +20,7 @@ export function buildTrackingPayload(input: TrackingInput) {
     case 'bookingNumber':
       formDataItem.uploadType = 'FORM_BY_BOOKING_NUMBER';
       formDataItem.bookingNumber = trackingNumber;
-      // As per documentation/user feedback, oceanLine is crucial for booking number tracking.
+      // As per Cargo-flows documentation, oceanLine is required for booking number tracking.
       // The API expects the SCAC code here.
       formDataItem.oceanLine = scac;
       break;
@@ -38,6 +37,7 @@ export function buildTrackingPayload(input: TrackingInput) {
       throw new Error(`Invalid tracking type: ${type}`);
   }
   
+  // The final payload must be an object with a 'formData' key, which is an array of tracking objects.
   return {
     formData: [formDataItem],
   };

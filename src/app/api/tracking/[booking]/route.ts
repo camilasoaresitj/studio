@@ -51,6 +51,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     let res = await fetch(getShipmentUrl, { headers });
     
     let data;
+    // Handle 204 No Content and 404 Not Found as "shipment not found"
     if (res.status === 204 || res.status === 404) {
       data = null;
     } else if (res.ok) {
@@ -64,6 +65,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }, { status: res.status });
     }
 
+    // If shipment not found and creation is not skipped, try to create it.
     if (!skipCreate && (!data || (Array.isArray(data) && data.length === 0))) {
       console.log('ℹ️ Embarque não encontrado. Tentando criar...');
       const carrierInfo = findCarrierByName(carrierName || '');
@@ -100,7 +102,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
       
       console.log('✅ Embarque criado com sucesso. Aguardando processamento...');
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for processing
 
       console.log('➡️  GET Shipment URL (After Create):', getShipmentUrl);
       res = await fetch(getShipmentUrl, { headers });

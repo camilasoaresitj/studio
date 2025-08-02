@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { forwardRef, useImperativeHandle, useState, useMemo } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 const containerDetailSchema = z.object({
   id: z.string().optional(),
@@ -84,8 +85,9 @@ interface ShipmentDetailsTabProps {
 }
 
 export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners, onUpdate, isTracking, setIsTracking }, ref) => {
-    const [trackingError, setTrackingError] = useState<any | null>(null);
-
+    const [trackingError, setTrackingError] = useState<{ title: string; detail: string } | null>(null);
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const { toast } = useToast();
 
     const form = useForm<DetailsFormData>({
         resolver: zodResolver(detailsFormSchema),
@@ -105,48 +107,95 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             return form.getValues();
         }
     }));
+
+     useEffect(() => {
+        // Clear any ongoing polling when the component unmounts or the shipment changes
+        return () => {
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+            }
+        };
+    }, []);
     
-    const handleRefreshTracking = async () => {
+    const handleRefreshTracking = async (isRetry = false) => {
         const { bookingNumber, carrier } = form.getValues();
 
         if (!bookingNumber || !carrier) {
             setTrackingError({
-                error: "Dados Incompletos",
+                title: "Dados Incompletos",
                 detail: "Número do booking e transportadora são necessários para o rastreamento."
             });
             return;
         }
 
-        setIsTracking(true);
-        setTrackingError(null);
+        if (!isRetry) {
+             setIsTracking(true);
+             setTrackingError(null);
+             if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        }
+       
         try {
-            const res = await fetch(`/api/tracking/${bookingNumber}?carrierName=${encodeURIComponent(carrier)}`);
+            const res = await fetch(`/api/tracking/${bookingNumber}?carrierName=${encodeURIComponent(carrier)}`, { cache: 'no-store' });
             const data = await res.json();
             
             if (!res.ok) {
-                 throw data;
+                 if (res.status === 404) {
+                    if (!isRetry) { // Only start polling on the first manual attempt
+                        startPolling();
+                    }
+                    return; // Don't throw an error, let the polling handle it
+                 }
+                 throw data; // Throw for other errors like 500, 400, etc.
             }
+            
+            // Success
+            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+            setIsTracking(false);
+            setTrackingError(null);
 
-            if(data.status === 'ready' || (data.status === 'processing' && data.shipment)) {
-                onUpdate({
-                    lastTrackingUpdate: new Date(),
-                    vesselName: data.shipment.vesselName || shipment.vesselName,
-                    voyageNumber: data.shipment.voyageNumber || shipment.voyageNumber,
-                    etd: data.shipment.departureDate ? new Date(data.shipment.departureDate) : shipment.etd,
-                    eta: data.shipment.arrivalDate ? new Date(data.shipment.arrivalDate) : shipment.eta,
-                });
-            } else {
-                 setTrackingError({
-                     error: "Status do Rastreamento",
-                     detail: data.message || "Status de rastreamento desconhecido."
-                 });
-            }
+            const updateData = data.shipment;
+            onUpdate({
+                lastTrackingUpdate: new Date(),
+                vesselName: updateData.vesselName || shipment.vesselName,
+                voyageNumber: updateData.voyageNumber || shipment.voyageNumber,
+                etd: updateData.departureDate ? new Date(updateData.departureDate) : shipment.etd,
+                eta: updateData.arrivalDate ? new Date(updateData.arrivalDate) : shipment.eta,
+            });
+            
+             toast({
+                title: "Rastreamento Sincronizado!",
+                description: `Dados atualizados para o booking ${bookingNumber}.`,
+                className: 'bg-success text-success-foreground'
+            });
+
         } catch (error: any) {
             console.error("Tracking failed:", error);
-            setTrackingError(error);
-        } finally {
+            if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+            setTrackingError({
+                title: error.error || 'Erro ao Carregar Rastreamento',
+                detail: error.detail || "Ocorreu um erro inesperado."
+            });
             setIsTracking(false);
         }
+    };
+    
+    const startPolling = () => {
+        let attempts = 0;
+        const maxAttempts = 6; // Poll for ~1 minute (6 attempts * 10 seconds)
+
+        pollingIntervalRef.current = setInterval(() => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                clearInterval(pollingIntervalRef.current!);
+                setIsTracking(false);
+                setTrackingError({
+                    title: "Embarque Não Encontrado",
+                    detail: "Não foi possível localizar o embarque na API após várias tentativas. Pode haver um atraso na sincronização dos dados ou o número pode estar incorreto."
+                });
+                return;
+            }
+            handleRefreshTracking(true); // isRetry = true
+        }, 10000); // Poll every 10 seconds
     };
 
 
@@ -185,9 +234,9 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle className="text-lg">Informações da Viagem</CardTitle>
-                            <Button size="sm" type="button" variant="outline" onClick={handleRefreshTracking} disabled={isTracking}>
+                            <Button size="sm" type="button" variant="outline" onClick={() => handleRefreshTracking(false)} disabled={isTracking}>
                                 {isTracking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                                Rastrear
+                                {isTracking ? 'Rastreando...' : 'Rastrear'}
                             </Button>
                         </div>
                     </CardHeader>
@@ -195,17 +244,9 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                         {trackingError && (
                              <Alert variant="destructive">
                                 <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>{trackingError.error || 'Erro ao Carregar Rastreamento'}</AlertTitle>
+                                <AlertTitle>{trackingError.title}</AlertTitle>
                                 <AlertDescription>
-                                    <p><b>Detalhes:</b> {trackingError.detail || "Ocorreu um erro inesperado."}</p>
-                                    {trackingError.payloadSent && (
-                                        <div className="mt-2">
-                                            <b>Payload Enviado:</b>
-                                            <pre className="text-xs whitespace-pre-wrap bg-destructive/20 p-2 rounded-md mt-1">
-                                                {JSON.stringify(trackingError.payloadSent, null, 2)}
-                                            </pre>
-                                        </div>
-                                    )}
+                                    <p><b>Detalhes:</b> {trackingError.detail}</p>
                                 </AlertDescription>
                             </Alert>
                         )}

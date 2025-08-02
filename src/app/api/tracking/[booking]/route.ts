@@ -1,13 +1,10 @@
 
 // src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
-import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
-import { findCarrierByName } from '@/lib/carrier-data';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
-const CREATE_URL = `${BASE_URL}/createShipment`;
 const SHIPMENT_URL = `${BASE_URL}/shipment`;
 
 async function safelyParseJSON(response: Response) {
@@ -16,17 +13,14 @@ async function safelyParseJSON(response: Response) {
         if (text === '') return null;
         return JSON.parse(text);
     } catch (e) {
-        if (text.trim().toLowerCase().startsWith('<html>')) {
-            console.error("Received HTML response instead of JSON:", text.substring(0, 500));
-            throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada e se as chaves de API estão corretas.");
-        }
-        throw new Error(`Falha ao analisar a resposta da API. Conteúdo recebido: ${text.substring(0, 200)}`);
+        console.error("Failed to parse API response:", text.substring(0, 500));
+        throw new Error(`Failed to parse API response. Content received: ${text.substring(0, 200)}`);
     }
 }
 
 const getAuthHeaders = () => {
     if (!API_KEY || !ORG_TOKEN) {
-        throw new Error('As credenciais da API da Cargo-flows não estão configuradas.');
+        throw new Error('Cargo-flows API credentials are not configured.');
     }
     return {
         'X-DPW-ApiKey': API_KEY,
@@ -36,95 +30,49 @@ const getAuthHeaders = () => {
     };
 };
 
-// Helper function to create a shipment with a given payload
-async function tryCreateShipment(payload: any, headers: HeadersInit) {
-    console.log('➡️  Tentando criar embarque com payload:', JSON.stringify(payload, null, 2));
-    const createRes = await fetch(CREATE_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-    });
-    return createRes;
-}
-
 export async function GET(req: Request, { params }: { params: { booking: string } }) {
   const trackingId = params.booking;
   const url = new URL(req.url);
-  const carrierName = url.searchParams.get('carrierName');
   const type = (url.searchParams.get('type') || 'bookingNumber') as 'bookingNumber' | 'containerNumber' | 'mblNumber';
 
   try {
     const headers = getAuthHeaders();
     
-    // 1. Tenta buscar o embarque primeiro
+    // The only strategy is now to poll for the shipment, not create it.
     const getShipmentUrl = `${SHIPMENT_URL}?${type}=${trackingId}`;
-    console.log('➡️  GET Shipment URL:', getShipmentUrl);
-    const getRes = await fetch(getShipmentUrl, { headers });
+    console.log('➡️  Polling for Shipment:', getShipmentUrl);
+    
+    const getRes = await fetch(getShipmentUrl, { headers, cache: 'no-store' });
     
     if (getRes.ok && getRes.status !== 204) {
         const data = await safelyParseJSON(getRes);
         const firstShipment = Array.isArray(data) ? data[0] : data;
+        
         if (firstShipment) {
-             console.log('✅ Embarque encontrado com sucesso na primeira busca.');
+             console.log('✅ Shipment found successfully.');
+             // Check for processing state with fallback data
+             if (firstShipment.state === 'PROCESSING' && firstShipment.fallback) {
+                return NextResponse.json({
+                    status: 'processing',
+                    message: 'Shipment is being processed, some data might be from fallback.',
+                    shipment: firstShipment.fallback,
+                }, { status: 202 });
+            }
              return NextResponse.json({ status: 'ready', shipment: firstShipment });
         }
     }
-
-    // 2. Se não encontrado, tenta criar (com fallbacks)
-    console.log('ℹ️ Embarque não encontrado. Iniciando fluxo de criação...');
-    const carrier = findCarrierByName(carrierName || '');
-
-    // Tentativa 1: Criar com SCAC Code (padrão da indústria)
-    const payloadWithScac = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier?.scac });
-    let createRes = await tryCreateShipment(payloadWithScac, headers);
     
-    // Fallback: Se a criação com SCAC falhar, tenta criar sem o oceanLine
-    if (createRes.status === 404 || createRes.status === 400) {
-        console.warn('⚠️  Criação com SCAC falhou. Tentando fallback sem oceanLine...');
-        const payloadWithoutOceanLine = buildTrackingPayload({ type, trackingNumber: trackingId });
-        createRes = await tryCreateShipment(payloadWithoutOceanLine, headers);
-    }
-
-    if (!createRes.ok) {
-        const errorBody = await safelyParseJSON(createRes);
-        console.error('❌ CREATE Shipment Error (Final):', errorBody);
-        return NextResponse.json({
-          error: 'Erro ao registrar o embarque na Cargo-flows após todas as tentativas.',
-          detail: errorBody?.message || JSON.stringify(errorBody),
-          payloadSent: payloadWithScac, // Mostra o payload principal que foi tentado
-        }, { status: createRes.status });
-    }
-
-    console.log('✅ Embarque criado com sucesso. Aguardando processamento...');
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Aguarda processamento
-
-    console.log('➡️  GET Shipment URL (Após Criação):', getShipmentUrl);
-    const finalGetRes = await fetch(getShipmentUrl, { headers });
-      
-    if (finalGetRes.ok && finalGetRes.status !== 204) {
-        const finalData = await safelyParseJSON(finalGetRes);
-        const firstShipment = Array.isArray(finalData) ? finalData[0] : finalData;
-
-        if (firstShipment?.state === 'PROCESSING' && firstShipment.fallback) {
-            return NextResponse.json({
-                status: 'processing',
-                message: 'O embarque foi registrado, mas os dados de rastreio ainda não estão disponíveis.',
-                shipment: firstShipment.fallback,
-            }, { status: 202 });
-        }
-        
-        return NextResponse.json({ status: 'ready', shipment: firstShipment });
-    }
-    
+    // If we are here, the shipment was not found (404 or 204)
+    console.log(`ℹ️ Shipment not yet found for booking ${trackingId}. The frontend will retry.`);
     return NextResponse.json({
-        status: 'processing',
-        message: 'O embarque foi registrado com sucesso, mas os dados de rastreio ainda não estão disponíveis. Tente novamente em alguns minutos.',
-    }, { status: 202 });
+        status: 'not_found',
+        message: 'The shipment could not be found. This might be due to a data sync delay. Please wait.',
+    }, { status: 404 });
 
   } catch (err: any) {
-    console.error("❌ ERRO GERAL NA ROTA DE TRACKING:", err);
+    console.error("❌ GENERAL ERROR IN TRACKING ROUTE:", err);
     return NextResponse.json({
-      error: 'Erro inesperado no servidor de rastreamento.',
+      error: 'Unexpected error in the tracking server.',
       detail: err.message,
     }, { status: 500 });
   }

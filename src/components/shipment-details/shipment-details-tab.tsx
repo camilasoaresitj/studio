@@ -117,35 +117,47 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
         };
     }, []);
     
-    const handleRefreshTracking = async (isRetry = false) => {
-        const { bookingNumber, carrier } = form.getValues();
+    const handleRefreshTracking = async (isPolling = false) => {
+        const { bookingNumber, carrier, masterBillNumber, containers } = form.getValues();
+        let trackingId: string | undefined;
+        let type: 'bookingNumber' | 'containerNumber' | 'mblNumber' = 'bookingNumber';
 
-        if (!bookingNumber || !carrier) {
+        // Determine the best tracking number to use
+        if (bookingNumber) {
+            trackingId = bookingNumber;
+            type = 'bookingNumber';
+        } else if (containers && containers.length > 0 && containers[0].number) {
+            trackingId = containers[0].number;
+            type = 'containerNumber';
+        } else if (masterBillNumber) {
+            trackingId = masterBillNumber;
+            type = 'mblNumber';
+        }
+
+        if (!trackingId) {
             setTrackingError({
                 title: "Dados Incompletos",
-                detail: "Número do booking e transportadora são necessários para o rastreamento."
+                detail: "Número de booking, contêiner ou MBL é necessário para o rastreamento."
             });
             return;
         }
 
-        if (!isRetry) {
+        if (!isPolling) {
              setIsTracking(true);
              setTrackingError(null);
              if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         }
        
         try {
-            const res = await fetch(`/api/tracking/${bookingNumber}?carrierName=${encodeURIComponent(carrier)}`, { cache: 'no-store' });
+            const res = await fetch(`/api/tracking/${trackingId}?type=${type}&carrierName=${encodeURIComponent(carrier || '')}`, { cache: 'no-store' });
             const data = await res.json();
             
             if (!res.ok) {
-                 if (res.status === 404) {
-                    if (!isRetry) { // Only start polling on the first manual attempt
-                        startPolling();
-                    }
-                    return; // Don't throw an error, let the polling handle it
+                 if (res.status === 404 || res.status === 202) {
+                    if (!isPolling) startPolling(trackingId, type, carrier);
+                    return; 
                  }
-                 throw data; // Throw for other errors like 500, 400, etc.
+                 throw data;
             }
             
             // Success
@@ -164,7 +176,7 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             
              toast({
                 title: "Rastreamento Sincronizado!",
-                description: `Dados atualizados para o booking ${bookingNumber}.`,
+                description: `Dados atualizados para ${type}: ${trackingId}.`,
                 className: 'bg-success text-success-foreground'
             });
 
@@ -179,11 +191,11 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
         }
     };
     
-    const startPolling = () => {
+    const startPolling = (trackingId: string, type: string, carrier?: string) => {
         let attempts = 0;
         const maxAttempts = 6; // Poll for ~1 minute (6 attempts * 10 seconds)
 
-        pollingIntervalRef.current = setInterval(() => {
+        pollingIntervalRef.current = setInterval(async () => {
             attempts++;
             if (attempts > maxAttempts) {
                 clearInterval(pollingIntervalRef.current!);
@@ -194,7 +206,7 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                 });
                 return;
             }
-            handleRefreshTracking(true); // isRetry = true
+            await handleRefreshTracking(true); // isPolling = true
         }, 10000); // Poll every 10 seconds
     };
 

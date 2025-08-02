@@ -35,7 +35,7 @@ export function buildTrackingPayload(input: TrackingInput) {
   }
 
   // A API da Cargo-flows espera o SCAC code no campo oceanLine.
-  // Será incluído apenas se fornecido, para permitir fallbacks.
+  // Será incluído apenas se fornecido.
   if (oceanLine) {
     formDataItem.oceanLine = oceanLine;
   }

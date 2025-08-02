@@ -68,17 +68,9 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     // If shipment not found and creation is not skipped, try to create it.
     if (!skipCreate && (!data || (Array.isArray(data) && data.length === 0))) {
       console.log('ℹ️ Embarque não encontrado. Tentando criar...');
-      const carrierInfo = findCarrierByName(carrierName || '');
-
-      if (!carrierName || !carrierInfo) {
-          return NextResponse.json({
-            error: 'Transportadora inválida ou não encontrada.',
-            detail: `Nenhuma transportadora com nome '${carrierName}' foi localizada em nossa base.`
-          }, { status: 400 });
-      }
-
-      // CRITICAL CHANGE: Use the full carrier name for the oceanLine field during creation, as required by the API.
-      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo.name });
+      
+      // O payload de criação agora não inclui mais o 'oceanLine', permitindo que a API o infira.
+      const payload = buildTrackingPayload({ type, trackingNumber: trackingId });
       
       console.log('🔍 Diagnóstico de Criação:');
       console.log('URL:', CREATE_URL);

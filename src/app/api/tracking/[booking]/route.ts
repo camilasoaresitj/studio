@@ -2,12 +2,13 @@
 import { NextResponse } from 'next/server';
 import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
 import { findCarrierByName } from '@/lib/carrier-data';
+import { Milestone, ContainerDetail, TransshipmentDetail } from '@/lib/shipment-data';
 
 const API_KEY = process.env.CARGOFLOWS_API_KEY;
 const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 const BASE_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1';
 const SHIPMENT_URL = `${BASE_URL}/shipments`;
-const CREATE_URL = `${BASE_URL}/createShipment`; // Corrected: singular form
+const CREATE_URL = `${BASE_URL}/createShipment`;
 
 async function safelyParseJSON(response: Response) {
     const text = await response.text();
@@ -32,6 +33,53 @@ const getAuthHeaders = () => {
     };
 };
 
+// Helper to transform Cargo-flows events into our Milestone format
+const transformEventsToMilestones = (events: any[], transshipments: any[]): Milestone[] => {
+    if (!events) return [];
+    
+    // Create a set of transshipment port names for easy lookup
+    const transshipmentPorts = new Set(transshipments.map(t => t.location?.portName).filter(Boolean));
+
+    return events.map(event => {
+        const isTransshipmentEvent = event.location?.portName && transshipmentPorts.has(event.location.portName);
+        return {
+            name: event.milestoneName || 'Status Update',
+            status: event.status === 'COMPLETED' ? 'completed' : 'in_progress',
+            predictedDate: event.estimatedDate ? new Date(event.estimatedDate) : null,
+            effectiveDate: event.actualDate ? new Date(event.actualDate) : null,
+            details: event.location?.portName ? `Local: ${event.location.portName}` : event.remarks,
+            isTransshipment: isTransshipmentEvent,
+        };
+    }).filter(m => m.predictedDate || m.effectiveDate); // Only include milestones with a date
+};
+
+// Helper to transform Cargo-flows containers to our format
+const transformContainers = (containers: any[]): ContainerDetail[] => {
+    if (!containers) return [];
+    return containers.map(c => ({
+        id: c.containerId || c.containerNumber,
+        number: c.containerNumber,
+        seal: c.sealNumber || 'N/A',
+        tare: `${c.tareWeight || 0} ${c.weightUom || 'KG'}`,
+        grossWeight: `${c.grossWeight || 0} ${c.weightUom || 'KG'}`,
+        type: c.containerType,
+    }));
+};
+
+// Helper to extract transshipment details
+const extractTransshipments = (legs: any[]): TransshipmentDetail[] => {
+    if (!legs || legs.length <= 1) return [];
+    // Transshipments are intermediate legs
+    return legs.slice(0, -1).map((leg, index) => ({
+        id: `ts-${index}`,
+        port: leg.destination?.portName || 'Unknown',
+        vessel: leg.vesselName || 'N/A',
+        eta: leg.arrivalDate ? new Date(leg.arrivalDate) : undefined,
+        etd: legs[index + 1]?.departureDate ? new Date(legs[index + 1].departureDate) : undefined,
+    }));
+};
+
+
 export async function GET(req: Request, { params }: { params: { booking: string } }) {
   const trackingId = params.booking;
   const url = new URL(req.url);
@@ -43,7 +91,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     const headers = getAuthHeaders();
     
-    // Corrected: Added mandatory shipmentType parameter
     const getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}`;
     console.log('➡️  Polling for Shipment:', getShipmentUrl);
     
@@ -55,7 +102,22 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         
         if (firstShipment) {
              console.log('✅ Shipment found successfully.');
-             // Check for processing state with fallback data
+
+             const transshipments = extractTransshipments(firstShipment.shipmentLegs || []);
+
+             // Map the detailed data from the API response
+             const mappedData = {
+                vesselName: firstShipment.vesselName,
+                voyageNumber: firstShipment.voyageNumber,
+                etd: firstShipment.departureDate ? new Date(firstShipment.departureDate) : null,
+                eta: firstShipment.arrivalDate ? new Date(firstShipment.arrivalDate) : null,
+                origin: firstShipment.origin?.portName,
+                destination: firstShipment.destination?.portName,
+                containers: transformContainers(firstShipment.containers),
+                transshipments: transshipments,
+                milestones: transformEventsToMilestones(firstShipment.shipmentEvents, transshipments),
+             };
+
              if (firstShipment.state === 'PROCESSING' && firstShipment.fallback) {
                 return NextResponse.json({
                     status: 'processing',
@@ -63,23 +125,28 @@ export async function GET(req: Request, { params }: { params: { booking: string 
                     shipment: firstShipment.fallback,
                 }, { status: 202 });
             }
-             return NextResponse.json({ status: 'ready', shipment: firstShipment });
+             return NextResponse.json({ status: 'ready', shipment: mappedData });
         }
     }
     
-    // If we are here, the shipment was not found (404 or 204), try to create it as a fallback.
     console.log(`ℹ️ Shipment not found for ${type} ${trackingId}. Attempting to create...`);
     
     const carrier = carrierName ? findCarrierByName(carrierName) : null;
+    let finalPayload;
 
-    createPayload = buildTrackingPayload({
-        type: type,
-        trackingNumber: trackingId,
-        oceanLine: carrier?.name || undefined,
-    });
+    // First attempt: with SCAC code
+    finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrier?.scac || undefined });
     
-    console.log("📦 Creating Shipment with Payload:", JSON.stringify(createPayload, null, 2));
-    const createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(createPayload) });
+    console.log("📦 Creating Shipment (Attempt 1 with SCAC):", JSON.stringify(finalPayload, null, 2));
+    let createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(finalPayload) });
+
+    if (!createRes.ok && createRes.status === 404) {
+        console.log("⚠️ Attempt 1 failed. Retrying without oceanLine (Fallback)...");
+        // Fallback attempt: without oceanLine
+        finalPayload = buildTrackingPayload({ type, trackingNumber: trackingId });
+        console.log("📦 Creating Shipment (Attempt 2 Fallback):", JSON.stringify(finalPayload, null, 2));
+        createRes = await fetch(CREATE_URL, { method: 'POST', headers, body: JSON.stringify(finalPayload) });
+    }
 
     if (createRes.ok) {
         console.log('✅ Shipment creation initiated. The frontend will now poll for the result.');
@@ -89,7 +156,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: 202 });
     }
 
-    // If creation also fails, then we report that the frontend should poll
     const errorBody = await safelyParseJSON(createRes);
     console.error(`❌ Failed to create shipment. Status: ${createRes.status}`, errorBody);
     
@@ -97,7 +163,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         status: 'not_found',
         message: 'The shipment could not be found, and an attempt to create it failed. This might be due to a data sync delay. The system will keep trying.',
         error: errorBody?.errors?.[0]?.message || 'Unknown creation error',
-        payload: createPayload,
+        payload: finalPayload, // Send the last used payload for debugging
         diagnostic: errorBody
     }, { status: 400 });
 

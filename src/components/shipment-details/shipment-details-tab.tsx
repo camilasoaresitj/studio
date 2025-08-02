@@ -176,12 +176,28 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             setTrackingError(null);
 
             const updateData = data.shipment;
+            
+            // Merge milestones: keep existing effective dates, update others
+            const existingMilestones = new Map((shipment.milestones || []).map(m => [m.name, m]));
+            const newMilestones = updateData.milestones.map((newM: any) => {
+                const existing = existingMilestones.get(newM.name);
+                if (existing && existing.effectiveDate) {
+                    return { ...newM, effectiveDate: existing.effectiveDate };
+                }
+                return newM;
+            });
+
             onUpdate({
                 lastTrackingUpdate: new Date(),
                 vesselName: updateData.vesselName || shipment.vesselName,
                 voyageNumber: updateData.voyageNumber || shipment.voyageNumber,
-                etd: updateData.departureDate ? new Date(updateData.departureDate) : shipment.etd,
-                eta: updateData.arrivalDate ? new Date(updateData.arrivalDate) : shipment.eta,
+                etd: updateData.etd ? new Date(updateData.etd) : shipment.etd,
+                eta: updateData.eta ? new Date(updateData.eta) : shipment.eta,
+                origin: updateData.origin || shipment.origin,
+                destination: updateData.destination || shipment.destination,
+                containers: updateData.containers && updateData.containers.length > 0 ? updateData.containers : shipment.containers,
+                transshipments: updateData.transshipments && updateData.transshipments.length > 0 ? updateData.transshipments : shipment.transshipments,
+                milestones: newMilestones,
             });
             
              toast({

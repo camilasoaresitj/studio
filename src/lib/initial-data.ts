@@ -131,3 +131,5 @@ export function getStoredQuotes(): Quote[] {
     localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(initialQuotes));
     return initialQuotes;
 }
+
+    

@@ -551,7 +551,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
   }
 }
 
-async function createShipment(quoteData: ShipmentCreationData & { carrier?: string }): Promise<Shipment> {
+async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
   const allPartners = getPartners();
   const allShipments = getShipments();
   const shipper = allPartners.find(p => p.id?.toString() === quoteData.shipperId);
@@ -685,7 +685,7 @@ async function createShipment(quoteData: ShipmentCreationData & { carrier?: stri
 }
 
 export async function runApproveQuote(
-    quote: Quote & { carrier?: string }, 
+    quote: Quote,
     notifyName: string, 
     terminalId: string | undefined, 
     responsibleUser: string, 
@@ -872,3 +872,5 @@ export async function saveApiKeysAction(data: any) {
     console.log("Simulating saving API keys to a secure store:", data);
     return { success: true, message: "API keys updated. A server restart would be needed in a real app." };
 }
+
+    

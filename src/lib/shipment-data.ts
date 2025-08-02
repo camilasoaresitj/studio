@@ -60,6 +60,7 @@ export type ShipmentCreationData = {
   modal?: 'air' | 'ocean' | 'courier' | 'road'; // Add modal
   roadShipment?: any; // Add road shipment details
   airShipment?: any; // Add air shipment details
+  carrier?: string;
 };
 
 export type Milestone = {
@@ -263,3 +264,5 @@ export async function getShipmentById(id: string): Promise<Shipment | undefined>
     const shipments = getShipments();
     return shipments.find(s => s.id === id);
 }
+
+    

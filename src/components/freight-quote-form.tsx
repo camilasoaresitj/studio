@@ -29,7 +29,7 @@ import type { Quote, QuoteCharge, QuoteDetails } from '@/lib/initial-data';
 import type { Partner } from '@/lib/partners-data';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from './ui/badge';
 import type { Rate as LocalRate } from './rates-table';
 import type { Fee } from '@/lib/fees-data';
 import { QuoteCostSheet } from './quote-cost-sheet';
@@ -1320,3 +1320,5 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     </div>
   );
 }
+
+    

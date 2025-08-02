@@ -54,8 +54,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     let res = await fetch(getShipmentUrl, { headers });
     
     let data;
-    // Handle 204 No Content, que significa que o embarque não foi encontrado
-    if (res.status === 204) {
+    // Handle 204 No Content or 404 Not Found, which means the shipment was not found
+    if (res.status === 204 || res.status === 404) {
       data = null;
     } else if (res.ok) {
       data = await safelyParseJSON(res);
@@ -70,7 +70,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     }
 
 
-    // 2. Se não encontrou (204 ou array vazio) e não for para pular a criação, crie o embarque.
+    // 2. Se não encontrou (null ou array vazio) e não for para pular a criação, crie o embarque.
     if (!skipCreate && (!data || (Array.isArray(data) && data.length === 0))) {
       console.log('ℹ️ Embarque não encontrado. Tentando criar...');
       const carrierInfo = findCarrierByName(carrierName || '');
@@ -113,7 +113,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       console.log('➡️  GET Shipment URL (After Create):', getShipmentUrl);
       res = await fetch(getShipmentUrl, { headers });
       
-      if (res.status === 204) {
+      if (res.status === 204 || res.status === 404) {
         data = null;
       } else if (res.ok) {
         data = await safelyParseJSON(res);
@@ -164,3 +164,5 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     }, { status: 500 });
   }
 }
+
+    

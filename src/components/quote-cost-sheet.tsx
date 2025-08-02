@@ -13,9 +13,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
-import { Trash2, PlusCircle, Save, ChevronsUpDown, Check } from 'lucide-react';
+import { Trash2, PlusCircle, Save, ChevronsUpDown, Check, Wallet, FileText } from 'lucide-react';
 import type { Quote, QuoteCharge } from './customer-quotes-list';
-import type { Partner } from './partners-registry';
+import type { Partner } from '@/lib/partners-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
 import { exchangeRateService } from '@/services/exchange-rate-service';

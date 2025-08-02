@@ -27,7 +27,7 @@ const getAuthHeaders = () => {
     }
     return {
         'X-DPW-ApiKey': API_KEY,
-        'X-DPW-Token': ORG_TOKEN,
+        'X-DPW-Org-Token': ORG_TOKEN,
         'Content-Type': 'application/json',
         'accept': 'application/json'
     };

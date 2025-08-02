@@ -370,7 +370,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         </div>
                     </div>
                      <Form {...form}>
-                        <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                        <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pt-2">
                             <FormField control={form.control} name="shipperId" render={({ field }) => (
                                 <PartnerSelector label="Shipper" partners={partners} field={field} />
                             )}/>
@@ -383,12 +383,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <FormField control={form.control} name="notifyId" render={({ field }) => (
                                 <PartnerSelector label="Notify" partners={partners} field={field} />
                             )}/>
-                             <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Purchase Order</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl></FormItem>
-                            )}/>
-                             <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Invoice Number</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl></FormItem>
-                            )}/>
                         </form>
                     </Form>
                 </SheetHeader>
@@ -396,7 +390,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <div className="p-4 border-b">
                         <TabsList>
-                            <TabsTrigger value="timeline">Timeline e Rastreamento</TabsTrigger>
+                            <TabsTrigger value="timeline">Timeline</TabsTrigger>
                             <TabsTrigger value="details">Detalhes</TabsTrigger>
                             <TabsTrigger value="financials">Financeiro</TabsTrigger>
                             <TabsTrigger value="documents">Documentos</TabsTrigger>

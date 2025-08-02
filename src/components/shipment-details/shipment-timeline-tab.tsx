@@ -210,7 +210,7 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
                             <div className="flex gap-2">
                                 <Button size="sm" type="button" variant="secondary" onClick={() => handleRefreshTracking(shipment.bookingNumber || '', 'bookingNumber', shipment.carrier || '')} disabled={isUpdating || !shipment.bookingNumber}>
                                     {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
-                                    Rastrear no Cargo-flows
+                                    Rastrear
                                 </Button>
                                 <Button size="sm" type="button" variant="outline" onClick={() => setIsManualMilestoneOpen(true)}>
                                     <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Milestone

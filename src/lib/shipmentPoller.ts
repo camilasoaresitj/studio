@@ -6,14 +6,22 @@ const SHIPMENT_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1/sh
 
 async function safelyParseJSON(response: Response) {
     const text = await response.text();
+    
+    // Check if the response is likely HTML
+    if (text.trim().startsWith('<')) {
+        console.error("Failed to parse API response: Received HTML instead of JSON.", text.substring(0, 500));
+        throw new Error(`Unexpected API response. Server returned HTML.`);
+    }
+
     try {
         if (text === '') return null;
         return JSON.parse(text);
     } catch (e) {
-        console.error("Failed to parse API response:", text.substring(0, 500));
+        console.error("Failed to parse API response as JSON:", text.substring(0, 500));
         throw new Error(`Failed to parse API response. Content received: ${text.substring(0, 200)}`);
     }
 }
+
 
 export async function pollShipmentStatus(trackingNumber: string, type: string, carrierName: string | null, maxAttempts = 5) {
   const baseDelay = 3000; // 3 segundos
@@ -57,7 +65,7 @@ export async function pollShipmentStatus(trackingNumber: string, type: string, c
 
       // If response is not ok, but not 204, it's a server error
       if (!response.ok) {
-          const errorBody = await safelyParseJSON(response);
+          const errorBody = await safelyParseJSON(response).catch(e => ({ message: e.message }));
           throw new Error(`API Error ${response.status}: ${errorBody?.message || 'Unknown API Error'}`);
       }
 

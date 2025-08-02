@@ -38,7 +38,7 @@ const transformEventsToMilestones = (events: any[], transshipments: any[]): Mile
     if (!events) return [];
     
     // Create a set of transshipment port names for easy lookup
-    const transshipmentPorts = new Set(transshipments.map(t => t.location?.portName).filter(Boolean));
+    const transshipmentPorts = new Set(transshipments.map(t => t.port).filter(Boolean));
 
     return events.map(event => {
         const isTransshipmentEvent = event.location?.portName && transshipmentPorts.has(event.location.portName);
@@ -56,7 +56,8 @@ const transformEventsToMilestones = (events: any[], transshipments: any[]): Mile
 // Helper to transform Cargo-flows containers to our format
 const transformContainers = (containers: any[]): ContainerDetail[] => {
     if (!containers) return [];
-    return containers.map(c => ({
+    const containerArray = Array.isArray(containers) ? containers : [containers];
+    return containerArray.map(c => ({
         id: c.containerId || c.containerNumber,
         number: c.containerNumber,
         seal: c.sealNumber || 'N/A',
@@ -67,15 +68,18 @@ const transformContainers = (containers: any[]): ContainerDetail[] => {
 };
 
 // Helper to extract transshipment details
-const extractTransshipments = (legs: any[]): TransshipmentDetail[] => {
-    if (!legs || legs.length <= 1) return [];
+const extractTransshipments = (legs: any): TransshipmentDetail[] => {
+    if (!legs) return [];
+    const legsArray = Array.isArray(legs) ? legs : [legs];
+    if (legsArray.length <= 1) return [];
+
     // Transshipments are intermediate legs
-    return legs.slice(0, -1).map((leg, index) => ({
+    return legsArray.slice(0, -1).map((leg: any, index: number) => ({
         id: `ts-${index}`,
         port: leg.destination?.portName || 'Unknown',
         vessel: leg.vesselName || 'N/A',
         eta: leg.arrivalDate ? new Date(leg.arrivalDate) : undefined,
-        etd: legs[index + 1]?.departureDate ? new Date(legs[index + 1].departureDate) : undefined,
+        etd: legsArray[index + 1]?.departureDate ? new Date(legsArray[index + 1].departureDate) : undefined,
     }));
 };
 
@@ -103,7 +107,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         if (firstShipment) {
              console.log('✅ Shipment found successfully.');
 
-             const transshipments = extractTransshipments(firstShipment.shipmentLegs || []);
+             const transshipments = extractTransshipments(firstShipment.shipmentLegs);
 
              // Map the detailed data from the API response
              const mappedData = {

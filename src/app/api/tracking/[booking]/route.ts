@@ -70,15 +70,15 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       console.log('ℹ️ Embarque não encontrado. Tentando criar...');
       const carrierInfo = findCarrierByName(carrierName || '');
 
-      if (!carrierName || !carrierInfo || !carrierInfo.scac) {
+      if (!carrierName || !carrierInfo) {
           return NextResponse.json({
-            error: 'Transportadora inválida ou SCAC não encontrado.',
-            detail: `Nenhuma transportadora com nome '${carrierName}' foi localizada ou ela não possui um código SCAC cadastrado.`
+            error: 'Transportadora inválida ou não encontrada.',
+            detail: `Nenhuma transportadora com nome '${carrierName}' foi localizada em nossa base.`
           }, { status: 400 });
       }
 
-      // Use SCAC code for oceanLine as it's more reliable
-      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, scac: carrierInfo.scac });
+      // CRITICAL CHANGE: Use the full carrier name for the oceanLine field during creation, as required by the API.
+      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo.name });
       
       console.log('🔍 Diagnóstico de Criação:');
       console.log('URL:', CREATE_URL);

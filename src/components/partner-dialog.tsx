@@ -85,14 +85,14 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
 
   useEffect(() => {
     setGlobalFees(getStoredFees());
-    const defaultData = {
+    const defaultData: PartnerFormData = {
         name: '',
         nomeFantasia: '',
         cnpj: '',
         vat: '',
         scac: '',
         roles: { cliente: true, fornecedor: false, agente: false, comissionado: false },
-        contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'] as any[], loginEmail: '', password: '', despachanteId: null }],
+        contacts: [{ name: '', email: '', phone: '', departments: ['Comercial'], loginEmail: '', password: '', despachanteId: null }],
         address: { street: '', number: '', complement: '', district: '', city: '', state: '', zip: '', country: '' },
         tipoCliente: { importacao: false, exportacao: false, empresaNoExterior: false },
         tipoFornecedor: { ciaMaritima: false, ciaAerea: false, transportadora: false, terminal: false, coLoader: false, fumigacao: false, despachante: false, representante: false, dta: false, comissionados: false, administrativo: false, aluguelContainer: false, lashing: false, seguradora: false, advogado: false },
@@ -405,7 +405,7 @@ export function PartnerDialog({ isOpen, onClose, onPartnerSaved, partner, allPar
                              )}/>
                              <FormField control={form.control} name="commissionAgreement.amount" render={({ field }) => ( <FormItem><FormLabel>Valor/Percentual</FormLabel><FormControl><Input type="number" placeholder="5" {...field} /></FormControl><FormMessage /></FormItem> )} />
                              <FormField control={form.control} name="commissionAgreement.currency" render={({ field }) => (
-                                <FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
+                                <FormItem><FormLabel>Moeda</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent>
                                     <SelectItem value="USD">USD</SelectItem>
                                     <SelectItem value="BRL">BRL</SelectItem>
                                 </SelectContent></Select><FormMessage /></FormItem>

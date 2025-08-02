@@ -85,7 +85,7 @@ export const partnerSchema = z.object({
   commissionAgreement: z.object({
       amount: z.coerce.number().optional(),
       unit: z.enum(['porcentagem_lucro', 'por_container', 'por_bl']).optional(),
-      currency: z.enum(['USD', 'BRL']).default('BRL').optional(),
+      currency: z.enum(['USD', 'BRL']).default('BRL'),
       commissionClients: z.array(z.string()).optional(), // List of client names
   }).optional(),
   terminalCommission: z.object({
@@ -135,7 +135,7 @@ export function getPartners(): Partner[] {
     return initialPartnersData.map((p: any) => ({
       ...p,
       commissionAgreement: { 
-        currency: 'BRL', // Add default currency to prevent type errors
+        currency: 'BRL',
         ...(p.commissionAgreement || {})
       },
       createdAt: p.createdAt ? new Date(p.createdAt) : undefined,

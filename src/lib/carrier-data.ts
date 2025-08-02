@@ -54,7 +54,7 @@ const CARRIER_DATA: Omit<Carrier, 'type'>[] = [
   { name: "KMTC", scac: "KMTU" },
   { name: "Lynden", scac: "LTIA" },
   { name: "MacAndrews", scac: "MCAW" },
-  { name: "Maersk", scac: "MAEU", aliases: ["Maersk Line"] },
+  { name: "Maersk Line", scac: "MAEU", aliases: ["Maersk"] },
   { name: "MainFreight", scac: "MFGT" },
   { name: "Marfret", scac: "MFUS" },
   { name: "Mariana Express Lines", scac: "MEXU" },

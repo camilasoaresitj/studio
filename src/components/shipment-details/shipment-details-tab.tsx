@@ -20,8 +20,13 @@ import {
     Calendar as CalendarIcon, 
     PlusCircle, 
     Trash2, 
+    RefreshCw,
+    Loader2
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 const containerDetailSchema = z.object({
   id: z.string().optional(),
@@ -74,9 +79,13 @@ type DetailsFormData = z.infer<typeof detailsFormSchema>;
 interface ShipmentDetailsTabProps {
     shipment: Shipment;
     partners: Partner[];
+    onUpdate: (updatedShipment: Shipment) => void;
 }
 
-export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners }, ref) => {
+export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentDetailsTabProps>(({ shipment, partners, onUpdate }, ref) => {
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [trackingError, setTrackingError] = useState<any | null>(null);
+    const { toast } = useToast();
     
     const form = useForm<DetailsFormData>({
         resolver: zodResolver(detailsFormSchema),
@@ -128,6 +137,83 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
     const showCollectionAddress = shipment.details?.incoterm === 'EXW';
     const deliveryTerms = ['DAP', 'DPU', 'DDP', 'DDU'];
     const showDeliveryAddress = deliveryTerms.includes(shipment.details?.incoterm || '');
+    
+    const handleRefreshTracking = async () => {
+        const trackingId = shipment.bookingNumber || shipment.masterBillNumber || shipment.containers?.[0]?.number;
+        if (!trackingId) {
+            toast({ variant: "destructive", title: "Dados Insuficientes", description: "Não há Booking, Master BL ou Contêiner para rastrear." });
+            return;
+        }
+
+        let type: 'bookingNumber' | 'containerNumber' | 'mblNumber' = 'bookingNumber';
+        if (shipment.bookingNumber) type = 'bookingNumber';
+        else if (shipment.masterBillNumber) type = 'mblNumber';
+        else if (shipment.containers?.[0]?.number) type = 'containerNumber';
+
+        setIsUpdating(true);
+        setTrackingError(null);
+
+        const pollTracking = async (retries = 5): Promise<any> => {
+            try {
+                const response = await fetch(`/api/tracking/${trackingId}?type=${type}&carrierName=${encodeURIComponent(shipment.carrier || '')}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if (data.status === 'creating' || data.status === 'processing') {
+                        if (retries > 0) {
+                            toast({ title: "Rastreamento em Andamento...", description: `Aguardando dados da Cargo-flows. Tentativas restantes: ${retries}` });
+                            await new Promise(resolve => setTimeout(resolve, 5000));
+                            return pollTracking(retries - 1);
+                        } else {
+                            throw new Error("Tempo de espera excedido. A Cargo-flows não retornou os dados a tempo.");
+                        }
+                    } else if (data.status === 'ready' && data.shipment) {
+                        return data.shipment;
+                    } else if (data.status === 'not_found' || data.status === 'failed') {
+                         throw new Error(data.message || 'Falha ao rastrear');
+                    }
+                } else {
+                    throw { ...(data || { message: "Erro desconhecido" }), diagnostic: data };
+                }
+            } catch (err: any) {
+                console.error("Polling error:", err);
+                throw err;
+            }
+        };
+
+        try {
+            const trackingData = await pollTracking();
+            
+            const updatedMilestones = [...(shipment.milestones || [])];
+            trackingData.milestones.forEach((apiMilestone: Milestone) => {
+                const existingIndex = updatedMilestones.findIndex(m => m.name === apiMilestone.name);
+                if (existingIndex > -1) {
+                    updatedMilestones[existingIndex] = {
+                        ...updatedMilestones[existingIndex],
+                        predictedDate: apiMilestone.predictedDate || updatedMilestones[existingIndex].predictedDate,
+                        effectiveDate: apiMilestone.effectiveDate || updatedMilestones[existingIndex].effectiveDate,
+                        status: apiMilestone.effectiveDate ? 'completed' : updatedMilestones[existingIndex].status,
+                        details: apiMilestone.details || updatedMilestones[existingIndex].details,
+                    };
+                } else {
+                    updatedMilestones.push(apiMilestone);
+                }
+            });
+
+            onUpdate({ 
+                ...shipment, 
+                ...trackingData,
+                milestones: updatedMilestones,
+                lastTrackingUpdate: new Date(),
+            });
+            toast({ title: "Rastreamento Sincronizado!", description: "Os dados do embarque foram atualizados com sucesso.", className: 'bg-success text-success-foreground' });
+        } catch (err: any) {
+            setTrackingError(err);
+            toast({ variant: "destructive", title: "Falha na Sincronização", description: err.message || "Não foi possível obter os dados da Cargo-flows." });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     return (
         <Form {...form}>
@@ -136,9 +222,27 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle className="text-lg">Informações da Viagem</CardTitle>
+                             <Button size="sm" type="button" variant="secondary" onClick={handleRefreshTracking} disabled={isUpdating}>
+                                {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
+                                Rastrear
+                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        {trackingError && (
+                            <Alert variant="destructive" className="mb-4">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Erro de Rastreamento</AlertTitle>
+                                <AlertDescription>
+                                    <p>{trackingError.message}</p>
+                                    {trackingError.diagnostic && (
+                                        <pre className="mt-2 text-xs bg-destructive/10 p-2 rounded-md overflow-x-auto">
+                                            <code>{JSON.stringify(trackingError.diagnostic, null, 2)}</code>
+                                        </pre>
+                                    )}
+                                </AlertDescription>
+                            </Alert>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <FormField control={form.control} name="origin" render={({ field }) => (<FormItem><FormLabel>Origem</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                              <FormField control={form.control} name="destination" render={({ field }) => (<FormItem><FormLabel>Destino</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />

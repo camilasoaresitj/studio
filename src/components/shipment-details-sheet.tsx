@@ -56,6 +56,8 @@ const shipmentDetailsSchema = z.object({
   consigneeId: z.string().optional(),
   agentId: z.string().optional(),
   notifyId: z.string().optional(),
+  purchaseOrderNumber: z.string().optional(),
+  invoiceNumber: z.string().optional(),
   charges: z.array(z.any()).optional(), // Simplified for the main sheet
 });
 
@@ -173,6 +175,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 consigneeId: shipment.consignee?.id?.toString(),
                 agentId: shipment.agent?.id?.toString(),
                 notifyId: partners.find(p => p.name === shipment.notifyName)?.id?.toString(),
+                purchaseOrderNumber: shipment.purchaseOrderNumber,
+                invoiceNumber: shipment.invoiceNumber,
                 charges: shipment.charges,
             });
         }
@@ -387,6 +391,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <FormField control={form.control} name="notifyId" render={({ field }) => (
                                 <PartnerSelector label="Notify" partners={partners} field={field} />
                             )}/>
+                             <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
+                                <FormItem><FormLabel>Purchase Order</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl></FormItem>
+                            )}/>
+                             <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
+                                <FormItem><FormLabel>Invoice Number</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl></FormItem>
+                            )}/>
                         </form>
                     </Form>
                 </SheetHeader>
@@ -415,6 +425,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                     ref={(el) => { if (el) formRefs.current['details'] = el; }}
                                     shipment={shipment}
                                     partners={partners}
+                                    onUpdate={onUpdate}
                                 />
                             </TabsContent>
                             <TabsContent value="financials">

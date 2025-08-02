@@ -72,10 +72,7 @@ interface ShipmentTimelineTabProps {
 
 export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, ShipmentTimelineTabProps>(({ shipment, onUpdate }, ref) => {
     const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
-    const [isUpdating, setIsUpdating] = useState(false);
     const { toast } = useToast();
-    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const [trackingError, setTrackingError] = useState<any | null>(null);
 
     const form = useForm<TimelineFormData>({
         resolver: zodResolver(timelineFormSchema),
@@ -115,84 +112,6 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
             toast({ variant: 'destructive', title: 'Erro', description: response.error });
         }
     });
-    
-    const handleRefreshTracking = async () => {
-        const trackingId = shipment.bookingNumber || shipment.masterBillNumber || shipment.containers?.[0]?.number;
-        if (!trackingId) {
-            toast({ variant: 'destructive', title: "Dados Insuficientes", description: "Não há Booking, Master BL ou Contêiner para rastrear." });
-            return;
-        }
-
-        let type: 'bookingNumber' | 'containerNumber' | 'mblNumber' = 'bookingNumber';
-        if (shipment.bookingNumber) type = 'bookingNumber';
-        else if (shipment.masterBillNumber) type = 'mblNumber';
-        else if (shipment.containers?.[0]?.number) type = 'containerNumber';
-
-        setIsUpdating(true);
-        setTrackingError(null);
-
-        const pollTracking = async (retries = 5): Promise<any> => {
-            try {
-                // Ensure carrierName is passed
-                const response = await fetch(`/api/tracking/${trackingId}?type=${type}&carrierName=${encodeURIComponent(shipment.carrier || '')}`);
-                const data = await response.json();
-                
-                if (response.ok) {
-                    if (data.status === 'creating' || data.status === 'processing') {
-                        if (retries > 0) {
-                            toast({ title: "Rastreamento em Andamento...", description: `Aguardando dados da Cargo-flows. Tentativas restantes: ${retries}` });
-                            await new Promise(resolve => setTimeout(resolve, 5000));
-                            return pollTracking(retries - 1);
-                        } else {
-                            throw new Error("Tempo de espera excedido. A Cargo-flows não retornou os dados a tempo.");
-                        }
-                    } else if (data.status === 'ready' && data.shipment) {
-                        return data.shipment;
-                    } else if (data.status === 'not_found' || data.status === 'failed') {
-                         throw new Error(data.message || 'Falha ao rastrear');
-                    }
-                } else {
-                    throw { ...(data || { message: "Erro desconhecido" }), diagnostic: data };
-                }
-            } catch (err: any) {
-                console.error("Polling error:", err);
-                throw err;
-            }
-        };
-
-        try {
-            const trackingData = await pollTracking();
-            
-            const updatedMilestones = [...(shipment.milestones || [])];
-            trackingData.milestones.forEach((apiMilestone: Milestone) => {
-                const existingIndex = updatedMilestones.findIndex(m => m.name === apiMilestone.name);
-                if (existingIndex > -1) {
-                    updatedMilestones[existingIndex] = {
-                        ...updatedMilestones[existingIndex],
-                        predictedDate: apiMilestone.predictedDate || updatedMilestones[existingIndex].predictedDate,
-                        effectiveDate: apiMilestone.effectiveDate || updatedMilestones[existingIndex].effectiveDate,
-                        status: apiMilestone.effectiveDate ? 'completed' : updatedMilestones[existingIndex].status,
-                        details: apiMilestone.details || updatedMilestones[existingIndex].details,
-                    };
-                } else {
-                    updatedMilestones.push(apiMilestone);
-                }
-            });
-
-            onUpdate({ 
-                ...shipment, 
-                ...trackingData,
-                milestones: updatedMilestones,
-                lastTrackingUpdate: new Date(),
-            });
-            toast({ title: "Rastreamento Sincronizado!", description: "Os dados do embarque foram atualizados com sucesso.", className: 'bg-success text-success-foreground' });
-        } catch (err: any) {
-            setTrackingError(err);
-            toast({ variant: "destructive", title: "Falha na Sincronização", description: err.message || "Não foi possível obter os dados da Cargo-flows." });
-        } finally {
-            setIsUpdating(false);
-        }
-    };
 
     const sortedMilestones = useMemo(() => {
         const currentMilestones = form.getValues('milestones');
@@ -220,10 +139,6 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
                                 <CardDescription>Acompanhe e atualize os marcos do embarque.</CardDescription>
                             </div>
                             <div className="flex gap-2">
-                                <Button size="sm" type="button" variant="secondary" onClick={handleRefreshTracking} disabled={isUpdating}>
-                                    {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
-                                    Rastrear
-                                </Button>
                                 <Button size="sm" type="button" variant="outline" onClick={() => setIsManualMilestoneOpen(true)}>
                                     <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Milestone
                                 </Button>
@@ -231,20 +146,6 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {trackingError && (
-                            <Alert variant="destructive" className="mb-4">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>Erro de Rastreamento</AlertTitle>
-                                <AlertDescription>
-                                    <p>{trackingError.message}</p>
-                                    {trackingError.diagnostic && (
-                                        <pre className="mt-2 text-xs bg-destructive/10 p-2 rounded-md overflow-x-auto">
-                                            <code>{JSON.stringify(trackingError.diagnostic, null, 2)}</code>
-                                        </pre>
-                                    )}
-                                </AlertDescription>
-                            </Alert>
-                        )}
                         <div className="relative pl-4 space-y-6">
                             <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
                             {sortedMilestones.map((milestone, index) => {

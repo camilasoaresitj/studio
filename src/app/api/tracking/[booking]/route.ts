@@ -66,7 +66,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     // 1. Tentar encontrar shipment existente
     console.log(`Polling for ${typeParam}: ${trackingId}`);
-    let pollingResult = await pollShipmentStatus(trackingNumber, typeParam, carrierName);
+    let pollingResult = await pollShipmentStatus(trackingId, typeParam, carrierName);
     
     if (pollingResult.status === 'found') {
       console.log('✅ Shipment found via polling.');

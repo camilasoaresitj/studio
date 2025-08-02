@@ -14,9 +14,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Button } from './ui/button';
-import { Separator } from './ui/separator';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
@@ -33,22 +33,22 @@ import {
     Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking } from '@/app/actions';
 import { BLDraftForm } from './bl-draft-form';
 import { CustomsClearanceTab } from './customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Input } from './ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 
 // Import new tab components
 import { ShipmentTimelineTab } from './shipment-details/shipment-timeline-tab';
 import { ShipmentDetailsTab } from './shipment-details/shipment-details-tab';
 import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-tab';
 import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
-import { FinancialDetailsDialog } from './financials/financial-details-dialog';
+import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { getStoredFinancialEntries } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 

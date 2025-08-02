@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { Shipment, Partner } from '@/lib/shipment-data';
+import type { Shipment, Partner, Milestone } from '@/lib/shipment-data';
 import { cn } from '@/lib/utils';
 import { 
     Calendar as CalendarIcon, 
@@ -213,6 +213,7 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             toast({ title: "Rastreamento Sincronizado!", description: "Os dados do embarque foram atualizados com sucesso.", className: 'bg-success text-success-foreground' });
         } catch (err: any) {
             setTrackingError(err);
+            console.error("Erro final no rastreamento:", err);
             toast({ variant: "destructive", title: "Falha na Sincronização", description: err.message || "Não foi possível obter os dados da Cargo-flows." });
         } finally {
             setIsUpdating(false);
@@ -383,3 +384,5 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
 });
 
 ShipmentDetailsTab.displayName = 'ShipmentDetailsTab';
+
+    

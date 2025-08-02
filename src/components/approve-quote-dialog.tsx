@@ -26,7 +26,7 @@ const documentTypes = ['Invoice', 'Packing List', 'Negociação NET', 'Outros'];
 interface ApproveQuoteDialogProps {
   quote: Quote & { carrier?: string } | null;
   partners: Partner[];
-  onApprovalConfirmed: () => void;
+  onApprovalConfirmed: (newShipment: any) => void;
   onPartnerSaved: (partner: Partner) => void;
   onClose: () => void;
 }
@@ -113,7 +113,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
     const response = await runApproveQuote(quote, notifyPartner.name, selectedTerminalId, responsibleUser, invoiceNumber, poNumber, validDocs);
 
     if (response.success) {
-        onApprovalConfirmed();
+        onApprovalConfirmed(response.data);
     } else {
         toast({ variant: 'destructive', title: 'Erro ao aprovar cotação', description: response.error });
     }

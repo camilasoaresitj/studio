@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
-import type { UploadedDocument } from '@/lib/shipment-data';
+import type { UploadedDocument, Shipment } from '@/lib/shipment-data';
 import type { Quote, QuoteCharge } from '@/lib/initial-data';
 
 export type { Quote, QuoteCharge };
@@ -45,7 +45,7 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
     const [isSending, setIsSending] = useState(false);
     const [sendDialogOpen, setSendDialogOpen] = useState(false);
     const [quoteToSend, setQuoteToSend] = useState<Quote | null>(null);
-    const [quoteToApprove, setQuoteToApprove] = useState<Quote | null>(null);
+    const [quoteToApprove, setQuoteToApprove] = useState<(Quote & { carrier?: string }) | null>(null);
     const { toast } = useToast();
 
     const handleOpenSendDialog = (quote: Quote) => {
@@ -220,14 +220,14 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
         setQuoteToDetail(updatedQuote); 
     };
 
-    const handleApprovalConfirmed = () => {
+    const handleApprovalConfirmed = (newShipment: Shipment) => {
         if (!quoteToApprove) return;
         
         onQuoteUpdate({ ...quoteToApprove, status: 'Aprovada' });
 
         toast({
             title: `Cotação ${quoteToApprove.id.replace('-DRAFT', '')} Aprovada!`,
-            description: `Embarque criado no Módulo Operacional.`,
+            description: `Embarque ${newShipment.id} criado no Módulo Operacional.`,
             className: 'bg-success text-success-foreground'
         });
         setQuoteToApprove(null);

@@ -692,10 +692,10 @@ export async function runApproveQuote(
     invoiceNumber: string, 
     poNumber: string, 
     uploadedDocs: UploadedDocument[]
-): Promise<{ success: boolean, error?: string}> {
+): Promise<{ success: boolean, data?: Shipment, error?: string}> {
     try {
         const plainQuote = JSON.parse(JSON.stringify(quote));
-        await createShipment({
+        const newShipment = await createShipment({
             ...plainQuote,
             shipperId: plainQuote.shipper?.id?.toString(),
             consigneeId: plainQuote.consignee?.id?.toString(),
@@ -708,7 +708,7 @@ export async function runApproveQuote(
             uploadedDocs: uploadedDocs,
             carrier: quote.carrier, // Pass the carrier correctly
         });
-        return { success: true };
+        return { success: true, data: newShipment };
     } catch(e: any) {
         return { success: false, error: e.message };
     }

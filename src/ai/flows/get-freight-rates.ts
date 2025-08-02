@@ -115,8 +115,8 @@ export const updateCargoFlowsShipment = ai.defineTool(
     outputSchema: z.any() 
   },
   async (payload) => {
-    const apiKey = process.env.NEXT_PUBLIC_CARGOFLOWS_API_KEY;
-    const orgToken = process.env.NEXT_PUBLIC_CARGOFLOWS_ORG_TOKEN;
+    const apiKey = process.env.CARGOFLOWS_API_KEY;
+    const orgToken = process.env.CARGOFLOWS_ORG_TOKEN;
     const API_URL = 'https://connect.cargoes.com/flow/api/public_tracking/v1/updateShipments';
     
     if (!apiKey || !orgToken) {

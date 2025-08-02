@@ -72,8 +72,8 @@ export function IntegrationsSettings() {
     // Note: This only works for NEXT_PUBLIC_ variables on the client-side.
     // Secure keys should be handled differently in production.
     form.reset({
-        cargoFlowsApiKey: process.env.NEXT_PUBLIC_CARGOFLOWS_API_KEY || '',
-        cargoFlowsOrgToken: process.env.NEXT_PUBLIC_CARGOFLOWS_ORG_TOKEN || '',
+        cargoFlowsApiKey: process.env.CARGOFLOWS_API_KEY || '',
+        cargoFlowsOrgToken: process.env.CARGOFLOWS_ORG_TOKEN || '',
         googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
     })
   }, [form]);

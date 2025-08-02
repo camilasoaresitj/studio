@@ -42,9 +42,11 @@ const transformEventsToMilestones = (events: any[], transshipments: any[]): Mile
 
     return events.map(event => {
         const isTransshipmentEvent = event.location?.portName && transshipmentPorts.has(event.location.portName);
+        const status: Milestone['status'] = event.status === 'COMPLETED' ? 'completed' : 'in_progress';
+
         return {
             name: event.milestoneName || 'Status Update',
-            status: event.status === 'COMPLETED' ? 'completed' : 'in_progress',
+            status: status,
             predictedDate: event.estimatedDate ? new Date(event.estimatedDate) : null,
             effectiveDate: event.actualDate ? new Date(event.actualDate) : null,
             details: event.location?.portName ? `Local: ${event.location.portName}` : event.remarks,

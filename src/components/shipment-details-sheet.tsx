@@ -307,7 +307,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 });
             }
 
-            if (response.success && response.data.html) {
+            if (response.success && response.data?.html) {
                 const newWindow = window.open();
                 newWindow?.document.write(response.data.html);
                 newWindow?.document.close();

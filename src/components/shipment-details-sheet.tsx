@@ -391,12 +391,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <FormField control={form.control} name="notifyId" render={({ field }) => (
                                 <PartnerSelector label="Notify" partners={partners} field={field} />
                             )}/>
-                             <FormField control={form.control} name="purchaseOrderNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Purchase Order</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl></FormItem>
-                            )}/>
-                             <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Invoice Number</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl></FormItem>
-                            )}/>
                         </form>
                     </Form>
                 </SheetHeader>

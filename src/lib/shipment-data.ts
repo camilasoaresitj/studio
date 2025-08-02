@@ -224,6 +224,9 @@ export type Shipment = {
   invoiceItems?: any[];
   lastTrackingUpdate?: Date; // Added for daily updates
   status?: string; // To track if finalized
+  cargoValue?: number;
+  cargoValueCurrency?: 'BRL' | 'USD' | 'EUR' | 'GBP' | 'CHF' | 'JPY';
+  incoterm?: string;
   // Road specific fields
   border?: string;
   crtNumber?: string;
@@ -247,6 +250,7 @@ export function getShipments(): Shipment[] {
         }
         return {
             ...shipment,
+            incoterm: shipment.incoterm || shipment.details?.incoterm,
             modal: shipment.modal || (shipment.details?.cargo.includes('kg') ? 'air' : 'ocean'), // Add modal fallback
             etd: safeDate(shipment.etd),
             eta: safeDate(shipment.eta),

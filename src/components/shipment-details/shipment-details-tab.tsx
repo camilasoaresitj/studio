@@ -72,6 +72,9 @@ const detailsFormSchema = z.object({
   manifesto: z.string().optional(),
   commodityDescription: z.string().optional(),
   ncms: z.array(z.string()).optional(),
+  cargoValue: z.coerce.number().optional(),
+  cargoValueCurrency: z.enum(['BRL', 'USD', 'EUR', 'GBP', 'CHF', 'JPY']).optional(),
+  incoterm: z.string().optional(),
 });
 
 type DetailsFormData = z.infer<typeof detailsFormSchema>;
@@ -98,6 +101,7 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
             eta: shipment.eta ? new Date(shipment.eta) : null,
             transshipments: (shipment.transshipments || []).map(t => ({...t, etd: t.etd ? new Date(t.etd) : undefined, eta: t.eta ? new Date(t.eta) : undefined })),
             containers: (shipment.containers || []).map(c => ({...c, effectiveReturnDate: c.effectiveReturnDate ? new Date(c.effectiveReturnDate) : undefined, effectiveGateInDate: c.effectiveGateInDate ? new Date(c.effectiveGateInDate) : undefined })),
+            incoterm: shipment.incoterm || shipment.details?.incoterm,
         });
     }, [shipment, form]);
 
@@ -291,6 +295,34 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                         <CardHeader><CardTitle className="text-lg">Detalhes da Carga</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <FormField control={form.control} name="commodityDescription" render={({ field }) => (<FormItem><FormLabel>Descrição da Mercadoria</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="incoterm" render={({ field }) => (
+                                    <FormItem><FormLabel>Incoterm</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..."/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'].map(term => <SelectItem key={term} value={term}>{term}</SelectItem>)}
+                                    </SelectContent>
+                                    </Select>
+                                    </FormItem>
+                                )}/>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <FormField control={form.control} name="cargoValue" render={({ field }) => (
+                                        <FormItem><FormLabel>Valor da Carga</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="cargoValueCurrency" render={({ field }) => (
+                                        <FormItem><FormLabel>Moeda</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="BRL">BRL</SelectItem>
+                                                    <SelectItem value="USD">USD</SelectItem>
+                                                    <SelectItem value="EUR">EUR</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )}/>
+                                </div>
+                            </div>
                             <FormField control={form.control} name="ncms" render={({ field }) => (<FormItem><FormLabel>NCMs</FormLabel><FormControl><Input placeholder="Separados por vírgula" {...field} onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()))} value={Array.isArray(field.value) ? field.value.join(', ') : ''} /></FormControl></FormItem>)} />
                         </CardContent>
                     </Card>
@@ -303,13 +335,14 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
                         </CardHeader>
                         <CardContent className="space-y-2">
                              {containerFields.map((field, index) => (
-                                <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end p-2 border rounded-md relative">
+                                <div key={field.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 items-end p-2 border rounded-md relative">
                                     <Button type="button" variant="ghost" size="icon" className="absolute -top-1 -right-1" onClick={() => removeContainer(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                     <div className="col-span-2"><Label>Nº Contêiner</Label><FormField control={form.control} name={`containers.${index}.number`} render={({ field }) => <Input placeholder="MSCU1234567" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div className="col-span-2 md:col-span-1"><Label>Lacre</Label><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="SEAL12345" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div className="col-span-2 md:col-span-1"><Label>Tara (Kg)</Label><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="2250" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div className="col-span-2 md:col-span-1"><Label>Peso Bruto</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
-                                    <div className="col-span-2 md:col-span-1"><Label>Volumes</Label><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="1000" {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-1"><Label>Lacre</Label><FormField control={form.control} name={`containers.${index}.seal`} render={({ field }) => <Input placeholder="SEAL12345" {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-1"><Label>Tara (Kg)</Label><FormField control={form.control} name={`containers.${index}.tare`} render={({ field }) => <Input placeholder="2250" {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-1"><Label>Peso Bruto</Label><FormField control={form.control} name={`containers.${index}.grossWeight`} render={({ field }) => <Input placeholder="24000" {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-1"><Label>Volumes</Label><FormField control={form.control} name={`containers.${index}.volumes`} render={({ field }) => <Input placeholder="1000" {...field} className="h-8 mt-1"/>} /></div>
+                                    <div className="col-span-1"><Label>Free Time</Label><FormField control={form.control} name={`containers.${index}.freeTime`} render={({ field }) => <Input placeholder="14 dias" {...field} className="h-8 mt-1"/>} /></div>
                                 </div>
                             ))}
                             <div className="flex justify-end gap-4 text-sm font-semibold pt-2">

@@ -134,7 +134,10 @@ export function getPartners(): Partner[] {
     // Rehydrate dates and add missing fields from the JSON import
     return initialPartnersData.map((p: any) => ({
       ...p,
-      commissionAgreement: p.commissionAgreement || { currency: 'BRL' }, // Ensure commissionAgreement exists with a default currency
+      commissionAgreement: { 
+        currency: 'BRL', // Add default currency to prevent type errors
+        ...(p.commissionAgreement || {})
+      },
       createdAt: p.createdAt ? new Date(p.createdAt) : undefined,
       demurrageAgreementDueDate: p.demurrageAgreementDueDate ? new Date(p.demurrageAgreementDueDate) : undefined,
       contacts: (p.contacts || []).map((c: any) => ({

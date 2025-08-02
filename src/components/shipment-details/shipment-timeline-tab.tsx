@@ -93,8 +93,6 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
         }
     }));
     
-    const { fields: milestoneFields } = useForm<TimelineFormData>({ control: form.control, name: 'milestones' });
-    
     const newMilestoneForm = useForm<NewMilestoneFormData>({
         resolver: zodResolver(newMilestoneSchema),
         defaultValues: { name: '', details: '' }
@@ -114,7 +112,7 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
     });
 
     const sortedMilestones = useMemo(() => {
-        const currentMilestones = form.getValues('milestones');
+        const currentMilestones = form.watch('milestones');
         if(!currentMilestones || !Array.isArray(currentMilestones)) return [];
         return [...currentMilestones].sort((a, b) => {
             const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
@@ -149,7 +147,10 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
                         <div className="relative pl-4 space-y-6">
                             <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
                             {sortedMilestones.map((milestone, index) => {
-                                const overdue = isPast(new Date(milestone.predictedDate!)) && milestone.status !== 'completed';
+                                const predictedDate = milestone.predictedDate ? new Date(milestone.predictedDate) : null;
+                                if (!predictedDate || !isValid(predictedDate)) return null;
+
+                                const overdue = isPast(predictedDate) && milestone.status !== 'completed';
                                 const isCompleted = !!milestone.effectiveDate;
                                 return (
                                     <div key={index} className="grid grid-cols-[auto,1fr] items-start gap-x-4">

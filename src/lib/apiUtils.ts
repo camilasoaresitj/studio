@@ -15,3 +15,4 @@ export function getAuthHeaders() {
         'accept': 'application/json'
     };
 };
+

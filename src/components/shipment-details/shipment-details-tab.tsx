@@ -417,5 +417,3 @@ export const ShipmentDetailsTab = forwardRef<{ submit: () => Promise<any> }, Shi
 });
 
 ShipmentDetailsTab.displayName = 'ShipmentDetailsTab';
-
-    

@@ -106,7 +106,7 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     const headers = getAuthHeaders();
     
     // Construct the GET URL with carrierName if available, which is crucial for finding existing shipments.
-    let getShipmentUrl = `${SHIPMENT_URL}?shipmentType=INTERMODAL_SHIPMENT&${type}=${trackingId}`;
+    let getShipmentUrl = `${SHIPMENT_URL}?${type}=${trackingId}`;
     if (carrierName) {
         getShipmentUrl += `&carrierName=${encodeURIComponent(carrierName)}`;
     }

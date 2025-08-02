@@ -26,7 +26,7 @@ import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import { getPartners, savePartners as savePartnersData } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/lib/initial-data";
-import { getShipments, saveShipmentsData } from "@/lib/shipment-data";
+import { getShipments } from "@/lib/shipment-data";
 import { isPast, format, addDays, isValid } from "date-fns";
 import { generateDiXml } from '@/ai/flows/generate-di-xml';
 import type { GenerateDiXmlInput, GenerateDiXmlOutput } from '@/ai/flows/generate-di-xml';
@@ -410,8 +410,6 @@ export async function updateShipment(updatedShipment: Shipment): Promise<Shipmen
     const index = shipments.findIndex(s => s.id === updatedShipment.id);
     if (index !== -1) {
         shipments[index] = updatedShipment;
-        // In a real app, this would be a database call.
-        // For the prototype, the client will handle saving to localStorage.
     }
     return shipments;
 }
@@ -744,7 +742,6 @@ export async function updateShipmentFromAgent(shipmentId: string, agentData: any
         };
 
         shipments[shipmentIndex] = updatedShipment;
-        await saveShipmentsData(shipments);
         
         return { success: true, data: updatedShipment };
 
@@ -892,3 +889,6 @@ export async function saveApiKeysAction(data: any) {
 
     
 
+
+
+    

@@ -16,12 +16,10 @@ async function safelyParseJSON(response: Response) {
         if (text === '') return null;
         return JSON.parse(text);
     } catch (e) {
-        // Se a resposta for HTML, é um erro claro da API ou do gateway.
         if (text.trim().toLowerCase().startsWith('<html>')) {
             console.error("Received HTML response instead of JSON:", text.substring(0, 500));
             throw new Error("A API de rastreamento retornou uma resposta inesperada (HTML). Verifique se o número de rastreamento é válido para a transportadora selecionada e se as chaves de API estão corretas.");
         }
-        // Se não for JSON nem HTML, mas tiver texto, mostre o texto.
         throw new Error(`Falha ao analisar a resposta da API. Conteúdo recebido: ${text.substring(0, 200)}`);
     }
 }
@@ -48,19 +46,16 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   try {
     const headers = getAuthHeaders();
     
-    // 1. Tentar buscar o embarque primeiro
     const getShipmentUrl = `${SHIPMENT_URL}?${type}=${trackingId}`;
     console.log('➡️  GET Shipment URL:', getShipmentUrl);
     let res = await fetch(getShipmentUrl, { headers });
     
     let data;
-    // Handle 204 No Content or 404 Not Found, which means the shipment was not found
     if (res.status === 204 || res.status === 404) {
       data = null;
     } else if (res.ok) {
       data = await safelyParseJSON(res);
     } else {
-      // Se a busca inicial já falhar com um erro (ex: 400, 500), retorne o erro imediatamente.
       const errorBody = await safelyParseJSON(res);
       console.error('❌ GET Shipment Initial Error:', errorBody);
       return NextResponse.json({
@@ -69,20 +64,19 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }, { status: res.status });
     }
 
-
-    // 2. Se não encontrou (null ou array vazio) e não for para pular a criação, crie o embarque.
     if (!skipCreate && (!data || (Array.isArray(data) && data.length === 0))) {
       console.log('ℹ️ Embarque não encontrado. Tentando criar...');
       const carrierInfo = findCarrierByName(carrierName || '');
 
-      if ((type === 'bookingNumber' || type === 'containerNumber') && (!carrierName || !carrierInfo)) {
+      if (!carrierName || !carrierInfo || !carrierInfo.scac) {
           return NextResponse.json({
-            error: 'Transportadora inválida ou não encontrada.',
-            detail: `Nenhuma transportadora com nome '${carrierName}' foi localizada. É obrigatória para este tipo de rastreamento.`
+            error: 'Transportadora inválida ou SCAC não encontrado.',
+            detail: `Nenhuma transportadora com nome '${carrierName}' foi localizada ou ela não possui um código SCAC cadastrado.`
           }, { status: 400 });
       }
 
-      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, oceanLine: carrierInfo?.name });
+      // Use SCAC code for oceanLine as it's more reliable
+      const payload = buildTrackingPayload({ type, trackingNumber: trackingId, scac: carrierInfo.scac });
       
       console.log('🔍 Diagnóstico de Criação:');
       console.log('URL:', CREATE_URL);
@@ -106,10 +100,8 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       }
       
       console.log('✅ Embarque criado com sucesso. Aguardando processamento...');
-      // Aguarda um tempo para a API processar o novo embarque
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      // 3. Busca novamente após a criação
       console.log('➡️  GET Shipment URL (After Create):', getShipmentUrl);
       res = await fetch(getShipmentUrl, { headers });
       
@@ -131,7 +123,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     
     console.log('📥 GET Shipment Response Body (parsed final):', JSON.stringify(firstShipment, null, 2));
 
-    // Se o embarque foi criado mas ainda está processando
     if (firstShipment?.state === 'PROCESSING' && firstShipment.fallback) {
         return NextResponse.json({
             status: 'processing',
@@ -140,7 +131,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: 202 });
     }
 
-    // Se a resposta ainda for vazia após a tentativa de criação
     if (!firstShipment || Object.keys(firstShipment).length === 0) {
         return NextResponse.json({
             status: 'processing',
@@ -148,7 +138,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
         }, { status: 202 });
     }
     
-    // Se o embarque foi encontrado com sucesso
     const eventos = (firstShipment?.shipmentEvents || []).map((ev: any) => ({
       eventName: ev.name,
       location: ev.location,
@@ -164,5 +153,3 @@ export async function GET(req: Request, { params }: { params: { booking: string 
     }, { status: 500 });
   }
 }
-
-    

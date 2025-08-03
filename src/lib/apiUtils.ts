@@ -1,4 +1,5 @@
 
+
 export function getAuthHeaders() {
     // As chaves são carregadas a partir de variáveis de ambiente,
     // que é a forma segura e correta para ambientes de produção.

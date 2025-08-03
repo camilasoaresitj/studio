@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -17,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
 import type { FinancialEntry } from '@/lib/financials-data';

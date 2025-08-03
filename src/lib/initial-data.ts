@@ -2,33 +2,9 @@
 
 import type { Partner } from '@/lib/partners-data';
 import type { Rate } from '@/components/rates-table';
+import type { QuoteCharge, QuoteDetails } from '@/lib/shipment-data';
 
-export type QuoteCharge = {
-  id: string;
-  name: string;
-  type: string;
-  containerType?: string;
-  localPagamento?: 'Origem' | 'Frete' | 'Destino';
-  cost: number;
-  costCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
-  sale: number;
-  saleCurrency: 'USD' | 'BRL' | 'EUR' | 'JPY' | 'CHF' | 'GBP';
-  supplier: string;
-  sacado?: string;
-  approvalStatus: 'aprovada' | 'pendente' | 'rejeitada';
-  justification?: string;
-  financialEntryId?: string | null;
-};
-
-export type QuoteDetails = {
-    cargo: string;
-    transitTime: string;
-    validity: string;
-    freeTime: string;
-    incoterm: string;
-    collectionAddress?: string;
-    deliveryAddress?: string;
-};
+export type { QuoteCharge };
 
 export type Quote = {
   id: string;
@@ -122,7 +98,7 @@ export function getInitialQuotes(): Quote[] {
 export function getStoredQuotes(): Quote[] {
     const QUOTES_STORAGE_KEY = 'freight_quotes';
     if (typeof window === 'undefined') {
-        return [];
+        return getInitialQuotes(); // Return initial data on the server
     }
     const storedQuotes = localStorage.getItem(QUOTES_STORAGE_KEY);
     if (storedQuotes) {
@@ -132,5 +108,3 @@ export function getStoredQuotes(): Quote[] {
     localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(initialQuotes));
     return initialQuotes;
 }
-
-    

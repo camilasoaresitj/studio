@@ -23,8 +23,8 @@ import { useToast } from '@/hooks/use-toast';
 import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
-import type { UploadedDocument, Shipment } from '@/lib/shipment-data';
-import type { Quote, QuoteCharge } from '@/lib/initial-data';
+import type { UploadedDocument, Shipment, QuoteCharge } from '@/lib/shipment-data';
+import type { Quote } from '@/lib/initial-data';
 
 export type { Quote };
 

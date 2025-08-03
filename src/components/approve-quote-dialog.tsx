@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { runApproveQuote } from '@/app/actions';
 import type { Quote } from '@/lib/initial-data';
 import { Label } from './ui/label';
-import type { UploadedDocument } from '@/lib/shipment-data';
+import type { UploadedDocument, Shipment } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
 
 const documentTypes = ['Invoice', 'Packing List', 'Negociação NET', 'Outros'];

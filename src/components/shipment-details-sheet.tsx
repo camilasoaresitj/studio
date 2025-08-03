@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { Shipment } from '@/lib/shipment-data';
+import type { Shipment, Milestone } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
 import { 
     Save, 
@@ -27,13 +27,14 @@ import {
     Clock,
     ChevronsUpDown,
     Check,
-    Loader2
+    Loader2,
+    CheckCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking } from '@/app/actions';
-import { BLDraftForm } from './bl-draft-form';
-import { CustomsClearanceTab } from './customs-clearance-tab';
+import { BLDraftForm } from '@/components/bl-draft-form';
+import { CustomsClearanceTab } from '@/components/customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -45,6 +46,7 @@ import { ShipmentDetailsTab } from './shipment-details/shipment-details-tab';
 import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-tab';
 import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 
 const shipmentDetailsSchema = z.object({
@@ -314,6 +316,29 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         setIsGenerating(false);
     };
 
+    const handleFinalizeShipment = () => {
+        if (!shipment) return;
+        const now = new Date();
+        const updatedMilestones = (shipment.milestones || []).map(m => {
+            if (m.status !== 'completed') {
+                return { ...m, status: 'completed' as const, effectiveDate: now };
+            }
+            return m;
+        });
+
+        const updatedShipment = {
+            ...shipment,
+            status: 'Finalizado',
+            milestones: updatedMilestones,
+        };
+        onMasterUpdate(updatedShipment);
+        toast({
+            title: "Processo Finalizado!",
+            description: "O status do processo foi alterado para 'Finalizado' e os milestones pendentes foram concluídos.",
+            className: "bg-success text-success-foreground",
+        });
+    };
+
     if (!shipment) return null;
     
     return (
@@ -345,6 +370,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                              {foreignLocationClock && (
                                 <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
                             )}
+                            {shipment.status !== 'Finalizado' && (
+                                <Button variant="secondary" onClick={handleFinalizeShipment}><CheckCircle className="mr-2 h-4 w-4"/>Finalizar Processo</Button>
+                            )}
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" disabled={isGenerating}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button>
@@ -358,6 +386,15 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
                         </div>
                     </div>
+                    {shipment.status === 'Finalizado' && (
+                        <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <AlertTitle className="text-green-800 dark:text-green-300">Processo Finalizado</AlertTitle>
+                            <AlertDescription className="text-green-700 dark:text-green-400">
+                                Este processo foi marcado como finalizado. As edições estão desabilitadas.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                      <Form {...form}>
                         <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pt-2">
                             <FormField control={form.control} name="shipperId" render={({ field }) => (
@@ -433,7 +470,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     </Tabs>
                 </div>
                  <div className="p-4 border-t flex justify-end">
-                    <Button type="button" onClick={handleMasterSave} disabled={isUpdating}>
+                    <Button type="button" onClick={handleMasterSave} disabled={isUpdating || shipment.status === 'Finalizado'}>
                         {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                         Salvar Todas as Alterações
                     </Button>

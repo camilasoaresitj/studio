@@ -242,7 +242,7 @@ export type Shipment = {
   approvalLogs?: ApprovalLog[];
   invoiceItems?: InvoiceItem[];
   lastTrackingUpdate?: Date; // Added for daily updates
-  status?: string; // To track if finalized
+  status?: 'Ativo' | 'Finalizado'; // To track if finalized
   cargoValue?: number;
   cargoValueCurrency?: 'BRL' | 'USD' | 'EUR' | 'GBP' | 'CHF' | 'JPY';
   incoterm?: string;
@@ -269,6 +269,7 @@ export function getShipments(): Shipment[] {
         }
         return {
             ...shipment,
+            status: shipment.status || 'Ativo', // Default status to 'Ativo'
             incoterm: shipment.incoterm || shipment.details?.incoterm,
             modal: shipment.modal || (shipment.details?.cargo.includes('kg') ? 'air' : 'ocean'), // Add modal fallback
             oceanShipmentType: shipment.oceanShipmentType,

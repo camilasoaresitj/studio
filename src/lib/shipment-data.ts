@@ -254,6 +254,7 @@ export function getShipments(): Shipment[] {
             ...shipment,
             incoterm: shipment.incoterm || shipment.details?.incoterm,
             modal: shipment.modal || (shipment.details?.cargo.includes('kg') ? 'air' : 'ocean'), // Add modal fallback
+            oceanShipmentType: shipment.oceanShipmentType,
             etd: safeDate(shipment.etd),
             eta: safeDate(shipment.eta),
             milestones: (shipment.milestones || []).map((m: any) => ({

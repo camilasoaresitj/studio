@@ -4,8 +4,6 @@ import type { Partner } from '@/lib/partners-data';
 import type { Rate } from '@/components/rates-table';
 import type { QuoteCharge, QuoteDetails } from '@/lib/shipment-data';
 
-export type { QuoteCharge, QuoteDetails };
-
 export type Quote = {
   id: string;
   customer: string;

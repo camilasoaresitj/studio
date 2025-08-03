@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -1321,5 +1322,3 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
     </div>
   );
 }
-
-    

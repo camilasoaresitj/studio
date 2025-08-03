@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle } from 'lucide-react';
+import type { Partner } from '@/lib/partners-data';
 
 type FreightRate = {
     carrier: string;
@@ -19,15 +20,23 @@ type FreightRate = {
 
 interface ManualFreightFormProps {
     onManualRateAdd: (rate: Omit<FreightRate, 'id' | 'carrierLogo' | 'dataAiHint' | 'source'>) => void;
+    partners: Partner[];
 }
 
-export function ManualFreightForm({ onManualRateAdd }: ManualFreightFormProps) {
+export function ManualFreightForm({ onManualRateAdd, partners }: ManualFreightFormProps) {
     const [supplier, setSupplier] = useState('');
     const [cost, setCost] = useState('');
     const [currency, setCurrency] = useState<'USD' | 'BRL'>('USD');
     const [transitTime, setTransitTime] = useState('');
 
+    const supplierPartners = partners.filter(p => p.roles.fornecedor || p.roles.agente);
+
     const handleSubmit = () => {
+        if (!supplier || !cost || !transitTime) {
+            // Basic validation
+            alert('Por favor, preencha todos os campos.');
+            return;
+        }
         onManualRateAdd({
             carrier: supplier,
             origin: '', // These are taken from the main form
@@ -45,7 +54,16 @@ export function ManualFreightForm({ onManualRateAdd }: ManualFreightFormProps) {
                 <CardDescription>Insira os detalhes da tarifa que você negociou.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <Input placeholder="Fornecedor" value={supplier} onChange={(e) => setSupplier(e.target.value)} />
+                <Select value={supplier} onValueChange={setSupplier}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Selecione o Fornecedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {supplierPartners.map(p => (
+                            <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <Input placeholder="Valor do Frete" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
                 <Select value={currency} onValueChange={(v: 'USD'|'BRL') => setCurrency(v)}>
                     <SelectTrigger><SelectValue/></SelectTrigger>

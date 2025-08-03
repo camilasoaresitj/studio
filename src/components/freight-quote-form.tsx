@@ -1306,7 +1306,7 @@ export function FreightQuoteForm({ onQuoteCreated, partners, onRegisterCustomer,
                   {apiError || "Não encontramos nenhuma tarifa para os critérios informados. Você pode solicitar a cotação a um agente ou adicionar o frete manualmente."}
                   </AlertDescription>
               </Alert>
-              <ManualFreightForm onManualRateAdd={handleSelectRate} />
+              <ManualFreightForm onManualRateAdd={handleSelectRate} partners={partners} />
           </div>
        )}
        

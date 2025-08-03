@@ -43,6 +43,11 @@ const nextConfig = {
       ...config.resolve.fallback,
       '@opentelemetry/exporter-jaeger': false,
       '@opentelemetry/winston-transport': false,
+      'net': false,
+      'tls': false,
+      'fs': false,
+      'path': false,
+      'crypto': false,
     };
     return config;
   }

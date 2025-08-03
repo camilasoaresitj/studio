@@ -188,6 +188,7 @@ export function TaskAutomationRegistry() {
                                     <SelectItem value="EXPORTACAO_MARITIMA">Exportação Marítima</SelectItem>
                                     <SelectItem value="IMPORTACAO_AEREA">Importação Aérea</SelectItem>
                                     <SelectItem value="EXPORTACAO_AEREA">Exportação Aérea</SelectItem>
+                                    <SelectItem value="TODOS">Todos</SelectItem>
                                 </SelectContent></Select><FormMessage /></FormItem>
                             )} />
                             <FormField

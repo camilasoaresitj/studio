@@ -12,11 +12,11 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from './ui/button';
 import { MoreHorizontal, FileText, Send, FileDown, Loader2, MessageCircle, CheckCircle, XCircle, ArrowLeft, Copy } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { QuoteCostSheet } from './quote-cost-sheet';
 import { runSendQuote, runGenerateQuotePdfHtml, runSendWhatsapp } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +26,7 @@ import { ApproveQuoteDialog } from './approve-quote-dialog';
 import type { UploadedDocument, Shipment } from '@/lib/shipment-data';
 import type { Quote, QuoteCharge } from '@/lib/initial-data';
 
-export type { Quote, QuoteCharge };
+export type { Quote };
 
 
 interface CustomerQuotesListProps {

@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -8,15 +6,15 @@ import { RecentShipments } from '@/components/recent-shipments';
 import { ApprovalsPanel } from '@/components/approvals-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Ship, CheckCircle, TrendingUp, AlertTriangle, Scale, ListTodo, Users, UserPlus, UserCheck, Package } from 'lucide-react';
-import { getStoredShipments, Shipment, Milestone } from '@/lib/shipment-data-client';
-import { getStoredQuotes, Quote } from '@/lib/initial-data';
+import { getStoredShipments, type Shipment, type Milestone } from '@/lib/shipment-data-client';
+import { getStoredQuotes, type Quote } from '@/lib/initial-data';
 import { getStoredFinancialEntries } from '@/lib/financials-data';
 import { isThisMonth, parseISO, isPast, differenceInDays, isValid, subDays } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { format } from 'date-fns';
-import { Partner, getStoredPartners } from '@/lib/partners-data';
+import { getStoredPartners, type Partner } from '@/lib/partners-data';
 
 const formatCurrency = (value: number, currency = 'BRL') => {
     return new Intl.NumberFormat('pt-BR', {
@@ -33,8 +31,6 @@ interface ReportData {
 
 export function GerencialPage() {
     const [reportData, setReportData] = useState<ReportData | null>(null);
-    const [partners, setPartners] = useState<Partner[]>([]);
-    const [quotes, setQuotes] = useState<Quote[]>([]);
     const [kpiData, setKpiData] = useState({
         totalProfit: 0,
         monthlyProfit: 0,
@@ -49,11 +45,11 @@ export function GerencialPage() {
         monthlyContainers: 0,
         monthlyTEUs: 0,
     });
+    const [partners, setPartners] = useState<Partner[]>([]);
 
     useEffect(() => {
         const shipments = getStoredShipments();
         const storedQuotes = getStoredQuotes();
-        setQuotes(storedQuotes);
         const financialEntries = getStoredFinancialEntries();
         const allPartners = getStoredPartners();
         setPartners(allPartners);
@@ -61,6 +57,7 @@ export function GerencialPage() {
         today.setHours(0,0,0,0);
         
         const activeShipments = shipments.filter(s => {
+            if (!s.milestones || s.milestones.length === 0) return true;
             const lastMilestone = s.milestones[s.milestones.length - 1];
             return !lastMilestone || lastMilestone.status !== 'completed';
         });

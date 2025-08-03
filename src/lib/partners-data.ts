@@ -130,7 +130,7 @@ export type Partner = z.infer<typeof partnerSchema>;
 const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v13';
 
 // SERVER-SAFE: Reads from JSON, no localStorage.
-export function getPartners(): Partner[] {
+function getInitialPartners(): Partner[] {
     // Rehydrate dates and add missing fields from the JSON import
     return initialPartnersData.map((p: any) => ({
       ...p,
@@ -154,6 +154,9 @@ export function getPartners(): Partner[] {
       }
     })) as Partner[];
 }
+// For server components and actions that need initial data
+export const getPartners = getInitialPartners;
+
 
 // CLIENT-SIDE ONLY: Function to get data from localStorage
 export function getStoredPartners(): Partner[] {
@@ -163,7 +166,7 @@ export function getStoredPartners(): Partner[] {
   try {
     const storedPartners = localStorage.getItem(PARTNERS_STORAGE_KEY);
     if (!storedPartners) {
-        const initialData = getPartners();
+        const initialData = getInitialPartners();
         localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(initialData));
         return initialData;
     };

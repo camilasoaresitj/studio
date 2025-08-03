@@ -21,7 +21,7 @@ export function getStoredShipments(): Shipment[] {
     };
     
     const parsed = JSON.parse(storedShipments) as any[];
-    return parsed.map(shipment => {
+    return parsed.map((shipment: any) => {
         const safeDate = (dateString: string | Date | undefined | null): Date | undefined => {
             if (!dateString) return undefined;
             const date = new Date(dateString);

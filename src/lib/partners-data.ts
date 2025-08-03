@@ -187,7 +187,19 @@ export function savePartners(partners: Partner[]): void {
     return;
   }
   try {
-    localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(partners));
+    const existingPartners = getStoredPartners();
+    const updatedPartners = [...existingPartners];
+    
+    partners.forEach(partner => {
+        const index = updatedPartners.findIndex(p => p.id === partner.id);
+        if (index > -1) {
+            updatedPartners[index] = partner;
+        } else {
+            updatedPartners.push(partner);
+        }
+    });
+
+    localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(updatedPartners));
     window.dispatchEvent(new Event('partnersUpdated'));
   } catch (error) {
     console.error("Failed to save partners to localStorage", error);

@@ -32,8 +32,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking } from '@/app/actions';
-import { BLDraftForm } from '../bl-draft-form';
-import { CustomsClearanceTab } from '../customs-clearance-tab';
+import { BLDraftForm } from '@/components/bl-draft-form';
+import { CustomsClearanceTab } from '@/components/customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';

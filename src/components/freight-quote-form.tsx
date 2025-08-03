@@ -26,7 +26,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import { runGetFreightRates, runRequestAgentQuote, runSendQuote, runExtractQuoteDetailsFromText, runSendWhatsapp, runGetCourierRates } from '@/app/actions';
 import { freightQuoteFormSchema, FreightQuoteFormData } from '@/lib/schemas';
-import type { Quote } from '@/lib/initial-data';
 import type { Partner } from '@/lib/partners-data';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -40,7 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { findPortByTerm, portsAndAirports } from '@/lib/ports';
 import { ManualFreightForm } from './manual-freight-form';
 import { AutocompleteInput } from './autocomplete-input';
-import type { QuoteCharge, QuoteDetails } from '@/lib/shipment-data';
+import type { QuoteCharge, QuoteDetails, Quote } from '@/lib/shipment-data';
 
 
 type FreightRate = {

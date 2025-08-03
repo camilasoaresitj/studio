@@ -39,7 +39,6 @@ import { BankAccountStatementDialog } from '@/components/financials/bank-account
 import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runSendQuote, savePartnerAction, addFinancialEntriesAction, updateFinancialEntryAction } from '@/app/actions';
 import { FinancialEntryImporter } from '@/components/financials/financial-entry-importer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { Input } from '@/components/ui/input';
 import { SendToLegalDialog } from '@/components/financials/send-to-legal-dialog';
 import { FinancialEntryDialog } from '@/components/financials/financial-entry-dialog';
@@ -264,7 +263,6 @@ export function FinancialPageClient() {
     const [statementAccount, setStatementAccount] = useState<BankAccount | null>(null);
     const [nfseData, setNfseData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
     const [legalData, setLegalData] = useState<{ entry: FinancialEntry; shipment: Shipment } | null>(null);
-    const [detailsEntry, setDetailsEntry] = useState<FinancialEntry | null>(null);
     const [statusFilter, setStatusFilter] = useState<Status[]>(['Aberto', 'Vencido', 'Parcialmente Pago', 'Pendente de Aprovação']);
     const [textFilters, setTextFilters] = useState({ partner: '', invoiceId: '', processId: '' });
     const [isGenerating, setIsGenerating] = useState(false);
@@ -294,8 +292,6 @@ export function FinancialPageClient() {
             window.removeEventListener('partnersUpdated', loadData);
         };
     }, [loadData]);
-
-    const findEntryForPayment = (paymentId: string) => entries.find(e => e.payments?.some(p => p.id === paymentId));
 
     const findShipmentForEntry = (entry: FinancialEntry) => allShipments.find(s => s.id === entry.processId);
 
@@ -505,21 +501,7 @@ export function FinancialPageClient() {
             setSelectedShipment(shipment);
             setIsSheetOpen(true);
         } else {
-            setDetailsEntry(entry);
-        }
-    };
-
-    const handleCloseDetails = () => {
-        setDetailsEntry(null);
-    };
-
-    const handleDetailsEntryUpdate = async (entry: FinancialEntry) => {
-        const response = await updateFinancialEntryAction(entry);
-        if (response.success && response.data) {
-            setEntries(response.data.entries);
-            saveFinancialEntries(response.data.entries);
-        } else {
-            toast({ variant: 'destructive', title: 'Erro ao atualizar', description: response.error });
+            toast({ title: "Processo Administrativo", description: "Este lançamento não está vinculado a um processo de embarque." });
         }
     };
     
@@ -948,15 +930,6 @@ export function FinancialPageClient() {
             onClose={() => setLegalData(null)}
             data={legalData}
             onConfirm={handleSendToLegal}
-        />
-        <FinancialDetailsDialog
-            entry={detailsEntry}
-            isOpen={!!detailsEntry}
-            onClose={handleCloseDetails}
-            onReversePayment={()=>{}}
-            findEntryForPayment={findEntryForPayment}
-            findShipmentForEntry={findShipmentForEntry}
-            onEntryUpdate={handleDetailsEntryUpdate}
         />
         
         <ShipmentDetailsSheet

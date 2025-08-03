@@ -17,9 +17,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
+import type { Shipment } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
-import type { FinancialEntry } from '@/lib/financials-data';
 import { 
     Save, 
     GanttChart, 
@@ -33,20 +32,18 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking } from '@/app/actions';
-import { BLDraftForm } from './bl-draft-form';
-import { CustomsClearanceTab } from './customs-clearance-tab';
+import { BLDraftForm } from '../bl-draft-form';
+import { CustomsClearanceTab } from '../customs-clearance-tab';
 import { findPortByTerm } from '@/lib/ports';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 
-// Import new tab components
 import { ShipmentTimelineTab } from './shipment-details/shipment-timeline-tab';
 import { ShipmentDetailsTab } from './shipment-details/shipment-details-tab';
 import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-tab';
 import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
-import { getStoredFinancialEntries } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 
 
@@ -57,7 +54,7 @@ const shipmentDetailsSchema = z.object({
   notifyId: z.string().optional(),
   purchaseOrderNumber: z.string().optional(),
   invoiceNumber: z.string().optional(),
-  charges: z.array(z.any()).optional(), // Simplified for the main sheet
+  charges: z.array(z.any()).optional(),
 });
 
 type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
@@ -229,7 +226,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
             onMasterUpdate(updatedShipmentData);
 
-            // After local update, send update to Cargo-flows
             await runUpdateShipmentInTracking(updatedShipmentData);
 
             toast({
@@ -318,20 +314,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         setIsGenerating(false);
     };
 
-    const handleOpenDetailsDialog = (charge: QuoteCharge) => {
-        const allEntries = getStoredFinancialEntries();
-        const entry = allEntries.find(e => e.id === charge.financialEntryId);
-        if (entry) {
-            // Logic to open details dialog
-        } else {
-            toast({ variant: 'destructive', title: 'Fatura não encontrada', description: 'Não foi possível localizar o lançamento financeiro associado.' });
-        }
-    };
-
     if (!shipment) return null;
     
     return (
-        <>
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="sm:max-w-7xl w-full p-0 flex flex-col">
                 <SheetHeader className="p-4 border-b space-y-2">
@@ -423,7 +408,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                     ref={(el) => { if (el) formRefs.current['financials'] = el; }}
                                     shipment={shipment}
                                     partners={partners}
-                                    onOpenDetails={handleOpenDetailsDialog}
+                                    onOpenDetails={() => {}}
                                     onInvoiceCharges={() => Promise.resolve({updatedCharges:[]})}
                                 />
                             </TabsContent>
@@ -453,8 +438,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                         Salvar Todas as Alterações
                     </Button>
                 </div>
-                </SheetContent>
+            </SheetContent>
         </Sheet>
-        </>
     );
 }

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
@@ -18,7 +17,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
 import type { FinancialEntry } from '@/lib/financials-data';
@@ -373,10 +371,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 </DropdownMenuContent>
                              </DropdownMenu>
                             <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
-                            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
-                                <X className="h-5 w-5" />
-                                <span className="sr-only">Fechar</span>
-                            </Button>
                         </div>
                     </div>
                      <Form {...form}>

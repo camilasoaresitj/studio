@@ -59,20 +59,18 @@ export async function pollShipmentStatus(trackingNumber: string, type: string, c
           continue;
       }
 
-      if (response.ok) {
-        const data = await safelyParseJSON(response);
-        if (data && (Array.isArray(data) ? data.length > 0 : true)) {
-          return {
-            status: 'found' as const,
-            shipment: Array.isArray(data) ? data[0] : data,
-            attempts: attempts + 1
-          };
-        }
-      }
-
       if (!response.ok) {
           const errorBody = await response.text();
           throw new Error(`API Error ${response.status}: ${errorBody.substring(0, 200)}`);
+      }
+      
+      const data = await safelyParseJSON(response);
+      if (data && (Array.isArray(data) ? data.length > 0 : true)) {
+        return {
+          status: 'found' as const,
+          shipment: Array.isArray(data) ? data[0] : data,
+          attempts: attempts + 1
+        };
       }
 
       attempts++;

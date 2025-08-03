@@ -1,5 +1,4 @@
 
-
 export function getAuthHeaders() {
     const API_KEY = process.env.CARGOFLOWS_API_KEY;
 

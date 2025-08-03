@@ -77,6 +77,7 @@ const milestoneApiNameMapping: { [key: string]: string[] } = {
     'Carga Pronta': ['cargo ready'],
     'Booking Confirmado': ['booking confirmed'],
     'Container Gate In (Entregue no Porto)': ['gate in full'],
+    'Carga Entregue': ['container discharged'],
 };
 
 
@@ -133,7 +134,7 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
             if (!dateB) return -1;
             return dateA - dateB;
         });
-    }, [form]); 
+    }, [form.watch('milestones')]); 
     
     const handleRefreshTracking = async () => {
         const trackingId = shipment.bookingNumber || shipment.masterBillNumber || shipment.containers?.[0]?.number;
@@ -177,7 +178,7 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
                 
                 // 1. Tenta mapear para um milestone padrão
                 for (const [standardName, apiNames] of Object.entries(milestoneApiNameMapping)) {
-                    if (apiNames.includes(apiMilestoneName)) {
+                    if (apiNames.some(apiName => apiMilestoneName.includes(apiName))) {
                         const existingIndex = updatedMilestones.findIndex(m => m.name === standardName);
                         if (existingIndex > -1 && updatedMilestones[existingIndex].status !== 'completed') {
                             updatedMilestones[existingIndex] = {

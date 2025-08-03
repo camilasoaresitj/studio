@@ -1,4 +1,5 @@
 
+
 import { Partner } from '@/lib/partners-data';
 import { isValid } from 'date-fns';
 import type { PartialPayment } from './financials-data';

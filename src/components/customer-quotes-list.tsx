@@ -24,6 +24,7 @@ import type { Partner } from '@/lib/partners-data';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { ApproveQuoteDialog } from './approve-quote-dialog';
 import type { UploadedDocument, Shipment, QuoteCharge, Quote } from '@/lib/shipment-data';
+
 export type { Quote };
 
 interface CustomerQuotesListProps {

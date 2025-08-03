@@ -1,7 +1,7 @@
 
 'use client';
 import { FreightQuoteForm } from '@/components/freight-quote-form';
-import { CustomerQuotesList, type Quote } from '@/components/customer-quotes-list';
+import { CustomerQuotesList } from '@/components/customer-quotes-list';
 import { RatesTable, type Rate } from '@/components/rates-table';
 import { RateImporter } from '@/components/rate-importer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,19 +15,19 @@ import { List } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { CrmForm } from '@/components/crm-form';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
-import type { Quote as ShipmentQuote } from '@/lib/shipment-data';
+import type { Quote } from '@/lib/shipment-data';
 import { PartnerDialog } from '@/components/partner-dialog';
 
 export default function ComercialPage() {
-    const [quotes, setQuotes] = useState<ShipmentQuote[]>([]);
+    const [quotes, setQuotes] = useState<Quote[]>([]);
     const [partners, setPartners] = useState<Partner[]>([]);
     const [rates, setRates] = useState<Rate[]>([]);
     const [fees, setFees] = useState<Fee[]>([]);
     const [isClient, setIsClient] = useState(false);
     const [view, setView] = useState<'form' | 'list'>('form');
-    const [quoteToDetail, setQuoteToDetail] = useState<ShipmentQuote | null>(null);
-    const [quoteToEdit, setQuoteToEdit] = useState<Partial<ShipmentQuote> | null>(null);
-    const [quoteToClone, setQuoteToClone] = useState<Partial<ShipmentQuote> | null>(null);
+    const [quoteToDetail, setQuoteToDetail] = useState<Quote | null>(null);
+    const [quoteToEdit, setQuoteToEdit] = useState<Partial<Quote> | null>(null);
+    const [quoteToClone, setQuoteToClone] = useState<Partial<Quote> | null>(null);
     const [isPartnerDialogOpen, setIsPartnerDialogOpen] = useState(false);
 
     useEffect(() => {
@@ -59,13 +59,13 @@ export default function ComercialPage() {
         }
     }, [quoteToClone]);
 
-    const handleQuoteCreated = (newQuote: ShipmentQuote) => {
+    const handleQuoteCreated = (newQuote: Quote) => {
         setQuotes(prev => [...prev, newQuote]);
         setQuoteToDetail(newQuote);
         setView('list');
     };
     
-    const handleQuoteUpdate = (updatedQuote: ShipmentQuote) => {
+    const handleQuoteUpdate = (updatedQuote: Quote) => {
          setQuotes(prev => prev.map(q => q.id === updatedQuote.id ? updatedQuote : q));
     };
 

@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Table,
   TableHeader,
@@ -254,6 +255,7 @@ export function TaskAutomationRegistry() {
                                     <SelectItem value="ALERTA">Disparar Alerta no Sistema</SelectItem>
                                     <SelectItem value="EMAIL">Enviar E-mail</SelectItem>
                                     <SelectItem value="DOCUMENTO">Gerar Documento</SelectItem>
+                                    <SelectItem value="RELATORIO_STATUS">Gerar Relatório de Status</SelectItem>
                                 </SelectContent></Select><FormMessage /></FormItem>
                             )} />
                              <FormField control={form.control} name="recipient" render={({ field }) => (

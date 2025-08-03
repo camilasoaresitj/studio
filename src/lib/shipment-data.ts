@@ -169,6 +169,7 @@ export type Shipment = {
   id: string; 
   quoteId: string;
   modal: 'air' | 'ocean' | 'courier' | 'road'; // Make modal required
+  oceanShipmentType?: 'FCL' | 'LCL';
   origin: string;
   destination: string;
   shipper: Partner;

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -41,7 +42,7 @@ export function TaskForm() {
     setResult(null);
     const response = await runMonitorTasks(values.emailSubject, values.emailContent, values.sender);
     if (response.success) {
-      setResult(response.data);
+      setResult(response.data || null);
     } else {
       toast({
         variant: 'destructive',

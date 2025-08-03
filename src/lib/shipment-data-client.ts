@@ -86,3 +86,16 @@ export function saveShipments(shipments: Shipment[]): void {
     window.dispatchEvent(new Event('shipmentsUpdated'));
   }
 }
+
+// SERVER-SIDE ONLY: Function to save data (simulated)
+// In a real app, this would write to a database.
+export async function saveShipmentsData(shipments: Shipment[]): Promise<void> {
+    // This is a server-side function, so it can't write to localStorage.
+    // In a real app, you would implement database logic here.
+    // For this prototype, we will log to the console to show the intent.
+    console.log("Simulating saving shipments data on the server...");
+    // In a real file-based backend for prototyping, you might write back to the JSON file.
+    // const fs = require('fs');
+    // const path = require('path');
+    // fs.writeFileSync(path.resolve('./src/lib/shipments.json'), JSON.stringify(shipments, null, 4));
+}

@@ -17,9 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Paperclip, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { runApproveQuote } from '@/app/actions';
-import type { Quote } from '@/lib/initial-data';
 import { Label } from './ui/label';
-import type { UploadedDocument, Shipment } from '@/lib/shipment-data';
+import type { UploadedDocument, Shipment, Quote } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
 
 const documentTypes = ['Invoice', 'Packing List', 'Negociação NET', 'Outros'];

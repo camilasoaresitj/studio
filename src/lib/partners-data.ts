@@ -2,8 +2,6 @@
 'use client';
 import { z } from 'zod';
 import initialPartnersData from './partners.json';
-import { savePartnerAction } from '@/app/actions';
-
 
 const profitAgreementSchema = z.object({
     modal: z.enum(['FCL', 'LCL', 'AIR', 'ROAD_FTL']),
@@ -130,7 +128,7 @@ export type Partner = z.infer<typeof partnerSchema>;
 const PARTNERS_STORAGE_KEY = 'cargaInteligente_partners_v13';
 
 // SERVER-SAFE: Reads from JSON, no localStorage.
-function getInitialPartners(): Partner[] {
+function getPartners(): Partner[] {
     // Rehydrate dates and add missing fields from the JSON import
     return initialPartnersData.map((p: any) => ({
       ...p,
@@ -155,7 +153,7 @@ function getInitialPartners(): Partner[] {
     })) as Partner[];
 }
 // For server components and actions that need initial data
-export const getPartners = getInitialPartners;
+export { getPartners };
 
 
 // CLIENT-SIDE ONLY: Function to get data from localStorage
@@ -166,7 +164,7 @@ export function getStoredPartners(): Partner[] {
   try {
     const storedPartners = localStorage.getItem(PARTNERS_STORAGE_KEY);
     if (!storedPartners) {
-        const initialData = getInitialPartners();
+        const initialData = getPartners();
         localStorage.setItem(PARTNERS_STORAGE_KEY, JSON.stringify(initialData));
         return initialData;
     };

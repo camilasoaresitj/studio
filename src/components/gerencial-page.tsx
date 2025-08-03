@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -9,7 +10,7 @@ import { DollarSign, Ship, CheckCircle, TrendingUp, AlertTriangle, Scale, ListTo
 import { getStoredShipments, type Shipment, type Milestone } from '@/lib/shipment-data-client';
 import { getStoredQuotes, type Quote } from '@/lib/initial-data';
 import { getStoredFinancialEntries } from '@/lib/financials-data';
-import { isThisMonth, parseISO, isPast, differenceInDays, isValid, subDays } from 'date-fns';
+import { isThisMonth, isPast, differenceInDays, isValid, subDays } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from './ui/scroll-area';
@@ -48,102 +49,109 @@ export function GerencialPage() {
     const [partners, setPartners] = useState<Partner[]>([]);
 
     useEffect(() => {
-        const shipments = getStoredShipments();
-        const storedQuotes = getStoredQuotes();
-        const financialEntries = getStoredFinancialEntries();
-        const allPartners = getStoredPartners();
-        setPartners(allPartners);
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        
-        const activeShipments = shipments.filter(s => {
-            if (!s.milestones || s.milestones.length === 0) return true;
-            const lastMilestone = s.milestones[s.milestones.length - 1];
-            return !lastMilestone || lastMilestone.status !== 'completed';
-        });
+        // This effect runs on the client and uses client-side data fetching.
+        const calculateKpis = () => {
+            const shipments = getStoredShipments();
+            const storedQuotes = getStoredQuotes();
+            const financialEntries = getStoredFinancialEntries();
+            const allPartners = getStoredPartners();
+            setPartners(allPartners);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const activeShipments = shipments.filter(s => {
+                if (!s.milestones || s.milestones.length === 0) return true;
+                const lastMilestone = s.milestones[s.milestones.length - 1];
+                return !lastMilestone || lastMilestone.status !== 'completed';
+            });
 
-        const approvedQuotesThisMonth = storedQuotes.filter(q => {
-            if (!q.date) return false;
-            try {
-                const quoteDateParts = q.date.split('/');
-                const quoteDate = new Date(parseInt(quoteDateParts[2]), parseInt(quoteDateParts[1]) - 1, parseInt(quoteDateParts[0]));
-                return q.status === 'Aprovada' && isThisMonth(quoteDate);
-            } catch {
-                return false;
-            }
-        }).map(quote => {
-             const profit = quote.charges.reduce((chargeProfit, charge) => {
-                const saleBRL = charge.sale * (charge.saleCurrency === 'BRL' ? 1 : 5.25); 
-                const costBRL = charge.cost * (charge.costCurrency === 'BRL' ? 1 : 5.25);
-                return chargeProfit + (saleBRL - costBRL);
-            }, 0);
-            return { ...quote, profitBRL: profit };
-        });
-        
-        const monthlyProfit = approvedQuotesThisMonth.reduce((total, quote) => total + quote.profitBRL, 0);
+            const approvedQuotesThisMonth = storedQuotes.filter(q => {
+                if (!q.date) return false;
+                try {
+                    const quoteDateParts = q.date.split('/');
+                    const quoteDate = new Date(parseInt(quoteDateParts[2]), parseInt(quoteDateParts[1]) - 1, parseInt(quoteDateParts[0]));
+                    return q.status === 'Aprovada' && isThisMonth(quoteDate);
+                } catch {
+                    return false;
+                }
+            }).map(quote => {
+                 const profit = quote.charges.reduce((chargeProfit, charge) => {
+                    const saleBRL = charge.sale * (charge.saleCurrency === 'BRL' ? 1 : 5.25); 
+                    const costBRL = charge.cost * (charge.costCurrency === 'BRL' ? 1 : 5.25);
+                    return chargeProfit + (saleBRL - costBRL);
+                }, 0);
+                return { ...quote, profitBRL: profit };
+            });
+            
+            const monthlyProfit = approvedQuotesThisMonth.reduce((total, quote) => total + quote.profitBRL, 0);
 
-        const demurrageProfit = financialEntries
-            .filter(e => e.description?.toLowerCase().includes('demurrage'))
-            .reduce((sum, entry) => {
-                 if (entry.type === 'credit') return sum + entry.amount;
-                 if (entry.type === 'debit') return sum - entry.amount;
-                 return sum;
-            }, 0);
-        
-        const overdueTasks = shipments.flatMap(shipment => 
-            shipment.milestones
-                .filter(m => m.status !== 'completed' && m.predictedDate && isValid(new Date(m.predictedDate)) && isPast(new Date(m.predictedDate)))
-                .map(m => ({ ...m, shipment }))
-        );
-        
-        const thirtyDaysAgo = subDays(today, 30);
-        const newClients = allPartners.filter(p => p.roles.cliente && p.createdAt && new Date(p.createdAt) > thirtyDaysAgo);
+            const demurrageProfit = financialEntries
+                .filter(e => e.description?.toLowerCase().includes('demurrage'))
+                .reduce((sum, entry) => {
+                     if (entry.type === 'credit') return sum + entry.amount;
+                     if (entry.type === 'debit') return sum - entry.amount;
+                     return sum;
+                }, 0);
+            
+            const overdueTasks = shipments.flatMap(shipment => 
+                (shipment.milestones || [])
+                    .filter(m => m.status !== 'completed' && m.predictedDate && isValid(new Date(m.predictedDate)) && isPast(new Date(m.predictedDate)))
+                    .map(m => ({ ...m, shipment }))
+            );
+            
+            const thirtyDaysAgo = subDays(today, 30);
+            const newClients = allPartners.filter(p => p.roles.cliente && p.createdAt && new Date(p.createdAt) > thirtyDaysAgo);
 
-        const ninetyDaysAgo = subDays(today, 90);
-        const activeClientNames = new Set(
-            shipments
-                .filter(s => s.etd && new Date(s.etd) > ninetyDaysAgo)
-                .map(s => s.customer)
-        );
-        const activeClients = Array.from(activeClientNames);
+            const ninetyDaysAgo = subDays(today, 90);
+            const activeClientNames = new Set(
+                shipments
+                    .filter(s => s.etd && new Date(s.etd) > ninetyDaysAgo)
+                    .map(s => s.customer)
+            );
+            const activeClients = Array.from(activeClientNames);
 
-        let monthlyContainers = 0;
-        let monthlyTEUs = 0;
-        const shipmentsThisMonth = shipments.filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd)));
-        
-        shipmentsThisMonth.forEach(s => {
-            if (s.containers) {
-                s.containers.forEach(c => {
-                    const quantity = 1; // Assuming each entry is one container
-                    monthlyContainers += quantity;
-                    if (c.type && c.type.includes("20'")) {
-                        monthlyTEUs += 1 * quantity;
-                    } else if (c.type && c.type.includes("40'")) {
-                        monthlyTEUs += 2 * quantity;
-                    }
-                });
-            }
-        });
+            let monthlyContainers = 0;
+            let monthlyTEUs = 0;
+            const shipmentsThisMonth = shipments.filter(s => s.etd && isValid(new Date(s.etd)) && isThisMonth(new Date(s.etd)));
+            
+            shipmentsThisMonth.forEach(s => {
+                if (s.containers) {
+                    s.containers.forEach(c => {
+                        const quantity = 1; // Assuming each entry is one container
+                        monthlyContainers += quantity;
+                        if (c.type && c.type.includes("20'")) {
+                            monthlyTEUs += 1 * quantity;
+                        } else if (c.type && c.type.includes("40'")) {
+                            monthlyTEUs += 2 * quantity;
+                        }
+                    });
+                }
+            });
 
-        // Simulated values
-        const operationalProfit = 12540.75; 
-        const exchangeProfit = 3450.21;
-        const totalProfit = monthlyProfit + operationalProfit + demurrageProfit + exchangeProfit;
+            // Simulated values
+            const operationalProfit = 12540.75; 
+            const exchangeProfit = 3450.21;
+            const totalProfit = monthlyProfit + operationalProfit + demurrageProfit + exchangeProfit;
 
-        setKpiData({
-            totalProfit,
-            monthlyProfit,
-            operationalProfit,
-            exchangeProfit,
-            demurrageProfit,
-            activeShipments,
-            approvedQuotesThisMonth,
-            overdueTasks,
-            newClients,
-            activeClients,
-            monthlyContainers,
-            monthlyTEUs,
-        });
+            setKpiData({
+                totalProfit,
+                monthlyProfit,
+                operationalProfit,
+                exchangeProfit,
+                demurrageProfit,
+                activeShipments,
+                approvedQuotesThisMonth,
+                overdueTasks,
+                newClients,
+                activeClients,
+                monthlyContainers,
+                monthlyTEUs,
+            });
+        };
+
+        calculateKpis();
+        window.addEventListener('storage', calculateKpis);
+        return () => window.removeEventListener('storage', calculateKpis);
 
     }, []);
 

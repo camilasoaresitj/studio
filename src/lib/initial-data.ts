@@ -1,7 +1,6 @@
 
-import type { Partner } from '@/lib/partners-data';
 import type { Rate } from '@/components/rates-table';
-import type { Quote, QuoteCharge, QuoteDetails } from '@/lib/shipment-data';
+import type { Quote } from '@/lib/shipment-data';
 
 export function getInitialRates(): Rate[] {
   return [
@@ -79,7 +78,7 @@ export function getInitialQuotes(): Quote[] {
 export function getStoredQuotes(): Quote[] {
     const QUOTES_STORAGE_KEY = 'freight_quotes';
     if (typeof window === 'undefined') {
-        return getInitialQuotes(); // Return initial data on the server
+        return []; // Return empty array on the server
     }
     const storedQuotes = localStorage.getItem(QUOTES_STORAGE_KEY);
     if (storedQuotes) {

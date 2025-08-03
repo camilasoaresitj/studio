@@ -1,3 +1,4 @@
+
 // /src/app/api/tracking/[booking]/route.ts
 import { NextResponse } from 'next/server';
 import { buildTrackingPayload } from '@/lib/buildTrackingPayload';
@@ -33,18 +34,19 @@ async function attemptCreateShipment(trackingId: string, type: TrackingType, car
       body: JSON.stringify(payload) 
     });
 
-    if (!createRes.ok) {
+    const contentType = createRes.headers.get('content-type') || '';
+    if (!createRes.ok || !contentType.includes('application/json')) {
       const errorBody = await createRes.text();
-      console.error(`❌ Failed to create shipment. Status: ${createRes.status}`, errorBody);
-      // Incluindo o payload no erro para diagnóstico
-      throw new EnhancedPollingError(new Error(`API creation failed with status ${createRes.status}: ${errorBody}`), trackingId, 1, payload);
+      console.error(`❌ Failed to create shipment. Status: ${createRes.status}`, `Content-Type: ${contentType}`, errorBody.substring(0, 500));
+      throw new EnhancedPollingError(new Error(`API creation failed or returned non-JSON response with status ${createRes.status}`), trackingId, 1, payload);
     }
+    
     return await createRes.json();
+    
   } catch (error) {
     if (error instanceof EnhancedPollingError) {
-      throw error; // Repassa o erro já enriquecido
+      throw error;
     }
-    // Encapsula outros erros (ex: fetch)
     throw new EnhancedPollingError(error, trackingId, 1, payload);
   }
 }
@@ -64,7 +66,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
   const carrierName = url.searchParams.get('carrierName');
 
   try {
-    // 1. Tentar encontrar shipment existente
     console.log(`Polling for ${typeParam}: ${trackingId}`);
     let pollingResult = await pollShipmentStatus(trackingId, typeParam, carrierName);
     
@@ -76,14 +77,12 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       });
     }
 
-    // 2. Se não encontrado, tentar criar
     console.log(`ℹ️ Shipment not found. Attempting to create...`);
     const createResponse = await attemptCreateShipment(trackingId, typeParam, carrierName);
     console.log(`✅ Creation initiated for ${trackingId}.`, createResponse);
     
-    // 3. Verificar novamente após criação
     console.log(`Verifying shipment creation for ${trackingId}...`);
-    const verification = await pollShipmentStatus(trackingId, typeParam, carrierName, 8); // More attempts after creation
+    const verification = await pollShipmentStatus(trackingId, typeParam, carrierName, 8);
     
     if (verification.status === 'found') {
         console.log('✅ Shipment found after creation.');
@@ -94,7 +93,6 @@ export async function GET(req: Request, { params }: { params: { booking: string 
       });
     }
 
-    // 4. Se ainda não encontrado, logar e retornar erro
     console.error(`❌ Shipment still not found after creation attempt for ${trackingId}.`);
     throw new EnhancedPollingError(new Error("Shipment not available after creation request."), trackingId, verification.attempts);
 

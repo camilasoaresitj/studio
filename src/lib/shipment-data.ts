@@ -3,6 +3,7 @@ import { Partner } from '@/lib/partners-data';
 import { isValid } from 'date-fns';
 import type { PartialPayment } from './financials-data';
 import initialShipmentsData from './shipments.json';
+import { InvoiceItem } from './schemas/invoice';
 
 export const SHIPMENTS_STORAGE_KEY = 'cargaInteligente_shipments_v12';
 
@@ -222,7 +223,7 @@ export type Shipment = {
   ncms?: string[];
   operationalNotes?: string;
   approvalLogs?: ApprovalLog[];
-  invoiceItems?: any[];
+  invoiceItems?: InvoiceItem[];
   lastTrackingUpdate?: Date; // Added for daily updates
   status?: string; // To track if finalized
   cargoValue?: number;

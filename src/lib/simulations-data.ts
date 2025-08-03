@@ -2,7 +2,7 @@
 'use client';
 
 import { z } from 'zod';
-import type { SimulationFormData } from '@/app/simulador-di/page';
+import type { SimulationFormData } from '@/lib/schemas/simulation';
 
 export const simulationSchema = z.object({
   id: z.string(),

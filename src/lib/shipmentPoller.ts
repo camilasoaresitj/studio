@@ -1,4 +1,3 @@
-
 // /src/lib/shipmentPoller.ts - Polling confiável
 import { getAuthHeaders } from './apiUtils';
 import { EnhancedPollingError } from './errors';
@@ -37,11 +36,8 @@ export async function pollShipmentStatus(trackingNumber: string, type: string, c
         await new Promise(resolve => setTimeout(resolve, delay));
       }
       
-      let url = `${SHIPMENT_URL}?${type}=${encodeURIComponent(trackingNumber)}`;
-      if (carrierName) {
-        url += `&carrierName=${encodeURIComponent(carrierName)}`;
-      }
-
+      const url = `${SHIPMENT_URL}?${type}=${encodeURIComponent(trackingNumber)}`;
+      
       const response = await fetch(url, {
         headers: getAuthHeaders(),
         signal: AbortSignal.timeout(15000)

@@ -67,7 +67,7 @@ type NewMilestoneFormData = z.infer<typeof newMilestoneSchema>;
 
 interface ShipmentTimelineTabProps {
     shipment: Shipment;
-    onUpdate: (updatedShipment: Shipment) => void;
+    onUpdate: (updatedData: Partial<Shipment>) => void;
 }
 
 // Mapeia eventos da API para nomes de milestones padrão do sistema
@@ -223,7 +223,6 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
             });
 
             onUpdate({ 
-                ...shipment, 
                 vesselName: trackingData.vesselName || shipment.vesselName,
                 eta: trackingData.eta ? new Date(trackingData.eta) : shipment.eta,
                 etd: trackingData.etd ? new Date(trackingData.etd) : shipment.etd,

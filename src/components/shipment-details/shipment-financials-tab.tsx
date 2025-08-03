@@ -56,6 +56,7 @@ interface ShipmentFinancialsTabProps {
     partners: Partner[];
     onOpenDetails: (charge: QuoteCharge) => void;
     onInvoiceCharges: (charges: QuoteCharge[], shipment: Shipment) => Promise<{ updatedCharges: QuoteCharge[] }>;
+    onUpdate: (updatedData: Partial<Shipment>) => void;
 }
 
 const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueChange: (value: string) => void, fees: Fee[] }) => {
@@ -107,7 +108,7 @@ const chargeTypeOptions = [
     'Percentual',
 ];
 
-export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onInvoiceCharges }, ref) => {
+export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onInvoiceCharges, onUpdate }, ref) => {
     const { toast } = useToast();
     const [fees] = useState<Fee[]>(getFees());
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
@@ -150,7 +151,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
         
         const { updatedCharges } = await onInvoiceCharges(chargesToInvoice as QuoteCharge[], shipment);
 
-        form.setValue('charges', updatedCharges as any);
+        onUpdate({ charges: updatedCharges });
         setSelectedChargeIds(new Set());
     };
 

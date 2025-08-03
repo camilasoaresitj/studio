@@ -153,11 +153,12 @@ const PartnerSelector = ({ label, partners, field }: PartnerSelectorProps) => {
     );
 };
 
-export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate: onMasterUpdate }: ShipmentDetailsSheetProps) {
+export function ShipmentDetailsSheet({ shipment: initialShipment, partners, open, onOpenChange, onUpdate: onMasterUpdate }: ShipmentDetailsSheetProps) {
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState('timeline');
     const [isUpdating, setIsUpdating] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [currentShipment, setCurrentShipment] = useState<Shipment | null>(initialShipment);
     
     const formRefs = useRef<Record<string, { submit: () => Promise<any> }>>({});
 
@@ -166,25 +167,25 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     });
     
     useEffect(() => {
-        if (shipment) {
+        setCurrentShipment(initialShipment);
+        if (initialShipment) {
             form.reset({
-                shipperId: shipment.shipper?.id?.toString(),
-                consigneeId: shipment.consignee?.id?.toString(),
-                agentId: shipment.agent?.id?.toString(),
-                notifyId: partners.find(p => p.name === shipment.notifyName)?.id?.toString(),
-                purchaseOrderNumber: shipment.purchaseOrderNumber,
-                invoiceNumber: shipment.invoiceNumber,
-                charges: shipment.charges,
+                shipperId: initialShipment.shipper?.id?.toString(),
+                consigneeId: initialShipment.consignee?.id?.toString(),
+                agentId: initialShipment.agent?.id?.toString(),
+                notifyId: partners.find(p => p.name === initialShipment.notifyName)?.id?.toString(),
+                purchaseOrderNumber: initialShipment.purchaseOrderNumber,
+                invoiceNumber: initialShipment.invoiceNumber,
+                charges: initialShipment.charges,
             });
-             // Reset to the first tab whenever a new shipment is selected
             setActiveTab('timeline');
         }
-    }, [shipment, form, open, partners]);
+    }, [initialShipment, form, open, partners]);
 
     const foreignLocationClock = useMemo(() => {
-        if (!shipment) return null;
-        const originPort = findPortByTerm(shipment.origin);
-        const destPort = findPortByTerm(shipment.destination);
+        if (!currentShipment) return null;
+        const originPort = findPortByTerm(currentShipment.origin);
+        const destPort = findPortByTerm(currentShipment.destination);
 
         if (originPort && originPort.country !== 'BR') {
             return { label: originPort.name, timeZone: originPort.timeZone };
@@ -193,16 +194,17 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             return { label: destPort.name, timeZone: destPort.timeZone };
         }
         return null;
-    }, [shipment]);
+    }, [currentShipment]);
 
     const onUpdate = (updatedData: Partial<Shipment>) => {
-        if (!shipment) return;
-        const updatedShipment = { ...shipment, ...updatedData };
+        if (!currentShipment) return;
+        const updatedShipment = { ...currentShipment, ...updatedData };
+        setCurrentShipment(updatedShipment);
         onMasterUpdate(updatedShipment);
     };
     
     const handleMasterSave = async () => {
-        if (!shipment) return;
+        if (!currentShipment) return;
         setIsUpdating(true);
         
         try {
@@ -217,12 +219,12 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             const notify = partners.find(p => p.id?.toString() === headerData.notifyId);
 
             let updatedShipmentData = { 
-                ...shipment, 
+                ...currentShipment, 
                 ...headerData,
-                shipper: shipper || shipment.shipper,
-                consignee: consignee || shipment.consignee,
-                agent: agent || shipment.agent,
-                notifyName: notify?.name || shipment.notifyName,
+                shipper: shipper || currentShipment.shipper,
+                consignee: consignee || currentShipment.consignee,
+                agent: agent || currentShipment.agent,
+                notifyName: notify?.name || currentShipment.notifyName,
                 ...combinedTabData
             };
 
@@ -244,17 +246,17 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     };
     
     const generatePdf = async (type: 'client' | 'agent' | 'hbl') => {
-        if (!shipment) return;
+        if (!currentShipment) return;
         setIsGenerating(true);
 
         let response;
         try {
             if (type === 'client') {
-                 const partner = partners.find(p => p.name === shipment.customer);
+                 const partner = partners.find(p => p.name === currentShipment.customer);
                  if (!partner) throw new Error("Cliente não encontrado");
 
-                const charges = shipment.charges
-                    .filter(c => c.sacado === shipment.customer)
+                const charges = currentShipment.charges
+                    .filter(c => c.sacado === currentShipment.customer)
                     .map(c => ({
                         description: c.name,
                         value: (Number(c.sale) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
@@ -262,8 +264,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     }));
 
                 response = await runGenerateClientInvoicePdf({
-                    invoiceNumber: `INV-${shipment.id}`,
-                    customerName: shipment.customer,
+                    invoiceNumber: `INV-${currentShipment.id}`,
+                    customerName: currentShipment.customer,
                     customerAddress: `${partner.address?.street}, ${partner.address?.number}`,
                     date: format(new Date(), 'dd/MM/yyyy'),
                     dueDate: format(new Date(), 'dd/MM/yyyy'),
@@ -273,33 +275,33 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                     bankDetails: { bankName: "LTI GLOBAL", accountNumber: "PIX: 10.298.168/0001-89" }
                 });
             } else if (type === 'agent') {
-                 if (!shipment.agent) throw new Error("Agente não encontrado no processo.");
+                 if (!currentShipment.agent) throw new Error("Agente não encontrado no processo.");
                  response = await runGenerateAgentInvoicePdf({
-                     invoiceNumber: `AINV-${shipment.id}`,
-                     processId: shipment.id,
-                     agentName: shipment.agent.name,
+                     invoiceNumber: `AINV-${currentShipment.id}`,
+                     processId: currentShipment.id,
+                     agentName: currentShipment.agent.name,
                  });
             } else { 
-                if (!shipment.blDraftData) throw new Error("Draft do BL não foi preenchido.");
+                if (!currentShipment.blDraftData) throw new Error("Draft do BL não foi preenchido.");
                 response = await runGenerateHblPdf({
                     isOriginal: true,
-                    blNumber: shipment.houseBillNumber,
-                    shipper: shipment.blDraftData.shipper,
-                    consignee: shipment.blDraftData.consignee,
-                    notifyParty: shipment.blDraftData.notify,
-                    vesselAndVoyage: `${shipment.vesselName} / ${shipment.voyageNumber}`,
-                    portOfLoading: shipment.origin,
-                    portOfDischarge: shipment.destination,
-                    finalDestination: shipment.destination,
-                    marksAndNumbers: shipment.blDraftData.marksAndNumbers,
-                    packageDescription: `${shipment.blDraftData.containers.reduce((sum, c) => sum + parseInt(c.volumes || '0'), 0)} packages, ${shipment.blDraftData.descriptionOfGoods}`,
-                    grossWeight: shipment.blDraftData.grossWeight,
-                    measurement: shipment.blDraftData.measurement,
-                    containerAndSeal: shipment.blDraftData.containers.map(c => `${c.number} / ${c.seal}`).join('\n'),
+                    blNumber: currentShipment.houseBillNumber,
+                    shipper: currentShipment.blDraftData.shipper,
+                    consignee: currentShipment.blDraftData.consignee,
+                    notifyParty: currentShipment.blDraftData.notify,
+                    vesselAndVoyage: `${currentShipment.vesselName} / ${currentShipment.voyageNumber}`,
+                    portOfLoading: currentShipment.origin,
+                    portOfDischarge: currentShipment.destination,
+                    finalDestination: currentShipment.destination,
+                    marksAndNumbers: currentShipment.blDraftData.marksAndNumbers,
+                    packageDescription: `${currentShipment.blDraftData.containers.reduce((sum, c) => sum + parseInt(c.volumes || '0'), 0)} packages, ${currentShipment.blDraftData.descriptionOfGoods}`,
+                    grossWeight: currentShipment.blDraftData.grossWeight,
+                    measurement: currentShipment.blDraftData.measurement,
+                    containerAndSeal: currentShipment.blDraftData.containers.map(c => `${c.number} / ${c.seal}`).join('\n'),
                     freightPayableAt: 'Destino',
-                    numberOfOriginals: shipment.blType === 'original' ? '3 (TRÊS)' : '0 (ZERO)',
+                    numberOfOriginals: currentShipment.blType === 'original' ? '3 (TRÊS)' : '0 (ZERO)',
                     issueDate: format(new Date(), 'dd-MMM-yyyy'),
-                    shippedOnBoardDate: shipment.etd ? format(shipment.etd, 'dd-MMM-yyyy') : 'N/A',
+                    shippedOnBoardDate: currentShipment.etd ? format(currentShipment.etd, 'dd-MMM-yyyy') : 'N/A',
                 });
             }
 
@@ -317,9 +319,9 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     };
 
     const handleFinalizeShipment = () => {
-        if (!shipment) return;
+        if (!currentShipment) return;
         const now = new Date();
-        const updatedMilestones = (shipment.milestones || []).map(m => {
+        const updatedMilestones = (currentShipment.milestones || []).map(m => {
             if (m.status !== 'completed') {
                 return { ...m, status: 'completed' as const, effectiveDate: now };
             }
@@ -327,7 +329,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         });
 
         const updatedShipment = {
-            ...shipment,
+            ...currentShipment,
             status: 'Finalizado' as const,
             milestones: updatedMilestones,
         };
@@ -339,7 +341,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         });
     };
     
-    if (!shipment) {
+    if (!currentShipment) {
         return (
              <Sheet open={open} onOpenChange={onOpenChange}>
                 <SheetContent className="sm:max-w-7xl w-full p-0 flex flex-col items-center justify-center">
@@ -359,15 +361,15 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                                 <GanttChart className="h-8 w-8 text-primary"/>
                             </div>
                             <div>
-                                <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
+                                <SheetTitle>Detalhes do Processo: {currentShipment.id}</SheetTitle>
                                 <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
-                                     <span>Cliente: {shipment.customer}</span>
+                                     <span>Cliente: {currentShipment.customer}</span>
                                      <Separator orientation="vertical" className="h-4"/>
                                       <span className="flex items-center gap-1.5">
                                         Última Sincronização: 
                                         <span className="font-semibold text-foreground">
-                                            {shipment.lastTrackingUpdate 
-                                                ? format(new Date(shipment.lastTrackingUpdate), 'dd/MM/yy HH:mm', { locale: ptBR }) 
+                                            {currentShipment.lastTrackingUpdate 
+                                                ? format(new Date(currentShipment.lastTrackingUpdate), 'dd/MM/yy HH:mm', { locale: ptBR }) 
                                                 : 'Nunca'}
                                         </span>
                                     </span>
@@ -378,7 +380,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                              {foreignLocationClock && (
                                 <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
                             )}
-                            {shipment.status !== 'Finalizado' && (
+                            {currentShipment.status !== 'Finalizado' && (
                                 <Button variant="secondary" onClick={handleFinalizeShipment}><CheckCircle className="mr-2 h-4 w-4"/>Finalizar Processo</Button>
                             )}
                              <DropdownMenu>
@@ -394,7 +396,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
                         </div>
                     </div>
-                    {shipment.status === 'Finalizado' && (
+                    {currentShipment.status === 'Finalizado' && (
                         <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
                             <CheckCircle className="h-4 w-4 text-green-600" />
                             <AlertTitle className="text-green-800 dark:text-green-300">Processo Finalizado</AlertTitle>
@@ -436,14 +438,14 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <TabsContent value="timeline">
                                 <ShipmentTimelineTab
                                     ref={(el) => { if (el) formRefs.current['timeline'] = el; }}
-                                    shipment={shipment}
+                                    shipment={currentShipment}
                                     onUpdate={onUpdate}
                                 />
                             </TabsContent>
                             <TabsContent value="details">
                                  <ShipmentDetailsTab
                                     ref={(el) => { if (el) formRefs.current['details'] = el; }}
-                                    shipment={shipment}
+                                    shipment={currentShipment}
                                     partners={partners}
                                     onUpdate={onUpdate}
                                 />
@@ -451,7 +453,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <TabsContent value="financials">
                                  <ShipmentFinancialsTab
                                     ref={(el) => { if (el) formRefs.current['financials'] = el; }}
-                                    shipment={shipment}
+                                    shipment={currentShipment}
                                     partners={partners}
                                     onOpenDetails={() => {}}
                                     onInvoiceCharges={() => Promise.resolve({updatedCharges:[]})}
@@ -460,25 +462,25 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                             <TabsContent value="documents">
                                  <ShipmentDocumentsTab
                                     ref={(el) => { if (el) formRefs.current['documents'] = el; }}
-                                    shipment={shipment}
+                                    shipment={currentShipment}
                                 />
                             </TabsContent>
                             <TabsContent value="bl_draft">
                                  <BLDraftForm
                                     ref={(el) => { if (el) formRefs.current['bl_draft'] = el as any; }}
-                                    shipment={shipment} 
+                                    shipment={currentShipment} 
                                     onUpdate={onUpdate} 
                                     isSheet 
                                 />
                             </TabsContent>
                             <TabsContent value="desembaraco">
-                                <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate}/>
+                                <CustomsClearanceTab shipment={currentShipment} onUpdate={onUpdate}/>
                             </TabsContent>
                         </div>
                     </Tabs>
                 </div>
                  <div className="p-4 border-t flex justify-end">
-                    <Button type="button" onClick={handleMasterSave} disabled={isUpdating || shipment.status === 'Finalizado'}>
+                    <Button type="button" onClick={handleMasterSave} disabled={isUpdating || currentShipment.status === 'Finalizado'}>
                         {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                         Salvar Todas as Alterações
                     </Button>

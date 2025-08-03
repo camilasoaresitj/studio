@@ -1,3 +1,4 @@
+
 import { Partner } from '@/lib/partners-data';
 import { isValid } from 'date-fns';
 import type { PartialPayment } from './financials-data';
@@ -33,6 +34,21 @@ export type QuoteDetails = {
     incoterm: string;
     collectionAddress?: string; // Added for EXW
     deliveryAddress?: string; // Added for D-terms
+};
+
+export type Quote = {
+  id: string;
+  customer: string;
+  origin: string;
+  destination: string;
+  status: 'Enviada' | 'Aprovada' | 'Perdida' | 'Rascunho';
+  date: string;
+  details: QuoteDetails;
+  charges: QuoteCharge[];
+  shipper?: Partner;
+  consignee?: Partner;
+  agent?: Partner;
+  carrier?: string;
 };
 
 export type UploadedDocument = {

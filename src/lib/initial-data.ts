@@ -1,24 +1,7 @@
 
-
 import type { Partner } from '@/lib/partners-data';
 import type { Rate } from '@/components/rates-table';
-import type { QuoteCharge, QuoteDetails } from '@/lib/shipment-data';
-
-export type Quote = {
-  id: string;
-  customer: string;
-  origin: string;
-  destination: string;
-  status: 'Enviada' | 'Aprovada' | 'Perdida' | 'Rascunho';
-  date: string;
-  details: QuoteDetails;
-  charges: QuoteCharge[];
-  shipper?: Partner;
-  consignee?: Partner;
-  agent?: Partner;
-  carrier?: string;
-};
-
+import type { Quote, QuoteCharge, QuoteDetails } from '@/lib/shipment-data';
 
 export function getInitialRates(): Rate[] {
   return [

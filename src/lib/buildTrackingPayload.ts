@@ -74,7 +74,9 @@ export function buildTrackingPayload(input: TrackingInput) {
       formDataItem.promisedEtd = shipment.etd ? new Date(shipment.etd).toISOString().split('T')[0] : undefined;
       formDataItem.incoterm = shipment.incoterm || shipment.details?.incoterm;
       formDataItem.mode = shipment.modal === 'ocean' ? (shipment.oceanShipmentType || 'FCL') : 'Air';
-      formDataItem.totalWeight = shipment.grossWeight;
+      
+      const totalWeight = shipment.grossWeight || shipment.charges?.reduce((sum, charge) => sum + (charge.cost || 0), 0) || 0;
+      formDataItem.totalWeight = totalWeight;
       formDataItem.weightUom = 'KG';
 
       if (shipment.containers && shipment.containers.length > 0) {

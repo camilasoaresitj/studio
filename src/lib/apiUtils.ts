@@ -1,8 +1,6 @@
 
 
 export function getAuthHeaders() {
-    // As chaves são carregadas a partir de variáveis de ambiente,
-    // que é a forma segura e correta para ambientes de produção.
     const API_KEY = process.env.CARGOFLOWS_API_KEY;
     const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 

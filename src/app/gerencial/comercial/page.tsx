@@ -16,6 +16,7 @@ import React, { useState, useEffect } from 'react';
 import { CrmForm } from '@/components/crm-form';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
 import type { Quote as ShipmentQuote } from '@/lib/shipment-data';
+import { PartnerDialog } from '@/components/partner-dialog';
 
 export default function ComercialPage() {
     const [quotes, setQuotes] = useState<ShipmentQuote[]>([]);
@@ -27,6 +28,7 @@ export default function ComercialPage() {
     const [quoteToDetail, setQuoteToDetail] = useState<ShipmentQuote | null>(null);
     const [quoteToEdit, setQuoteToEdit] = useState<Partial<ShipmentQuote> | null>(null);
     const [quoteToClone, setQuoteToClone] = useState<Partial<ShipmentQuote> | null>(null);
+    const [isPartnerDialogOpen, setIsPartnerDialogOpen] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
@@ -74,6 +76,7 @@ export default function ComercialPage() {
             savePartners(response.data);
             window.dispatchEvent(new Event('partnersUpdated'));
         }
+        setIsPartnerDialogOpen(false);
     };
 
     const handleRatesChange = (newRates: Rate[]) => {
@@ -99,6 +102,7 @@ export default function ComercialPage() {
     }
 
     return (
+        <>
         <div className="space-y-8">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center">
                 <div>
@@ -125,7 +129,7 @@ export default function ComercialPage() {
                         <FreightQuoteForm 
                             onQuoteCreated={handleQuoteCreated} 
                             partners={partners}
-                            onRegisterCustomer={() => {}}
+                            onRegisterCustomer={() => setIsPartnerDialogOpen(true)}
                             rates={rates}
                             fees={fees}
                             initialData={quoteToEdit || quoteToClone}
@@ -158,5 +162,13 @@ export default function ComercialPage() {
                 />
             )}
         </div>
+        <PartnerDialog
+            isOpen={isPartnerDialogOpen}
+            onClose={() => setIsPartnerDialogOpen(false)}
+            onPartnerSaved={handlePartnerSaved}
+            partner={null}
+            allPartners={partners}
+        />
+        </>
     );
 }

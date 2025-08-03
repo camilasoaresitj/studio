@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, PlusCircle, Save, ChevronsUpDown, Check, Wallet, FileText } from 'lucide-react';
-import type { Quote, QuoteCharge } from './customer-quotes-list';
+import type { Quote } from './customer-quotes-list';
+import type { QuoteCharge } from '@/lib/initial-data';
 import type { Partner } from '@/lib/partners-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';

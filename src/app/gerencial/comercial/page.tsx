@@ -15,17 +15,18 @@ import { List } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { CrmForm } from '@/components/crm-form';
 import { ExtractRatesFromTextOutput } from '@/ai/flows/extract-rates-from-text';
+import type { Quote as ShipmentQuote } from '@/lib/shipment-data';
 
 export default function ComercialPage() {
-    const [quotes, setQuotes] = useState<Quote[]>([]);
+    const [quotes, setQuotes] = useState<ShipmentQuote[]>([]);
     const [partners, setPartners] = useState<Partner[]>([]);
     const [rates, setRates] = useState<Rate[]>([]);
     const [fees, setFees] = useState<Fee[]>([]);
     const [isClient, setIsClient] = useState(false);
     const [view, setView] = useState<'form' | 'list'>('form');
-    const [quoteToDetail, setQuoteToDetail] = useState<Quote | null>(null);
-    const [quoteToEdit, setQuoteToEdit] = useState<Partial<Quote> | null>(null);
-    const [quoteToClone, setQuoteToClone] = useState<Partial<Quote> | null>(null);
+    const [quoteToDetail, setQuoteToDetail] = useState<ShipmentQuote | null>(null);
+    const [quoteToEdit, setQuoteToEdit] = useState<Partial<ShipmentQuote> | null>(null);
+    const [quoteToClone, setQuoteToClone] = useState<Partial<ShipmentQuote> | null>(null);
 
     useEffect(() => {
         setIsClient(true);
@@ -56,13 +57,13 @@ export default function ComercialPage() {
         }
     }, [quoteToClone]);
 
-    const handleQuoteCreated = (newQuote: Quote) => {
+    const handleQuoteCreated = (newQuote: ShipmentQuote) => {
         setQuotes(prev => [...prev, newQuote]);
         setQuoteToDetail(newQuote);
         setView('list');
     };
     
-    const handleQuoteUpdate = (updatedQuote: Quote) => {
+    const handleQuoteUpdate = (updatedQuote: ShipmentQuote) => {
          setQuotes(prev => prev.map(q => q.id === updatedQuote.id ? updatedQuote : q));
     };
 

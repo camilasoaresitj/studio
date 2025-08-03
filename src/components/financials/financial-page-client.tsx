@@ -943,5 +943,3 @@ export function FinancialPageClient() {
     </div>
   );
 }
-
-    

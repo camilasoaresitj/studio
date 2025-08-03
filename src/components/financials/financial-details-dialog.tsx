@@ -1,421 +1,464 @@
-
-
 'use client';
 
-import * as React from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
-import type { PartialPayment, FinancialEntry } from '@/lib/financials-data';
-import { cn } from '@/lib/utils';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { format } from 'date-fns';
-import { Button } from '../ui/button';
-import { Trash2, Receipt, FileText, Gavel } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { exchangeRateService } from '@/services/exchange-rate-service';
-import type { Partner } from '@/lib/partners-data';
-import { getPartners } from '@/lib/partners-data';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Textarea } from '../ui/textarea';
+import { ptBR } from 'date-fns/locale';
 
-interface FinancialDetailsDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  entry: FinancialEntry | null;
-  onReversePayment?: (paymentId: string, entryId: string) => void;
-  findEntryForPayment: (paymentId: string) => FinancialEntry | undefined;
-  findShipmentForEntry: (entry: FinancialEntry) => Shipment | undefined;
-  onEntryUpdate?: (entry: FinancialEntry) => void;
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
+import type { Partner } from '@/lib/partners-data';
+import type { FinancialEntry } from '@/lib/financials-data';
+import { 
+    Save, 
+    GanttChart, 
+    Link as LinkIcon, 
+    Printer,
+    Clock,
+    ChevronsUpDown,
+    Check,
+    X,
+    Loader2
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { runGenerateClientInvoicePdf, runGenerateAgentInvoicePdf, runGenerateHblPdf, runUpdateShipmentInTracking } from '@/app/actions';
+import { BLDraftForm } from './bl-draft-form';
+import { CustomsClearanceTab } from './customs-clearance-tab';
+import { findPortByTerm } from '@/lib/ports';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+
+// Import new tab components
+import { ShipmentTimelineTab } from './shipment-details/shipment-timeline-tab';
+import { ShipmentDetailsTab } from './shipment-details/shipment-details-tab';
+import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-tab';
+import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
+import { getStoredFinancialEntries } from '@/lib/financials-data';
+import { cn } from '@/lib/utils';
+
+
+const shipmentDetailsSchema = z.object({
+  shipperId: z.string().optional(),
+  consigneeId: z.string().optional(),
+  agentId: z.string().optional(),
+  notifyId: z.string().optional(),
+  purchaseOrderNumber: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  charges: z.array(z.any()).optional(), // Simplified for the main sheet
+});
+
+type ShipmentDetailsFormData = z.infer<typeof shipmentDetailsSchema>;
+
+interface ShipmentDetailsSheetProps {
+    shipment: Shipment | null;
+    partners: Partner[];
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onUpdate: (updatedShipment: Shipment) => void;
 }
 
-export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePayment, findEntryForPayment, findShipmentForEntry, onEntryUpdate }: FinancialDetailsDialogProps) {
-  const { toast } = useToast();
-  const [partners, setPartners] = React.useState<Partner[]>([]);
-  const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
-  const [editedRates, setEditedRates] = React.useState<Record<string, { costRate?: number; saleRate?: number }>>({});
-  const [shipment, setShipment] = React.useState<Shipment | null>(null);
-  
-  const [legalStatus, setLegalStatus] = React.useState<string | undefined>('');
-  const [processoJudicial, setProcessoJudicial] = React.useState<string | undefined>('');
-  const [legalComments, setLegalComments] = React.useState<string | undefined>('');
+const TimeZoneClock = ({ timeZone, label }: { timeZone: string, label: string }) => {
+    const [time, setTime] = useState('');
 
-
-  const getChargeRates = React.useCallback((charge: QuoteCharge) => {
-    const costPartner = partners.find(p => p.name === charge.supplier);
-    const salePartner = partners.find(p => p.name === charge.sacado);
-
-    const costAgio = costPartner?.exchangeRateAgio ?? 0;
-    const saleAgio = salePartner?.exchangeRateAgio ?? 0;
-    
-    const costPtax = exchangeRates[charge.costCurrency] || 1;
-    const salePtax = exchangeRates[charge.saleCurrency] || 1;
-    
-    const initialCostRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + costAgio / 100);
-    const initialSaleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + saleAgio / 100);
-
-    return {
-        costRate: editedRates[charge.id]?.costRate ?? initialCostRate,
-        saleRate: editedRates[charge.id]?.saleRate ?? initialSaleRate,
-    };
-  }, [partners, exchangeRates, editedRates]);
-
-  React.useEffect(() => {
-    if (isOpen && entry) {
-        const fetchAndSetData = async () => {
-            const partnersData = getPartners();
-            const ratesData = await exchangeRateService.getRates();
-            const associatedShipment = findShipmentForEntry(entry);
-            setPartners(partnersData);
-            setExchangeRates(ratesData);
-            setShipment(associatedShipment || null);
-            setLegalStatus(entry.legalStatus);
-            setProcessoJudicial(entry.processoJudicial);
-            setLegalComments(entry.legalComments);
-
-            if(associatedShipment) {
-                const initialEditedRates: Record<string, { costRate?: number; saleRate?: number }> = {};
-                (associatedShipment.charges || []).forEach(charge => {
-                    const costPartner = partnersData.find(p => p.name === charge.supplier);
-                    const salePartner = partnersData.find(p => p.name === charge.sacado);
-                    const costAgio = costPartner?.exchangeRateAgio ?? 0;
-                    const saleAgio = salePartner?.exchangeRateAgio ?? 0;
-                    const costPtax = ratesData[charge.costCurrency] || 1;
-                    const salePtax = ratesData[charge.saleCurrency] || 1;
-                    const costRate = charge.costCurrency === 'BRL' ? 1 : costPtax * (1 + costAgio / 100);
-                    const saleRate = charge.saleCurrency === 'BRL' ? 1 : salePtax * (1 + saleAgio / 100);
-
-                    initialEditedRates[charge.id] = { costRate, saleRate };
+    useEffect(() => {
+        const timer = setInterval(() => {
+            try {
+                const newTime = new Date().toLocaleTimeString('pt-BR', {
+                    timeZone,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
                 });
-                setEditedRates(initialEditedRates);
-            } else {
-                 setEditedRates({});
+                setTime(newTime);
+            } catch (error) {
+                console.error(`Invalid time zone: ${timeZone}`);
+                setTime('Inválido');
+                clearInterval(timer);
             }
-        };
-        fetchAndSetData();
-    }
-  }, [isOpen, entry, findShipmentForEntry]);
-  
-  const handleRateChange = (chargeId: string, type: 'cost' | 'sale', value: string) => {
-      const rate = parseFloat(value);
-      if (isNaN(rate)) return;
+        }, 1000);
 
-      setEditedRates(prev => ({
-          ...prev,
-          [chargeId]: {
-              ...prev[chargeId],
-              [type === 'cost' ? 'costRate' : 'saleRate']: rate
-          }
-      }));
-  };
+        return () => clearInterval(timer);
+    }, [timeZone]);
 
-  const totals = React.useMemo(() => {
-    if (!shipment || partners.length === 0 || Object.keys(exchangeRates).length === 0) {
-        return { totalCostBRL: 0, totalSaleBRL: 0, totalProfitBRL: 0 };
-    }
+    return (
+        <div className="flex items-center gap-2 text-sm p-2 rounded-md bg-secondary">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <div>
+                <span className="font-semibold">{label}:</span>
+                <span className="font-mono ml-1 font-bold text-primary">{time}</span>
+            </div>
+        </div>
+    );
+};
+
+interface PartnerSelectorProps {
+    label: string;
+    partners: Partner[];
+    field: any;
+}
+
+const PartnerSelector = ({ label, partners, field }: PartnerSelectorProps) => {
+    const [open, setOpen] = useState(false);
+    const selectedPartner = partners.find(p => p.id?.toString() === field.value);
+
+    return (
+        <FormItem>
+            <FormLabel>{label}</FormLabel>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-8">
+                            {field.value ? selectedPartner?.name : "Selecione..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                        <CommandInput placeholder="Buscar parceiro..." />
+                        <CommandList>
+                            <CommandEmpty>Nenhum parceiro encontrado.</CommandEmpty>
+                            <CommandGroup>
+                                {partners.map(p => (
+                                    <CommandItem value={p.name} key={p.id} onSelect={() => { field.onChange(p.id!.toString()); setOpen(false); }}>
+                                        <Check className={cn("mr-2 h-4 w-4", p.id?.toString() === field.value ? "opacity-100" : "opacity-0")} />
+                                        {p.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+             {selectedPartner && (
+                <div className="text-xs text-muted-foreground mt-1 p-2 border rounded-md bg-secondary/50">
+                    <p className="truncate"><strong>End:</strong> {`${selectedPartner.address.street || ''}, ${selectedPartner.address.city || ''}`}</p>
+                    <p className="truncate"><strong>CNPJ/VAT:</strong> {selectedPartner.cnpj || selectedPartner.vat || 'N/A'}</p>
+                </div>
+            )}
+            <FormMessage />
+        </FormItem>
+    );
+};
+
+export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, onUpdate: onMasterUpdate }: ShipmentDetailsSheetProps) {
+    const { toast } = useToast();
+    const [activeTab, setActiveTab] = useState('timeline');
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [detailsEntry, setDetailsEntry] = useState<FinancialEntry | null>(null);
     
-    let totalCostBRL = 0;
-    let totalSaleBRL = 0;
+    const formRefs = useRef<Record<string, { submit: () => Promise<any> }>>({});
 
-    (shipment.charges || []).forEach(charge => {
-        const { costRate, saleRate } = getChargeRates(charge);
-        totalCostBRL += charge.cost * costRate;
-        totalSaleBRL += charge.sale * saleRate;
+    const form = useForm<ShipmentDetailsFormData>({
+        resolver: zodResolver(shipmentDetailsSchema),
     });
     
-    return {
-        totalCostBRL,
-        totalSaleBRL,
-        totalProfitBRL: totalSaleBRL - totalCostBRL
+    useEffect(() => {
+        if (shipment) {
+            form.reset({
+                shipperId: shipment.shipper?.id?.toString(),
+                consigneeId: shipment.consignee?.id?.toString(),
+                agentId: shipment.agent?.id?.toString(),
+                notifyId: partners.find(p => p.name === shipment.notifyName)?.id?.toString(),
+                purchaseOrderNumber: shipment.purchaseOrderNumber,
+                invoiceNumber: shipment.invoiceNumber,
+                charges: shipment.charges,
+            });
+        }
+    }, [shipment, form, open, partners]);
+
+    const foreignLocationClock = useMemo(() => {
+        if (!shipment) return null;
+        const originPort = findPortByTerm(shipment.origin);
+        const destPort = findPortByTerm(shipment.destination);
+
+        if (originPort && originPort.country !== 'BR') {
+            return { label: originPort.name, timeZone: originPort.timeZone };
+        }
+        if (destPort && destPort.country !== 'BR') {
+            return { label: destPort.name, timeZone: destPort.timeZone };
+        }
+        return null;
+    }, [shipment]);
+
+    const onUpdate = (updatedData: Partial<Shipment>) => {
+        if (!shipment) return;
+        const updatedShipment = { ...shipment, ...updatedData };
+        onMasterUpdate(updatedShipment);
+    };
+    
+    const handleMasterSave = async () => {
+        if (!shipment) return;
+        setIsUpdating(true);
+        
+        try {
+            const headerData = form.getValues();
+            const tabDataPromises = Object.values(formRefs.current).map(ref => ref.submit());
+            const tabDataResults = await Promise.all(tabDataPromises);
+            const combinedTabData = tabDataResults.reduce((acc, data) => ({ ...acc, ...data }), {});
+            
+            const shipper = partners.find(p => p.id?.toString() === headerData.shipperId);
+            const consignee = partners.find(p => p.id?.toString() === headerData.consigneeId);
+            const agent = partners.find(p => p.id?.toString() === headerData.agentId);
+            const notify = partners.find(p => p.id?.toString() === headerData.notifyId);
+
+            let updatedShipmentData = { 
+                ...shipment, 
+                ...headerData,
+                shipper: shipper || shipment.shipper,
+                consignee: consignee || shipment.consignee,
+                agent: agent || shipment.agent,
+                notifyName: notify?.name || shipment.notifyName,
+                ...combinedTabData
+            };
+
+            onMasterUpdate(updatedShipmentData);
+
+            // After local update, send update to Cargo-flows
+            await runUpdateShipmentInTracking(updatedShipmentData);
+
+            toast({
+                title: "Processo Atualizado e Sincronizado!",
+                description: "As alterações foram salvas e enviadas para o sistema de rastreamento.",
+                className: "bg-success text-success-foreground",
+            });
+        } catch (error: any) {
+            console.error("Save error:", error);
+            toast({ variant: "destructive", title: "Erro ao Salvar", description: error.message || "Não foi possível salvar os dados." });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+    
+    const generatePdf = async (type: 'client' | 'agent' | 'hbl') => {
+        if (!shipment) return;
+        setIsGenerating(true);
+
+        let response;
+        try {
+            if (type === 'client') {
+                 const partner = partners.find(p => p.name === shipment.customer);
+                 if (!partner) throw new Error("Cliente não encontrado");
+
+                const charges = shipment.charges
+                    .filter(c => c.sacado === shipment.customer)
+                    .map(c => ({
+                        description: c.name,
+                        value: (Number(c.sale) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+                        currency: c.saleCurrency
+                    }));
+
+                response = await runGenerateClientInvoicePdf({
+                    invoiceNumber: `INV-${shipment.id}`,
+                    customerName: shipment.customer,
+                    customerAddress: `${partner.address?.street}, ${partner.address?.number}`,
+                    date: format(new Date(), 'dd/MM/yyyy'),
+                    dueDate: format(new Date(), 'dd/MM/yyyy'),
+                    charges,
+                    total: '0.00',
+                    exchangeRate: 5.25,
+                    bankDetails: { bankName: "LTI GLOBAL", accountNumber: "PIX: 10.298.168/0001-89" }
+                });
+            } else if (type === 'agent') {
+                 if (!shipment.agent) throw new Error("Agente não encontrado no processo.");
+                 response = await runGenerateAgentInvoicePdf({
+                     invoiceNumber: `AINV-${shipment.id}`,
+                     processId: shipment.id,
+                     agentName: shipment.agent.name,
+                 });
+            } else { 
+                if (!shipment.blDraftData) throw new Error("Draft do BL não foi preenchido.");
+                response = await runGenerateHblPdf({
+                    isOriginal: true,
+                    blNumber: shipment.houseBillNumber,
+                    shipper: shipment.blDraftData.shipper,
+                    consignee: shipment.blDraftData.consignee,
+                    notifyParty: shipment.blDraftData.notify,
+                    vesselAndVoyage: `${shipment.vesselName} / ${shipment.voyageNumber}`,
+                    portOfLoading: shipment.origin,
+                    portOfDischarge: shipment.destination,
+                    finalDestination: shipment.destination,
+                    marksAndNumbers: shipment.blDraftData.marksAndNumbers,
+                    packageDescription: `${shipment.blDraftData.containers.reduce((sum, c) => sum + parseInt(c.volumes || '0'), 0)} packages, ${shipment.blDraftData.descriptionOfGoods}`,
+                    grossWeight: shipment.blDraftData.grossWeight,
+                    measurement: shipment.blDraftData.measurement,
+                    containerAndSeal: shipment.blDraftData.containers.map(c => `${c.number} / ${c.seal}`).join('\n'),
+                    freightPayableAt: 'Destino',
+                    numberOfOriginals: shipment.blType === 'original' ? '3 (TRÊS)' : '0 (ZERO)',
+                    issueDate: format(new Date(), 'dd-MMM-yyyy'),
+                    shippedOnBoardDate: shipment.etd ? format(shipment.etd, 'dd-MMM-yyyy') : 'N/A',
+                });
+            }
+
+            if (response.success && response.data?.html) {
+                const newWindow = window.open();
+                newWindow?.document.write(response.data.html);
+                newWindow?.document.close();
+            } else {
+                throw new Error(response.error || "A geração do HTML falhou.");
+            }
+        } catch (err: any) {
+            toast({ variant: "destructive", title: `Erro ao gerar ${type}`, description: err.message });
+        }
+        setIsGenerating(false);
     };
 
-  }, [shipment, partners, exchangeRates, getChargeRates]);
+    const handleOpenDetailsDialog = (charge: QuoteCharge) => {
+        const allEntries = getStoredFinancialEntries();
+        const entry = allEntries.find(e => e.id === charge.financialEntryId);
+        if (entry) {
+            setDetailsEntry(entry);
+        } else {
+            toast({ variant: 'destructive', title: 'Fatura não encontrada', description: 'Não foi possível localizar o lançamento financeiro associado.' });
+        }
+    };
 
-  const handleEmitRecibo = () => {
-    if (!shipment) return;
+    if (!shipment) return null;
     
-    const nfseCharge = (shipment.charges || []).find(c => c.name.toLowerCase().includes("serviço"));
-    const chargesForReceipt = (shipment.charges || []).filter(c => !nfseCharge || c.id !== nfseCharge.id);
-
-    const newWindow = window.open();
-    if (newWindow) {
-        let receiptHtml = `
-            <html>
-                <head><title>Recibo - Processo ${shipment.id}</title>
-                 <style>
-                    body { font-family: sans-serif; margin: 2rem; }
-                    table { width: 100%; border-collapse: collapse; }
-                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                    th { background-color: #f2f2f2; }
-                    h1 { color: #333; }
-                </style>
-                </head>
-                <body>
-                    <h1>Recibo - Processo ${shipment.id}</h1>
-                    <p><strong>Cliente:</strong> ${shipment.customer}</p>
-                    <p>Recebemos o valor referente aos seguintes serviços:</p>
-                    <table>
-                        <thead>
-                            <tr><th>Descrição</th><th>Valor</th></tr>
-                        </thead>
-                        <tbody>
-        `;
-        chargesForReceipt.forEach(charge => {
-            receiptHtml += `<tr><td>${charge.name}</td><td>${charge.saleCurrency} ${charge.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`;
-        });
-        receiptHtml += `
-                        </tbody>
-                    </table>
-                    <p><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
-                </body>
-            </html>
-        `;
-        newWindow.document.write(receiptHtml);
-        newWindow.document.close();
-    }
-  };
-
-  const handleSaveChanges = () => {
-    if (entry && onEntryUpdate) {
-      onEntryUpdate({
-        ...entry,
-        legalStatus: legalStatus as FinancialEntry['legalStatus'],
-        processoJudicial,
-        legalComments,
-      });
-      toast({
-        title: 'Informações Salvas!',
-        description: 'As observações do processo jurídico foram atualizadas.',
-        className: 'bg-success text-success-foreground'
-      });
-    }
-  };
-
-  if (!entry) return null;
-  const isLegalCase = entry.status === 'Jurídico';
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-7xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Detalhes Financeiros do Processo: {entry.processId}</DialogTitle>
-          <DialogDescription>
-            Análise de custos, vendas e lucro para o embarque de {entry.partner}.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-grow overflow-hidden">
-          <ScrollArea className="h-full pr-4 space-y-6">
-            {!shipment && (
-                <Card className="flex items-center justify-center h-48">
-                    <p className="text-muted-foreground">Processo administrativo ou dados do embarque não encontrados.</p>
-                </Card>
-            )}
-
-            {shipment && (
-            <Card>
-                <CardHeader><CardTitle className="text-lg">Tabela de Custos e Vendas</CardTitle></CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Taxa</TableHead>
-                            <TableHead>Fornecedor</TableHead>
-                            <TableHead className="text-right">Custo</TableHead>
-                            <TableHead className="text-right">Câmbio C.</TableHead>
-                            <TableHead className="text-right">Custo (BRL)</TableHead>
-                            <TableHead className="text-right">Venda</TableHead>
-                             <TableHead className="text-right">Câmbio V.</TableHead>
-                            <TableHead className="text-right">Venda (BRL)</TableHead>
-                            <TableHead className="text-right">Lucro (BRL)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(shipment.charges || []).map(charge => {
-                            const { costRate, saleRate } = getChargeRates(charge);
-                            const costInBrl = charge.cost * costRate;
-                            const saleInBrl = charge.sale * saleRate;
-                            const profitInBrl = saleInBrl - costInBrl;
-                            const isLoss = profitInBrl < 0;
-
-                            return (
-                              <TableRow key={charge.id} className={cn(isLoss && 'bg-destructive/10')}>
-                                <TableCell>{charge.name}</TableCell>
-                                <TableCell className="text-muted-foreground">{charge.supplier}</TableCell>
-                                <TableCell className="text-right font-mono text-sm">
-                                  {charge.costCurrency} {charge.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell className="text-right font-mono text-xs text-muted-foreground w-28">
-                                    <Input 
-                                      type="number" 
-                                      step="0.0001"
-                                      value={editedRates[charge.id]?.costRate?.toFixed(4) || ''}
-                                      onChange={e => handleRateChange(charge.id, 'cost', e.target.value)}
-                                      className="h-8 text-right"
-                                      disabled={charge.costCurrency === 'BRL'}
-                                    />
-                                </TableCell>
-                                <TableCell className="text-right font-mono text-sm">
-                                  R$ {costInBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell className="text-right font-mono text-sm">
-                                  {charge.saleCurrency} {charge.sale.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell className="text-right font-mono text-xs text-muted-foreground w-28">
-                                     <Input 
-                                      type="number" 
-                                      step="0.0001"
-                                      value={editedRates[charge.id]?.saleRate?.toFixed(4) || ''}
-                                      onChange={e => handleRateChange(charge.id, 'sale', e.target.value)}
-                                      className="h-8 text-right"
-                                      disabled={charge.saleCurrency === 'BRL'}
-                                    />
-                                </TableCell>
-                                <TableCell className="text-right font-mono text-sm">
-                                  R$ {saleInBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell className={cn(
-                                  'text-right font-mono font-semibold text-sm',
-                                  isLoss ? 'text-destructive' : 'text-success'
-                                )}>
-                                  R$ {profitInBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+    return (
+        <>
+        <Sheet open={open} onOpenChange={onOpenChange}>
+            <SheetContent className="sm:max-w-7xl w-full p-0 flex flex-col">
+                <SheetHeader className="p-4 border-b space-y-2">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-primary/10 p-3 rounded-full">
+                                <GanttChart className="h-8 w-8 text-primary"/>
+                            </div>
+                            <div>
+                                <SheetTitle>Detalhes do Processo: {shipment.id}</SheetTitle>
+                                <div className="text-muted-foreground text-xs md:text-sm flex items-center gap-2">
+                                     <span>Cliente: {shipment.customer}</span>
+                                     <Separator orientation="vertical" className="h-4"/>
+                                      <span className="flex items-center gap-1.5">
+                                        Última Sincronização: 
+                                        <span className="font-semibold text-foreground">
+                                            {shipment.lastTrackingUpdate 
+                                                ? format(new Date(shipment.lastTrackingUpdate), 'dd/MM/yy HH:mm', { locale: ptBR }) 
+                                                : 'Nunca'}
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             {foreignLocationClock && (
+                                <TimeZoneClock label={foreignLocationClock.label} timeZone={foreignLocationClock.timeZone} />
+                            )}
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" disabled={isGenerating}><Printer className="mr-2 h-4 w-4"/>Imprimir</Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={() => generatePdf('client')}>Fatura do Cliente</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => generatePdf('agent')}>Invoice do Agente</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => generatePdf('hbl')}>HBL</DropdownMenuItem>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
+                            <Button type="button" onClick={() => {}} variant="outline"><LinkIcon className="mr-2 h-4 w-4"/>Compartilhar</Button>
+                            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+                                <X className="h-5 w-5" />
+                                <span className="sr-only">Fechar</span>
+                            </Button>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
-            )}
-
-            {isLegalCase && (
-                <Card>
-                    <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Gavel/> Acompanhamento Jurídico</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <Label>Status do Processo</Label>
-                                <Select value={legalStatus} onValueChange={setLegalStatus}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Extrajudicial">Extrajudicial</SelectItem>
-                                        <SelectItem value="Fase Inicial">Fase Inicial</SelectItem>
-                                        <SelectItem value="Fase de Execução">Fase de Execução</SelectItem>
-                                        <SelectItem value="Desconsideração da Personalidade Jurídica">Desconsideração PJ</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1">
-                                <Label>Nº do Processo Judicial</Label>
-                                <Input value={processoJudicial} onChange={(e) => setProcessoJudicial(e.target.value)} />
-                            </div>
+                     <Form {...form}>
+                        <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pt-2">
+                            <FormField control={form.control} name="shipperId" render={({ field }) => (
+                                <PartnerSelector label="Shipper" partners={partners} field={field} />
+                            )}/>
+                            <FormField control={form.control} name="consigneeId" render={({ field }) => (
+                                <PartnerSelector label="Consignee" partners={partners} field={field} />
+                            )}/>
+                            <FormField control={form.control} name="agentId" render={({ field }) => (
+                                <PartnerSelector label="Agente" partners={partners.filter(p=>p.roles.agente)} field={field} />
+                            )}/>
+                            <FormField control={form.control} name="notifyId" render={({ field }) => (
+                                <PartnerSelector label="Notify" partners={partners} field={field} />
+                            )}/>
+                        </form>
+                    </Form>
+                </SheetHeader>
+                <div className="flex-grow overflow-y-auto">
+                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <div className="p-4 border-b">
+                        <TabsList>
+                            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                            <TabsTrigger value="details">Detalhes</TabsTrigger>
+                            <TabsTrigger value="financials">Financeiro</TabsTrigger>
+                            <TabsTrigger value="documents">Documentos</TabsTrigger>
+                            <TabsTrigger value="bl_draft">Draft do BL</TabsTrigger>
+                            <TabsTrigger value="desembaraco">Desembaraço</TabsTrigger>
+                        </TabsList>
                         </div>
-                         <div className="space-y-1">
-                            <Label>Comentários / Observações</Label>
-                            <Textarea value={legalComments} onChange={(e) => setLegalComments(e.target.value)} className="min-h-[100px]" />
+                        <div className="p-4">
+                            <TabsContent value="timeline">
+                                <ShipmentTimelineTab
+                                    ref={(el) => { if (el) formRefs.current['timeline'] = el; }}
+                                    shipment={shipment}
+                                    onUpdate={onUpdate}
+                                />
+                            </TabsContent>
+                            <TabsContent value="details">
+                                 <ShipmentDetailsTab
+                                    ref={(el) => { if (el) formRefs.current['details'] = el; }}
+                                    shipment={shipment}
+                                    partners={partners}
+                                    onUpdate={onUpdate}
+                                />
+                            </TabsContent>
+                            <TabsContent value="financials">
+                                 <ShipmentFinancialsTab
+                                    ref={(el) => { if (el) formRefs.current['financials'] = el; }}
+                                    shipment={shipment}
+                                    partners={partners}
+                                    onOpenDetails={handleOpenDetailsDialog}
+                                    onInvoiceCharges={() => Promise.resolve({updatedCharges:[]})}
+                                />
+                            </TabsContent>
+                            <TabsContent value="documents">
+                                 <ShipmentDocumentsTab
+                                    ref={(el) => { if (el) formRefs.current['documents'] = el; }}
+                                    shipment={shipment}
+                                />
+                            </TabsContent>
+                            <TabsContent value="bl_draft">
+                                 <BLDraftForm
+                                    ref={(el) => { if (el) formRefs.current['bl_draft'] = el as any; }}
+                                    shipment={shipment} 
+                                    onUpdate={onUpdate} 
+                                    isSheet 
+                                />
+                            </TabsContent>
+                            <TabsContent value="desembaraco">
+                                <CustomsClearanceTab shipment={shipment} onUpdate={onUpdate}/>
+                            </TabsContent>
                         </div>
-                        <div className="flex justify-end">
-                            <Button onClick={handleSaveChanges}>Salvar Observações</Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {entry.payments && entry.payments.length > 0 && (
-                <Card>
-                    <CardHeader><CardTitle className="text-lg">Histórico de Pagamentos</CardTitle></CardHeader>
-                    <CardContent>
-                         <div className="border rounded-lg">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Data</TableHead>
-                                        <TableHead>Fatura</TableHead>
-                                        <TableHead className="text-right">Valor Pago</TableHead>
-                                        <TableHead>Conta</TableHead>
-                                        <TableHead className="text-center">Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {entry.payments.map(payment => {
-                                      const relatedEntry = findEntryForPayment(payment.id);
-                                      return (
-                                        <TableRow key={payment.id}>
-                                            <TableCell>{format(new Date(payment.date), 'dd/MM/yyyy')}</TableCell>
-                                            <TableCell>{relatedEntry?.invoiceId || 'N/A'}</TableCell>
-                                            <TableCell className="text-right font-mono">{relatedEntry?.currency} {payment.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                                            <TableCell>Conta ID: {payment.accountId}</TableCell>
-                                            <TableCell className="text-center">
-                                                {onReversePayment && relatedEntry && (
-                                                    <Button variant="ghost" size="icon" onClick={() => onReversePayment(payment.id, relatedEntry.id)}>
-                                                        <Trash2 className="h-4 w-4 text-destructive"/>
-                                                    </Button>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    )})}
-                                </TableBody>
-                            </Table>
-                         </div>
-                    </CardContent>
-                </Card>
-            )}
-
-          </ScrollArea>
-        </div>
-        
-        <DialogFooter className="pt-4 border-t flex-col md:flex-row md:justify-between items-center">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
-            <Card>
-              <CardHeader className="p-2"><CardTitle className="text-base">Custo Total (BRL)</CardTitle></CardHeader>
-              <CardContent className="p-2 pt-0 text-sm">
-                <div className="flex justify-between font-semibold text-base">
-                    <span>BRL:</span>
-                    <span className="font-mono">{totals.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                  </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="p-2"><CardTitle className="text-base">Venda Total (BRL)</CardTitle></CardHeader>
-              <CardContent className="p-2 pt-0 text-sm">
-                  <div className="flex justify-between font-semibold text-base">
-                    <span>BRL:</span>
-                    <span className="font-mono">{totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                  </div>
-              </CardContent>
-            </Card>
-            <Card className={cn(totals.totalProfitBRL < 0 ? 'border-destructive' : 'border-success')}>
-              <CardHeader className="p-2"><CardTitle className="text-base">Resultado (BRL)</CardTitle></CardHeader>
-              <CardContent className={cn("p-2 pt-0 text-sm font-semibold text-base", totals.totalProfitBRL < 0 ? 'text-destructive' : 'text-success')}>
-                <div className="flex justify-between">
-                    <span>BRL:</span>
-                    <span className="font-mono">{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                  </div>
-              </CardContent>
-            </Card>
-          </div>
-          {shipment && (
-            <Button onClick={handleEmitRecibo} variant="outline" className="mt-4 md:mt-0">
-                <Receipt className="mr-2 h-4 w-4"/> Emitir Recibo
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+                    </Tabs>
+                </div>
+                 <div className="p-4 border-t flex justify-end">
+                    <Button type="button" onClick={handleMasterSave} disabled={isUpdating}>
+                        {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                        Salvar Todas as Alterações
+                    </Button>
+                </div>
+                </SheetContent>
+        </Sheet>
+        </>
+    );
 }

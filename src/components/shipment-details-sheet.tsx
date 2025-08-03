@@ -49,7 +49,6 @@ import { ShipmentTimelineTab } from './shipment-details/shipment-timeline-tab';
 import { ShipmentDetailsTab } from './shipment-details/shipment-details-tab';
 import { ShipmentFinancialsTab } from './shipment-details/shipment-financials-tab';
 import { ShipmentDocumentsTab } from './shipment-details/shipment-documents-tab';
-import { FinancialDetailsDialog } from '@/components/financials/financial-details-dialog';
 import { getStoredFinancialEntries } from '@/lib/financials-data';
 import { cn } from '@/lib/utils';
 
@@ -462,14 +461,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 </div>
                 </SheetContent>
         </Sheet>
-        <FinancialDetailsDialog
-            entry={detailsEntry}
-            isOpen={!!detailsEntry}
-            onClose={() => setDetailsEntry(null)}
-            findEntryForPayment={(paymentId) => getStoredFinancialEntries().find(e => e.payments?.some(p => p.id === paymentId))}
-            findShipmentForEntry={(entry) => shipment?.id === entry.processId ? shipment : undefined}
-            onEntryUpdate={()=>{}}
-        />
         </>
     );
 }

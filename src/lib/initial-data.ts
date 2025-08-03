@@ -1,6 +1,7 @@
 
-import type { Rate } from '@/components/rates-table';
+
 import type { Partner } from '@/lib/partners-data';
+import type { Rate } from '@/components/rates-table';
 
 export type QuoteCharge = {
   id: string;

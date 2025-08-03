@@ -14,8 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, PlusCircle, Save, ChevronsUpDown, Check, Wallet, FileText } from 'lucide-react';
-import type { Quote } from './customer-quotes-list';
-import type { QuoteCharge } from '@/lib/initial-data';
+import type { Quote, QuoteCharge } from '@/lib/initial-data';
 import type { Partner } from '@/lib/partners-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,6 +28,7 @@ import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const quoteChargeSchema = z.object({
   charges: z.array(z.object({
@@ -227,7 +227,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
   
   const handleFeeSelection = (feeName: string, index: number) => {
     const fee = fees.find(f => f.name === feeName);
-    if (fee) {
+    if (fee && watchedCharges && watchedCharges[index]) {
       update(index, {
         ...watchedCharges[index],
         name: fee.name,
@@ -305,7 +305,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         </TableHeader>
                         <TableBody>
                             {fields.map((field, index) => {
-                            const charge = watchedCharges[index];
+                            const charge = watchedCharges?.[index];
                              if (!charge) {
                                 return null;
                             }

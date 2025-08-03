@@ -87,7 +87,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePaymen
 
             if(associatedShipment) {
                 const initialEditedRates: Record<string, { costRate?: number; saleRate?: number }> = {};
-                associatedShipment.charges.forEach(charge => {
+                (associatedShipment.charges || []).forEach(charge => {
                     const costPartner = partnersData.find(p => p.name === charge.supplier);
                     const salePartner = partnersData.find(p => p.name === charge.sacado);
                     const costAgio = costPartner?.exchangeRateAgio ?? 0;
@@ -129,7 +129,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePaymen
     let totalCostBRL = 0;
     let totalSaleBRL = 0;
 
-    shipment.charges.forEach(charge => {
+    (shipment.charges || []).forEach(charge => {
         const { costRate, saleRate } = getChargeRates(charge);
         totalCostBRL += charge.cost * costRate;
         totalSaleBRL += charge.sale * saleRate;
@@ -146,8 +146,8 @@ export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePaymen
   const handleEmitRecibo = () => {
     if (!shipment) return;
     
-    const nfseCharge = shipment.charges.find(c => c.name.toLowerCase().includes("serviço"));
-    const chargesForReceipt = shipment.charges.filter(c => !nfseCharge || c.id !== nfseCharge.id);
+    const nfseCharge = (shipment.charges || []).find(c => c.name.toLowerCase().includes("serviço"));
+    const chargesForReceipt = (shipment.charges || []).filter(c => !nfseCharge || c.id !== nfseCharge.id);
 
     const newWindow = window.open();
     if (newWindow) {
@@ -244,7 +244,7 @@ export function FinancialDetailsDialog({ isOpen, onClose, entry, onReversePaymen
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {shipment.charges.map(charge => {
+                          {(shipment.charges || []).map(charge => {
                             const { costRate, saleRate } = getChargeRates(charge);
                             const costInBrl = charge.cost * costRate;
                             const saleInBrl = charge.sale * saleRate;

@@ -70,8 +70,20 @@ interface ShipmentTimelineTabProps {
     onUpdate: (updatedShipment: Shipment) => void;
 }
 
+// Mapeia eventos da API para nomes de milestones padrão do sistema
+const milestoneApiNameMapping: { [key: string]: string[] } = {
+    'Confirmação de Embarque': ['vessel departure', 'departure from transshipment', 'flight departure'],
+    'Chegada ao Destino': ['vessel arrival', 'arrival at destination', 'flight arrival'],
+    'Carga Pronta': ['cargo ready'],
+    'Booking Confirmado': ['booking confirmed'],
+    'Container Gate In (Entregue no Porto)': ['gate in full'],
+};
+
+
 export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, ShipmentTimelineTabProps>(({ shipment, onUpdate }, ref) => {
     const [isManualMilestoneOpen, setIsManualMilestoneOpen] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [trackingError, setTrackingError] = useState<any | null>(null);
     const { toast } = useToast();
 
     const form = useForm<TimelineFormData>({
@@ -122,6 +134,112 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
             return dateA - dateB;
         });
     }, [form]); 
+    
+    const handleRefreshTracking = async () => {
+        const trackingId = shipment.bookingNumber || shipment.masterBillNumber || shipment.containers?.[0]?.number;
+        if (!trackingId) {
+            toast({ variant: "destructive", title: "Dados Insuficientes", description: "Não há Booking, Master BL ou Contêiner para rastrear." });
+            return;
+        }
+
+        let type: 'bookingNumber' | 'containerNumber' | 'mblNumber' = 'bookingNumber';
+        if (shipment.bookingNumber) type = 'bookingNumber';
+        else if (shipment.masterBillNumber) type = 'mblNumber';
+        else if (shipment.containers?.[0]?.number) type = 'containerNumber';
+
+        setIsUpdating(true);
+        setTrackingError(null);
+
+        const pollTracking = async (retries = 5): Promise<any> => {
+            try {
+                const response = await fetch(`/api/tracking/${trackingId}?type=${type}&carrierName=${encodeURIComponent(shipment.carrier || '')}`);
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success' && data.data) {
+                    return data.data;
+                } else {
+                    throw { ...(data || { message: "Falha ao rastrear" }), diagnostic: data };
+                }
+            } catch (err: any) {
+                console.error("Polling error:", err);
+                throw err;
+            }
+        };
+
+        try {
+            const trackingData = await pollTracking();
+            
+            const updatedMilestones = [...(shipment.milestones || [])];
+
+            trackingData.milestones.forEach((apiMilestone: any) => {
+                const apiMilestoneName = apiMilestone.name.toLowerCase();
+                let matched = false;
+                
+                // 1. Tenta mapear para um milestone padrão
+                for (const [standardName, apiNames] of Object.entries(milestoneApiNameMapping)) {
+                    if (apiNames.includes(apiMilestoneName)) {
+                        const existingIndex = updatedMilestones.findIndex(m => m.name === standardName);
+                        if (existingIndex > -1 && updatedMilestones[existingIndex].status !== 'completed') {
+                            updatedMilestones[existingIndex] = {
+                                ...updatedMilestones[existingIndex],
+                                effectiveDate: new Date(apiMilestone.effectiveDate),
+                                status: 'completed',
+                                details: apiMilestone.details || updatedMilestones[existingIndex].details,
+                            };
+                            matched = true;
+                            break; 
+                        }
+                    }
+                }
+
+                // 2. Se for transbordo, adiciona como um novo milestone
+                if (!matched && apiMilestoneName.includes('transshipment')) {
+                     updatedMilestones.push({
+                        name: `Transbordo em ${apiMilestone.details?.location || 'porto desconhecido'}`,
+                        status: 'completed',
+                        predictedDate: new Date(apiMilestone.effectiveDate),
+                        effectiveDate: new Date(apiMilestone.effectiveDate),
+                        details: `Navio: ${apiMilestone.details?.vessel}`,
+                        isTransshipment: true,
+                    });
+                     matched = true;
+                }
+                
+                // 3. Se for um evento não mapeado e não existente, adiciona como info
+                if (!matched) {
+                    const alreadyExists = updatedMilestones.some(m => m.name === apiMilestone.name);
+                    if (!alreadyExists) {
+                        updatedMilestones.push({
+                            name: apiMilestone.name,
+                            status: 'completed',
+                            predictedDate: new Date(apiMilestone.effectiveDate),
+                            effectiveDate: new Date(apiMilestone.effectiveDate),
+                            details: apiMilestone.details,
+                            isTransshipment: false,
+                        });
+                    }
+                }
+            });
+
+            onUpdate({ 
+                ...shipment, 
+                vesselName: trackingData.vesselName || shipment.vesselName,
+                eta: trackingData.eta ? new Date(trackingData.eta) : shipment.eta,
+                etd: trackingData.etd ? new Date(trackingData.etd) : shipment.etd,
+                milestones: updatedMilestones,
+                lastTrackingUpdate: new Date(),
+            });
+
+            toast({ title: "Rastreamento Sincronizado!", description: "Os dados do embarque foram atualizados com sucesso.", className: 'bg-success text-success-foreground' });
+        } catch (err: any) {
+            setTrackingError(err);
+            console.error("Erro final no rastreamento:", err);
+            toast({ variant: "destructive", title: "Falha na Sincronização", description: err.message || "Não foi possível obter os dados da Cargo-flows." });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
 
     // Use a stable identifier for the map component
     const mapIdentifier = shipment.bookingNumber || shipment.masterBillNumber || shipment.id;
@@ -246,3 +364,4 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
 });
 
 ShipmentTimelineTab.displayName = 'ShipmentTimelineTab';
+

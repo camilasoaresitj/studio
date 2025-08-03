@@ -328,7 +328,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
 
         const updatedShipment = {
             ...shipment,
-            status: 'Finalizado',
+            status: 'Finalizado' as const,
             milestones: updatedMilestones,
         };
         onMasterUpdate(updatedShipment);
@@ -338,8 +338,16 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
             className: "bg-success text-success-foreground",
         });
     };
-
-    if (!shipment) return null;
+    
+    if (!shipment) {
+        return (
+             <Sheet open={open} onOpenChange={onOpenChange}>
+                <SheetContent className="sm:max-w-7xl w-full p-0 flex flex-col items-center justify-center">
+                    <p className="text-muted-foreground">Selecione um processo para ver os detalhes.</p>
+                </SheetContent>
+            </Sheet>
+        );
+    }
     
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>

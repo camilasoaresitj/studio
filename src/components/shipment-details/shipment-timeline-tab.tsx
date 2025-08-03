@@ -124,17 +124,17 @@ export const ShipmentTimelineTab = forwardRef<{ submit: () => Promise<any> }, Sh
         }
     });
 
+    const watchedMilestones = form.watch('milestones');
     const sortedMilestones = useMemo(() => {
-        const currentMilestones = form.watch('milestones');
-        if(!currentMilestones || !Array.isArray(currentMilestones)) return [];
-        return [...currentMilestones].sort((a, b) => {
+        if(!watchedMilestones || !Array.isArray(watchedMilestones)) return [];
+        return [...watchedMilestones].sort((a, b) => {
             const dateA = a.predictedDate ? new Date(a.predictedDate).getTime() : 0;
             const dateB = b.predictedDate ? new Date(b.predictedDate).getTime() : 0;
             if (!dateA) return 1;
             if (!dateB) return -1;
             return dateA - dateB;
         });
-    }, [form.watch('milestones')]); 
+    }, [watchedMilestones]); 
     
     const handleRefreshTracking = async () => {
         const trackingId = shipment.bookingNumber || shipment.masterBillNumber || shipment.containers?.[0]?.number;

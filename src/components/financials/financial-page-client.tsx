@@ -268,7 +268,6 @@ export function FinancialPageClient() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [ptaxRates, setPtaxRates] = useState<Record<string, number>>({});
     const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
     const { toast } = useToast();
 
     const loadData = useCallback(async () => {
@@ -499,7 +498,6 @@ export function FinancialPageClient() {
         const shipment = findShipmentForEntry(entry);
         if (shipment) {
             setSelectedShipment(shipment);
-            setIsSheetOpen(true);
         } else {
             toast({ title: "Processo Administrativo", description: "Este lançamento não está vinculado a um processo de embarque." });
         }
@@ -935,8 +933,8 @@ export function FinancialPageClient() {
         <ShipmentDetailsSheet
             shipment={selectedShipment}
             partners={partners}
-            open={isSheetOpen}
-            onOpenChange={setIsSheetOpen}
+            open={!!selectedShipment}
+            onOpenChange={(open) => !open && setSelectedShipment(null)}
             onUpdate={handleUpdateShipment}
         />
 

@@ -41,6 +41,9 @@ export function RecentShipments() {
   }, []);
 
   const getShipmentStatus = (shipment: Shipment): { text: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+    if (shipment.status === 'Finalizado') {
+        return { text: 'Finalizado', variant: 'outline' };
+    }
     if (!shipment.milestones || shipment.milestones.length === 0) {
       return { text: 'Não iniciado', variant: 'secondary' };
     }
@@ -114,7 +117,7 @@ export function RecentShipments() {
                     <TableCell>
                       <Badge variant={status.variant} className="capitalize">{status.text}</Badge>
                     </TableCell>
-                    <TableCell>{shipment.details.cargo.includes('kg') ? 'Aéreo' : 'Marítimo'}</TableCell>
+                    <TableCell>{shipment.modal.charAt(0).toUpperCase() + shipment.modal.slice(1)}</TableCell>
                   </TableRow>
                 )
               })

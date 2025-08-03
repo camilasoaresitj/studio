@@ -17,7 +17,6 @@ function OperacionalPageContent() {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [partners, setPartners] = useState<Partner[]>([]);
     const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
     const searchParams = useSearchParams();
     const { toast } = useToast();
   
@@ -27,13 +26,14 @@ function OperacionalPageContent() {
         setPartners(getStoredPartners());
 
         const shipmentIdFromUrl = searchParams.get('shipmentId');
-        if (shipmentIdFromUrl && !selectedShipment) {
+        if (shipmentIdFromUrl) {
             const shipmentToOpen = allShipments.find(s => s.id === shipmentIdFromUrl);
             if (shipmentToOpen) {
-                handleSelectShipment(shipmentToOpen);
+                // Set this directly, as it's the source of truth
+                setSelectedShipment(shipmentToOpen);
             }
         }
-    }, [searchParams, selectedShipment]);
+    }, [searchParams]);
   
     useEffect(() => {
       loadData();
@@ -47,18 +47,17 @@ function OperacionalPageContent() {
   
     const handleSelectShipment = (shipment: Shipment) => {
       setSelectedShipment(shipment);
-      setIsSheetOpen(true);
     };
   
     const handleUpdateShipment = (updatedShipment: Shipment) => {
         const newShipments = shipments.map(s => s.id === updatedShipment.id ? updatedShipment : s);
         saveShipments(newShipments);
+        // The event listener will trigger a state update, but for immediate UI feedback:
         setShipments(newShipments);
         setSelectedShipment(updatedShipment); 
     };
   
     const handleSheetOpenChange = (open: boolean) => {
-      setIsSheetOpen(open);
       if (!open) {
         setSelectedShipment(null);
         // Clear URL parameter when sheet closes
@@ -95,7 +94,7 @@ function OperacionalPageContent() {
         <ShipmentDetailsSheet
           shipment={selectedShipment}
           partners={partners}
-          open={isSheetOpen}
+          open={!!selectedShipment}
           onOpenChange={handleSheetOpenChange}
           onUpdate={handleUpdateShipment}
         />

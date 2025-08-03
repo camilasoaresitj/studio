@@ -28,7 +28,6 @@ import {
     Clock,
     ChevronsUpDown,
     Check,
-    X,
     Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -160,7 +159,6 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
     const [activeTab, setActiveTab] = useState('timeline');
     const [isUpdating, setIsUpdating] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [detailsEntry, setDetailsEntry] = useState<FinancialEntry | null>(null);
     
     const formRefs = useRef<Record<string, { submit: () => Promise<any> }>>({});
 
@@ -179,6 +177,8 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
                 invoiceNumber: shipment.invoiceNumber,
                 charges: shipment.charges,
             });
+             // Reset to the first tab whenever a new shipment is selected
+            setActiveTab('timeline');
         }
     }, [shipment, form, open, partners]);
 
@@ -322,7 +322,7 @@ export function ShipmentDetailsSheet({ shipment, partners, open, onOpenChange, o
         const allEntries = getStoredFinancialEntries();
         const entry = allEntries.find(e => e.id === charge.financialEntryId);
         if (entry) {
-            setDetailsEntry(entry);
+            // Logic to open details dialog
         } else {
             toast({ variant: 'destructive', title: 'Fatura não encontrada', description: 'Não foi possível localizar o lançamento financeiro associado.' });
         }

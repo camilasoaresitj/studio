@@ -29,3 +29,4 @@ runConfig:
 #   networkInterfaces:
 #     - network: my-network-id
 #       subnetwork: my-subnetwork-id
+requireManualUpdates: true

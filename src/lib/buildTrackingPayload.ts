@@ -30,9 +30,21 @@ export function buildTrackingPayload(input: TrackingInput) {
     throw new Error(`Invalid tracking number: must be a non-empty string. Received: ${trackingNumber}`);
   }
 
-  // Determine the primary tracking type and number, prioritizing MBL if available in the shipment data.
-  const primaryType = shipment?.masterBillNumber ? 'mblNumber' : type;
-  const primaryTrackingNumber = shipment?.masterBillNumber || trackingNumber;
+  // Determine the primary tracking type and number based on priority: Booking > MBL > Container
+  let primaryType: 'bookingNumber' | 'mblNumber' | 'containerNumber';
+  let primaryTrackingNumber: string;
+
+  if (shipment?.bookingNumber) {
+      primaryType = 'bookingNumber';
+      primaryTrackingNumber = shipment.bookingNumber;
+  } else if (shipment?.masterBillNumber) {
+      primaryType = 'mblNumber';
+      primaryTrackingNumber = shipment.masterBillNumber;
+  } else {
+      primaryType = type;
+      primaryTrackingNumber = trackingNumber;
+  }
+
 
   const formDataItem: Record<string, any> = {
       [getTrackingFieldName(primaryType)]: primaryTrackingNumber,

@@ -98,7 +98,7 @@ export function ShipmentMap({ shipmentNumber }: ShipmentMapProps) {
             let iconUrl = 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'; // Transshipment
             if (stop.type === 'ORIGIN_PORT') iconUrl = 'https://maps.google.com/mapfiles/ms/icons/green-dot.png';
             if (stop.type === 'DESTINATION_HUB') iconUrl = 'https://maps.google.com/mapfiles/ms/icons/red-dot.png';
-            if (stop.type === 'CURRENT_LOCATION') iconUrl = '/ship-icon.png'; // Custom ship icon
+            if (stop.type === 'CURRENT_LOCATION') iconUrl = 'https://placehold.co/32x32.png'; // Custom ship icon
             
             new google.maps.Marker({
               position,
@@ -106,7 +106,7 @@ export function ShipmentMap({ shipmentNumber }: ShipmentMapProps) {
               title: stop.name,
               icon: { 
                   url: iconUrl,
-                  scaledSize: stop.type === 'CURRENT_LOCATION' ? new google.maps.Size(32, 32) : new google.maps.Size(32, 32)
+                  scaledSize: new google.maps.Size(32, 32)
               },
             });
         });
@@ -163,7 +163,7 @@ export function ShipmentMap({ shipmentNumber }: ShipmentMapProps) {
             <div className="flex items-center gap-2"><Image src="https://maps.google.com/mapfiles/ms/icons/green-dot.png" alt="Origem" height={16} width={16} /> Origem</div>
             <div className="flex items-center gap-2"><Image src="https://maps.google.com/mapfiles/ms/icons/red-dot.png" alt="Destino" height={16} width={16} /> Destino</div>
             <div className="flex items-center gap-2"><Image src="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" alt="Transbordo" height={16} width={16} /> Transbordo</div>
-            <div className="flex items-center gap-2"><Image src="/ship-icon.png" alt="Posição Atual" height={16} width={16} /> Posição Atual</div>
+            <div className="flex items-center gap-2"><Image src="https://placehold.co/16x16.png" data-ai-hint="ship icon" alt="Posição Atual" height={16} width={16} /> Posição Atual</div>
         </div>
       </CardContent>
     </Card>

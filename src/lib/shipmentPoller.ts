@@ -12,11 +12,13 @@ class HtmlResponseError extends Error {
 }
 
 async function safelyParseJSON(response: Response) {
+    const contentType = response.headers.get('content-type') || '';
     const text = await response.text();
-    
-    if (text.trim().startsWith('<')) {
-        console.error("Failed to parse API response: Received HTML instead of JSON.", text.substring(0, 500));
-        throw new HtmlResponseError(text.substring(0, 200));
+
+    if (!contentType.includes('application/json')) {
+        console.error("Failed to parse API response: Content-Type is not JSON.", `ContentType: ${contentType}`, `Body: ${text.substring(0, 500)}`);
+        const statusText = response.statusText || 'Invalid Response';
+        throw new Error(`API Error ${response.status} (${statusText}): Expected JSON but received ${contentType || 'text/plain'}.`);
     }
 
     try {
@@ -69,8 +71,8 @@ export async function pollShipmentStatus(trackingNumber: string, type: string, c
       }
 
       if (!response.ok) {
-          const errorBody = await safelyParseJSON(response).catch(e => ({ message: e.message }));
-          throw new Error(`API Error ${response.status}: ${errorBody?.message || 'Unknown API Error'}`);
+          const errorBody = await response.text();
+          throw new Error(`API Error ${response.status}: ${errorBody.substring(0, 200)}`);
       }
 
       attempts++;

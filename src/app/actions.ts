@@ -23,7 +23,7 @@ import { generateNfseXml } from "@/ai/flows/generate-nfse-xml";
 import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
-import { getPartners, savePartners as savePartnersData } from '@/lib/partners-data';
+import { getPartners, savePartners } from '@/lib/partners-data';
 import type { Partner } from '@/lib/partners-data';
 import type { Quote } from "@/lib/shipment-data";
 import { getShipments } from "@/lib/shipment-data";

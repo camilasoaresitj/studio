@@ -1,3 +1,4 @@
+
 'use client';
 import { FreightQuoteForm } from '@/components/freight-quote-form';
 import { CustomerQuotesList } from '@/components/customer-quotes-list';

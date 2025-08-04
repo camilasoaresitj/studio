@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import * as XLSX from 'xlsx';
+import EmlParser from 'eml-parser';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -68,66 +69,91 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
+    
     const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" });
 
-        if (jsonData.length === 0) {
-          form.setValue('textInput', '');
-          toast({
-            variant: 'destructive',
-            title: 'Arquivo Vazio',
-            description: 'A planilha selecionada está vazia ou não pôde ser lida.',
-          });
-          return;
-        }
+    if (file.name.toLowerCase().endsWith('.eml')) {
+        reader.onload = (e) => {
+            const emlContent = e.target?.result as ArrayBuffer;
+            if (!emlContent) return;
 
-        const colWidths: number[] = [];
-        jsonData.forEach(row => {
-          row.forEach((cell, i) => {
-            const cellStr = String(cell ?? '').trim();
-            if (!colWidths[i] || cellStr.length > colWidths[i]) {
-              colWidths[i] = cellStr.length;
+            new EmlParser(new EmlParser(new Uint8Array(emlContent) as any))
+                .getEmailBodyHtml()
+                .then(html => {
+                    const text = html || new EmlParser(new Uint8Array(emlContent) as any).getEmailBody();
+                     if (text) {
+                         form.setValue('textInput', text);
+                         toast({
+                            title: 'E-mail carregado!',
+                            description: 'O corpo do e-mail foi carregado. Clique em "Extrair" para analisar.',
+                         });
+                    } else {
+                        throw new Error("Nenhum conteúdo de texto encontrado no e-mail.");
+                    }
+                })
+                .catch(err => {
+                     toast({
+                        variant: 'destructive',
+                        title: 'Erro ao processar e-mail',
+                        description: err.message,
+                    });
+                })
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+         reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            
+            const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" });
+
+            if (jsonData.length === 0) {
+              form.setValue('textInput', '');
+              toast({
+                variant: 'destructive',
+                title: 'Arquivo Vazio',
+                description: 'A planilha selecionada está vazia ou não pôde ser lida.',
+              });
+              return;
             }
-          });
-        });
 
-        const textData = jsonData.map(row => 
-          row.map((cell, i) => {
-            const cellStr = String(cell ?? '').trim();
-            return cellStr.padEnd((colWidths[i] || 0) + 2, ' ');
-          }).join('')
-        ).join('\n');
-        
-        form.setValue('textInput', textData);
-        toast({
-          title: 'Arquivo carregado!',
-          description: 'O conteúdo do arquivo foi carregado. Clique em "Extrair" para analisar.',
-        });
-      } catch (err) {
-        console.error("Error reading file:", err);
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao ler arquivo',
-          description: 'Ocorreu um erro ao processar o arquivo. Verifique se o formato é válido (XLSX, XLS, CSV).',
-        });
-      }
-    };
-    reader.onerror = () => {
-        toast({
-            variant: 'destructive',
-            title: 'Erro de leitura',
-            description: 'Não foi possível ler o arquivo selecionado.',
-        });
+            const colWidths: number[] = [];
+            jsonData.forEach(row => {
+              row.forEach((cell, i) => {
+                const cellStr = String(cell ?? '').trim();
+                if (!colWidths[i] || cellStr.length > colWidths[i]) {
+                  colWidths[i] = cellStr.length;
+                }
+              });
+            });
+
+            const textData = jsonData.map(row => 
+              row.map((cell, i) => {
+                const cellStr = String(cell ?? '').trim();
+                return cellStr.padEnd((colWidths[i] || 0) + 2, ' ');
+              }).join('')
+            ).join('\n');
+            
+            form.setValue('textInput', textData);
+            toast({
+              title: 'Arquivo carregado!',
+              description: 'O conteúdo do arquivo foi carregado. Clique em "Extrair" para analisar.',
+            });
+          } catch (err) {
+            console.error("Error reading file:", err);
+            toast({
+              variant: 'destructive',
+              title: 'Erro ao ler arquivo',
+              description: 'Ocorreu um erro ao processar o arquivo. Verifique se o formato é válido (XLSX, XLS, CSV).',
+            });
+          }
+        };
+        reader.readAsArrayBuffer(file);
     }
-    reader.readAsArrayBuffer(file);
+
 
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -170,7 +196,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                 ref={fileInputRef} 
                 onChange={handleFileChange}
                 className="hidden"
-                accept=".xlsx, .xls, .csv"
+                accept=".xlsx, .xls, .csv, .eml"
               />
               <div className="flex flex-col sm:flex-row-reverse gap-2">
                 <Button type="submit" disabled={isLoading} className="w-full">

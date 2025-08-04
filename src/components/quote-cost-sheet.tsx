@@ -9,14 +9,13 @@ import { z } from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, PlusCircle, Save, ChevronsUpDown, Check, Wallet, FileText, Calendar as CalendarIcon } from 'lucide-react';
-import type { Quote } from '@/lib/initial-data';
 import type { Partner } from '@/lib/partners-data';
-import type { QuoteCharge, QuoteDetails } from '@/lib/shipment-data';
+import type { QuoteCharge, QuoteDetails, Quote } from '@/lib/shipment-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { exchangeRateService } from '@/services/exchange-rate-service';
@@ -116,7 +115,7 @@ const chargeTypeOptions = [
     'Percentual',
 ];
 
-const parseValidityDate = (validity?: string): Date | undefined => {
+const parseValidityDate = (validity?: string | Date): Date | undefined => {
     if (!validity) return undefined;
     if (validity instanceof Date) return validity;
     try {

@@ -66,6 +66,7 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 - **Container Standardization:**
     - If you see "NOR", it means "40'NOR".
     - If you see "40'Non Operating Reefer", it also means "40'NOR".
+- **Missing Data:** If a field like 'transitTime' or 'freeTime' is not explicitly mentioned for a rate, you MUST fill it with the value "N/A". Do not leave it blank.
 
 {{#if textInput}}
 Analyze the following text and extract the rates:

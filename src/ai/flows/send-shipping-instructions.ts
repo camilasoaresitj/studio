@@ -11,11 +11,26 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { SendShippingInstructionsInputSchema, SendShippingInstructionsOutputSchema } from '@/lib/schemas';
-import type { SendShippingInstructionsInput, SendShippingInstructionsOutput } from '@/lib/schemas';
+import type { SendShippingInstructionsInput } from '@/lib/schemas';
 
+// Define the type for the successful data output
+type SendShippingInstructionsSuccessData = z.infer<typeof SendShippingInstructionsOutputSchema>;
 
-export async function sendShippingInstructions(input: SendShippingInstructionsInput): Promise<SendShippingInstructionsOutput> {
-  return sendShippingInstructionsFlow(input);
+// Define the final return type for the action wrapper
+type SendShippingInstructionsResult = {
+  success: boolean;
+  data?: SendShippingInstructionsSuccessData;
+  error?: string;
+};
+
+export async function sendShippingInstructions(input: SendShippingInstructionsInput): Promise<SendShippingInstructionsResult> {
+  try {
+    const output = await sendShippingInstructionsFlow(input);
+    return { success: true, data: output };
+  } catch (error: any) {
+    console.error("sendShippingInstructions flow failed:", error);
+    return { success: false, error: error.message || "Failed to generate and send shipping instructions." };
+  }
 }
 
 const prompt = ai.definePrompt({

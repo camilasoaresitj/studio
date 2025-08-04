@@ -51,13 +51,13 @@ export function GerencialPage() {
     const [partners, setPartners] = useState<Partner[]>([]);
 
     useEffect(() => {
-        // This effect runs on the client and uses client-side data fetching.
         const calculateKpis = async () => {
+            const allPartners = await getPartners();
+            setPartners(allPartners);
+
             const shipments = getStoredShipments();
             const storedQuotes = getStoredQuotes();
             const financialEntries = getStoredFinancialEntries();
-            const allPartners = await getPartners();
-            setPartners(allPartners);
             const today = new Date();
             today.setHours(0,0,0,0);
             

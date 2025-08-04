@@ -50,6 +50,9 @@ import { exchangeRateService } from '@/services/exchange-rate-service';
 import { CommissionManagement } from '@/components/financials/commission-management';
 import { ShipmentDetailsSheet } from '../shipment-details-sheet';
 
+interface FinancialPageClientProps {
+    initialPartners: Partner[];
+}
 
 type Status = 'Aberto' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Jurídico' | 'Pendente de Aprovação' | 'Renegociado';
 const allStatuses: Status[] = ['Aberto', 'Vencido', 'Parcialmente Pago', 'Pago', 'Pendente de Aprovação'];
@@ -246,12 +249,12 @@ const EntriesTable = ({
 };
 
 
-export function FinancialPageClient() {
+export function FinancialPageClient({ initialPartners }: FinancialPageClientProps) {
     const router = useRouter();
     const [entries, setEntries] = useState<FinancialEntry[]>([]);
     const [accounts, setAccounts] = useState<BankAccount[]>([]);
     const [allShipments, setAllShipments] = useState<Shipment[]>([]);
-    const [partners, setPartners] = useState<Partner[]>([]);
+    const [partners, setPartners] = useState<Partner[]>(initialPartners);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [entryToSettle, setEntryToSettle] = useState<FinancialEntry | null>(null);
     const [entryToRenegotiate, setEntryToRenegotiate] = useState<FinancialEntry | null>(null);

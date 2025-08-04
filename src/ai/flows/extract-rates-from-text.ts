@@ -69,11 +69,14 @@ Analyze the following media file and extract the rates:
 });
 
 const getMimeType = (fileName: string): string => {
-    if (fileName.endsWith('.pdf')) return 'application/pdf';
-    if (fileName.endsWith('.eml')) return 'message/rfc822';
-    if (fileName.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    if (fileName.endsWith('.xls')) return 'application/vnd.ms-excel';
-    if (fileName.endsWith('.csv')) return 'text/csv';
+    const lowerFileName = fileName.toLowerCase();
+    if (lowerFileName.endsWith('.pdf')) return 'application/pdf';
+    if (lowerFileName.endsWith('.eml')) return 'message/rfc822';
+    if (lowerFileName.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    if (lowerFileName.endsWith('.xls')) return 'application/vnd.ms-excel';
+    if (lowerFileName.endsWith('.csv')) return 'text/csv';
+    if (lowerFileName.endsWith('.jpg') || lowerFileName.endsWith('.jpeg')) return 'image/jpeg';
+    if (lowerFileName.endsWith('.png')) return 'image/png';
     return 'application/octet-stream'; // Fallback
 };
 
@@ -119,6 +122,9 @@ const extractRatesFromTextFlow = ai.defineFlow(
              promptInput = { textInput: textContent };
         } else {
              const mimeType = getMimeType(lowerFileName);
+             if (mimeType === 'application/octet-stream') {
+                throw new Error(`Unsupported file type: ${input.fileName}. Please use a supported format.`);
+             }
              const correctedDataUri = ensureMimeTypeInDataUri(input.fileDataUri, mimeType);
              promptInput = { media: { url: correctedDataUri } };
         }

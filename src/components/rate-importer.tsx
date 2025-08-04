@@ -53,7 +53,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
     setResults([]);
     setError(null);
     const response = await runExtractRatesFromText(values as any);
-    if (response.success && response.data && response.data.length > 0) {
+    if (response?.success && response.data && response.data.length > 0) {
       setResults(response.data);
       onRatesImported(response.data);
       toast({
@@ -64,7 +64,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
       });
     } else {
       setResults([]);
-      const errorMessage = response.error || 'A IA não conseguiu extrair nenhuma tarifa válida do texto. Tente ajustar o texto ou cole um trecho mais claro.';
+      const errorMessage = response?.error || 'A IA não conseguiu extrair nenhuma tarifa válida do texto. Tente ajustar o texto ou cole um trecho mais claro.';
       setError(errorMessage);
     }
     setIsLoading(false);
@@ -131,7 +131,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                 ref={fileInputRef} 
                 onChange={handleFileChange}
                 className="hidden"
-                accept=".xlsx, .xls, .csv, .pdf, .eml"
+                accept=".xlsx, .xls, .csv, .pdf, .eml, .msg"
               />
               <div className="flex flex-col sm:flex-row-reverse gap-2">
                 <Button type="submit" disabled={isLoading} className="w-full">
@@ -242,3 +242,5 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
     </div>
   );
 }
+
+    

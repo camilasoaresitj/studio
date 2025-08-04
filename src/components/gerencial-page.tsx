@@ -16,7 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { format } from 'date-fns';
-import { getStoredPartners, type Partner } from '@/lib/partners-data';
+import { getPartners } from '@/lib/partners-data';
+import type { Partner } from '@/lib/schemas/partner';
 
 const formatCurrency = (value: number, currency = 'BRL') => {
     return new Intl.NumberFormat('pt-BR', {
@@ -51,11 +52,11 @@ export function GerencialPage() {
 
     useEffect(() => {
         // This effect runs on the client and uses client-side data fetching.
-        const calculateKpis = () => {
+        const calculateKpis = async () => {
             const shipments = getStoredShipments();
             const storedQuotes = getStoredQuotes();
             const financialEntries = getStoredFinancialEntries();
-            const allPartners = getStoredPartners();
+            const allPartners = await getPartners();
             setPartners(allPartners);
             const today = new Date();
             today.setHours(0,0,0,0);

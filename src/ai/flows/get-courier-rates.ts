@@ -10,9 +10,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Partner } from '@/lib/partners-data';
 import { getPartners } from '@/lib/partners-data';
 import { airPieceSchema } from '@/lib/schemas';
+import type { Partner } from '@/lib/schemas/partner';
 
 const GetCourierRatesInputSchema = z.object({
   customerId: z.string(),
@@ -83,7 +83,7 @@ const getCourierRatesFlow = ai.defineFlow(
   },
   async ({ customerId, origin, destination, pieces }) => {
     
-        const allPartners = getPartners();
+        const allPartners = await getPartners();
         const customer = allPartners.find(p => p.id?.toString() === customerId);
 
         if (!customer) {

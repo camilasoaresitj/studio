@@ -16,12 +16,13 @@ import { CreateEmailCampaignOutput } from '@/ai/flows/create-email-campaign';
 import { Loader2, User, Building, Mail, ChevronsRight, FileText, AlertTriangle, Wand2, Users, Send, CheckCircle, XCircle, UserPlus, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { getPartners, Partner } from '@/lib/partners-data';
+import { getPartners } from '@/lib/partners-data';
 import { getStoredQuotes } from '@/lib/initial-data';
 import type { Quote } from '@/lib/shipment-data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getShipments } from '@/lib/shipment-data';
 import { subDays } from 'date-fns';
+import type { Partner } from '@/lib/schemas/partner';
 
 const crmFormSchema = z.object({
   emailContent: z.string().min(20, {
@@ -47,9 +48,12 @@ export function CrmForm() {
 
   useEffect(() => {
     // This runs only on the client, after hydration
-    setQuotes(getStoredQuotes());
-    setPartners(getPartners());
-    setShipments(getShipments());
+    const fetchData = async () => {
+        setQuotes(getStoredQuotes());
+        setPartners(await getPartners());
+        setShipments(getShipments());
+    }
+    fetchData();
   }, []);
 
   const kpiData = useMemo(() => {

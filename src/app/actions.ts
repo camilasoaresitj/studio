@@ -24,7 +24,7 @@ import { sendToLegal } from "@/ai/flows/send-to-legal";
 import { sendWhatsappMessage } from "@/ai/flows/send-whatsapp-message";
 import { createEmailCampaign } from "@/ai/flows/create-email-campaign";
 import { getPartners } from '@/lib/partners-data';
-import type { Partner } from '@/lib/partners-data';
+import type { Partner } from '@/lib/schemas/partner';
 import type { Quote } from "@/lib/shipment-data";
 import { getShipments } from "@/lib/shipment-data";
 import { isPast, format, addDays, isValid } from "date-fns";
@@ -73,7 +73,7 @@ async function simulateSave<T extends { [key: string]: any }>(data: T[], newData
 
 export async function savePartnerAction(partnerToSave: Partner) {
     try {
-        const currentPartners = getPartners();
+        const currentPartners = await getPartners();
         let allPartners;
 
         if (partnerToSave.id && partnerToSave.id !== 0) {
@@ -182,7 +182,7 @@ export async function runGetCourierRates(input: any) {
 
 export async function runRequestAgentQuote(input: any) {
     try {
-        const partners = getPartners();
+        const partners = await getPartners();
         const agents = partners.filter(p => p.roles.agente);
         if (agents.length === 0) {
             return { success: false, error: "Nenhum agente cadastrado." };
@@ -388,7 +388,7 @@ export async function runSendToLegal(input: any) {
 
 export async function runCreateEmailCampaign(instruction: string) {
     try {
-        const allPartners = getPartners();
+        const allPartners = await getPartners();
         const allQuotes = [] as Quote[]; // In a real app, fetch quotes
         const data = await createEmailCampaign({ instruction, partners: allPartners, quotes: allQuotes });
         return { success: true, data: data || null };
@@ -551,7 +551,7 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
 
 async function createShipment(quoteData: ShipmentCreationData): Promise<{ success: boolean, data?: Shipment, error?: string}> {
   try {
-    const allPartners = getPartners();
+    const allPartners = await getPartners();
     const allShipments = getShipments();
 
     if(!quoteData.shipper || !quoteData.consignee) {

@@ -10,7 +10,7 @@ import {
   getStoredPartners,
   type Partner,
   savePartners,
-} from '@/lib/partners-data';
+} from '@/lib/partners-data-client';
 import { savePartnerAction } from '@/app/actions';
 import { getStoredFees, type Fee } from '@/lib/fees-data';
 import { Button } from '@/components/ui/button';

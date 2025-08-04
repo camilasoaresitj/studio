@@ -267,276 +267,164 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
 
   return (
     <>
-    <div className="flex flex-col h-full space-y-2">
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 flex-grow flex flex-col overflow-hidden">
-                <Card>
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-base">Detalhes do Embarque</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm p-4 pt-0">
-                        <div><strong className="text-muted-foreground">Origem:</strong> {quote.origin}</div>
-                        <div><strong className="text-muted-foreground">Destino:</strong> {quote.destination}</div>
-                        <div><strong className="text-muted-foreground">Carga:</strong> {quote.details.cargo}</div>
-                        <div><strong className="text-muted-foreground">Incoterm:</strong> {quote.details.incoterm}</div>
-                        <div><strong className="text-muted-foreground">Trânsito:</strong> {quote.details.transitTime}</div>
-                        <FormField control={form.control} name="details.freeTime" render={({ field }) => (
-                            <FormItem><FormLabel className="text-muted-foreground">Free Time:</FormLabel><FormControl><Input {...field} className="h-7"/></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name="details.validity" render={({ field }) => (
-                           <FormItem className="flex flex-col col-span-2">
-                                <FormLabel className="text-muted-foreground">Validade:</FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button variant={"outline"} className={cn("pl-3 text-left font-normal h-7", !field.value && "text-muted-foreground")}>
-                                                {field.value ? format(field.value, "PPP") : <span>Selecione a data</span>}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-base">Parceiros do Embarque</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 pt-2">
-                        <FormField control={form.control} name="shipperId" render={({ field }) => (
-                            <FormItem><FormLabel>Shipper</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{partners.map(p => (<SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>))}</SelectContent></Select></FormItem>
-                        )}/>
-                         <FormField control={form.control} name="consigneeId" render={({ field }) => (
-                            <FormItem><FormLabel>Consignee</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{partners.map(p => (<SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>))}</SelectContent></Select></FormItem>
-                        )}/>
-                         <FormField control={form.control} name="agentId" render={({ field }) => (
-                            <FormItem><FormLabel>Agente</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{agentPartners.map(p => (<SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>))}</SelectContent></Select></FormItem>
-                        )}/>
-                    </CardContent>
-                </Card>
-                <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Tabela de Custos</h3>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setIsFeeDialogOpen(true)}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
-                    </Button>
-                </div>
-                <div className="flex-grow overflow-hidden border rounded-lg">
-                    <ScrollArea className="h-full">
-                        <Table>
-                        <TableHeader className="sticky top-0 bg-secondary z-10">
-                            <TableRow>
-                            <TableHead className="w-[15%]">Taxa</TableHead>
-                            <TableHead className="w-[15%]">Fornecedor</TableHead>
-                            <TableHead className="w-[10%]">Cobrança por</TableHead>
-                            <TableHead className="w-[10%]">Tipo Cont.</TableHead>
-                            <TableHead className="w-[15%] text-right">Compra</TableHead>
-                            <TableHead className="w-[15%]">Sacado</TableHead>
-                            <TableHead className="w-[15%] text-right">Venda</TableHead>
-                            <TableHead className="text-right">Ação</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {fields.map((field, index) => {
-                            const charge = watchedCharges?.[index];
-                             if (!charge) {
-                                return null;
-                            }
-                            const availableFees = fees.filter(
-                                fee => !watchedCharges.some(c => c.name === fee.name) || fee.name === charge.name
-                            );
-                            
-                            return (
-                                <TableRow key={field.id}>
-                                <TableCell className="p-1 align-top">
-                                    <FeeCombobox
-                                        fees={availableFees}
-                                        value={charge.name}
-                                        onValueChange={(value) => handleFeeSelection(value, index)}
-                                    />
-                                </TableCell>
-                                <TableCell className="p-1 align-top">
-                                    <FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger>
-                                            <SelectContent>
-                                                {supplierPartners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    )} />
-                                </TableCell>
-                                <TableCell className="p-1 align-top">
-                                    <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                            <SelectContent>
-                                                {chargeTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    )} />
-                                </TableCell>
-                                <TableCell className="p-1 align-top">
-                                    <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value} disabled={charge.type !== 'Contêiner'}>
-                                            <SelectTrigger className="h-8"><SelectValue placeholder="N/A"/></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Todos">Todos</SelectItem>
-                                                <SelectItem value="Dry">Dry</SelectItem>
-                                                <SelectItem value="Reefer">Reefer</SelectItem>
-                                                <SelectItem value="Especiais">Especiais</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    )} />
-                                </TableCell>
-                                <TableCell className="text-right p-1 align-top">
-                                    <div className="flex items-center gap-1">
-                                    <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                        <SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="BRL">BRL</SelectItem>
-                                          <SelectItem value="USD">USD</SelectItem>
-                                          <SelectItem value="EUR">EUR</SelectItem>
-                                        </SelectContent>
-                                        </Select>
-                                    )} />
-                                    <FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (
-                                        <Input type="number" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} className="w-full h-8" />
-                                    )} />
-                                    </div>
-                                </TableCell>
-                                <TableCell className="p-1 align-top">
-                                    <FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value || quote.customer}>
-                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                            <SelectContent>
-                                                {clientPartners.map(p => (
-                                                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )} />
-                                </TableCell>
-                                <TableCell className="text-right p-1 align-top">
-                                    <div className="flex items-center gap-1">
-                                    <FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                        <SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="BRL">BRL</SelectItem>
-                                          <SelectItem value="USD">USD</SelectItem>
-                                          <SelectItem value="EUR">EUR</SelectItem>
-                                        </SelectContent>
-                                        </Select>
-                                    )} />
-                                    <FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (
-                                        <Input type="number" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} className="w-full h-8" />
-                                    )} />
-                                    </div>
-                                </TableCell>
-                                <TableCell className="p-1 align-top text-center">
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                </TableCell>
-                                </TableRow>
-                            );
-                            })}
-                        </TableBody>
-                        </Table>
-                    </ScrollArea>
-                </div>
-                
-                <Separator className="!mt-auto" />
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
-                    <Card>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-base">Custo Total (em BRL)</CardTitle></CardHeader>
-                        <CardContent className="p-2 pt-0 text-sm">
-                            <div className="flex justify-between font-semibold text-base">
-                                <span>BRL:</span>
-                                <span className="font-mono">{totals.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-base">Venda Total (em BRL)</CardTitle></CardHeader>
-                        <CardContent className="p-2 pt-0 text-sm">
-                            <div className="flex justify-between font-semibold text-base">
-                                <span>BRL:</span>
-                                <span className="font-mono">{totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}>
-                        <CardHeader className="p-2 pb-0"><CardTitle className="text-base">Resultado (Lucro)</CardTitle></CardHeader>
-                        <CardContent className={cn("p-2 pt-0 text-sm font-semibold text-base", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}>
-                            <div className="flex justify-between">
-                                <span>BRL:</span>
-                                <span className="font-mono">{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-base">Detalhes do Embarque</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm p-4 pt-0">
+              <div><strong className="text-muted-foreground">Origem:</strong> {quote.origin}</div>
+              <div><strong className="text-muted-foreground">Destino:</strong> {quote.destination}</div>
+              <div><strong className="text-muted-foreground">Carga:</strong> {quote.details.cargo}</div>
+              <div><strong className="text-muted-foreground">Incoterm:</strong> {quote.details.incoterm}</div>
+              <div><strong className="text-muted-foreground">Trânsito:</strong> {quote.details.transitTime}</div>
+              <FormField control={form.control} name="details.freeTime" render={({ field }) => (
+                <FormItem><FormLabel className="text-muted-foreground">Free Time:</FormLabel><FormControl><Input {...field} className="h-7"/></FormControl></FormItem>
+              )} />
+              <FormField control={form.control} name="details.validity" render={({ field }) => (
+                <FormItem className="flex flex-col col-span-2">
+                  <FormLabel className="text-muted-foreground">Validade:</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button variant={"outline"} className={cn("pl-3 text-left font-normal h-7", !field.value && "text-muted-foreground")}>
+                           {field.value ? format(field.value, "PPP") : <span>Selecione a data</span>}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                       <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                   <FormMessage />
+                </FormItem>
+              )} />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-base">Parceiros do Embarque</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 pt-2">
+              <FormField control={form.control} name="shipperId" render={({ field }) => (
+                <FormItem><FormLabel>Shipper</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{partners.map(p => (<SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>))}</SelectContent></Select></FormItem>
+              )}/>
+              <FormField control={form.control} name="consigneeId" render={({ field }) => (
+                <FormItem><FormLabel>Consignee</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{partners.map(p => (<SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>))}</SelectContent></Select></FormItem>
+              )}/>
+              <FormField control={form.control} name="agentId" render={({ field }) => (
+                <FormItem><FormLabel>Agente</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent>{agentPartners.map(p => (<SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>))}</SelectContent></Select></FormItem>
+              )}/>
+            </CardContent>
+          </Card>
 
-                <div className="flex justify-end gap-2 pt-2">
-                    <Button type="submit">
-                        <Save className="mr-2 h-4 w-4"/>
-                        Salvar Alterações
-                    </Button>
-                </div>
-            </form>
-        </Form>
-    </div>
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Tabela de Custos</h3>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsFeeDialogOpen(true)}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
+            </Button>
+          </div>
 
-    <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
+          <div className="border rounded-lg overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[180px]">Taxa</TableHead>
+                  <TableHead className="min-w-[180px]">Fornecedor</TableHead>
+                  <TableHead className="min-w-[150px]">Cobrança por</TableHead>
+                  <TableHead className="min-w-[150px]">Tipo Cont.</TableHead>
+                  <TableHead className="min-w-[180px] text-right">Compra</TableHead>
+                  <TableHead className="min-w-[180px]">Sacado</TableHead>
+                  <TableHead className="min-w-[180px] text-right">Venda</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fields.map((field, index) => {
+                  const charge = watchedCharges?.[index];
+                  if (!charge) return null;
+                  const availableFees = fees.filter(
+                    fee => !watchedCharges.some(c => c.name === fee.name) || fee.name === charge.name
+                  );
+                  return (
+                    <TableRow key={field.id}>
+                      <TableCell className="p-1 align-top">
+                        <FeeCombobox fees={availableFees} value={charge.name} onValueChange={(value) => handleFeeSelection(value, index)} />
+                      </TableCell>
+                      <TableCell className="p-1 align-top"><FormField control={form.control} name={`charges.${index}.supplier`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..."/></SelectTrigger><SelectContent>{supplierPartners.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent></Select>)} /></TableCell>
+                      <TableCell className="p-1 align-top"><FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{chargeTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>)} /></TableCell>
+                      <TableCell className="p-1 align-top"><FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value} disabled={charge.type !== 'Contêiner'}><SelectTrigger className="h-8"><SelectValue placeholder="N/A"/></SelectTrigger><SelectContent><SelectItem value="Todos">Todos</SelectItem><SelectItem value="Dry">Dry</SelectItem><SelectItem value="Reefer">Reefer</SelectItem><SelectItem value="Especiais">Especiais</SelectItem></SelectContent></Select>)} /></TableCell>
+                      <TableCell className="text-right p-1 align-top"><div className="flex items-center gap-1"><FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent></Select>)} /><FormField control={form.control} name={`charges.${index}.cost`} render={({ field }) => (<Input type="number" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} className="w-full h-8" />)} /></div></TableCell>
+                      <TableCell className="p-1 align-top"><FormField control={form.control} name={`charges.${index}.sacado`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value || quote.customer}><SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{clientPartners.map(p => (<SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>))}</SelectContent></Select>)} /></TableCell>
+                      <TableCell className="text-right p-1 align-top"><div className="flex items-center gap-1"><FormField control={form.control} name={`charges.${index}.saleCurrency`} render={({ field }) => (<Select onValueChange={field.onChange} value={field.value}><SelectTrigger className="w-[80px] h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BRL">BRL</SelectItem><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem></SelectContent></Select>)} /><FormField control={form.control} name={`charges.${index}.sale`} render={({ field }) => (<Input type="number" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} className="w-full h-8" />)} /></div></TableCell>
+                      <TableCell className="p-1 align-top text-center"><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <Separator />
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <Card><CardHeader className="p-2 pb-0"><CardTitle className="text-base">Custo Total (em BRL)</CardTitle></CardHeader><CardContent className="p-2 pt-0 text-sm"><div className="flex justify-between font-semibold text-base"><span>BRL:</span><span className="font-mono">{totals.totalCostBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div></CardContent></Card>
+            <Card><CardHeader className="p-2 pb-0"><CardTitle className="text-base">Venda Total (em BRL)</CardTitle></CardHeader><CardContent className="p-2 pt-0 text-sm"><div className="flex justify-between font-semibold text-base"><span>BRL:</span><span className="font-mono">{totals.totalSaleBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div></CardContent></Card>
+            <Card className={cn(totals.totalProfitBRL < 0 ? "border-destructive" : "border-success")}><CardHeader className="p-2 pb-0"><CardTitle className="text-base">Resultado (Lucro)</CardTitle></CardHeader><CardContent className={cn("p-2 pt-0 text-sm font-semibold text-base", totals.totalProfitBRL < 0 ? "text-destructive" : "text-success")}><div className="flex justify-between"><span>BRL:</span><span className="font-mono">{totals.totalProfitBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div></CardContent></Card>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="submit"><Save className="mr-2 h-4 w-4"/>Salvar Alterações</Button>
+          </div>
+        </form>
+      </Form>
+
+      <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-                <DialogTitle>Adicionar Taxas ao Processo</DialogTitle>
-                <DialogDescription>
-                    Selecione as taxas padrão que deseja adicionar a este embarque.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-                <ScrollArea className="h-96">
-                    <div className="space-y-2 pr-4">
-                        {fees.map(fee => (
-                            <div key={fee.id} className="flex items-center space-x-2 p-2 border rounded-md">
-                                <Checkbox
-                                    id={`fee-${fee.id}`}
-                                    checked={selectedFees.has(fee.id!)}
-                                    onCheckedChange={(checked) => {
-                                        setSelectedFees(prev => {
-                                            const newSet = new Set(prev);
-                                            if (checked) {
-                                                newSet.add(fee.id!);
-                                            } else {
-                                                newSet.delete(fee.id!);
-                                            }
-                                            return newSet;
-                                        });
-                                    }}
-                                />
-                                <Label htmlFor={`fee-${fee.id}`} className="flex-grow font-normal cursor-pointer">
-                                    <div className="flex justify-between">
-                                        <span>{fee.name}</span>
-                                        <Badge variant="secondary">{fee.currency} {fee.value}</Badge>
-                                    </div>
-                                </Label>
-                            </div>
-                        ))}
-                    </div>
-                </ScrollArea>
-            </div>
-            <DialogFooter>
-                 <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                 <Button onClick={handleAddSelectedFees}>Adicionar Taxas Selecionadas</Button>
-            </DialogFooter>
+          <DialogHeader>
+            <DialogTitle>Adicionar Taxas ao Processo</DialogTitle>
+            <DialogDescription>
+              Selecione as taxas padrão que deseja adicionar a este embarque.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <ScrollArea className="h-96">
+              <div className="space-y-2 pr-4">
+                {fees.map(fee => (
+                  <div key={fee.id} className="flex items-center space-x-2 p-2 border rounded-md">
+                    <Checkbox
+                      id={`fee-${fee.id}`}
+                      checked={selectedFees.has(fee.id!)}
+                      onCheckedChange={(checked) => {
+                        setSelectedFees(prev => {
+                          const newSet = new Set(prev);
+                          if (checked) {
+                            newSet.add(fee.id!);
+                          } else {
+                            newSet.delete(fee.id!);
+                          }
+                          return newSet;
+                        });
+                      }}
+                    />
+                    <Label htmlFor={`fee-${fee.id}`} className="flex-grow font-normal cursor-pointer">
+                      <div className="flex justify-between">
+                        <span>{fee.name}</span>
+                        <Badge variant="secondary">{fee.currency} {fee.value}</Badge>
+                      </div>
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+            <Button onClick={handleAddSelectedFees}>Adicionar Taxas Selecionadas</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

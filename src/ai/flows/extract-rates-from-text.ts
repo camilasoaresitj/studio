@@ -115,7 +115,8 @@ const extractRatesFromTextFlow = ai.defineFlow(
             readableStream.push(buffer);
             readableStream.push(null);
             
-            const eml = await new EmlParser(readableStream).parse();
+            const parser = new EmlParser(readableStream);
+            const eml = await parser.parse();
             promptInput = { textInput: eml.text || eml.html || 'Could not extract text from EML.' };
         } else if (lowerFileName.endsWith('.xlsx') || lowerFileName.endsWith('.xls') || lowerFileName.endsWith('.csv')) {
              const base64 = input.fileDataUri.split(',')[1];

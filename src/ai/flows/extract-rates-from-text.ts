@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Extracts structured freight rate data from unstructured text or a media file (PDF).
+ * @fileOverview Extracts structured freight rate data from unstructured text or a media file (PDF, EML).
  *
  * - extractRatesFromText - A function that parses content and returns a structured list of rates.
  * - ExtractRatesFromTextInput - The input type for the function.
@@ -10,10 +10,12 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import EmlParser from 'eml-parser';
+import { Stream } from 'stream';
 
 const ExtractRatesFromTextInputSchema = z.object({
   textInput: z.string().optional().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
-  fileDataUri: z.string().optional().describe("A media file (like a PDF) as a data URI containing the rates."),
+  fileDataUri: z.string().optional().describe("A media file (like a PDF or .eml) as a data URI containing the rates."),
   fileName: z.string().optional().describe("The name of the uploaded file."),
 });
 export type ExtractRatesFromTextInput = z.infer<typeof ExtractRatesFromTextInputSchema>;
@@ -73,7 +75,20 @@ const extractRatesFromTextFlow = ai.defineFlow(
     let promptInput: { textInput?: string; media?: { url: string } } = {};
 
     if (input.fileDataUri) {
-        promptInput = { media: { url: input.fileDataUri } };
+        if (input.fileName?.toLowerCase().endsWith('.eml')) {
+            const base64 = input.fileDataUri.split(',')[1];
+            if (!base64) throw new Error("Invalid Data URI for .eml file.");
+            
+            const buffer = Buffer.from(base64, 'base64');
+            const readableStream = new Stream.Readable();
+            readableStream.push(buffer);
+            readableStream.push(null);
+            
+            const eml = await new EmlParser(readableStream).parse();
+            promptInput = { textInput: eml.text || eml.html || 'Could not extract text from EML.' };
+        } else {
+             promptInput = { media: { url: input.fileDataUri } };
+        }
     } else if (input.textInput) {
         promptInput = { textInput: input.textInput };
     } else {

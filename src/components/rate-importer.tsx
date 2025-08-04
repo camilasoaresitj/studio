@@ -90,10 +90,10 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
         form.setValue('fileName', undefined);
         
         try {
-            if (fileExtension === 'pdf') {
+            if (fileExtension === 'pdf' || fileExtension === 'eml') {
                 form.setValue('fileDataUri', result as string);
                 form.setValue('fileName', file.name);
-                toast({ title: 'Arquivo PDF carregado!', description: 'Clique em "Extrair" para analisar.' });
+                toast({ title: `Arquivo ${fileExtension.toUpperCase()} carregado!`, description: 'Clique em "Extrair" para analisar.' });
             } else { // Spreadsheets
                 const data = new Uint8Array(result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -112,8 +112,8 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
         }
     };
     
-    if (fileExtension === 'pdf') {
-        reader.readAsDataURL(file); // Read as Data URL for PDFs
+    if (fileExtension === 'pdf' || fileExtension === 'eml') {
+        reader.readAsDataURL(file); // Read as Data URL for PDFs and EMLs
     } else {
         reader.readAsArrayBuffer(file); // Read as ArrayBuffer for spreadsheets
     }
@@ -159,7 +159,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                 ref={fileInputRef} 
                 onChange={handleFileChange}
                 className="hidden"
-                accept=".xlsx, .xls, .csv, .pdf"
+                accept=".xlsx, .xls, .csv, .pdf, .eml"
               />
               <div className="flex flex-col sm:flex-row-reverse gap-2">
                 <Button type="submit" disabled={isLoading} className="w-full">

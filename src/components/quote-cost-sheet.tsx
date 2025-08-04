@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -88,7 +87,7 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
                                     key={fee.id}
                                     value={fee.name}
                                     onSelect={(currentValue) => {
-                                        onValueChange(currentValue === value ? "" : fee.name);
+                                        onValueChange(fee.name);
                                         setOpen(false);
                                     }}
                                 >

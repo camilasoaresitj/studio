@@ -331,11 +331,13 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                         <Table>
                         <TableHeader className="sticky top-0 bg-secondary z-10">
                             <TableRow>
-                            <TableHead className="w-1/6">Taxa</TableHead>
-                            <TableHead className="w-1/6">Fornecedor</TableHead>
-                            <TableHead className="w-1/4 text-right">Compra</TableHead>
-                            <TableHead className="w-1/6">Sacado</TableHead>
-                            <TableHead className="w-1/4 text-right">Venda</TableHead>
+                            <TableHead className="w-[15%]">Taxa</TableHead>
+                            <TableHead className="w-[15%]">Fornecedor</TableHead>
+                            <TableHead className="w-[10%]">Cobrança por</TableHead>
+                            <TableHead className="w-[10%]">Tipo Cont.</TableHead>
+                            <TableHead className="w-[15%] text-right">Compra</TableHead>
+                            <TableHead className="w-[15%]">Sacado</TableHead>
+                            <TableHead className="w-[15%] text-right">Venda</TableHead>
                             <TableHead className="text-right">Ação</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -368,6 +370,29 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                         </Select>
                                     )} />
                                 </TableCell>
+                                <TableCell className="p-1 align-top">
+                                    <FormField control={form.control} name={`charges.${index}.type`} render={({ field }) => (
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <SelectTrigger className="h-8"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {chargeTypeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    )} />
+                                </TableCell>
+                                <TableCell className="p-1 align-top">
+                                    <FormField control={form.control} name={`charges.${index}.containerType`} render={({ field }) => (
+                                        <Select onValueChange={field.onChange} value={field.value} disabled={charge.type !== 'Contêiner'}>
+                                            <SelectTrigger className="h-8"><SelectValue placeholder="N/A"/></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Todos">Todos</SelectItem>
+                                                <SelectItem value="Dry">Dry</SelectItem>
+                                                <SelectItem value="Reefer">Reefer</SelectItem>
+                                                <SelectItem value="Especiais">Especiais</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )} />
+                                </TableCell>
                                 <TableCell className="text-right p-1 align-top">
                                     <div className="flex items-center gap-1">
                                     <FormField control={form.control} name={`charges.${index}.costCurrency`} render={({ field }) => (
@@ -377,9 +402,6 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                           <SelectItem value="BRL">BRL</SelectItem>
                                           <SelectItem value="USD">USD</SelectItem>
                                           <SelectItem value="EUR">EUR</SelectItem>
-                                          <SelectItem value="GBP">GBP</SelectItem>
-                                          <SelectItem value="JPY">JPY</SelectItem>
-                                          <SelectItem value="CHF">CHF</SelectItem>
                                         </SelectContent>
                                         </Select>
                                     )} />
@@ -409,9 +431,6 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                                           <SelectItem value="BRL">BRL</SelectItem>
                                           <SelectItem value="USD">USD</SelectItem>
                                           <SelectItem value="EUR">EUR</SelectItem>
-                                          <SelectItem value="GBP">GBP</SelectItem>
-                                          <SelectItem value="JPY">JPY</SelectItem>
-                                          <SelectItem value="CHF">CHF</SelectItem>
                                         </SelectContent>
                                         </Select>
                                     )} />

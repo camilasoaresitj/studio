@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableHeader,
@@ -44,6 +44,14 @@ export function CustomerQuotesList({ quotes, partners, onQuoteUpdate, onPartnerS
     const [quoteToSend, setQuoteToSend] = useState<Quote | null>(null);
     const [quoteToApprove, setQuoteToApprove] = useState<(Quote & { carrier?: string }) | null>(null);
     const { toast } = useToast();
+    
+    // Correction: Use useEffect to set the initial state from props to avoid re-render loops.
+    useEffect(() => {
+        if (quoteToDetail) {
+            onEditQuote(quoteToDetail);
+        }
+    }, [quoteToDetail, onEditQuote]);
+
 
     const handleOpenSendDialog = (quote: Quote) => {
         setQuoteToSend(quote);

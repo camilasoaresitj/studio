@@ -56,6 +56,9 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 - **Free Time:** Extract **ONLY THE NUMBER** (e.g., for "21 days", extract "21").
 - **Validity:** If a date range is given (e.g., "valid until 21/07/2025"), extract **ONLY THE END DATE** ("21/07/2025").
 - **Location Standardization:** Normalize location names (e.g., "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN").
+- **Container Standardization:**
+    - If you see "NOR", it means "40'NOR".
+    - If you see "40'Non Operating Reefer", it also means "40'NOR".
 
 {{#if textInput}}
 Analyze the following text and extract the rates:
@@ -71,7 +74,7 @@ Analyze the following media file and extract the rates:
 const getMimeType = (fileName: string): string => {
     const lowerFileName = fileName.toLowerCase();
     if (lowerFileName.endsWith('.pdf')) return 'application/pdf';
-    if (lowerFileName.endsWith('.eml')) return 'message/rfc822';
+    if (lowerFileName.endsWith('.eml') || lowerFileName.endsWith('.msg')) return 'message/rfc822';
     if (lowerFileName.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     if (lowerFileName.endsWith('.xls')) return 'application/vnd.ms-excel';
     if (lowerFileName.endsWith('.csv')) return 'text/csv';
@@ -103,7 +106,7 @@ const extractRatesFromTextFlow = ai.defineFlow(
     if (input.fileDataUri && input.fileName) {
         const lowerFileName = input.fileName.toLowerCase();
         
-        if (lowerFileName.endsWith('.eml')) {
+        if (lowerFileName.endsWith('.eml') || lowerFileName.endsWith('.msg')) {
             const base64 = input.fileDataUri.split(',')[1];
             if (!base64) throw new Error("Invalid Data URI for .eml file.");
             

@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, Controller, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -267,7 +267,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
 
   return (
     <>
-      <Form {...form}>
+      <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex flex-col h-full">
           <ScrollArea className="flex-grow pr-4 -mr-4">
             <div className="space-y-4">
@@ -330,7 +330,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
                     </Button>
                 </div>
 
-                <div className="border rounded-lg overflow-x-auto">
+                <div className="border rounded-lg overflow-x-auto max-h-[400px]">
                     <Table>
                     <TableHeader>
                         <TableRow>
@@ -384,7 +384,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
             </div>
           </div>
         </form>
-      </Form>
+      </FormProvider>
 
       <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
         <DialogContent className="sm:max-w-2xl">

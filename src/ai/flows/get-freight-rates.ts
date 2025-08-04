@@ -42,22 +42,26 @@ const cargoFiveRateTool = ai.defineTool(
   },
   async (params) => {
     const apiKey = process.env.CARGOFIVE_API_KEY || 'a256c19a3c3d85da2e35846de3205954';
-    // Corrected API endpoint from /rates to /fcl/quotes and using POST
     const API_URL = `https://api.cargofive.com/v1/fcl/quotes`;
     
     if (!apiKey) {
       throw new Error('CargoFive API key is not configured.');
     }
     
+    const requestBody = {
+        ...params,
+        company_id: '613', // This ID is required by the API
+    };
+
     try {
-      console.log('Consultando CargoFive com URL:', API_URL);
+      console.log('Consultando CargoFive com URL:', API_URL, 'e body:', JSON.stringify(requestBody, null, 2));
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 
             'x-api-key': apiKey,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(params)
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {

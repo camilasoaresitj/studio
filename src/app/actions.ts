@@ -296,7 +296,7 @@ export async function runSendShippingInstructions(input: any) {
 
 export async function runExtractRatesFromText(input: { textInput?: string; fileDataUri?: string, fileName?: string }) {
     try {
-        const data = await extractRatesFromText({ textInput: input.textInput || '', ...input });
+        const data = await extractRatesFromText(input);
         return { success: true, data };
     } catch (error: any) {
         console.error("Extract Rates Action Failed", error);
@@ -881,3 +881,4 @@ export async function saveApiKeysAction(data: any) {
     console.log("Simulating saving API keys to a secure store:", data);
     return { success: true, message: "API keys updated. A server restart would be needed in a real app." };
 }
+      

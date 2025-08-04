@@ -621,7 +621,7 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment
     shipper, consignee, agent,
     responsibleUser: quoteData.responsibleUser, 
     terminalRedestinacaoId: quoteData.terminalRedestinacaoId,
-    charges: quoteData.charges.map(c => ({ ...c, approvalStatus: 'aprovada' })),
+    charges: quoteData.charges,
     details: quoteData.details, 
     carrier: quoteData.carrier, 
     milestones, 
@@ -873,9 +873,6 @@ export async function saveApiKeysAction(data: any) {
     console.log("Simulating saving API keys to a secure store:", data);
     return { success: true, message: "API keys updated. A server restart would be needed in a real app." };
 }
-
-    
-
-
+      
 
     

@@ -56,7 +56,7 @@ export function getStoredShipments(): Shipment[] {
             })) || [],
             milestones: (shipment.milestones || []).map((m: any) => ({
                 ...m,
-                predictedDate: safeMilestoneDate(m.predictedDate || m.dueDate),
+                predictedDate: safeMilestoneDate(m.predictedDate || m.dueDate || m.effectiveDate),
                 effectiveDate: safeMilestoneDate(m.effectiveDate || m.completedDate),
             })).filter((m: any) => m.predictedDate !== null),
             blDraftHistory: shipment.blDraftHistory ? {
@@ -99,3 +99,5 @@ export async function saveShipmentsData(shipments: Shipment[]): Promise<void> {
     // const path = require('path');
     // fs.writeFileSync(path.resolve('./src/lib/shipments.json'), JSON.stringify(shipments, null, 4));
 }
+
+    

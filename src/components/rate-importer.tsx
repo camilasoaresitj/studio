@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import * as XLSX from 'xlsx';
-import EmlParser from 'eml-parser';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -95,21 +94,6 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                 form.setValue('fileDataUri', result as string);
                 form.setValue('fileName', file.name);
                 toast({ title: 'Arquivo PDF carregado!', description: 'Clique em "Extrair" para analisar.' });
-            } else if (fileExtension === 'eml') {
-                new EmlParser(result as ArrayBuffer)
-                    .getEmailBodyHtml()
-                    .then(html => {
-                        const text = html || new EmlParser(result as ArrayBuffer).getEmailBody();
-                        if (text) {
-                            form.setValue('textInput', text);
-                            toast({ title: 'E-mail carregado!', description: 'O corpo do e-mail foi carregado. Clique em "Extrair" para analisar.' });
-                        } else {
-                            throw new Error("Nenhum conteúdo de texto encontrado no e-mail.");
-                        }
-                    })
-                    .catch(err => {
-                        throw err;
-                    });
             } else { // Spreadsheets
                 const data = new Uint8Array(result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -131,7 +115,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
     if (fileExtension === 'pdf') {
         reader.readAsDataURL(file); // Read as Data URL for PDFs
     } else {
-        reader.readAsArrayBuffer(file); // Read as ArrayBuffer for spreadsheets and emails
+        reader.readAsArrayBuffer(file); // Read as ArrayBuffer for spreadsheets
     }
 
     if (fileInputRef.current) {
@@ -175,7 +159,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                 ref={fileInputRef} 
                 onChange={handleFileChange}
                 className="hidden"
-                accept=".xlsx, .xls, .csv, .eml, .pdf"
+                accept=".xlsx, .xls, .csv, .pdf"
               />
               <div className="flex flex-col sm:flex-row-reverse gap-2">
                 <Button type="submit" disabled={isLoading} className="w-full">

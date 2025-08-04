@@ -8,10 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { FileDown, PlusCircle, RefreshCw, Loader2, ArrowRight, AlertTriangle, List, FileText, Ship, Anchor } from 'lucide-react';
 import { getStoredShipments } from '@/lib/shipment-data-client';
-import type { Shipment } from '@/lib/shipment-data';
+import type { Shipment, Quote } from '@/lib/shipment-data';
 import { getStoredFinancialEntries, FinancialEntry } from '@/lib/financials-data';
 import { getInitialQuotes } from '@/lib/initial-data';
-import type { Quote } from '@/components/customer-quotes-list';
 import { useRouter } from 'next/navigation';
 import { format, isValid, differenceInDays, isPast, isWithinInterval, addDays } from 'date-fns';
 import Link from 'next/link';

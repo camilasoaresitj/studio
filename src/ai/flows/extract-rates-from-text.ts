@@ -68,6 +68,26 @@ Analyze the following media file and extract the rates:
 `,
 });
 
+const getMimeType = (fileName: string): string => {
+    if (fileName.endsWith('.pdf')) return 'application/pdf';
+    if (fileName.endsWith('.eml')) return 'message/rfc822';
+    if (fileName.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    if (fileName.endsWith('.xls')) return 'application/vnd.ms-excel';
+    if (fileName.endsWith('.csv')) return 'text/csv';
+    return 'application/octet-stream'; // Fallback
+};
+
+const ensureMimeTypeInDataUri = (dataUri: string, mimeType: string): string => {
+    if (dataUri.startsWith(`data:${mimeType};base64,`)) {
+        return dataUri;
+    }
+    const base64Part = dataUri.split(',')[1];
+    if (!base64Part) {
+        throw new Error('Invalid Data URI format.');
+    }
+    return `data:${mimeType};base64,${base64Part}`;
+};
+
 const extractRatesFromTextFlow = ai.defineFlow(
   {
     name: 'extractRatesFromTextFlow',
@@ -77,8 +97,8 @@ const extractRatesFromTextFlow = ai.defineFlow(
   async (input) => {
     let promptInput: { textInput?: string; media?: { url: string } } = {};
 
-    if (input.fileDataUri) {
-        const lowerFileName = input.fileName?.toLowerCase() || '';
+    if (input.fileDataUri && input.fileName) {
+        const lowerFileName = input.fileName.toLowerCase();
         
         if (lowerFileName.endsWith('.eml')) {
             const base64 = input.fileDataUri.split(',')[1];
@@ -98,7 +118,9 @@ const extractRatesFromTextFlow = ai.defineFlow(
              const textContent = await extractTextFromXlsx(buffer);
              promptInput = { textInput: textContent };
         } else {
-             promptInput = { media: { url: input.fileDataUri } };
+             const mimeType = getMimeType(lowerFileName);
+             const correctedDataUri = ensureMimeTypeInDataUri(input.fileDataUri, mimeType);
+             promptInput = { media: { url: correctedDataUri } };
         }
     } else if (input.textInput) {
         promptInput = { textInput: input.textInput };

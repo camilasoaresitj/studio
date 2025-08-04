@@ -12,6 +12,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import EmlParser from 'eml-parser';
 import { Stream } from 'stream';
+import { googleAI } from '@genkit-ai/googleai';
 
 const ExtractRatesFromTextInputSchema = z.object({
   textInput: z.string().optional().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
@@ -40,6 +41,7 @@ export async function extractRatesFromText(input: ExtractRatesFromTextInput): Pr
 
 const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: { schema: z.object({ textInput: z.string().optional(), media: z.any().optional() }) },
   output: { schema: z.object({ rates: ExtractRatesFromTextOutputSchema }) },
   prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the content below (which can be text or a media file like a PDF) and return a valid JSON object containing an array of rate objects. The final JSON must have a single key "rates".

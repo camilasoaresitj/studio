@@ -29,7 +29,10 @@ export function ManualFreightForm({ onManualRateAdd, partners }: ManualFreightFo
     const [currency, setCurrency] = useState<'USD' | 'BRL'>('USD');
     const [transitTime, setTransitTime] = useState('');
 
-    const supplierPartners = partners.filter(p => p.roles.fornecedor || p.roles.agente);
+    const supplierPartners = partners.filter(p => 
+        p.roles.fornecedor &&
+        (p.tipoFornecedor?.ciaMaritima || p.tipoFornecedor?.ciaAerea || p.tipoFornecedor?.transportadora)
+    );
 
     const handleSubmit = () => {
         if (!supplier || !cost || !transitTime) {

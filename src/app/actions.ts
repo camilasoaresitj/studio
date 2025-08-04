@@ -553,11 +553,8 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<{ succes
   try {
     const allPartners = getPartners();
     const allShipments = getShipments();
-    const shipper = allPartners.find(p => p.id?.toString() === quoteData.shipperId);
-    const consignee = allPartners.find(p => p.id?.toString() === quoteData.consigneeId);
-    const agent = allPartners.find(p => p.id?.toString() === quoteData.agentId);
 
-    if(!shipper || !consignee) {
+    if(!quoteData.shipper || !quoteData.consignee) {
         throw new Error("Shipper or Consignee not found");
     }
 
@@ -595,7 +592,7 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<{ succes
     const milestones = generateInitialMilestones(isImport, creationDate);
     const hasInstructionMilestone = milestones.find(m => m.name.toLowerCase().includes('instruções de embarque'));
 
-    if (hasInstructionMilestone && quoteData.agentId) { 
+    if (hasInstructionMilestone && quoteData.agent) { 
       hasInstructionMilestone.status = 'completed'; 
       hasInstructionMilestone.effectiveDate = new Date(); 
     }
@@ -624,7 +621,7 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<{ succes
       destination: quoteData.destination,
       collectionAddress: quoteData.collectionAddress, 
       deliveryAddress: quoteData.deliveryAddress,
-      shipper, consignee, agent,
+      shipper: quoteData.shipper, consignee: quoteData.consignee, agent: quoteData.agent,
       responsibleUser: quoteData.responsibleUser, 
       terminalRedestinacaoId: quoteData.terminalRedestinacaoId,
       charges: quoteData.charges,
@@ -647,14 +644,14 @@ async function createShipment(quoteData: ShipmentCreationData): Promise<{ succes
       border: quoteData.roadShipment?.border,
     };
 
-    if (isImport && agent) {
+    if (isImport && newShipment.agent) {
         const agentPortalUrl = typeof window !== 'undefined' ? `${window.location.origin}/agent-portal/${shipmentId}` : `/agent-portal/${shipmentId}`;
-        const profitAgreement = agent.profitAgreements?.find(pa => pa.modal === 'FCL' && pa.direction === 'IMPORTACAO');
+        const profitAgreement = newShipment.agent.profitAgreements?.find(pa => pa.modal === 'FCL' && pa.direction === 'IMPORTACAO');
         const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
         
         const siResponse = await sendShippingInstructions({
-            shipmentId: newShipment.id, agentName: agent.name, agentEmail: agent.contacts[0]?.email || 'agent@example.com',
-            shipper: shipper, consigneeName: consignee.name, notifyName: quoteData.notifyName,
+            shipmentId: newShipment.id, agentName: newShipment.agent.name, agentEmail: newShipment.agent.contacts[0]?.email || 'agent@example.com',
+            shipper: newShipment.shipper, consigneeName: newShipment.consignee.name, notifyName: quoteData.notifyName,
             freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
             freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'AS AGREED',
             agentProfit: profitAgreement?.amount ? `USD ${profitAgreement.amount.toFixed(2)}` : 'N/A',
@@ -696,9 +693,9 @@ export async function runApproveQuote(
     const plainQuote = JSON.parse(JSON.stringify(quote));
     const response = await createShipment({
         ...plainQuote,
-        shipperId: plainQuote.shipper?.id?.toString(),
-        consigneeId: plainQuote.consignee?.id?.toString(),
-        agentId: plainQuote.agent?.id?.toString(),
+        shipper: plainQuote.shipper,
+        consignee: plainQuote.consignee,
+        agent: plainQuote.agent,
         notifyName,
         responsibleUser,
         terminalRedestinacaoId: terminalId,
@@ -884,6 +881,3 @@ export async function saveApiKeysAction(data: any) {
     console.log("Simulating saving API keys to a secure store:", data);
     return { success: true, message: "API keys updated. A server restart would be needed in a real app." };
 }
-      
-
-    

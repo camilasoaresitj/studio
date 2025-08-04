@@ -1,7 +1,8 @@
-import FinancialPage from '@/components/financials/financial-page';
+
+import { FinancialPageClient } from '@/components/financials/financial-page-client';
 
 export default function Financeiro() {
     return (
-        <FinancialPage />
+        <FinancialPageClient />
     );
 }

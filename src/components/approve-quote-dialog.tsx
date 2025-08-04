@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Paperclip, PlusCircle, Trash2 } from 'lucide-react';
+import { Paperclip, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { runApproveQuote } from '@/app/actions';
 import { Label } from './ui/label';
@@ -46,6 +46,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [poNumber, setPoNumber] = useState('');
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -90,19 +91,40 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
 
 
   const handleConfirm = async () => {
+    setIsLoading(true);
+    if (!quote) {
+        setIsLoading(false);
+        return;
+    }
+
+    if (!quote.shipper || !quote.shipper.id) {
+        toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'O Shipper (Exportador) não foi definido na cotação. Por favor, edite a cotação e adicione-o antes de aprovar.' });
+        setIsLoading(false);
+        return;
+    }
+
+    if (!quote.consignee || !quote.consignee.id) {
+        toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'O Consignee (Importador) não foi definido na cotação. Por favor, edite a cotação e adicione-o antes de aprovar.' });
+        setIsLoading(false);
+        return;
+    }
+
     const notifyPartner = partners.find(p => p.id?.toString() === notifyId);
     if (!notifyPartner) {
         toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, informe o Notify Party.' });
+        setIsLoading(false);
         return;
     }
     
     if (needsRedestinacao && !selectedTerminalId) {
         toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, selecione um terminal para a redestinação.' });
+        setIsLoading(false);
         return;
     }
     
     if (!responsibleUserId) {
         toast({ variant: 'destructive', title: `Campo Obrigatório`, description: 'Por favor, selecione um responsável pelo processo.' });
+        setIsLoading(false);
         return;
     }
     
@@ -117,6 +139,7 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
     } else {
         toast({ variant: 'destructive', title: 'Erro ao aprovar cotação', description: response?.error || 'Ocorreu um erro desconhecido.' });
     }
+    setIsLoading(false);
   };
 
   return (
@@ -219,7 +242,10 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
 
         <DialogFooter className="pt-4 mt-auto border-t">
           <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button type="button" onClick={handleConfirm}>Confirmar e Criar Embarque</Button>
+          <Button type="button" onClick={handleConfirm} disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Confirmar e Criar Embarque
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

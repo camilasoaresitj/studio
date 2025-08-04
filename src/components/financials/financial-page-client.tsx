@@ -123,7 +123,7 @@ const EntriesTable = ({
                     const { status, variant } = getEntryStatus(entry);
                     const balanceBRL = getBalanceInBRL(entry);
                     return (
-                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"} className={isLegalTable ? 'cursor-pointer' : ''} onClick={() => isLegalTable && handleProcessClick(entry)}>
+                        <TableRow key={entry.id} data-state={selectedRows.has(entry.id) && "selected"}>
                             {!isLegalTable && <TableCell>
                                 <Checkbox
                                     checked={selectedRows.has(entry.id)}
@@ -136,7 +136,7 @@ const EntriesTable = ({
                             </TableCell>
                             <TableCell className="font-medium">{entry.partner}</TableCell>
                             <TableCell>
-                                <a href="#" onClick={(e) => { e.preventDefault(); handleProcessClick(entry); }} className="text-muted-foreground hover:text-primary hover:underline">
+                                <a href="#" onClick={(e) => { e.preventDefault(); handleOpenSettleDialog(entry); }} className="text-primary hover:underline">
                                     {entry.invoiceId}
                                 </a>
                             </TableCell>

@@ -17,6 +17,7 @@ import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import type { Partner } from '@/lib/partners-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { exchangeRateService } from '@/services/exchange-rate-service';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Checkbox } from '../ui/checkbox';
@@ -25,7 +26,6 @@ import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
-import { exchangeRateService } from '@/services/exchange-rate-service';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const quoteChargeSchemaForSheet = z.object({
@@ -81,7 +81,7 @@ const FeeCombobox = ({ value, onValueChange, fees }: { value: string, onValueCha
                                     key={fee.id}
                                     value={fee.name}
                                     onSelect={(currentValue) => {
-                                        onValueChange(currentValue === value ? "" : fee.name);
+                                        onValueChange(fee.name);
                                         setOpen(false);
                                     }}
                                 >
@@ -110,9 +110,11 @@ const chargeTypeOptions = [
 
 export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, ShipmentFinancialsTabProps>(({ shipment, partners, onOpenDetails, onInvoiceCharges, onUpdate }, ref) => {
     const { toast } = useToast();
-    const [fees] = useState<Fee[]>(getFees());
+    const [fees, setFees] = useState<Fee[]>([]);
     const [selectedChargeIds, setSelectedChargeIds] = useState<Set<string>>(new Set());
     const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
+    const [isFeeDialogOpen, setIsFeeDialogOpen] = React.useState(false);
+    const [selectedFees, setSelectedFees] = React.useState<Set<number>>(new Set());
 
     const form = useForm<FinancialsFormData>({
         resolver: zodResolver(financialsFormSchema),
@@ -124,6 +126,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
             setExchangeRates(rates);
         };
         fetchRates();
+        setFees(getFees());
         form.reset({ charges: shipment.charges || [] });
     }, [shipment, form]);
 
@@ -220,6 +223,32 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
           });
         }
     };
+    
+    const handleAddSelectedFees = () => {
+        if (selectedFees.size === 0) {
+          toast({ variant: 'destructive', title: 'Nenhuma taxa selecionada.' });
+          return;
+        }
+        const newCharges = fees
+            .filter(fee => selectedFees.has(fee.id!))
+            .map((fee): QuoteCharge => ({
+                id: `fee-${fee.id}-${Date.now()}`,
+                name: fee.name,
+                type: fee.unit,
+                cost: parseFloat(fee.value) || 0,
+                costCurrency: fee.currency,
+                sale: parseFloat(fee.value) || 0,
+                saleCurrency: fee.currency,
+                supplier: 'CargaInteligente',
+                sacado: shipment.customer,
+                approvalStatus: 'pendente',
+                financialEntryId: null,
+            }));
+            
+        newCharges.forEach(charge => appendCharge(charge as any));
+        setIsFeeDialogOpen(false);
+        setSelectedFees(new Set());
+    };
 
 
     return (
@@ -232,7 +261,7 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                              <Button type="button" variant="secondary" size="sm" onClick={handleInvoiceSelectedWrapper} disabled={selectedChargeIds.size === 0}>
                                 <FileText className="mr-2 h-4 w-4"/> Faturar Selecionados ({selectedChargeIds.size})
                             </Button>
-                            <Button type="button" variant="outline" size="sm" onClick={() => appendCharge({ id: `custom-${Date.now()}`, name: '', type: 'Fixo', cost: 0, costCurrency: 'BRL', sale: 0, saleCurrency: 'BRL', supplier: '', sacado: shipment.customer, approvalStatus: 'pendente', financialEntryId: null })}>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setIsFeeDialogOpen(true)}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Taxa
                             </Button>
                         </div>
@@ -316,6 +345,51 @@ export const ShipmentFinancialsTab = forwardRef<{ submit: () => Promise<any> }, 
                     </Card>
                 </div>
             </Card>
+            <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Adicionar Taxas ao Processo</DialogTitle>
+                        <DialogDescription>
+                            Selecione as taxas padrão que deseja adicionar a este embarque.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <ScrollArea className="h-96">
+                            <div className="space-y-2 pr-4">
+                                {fees.map(fee => (
+                                    <div key={fee.id} className="flex items-center space-x-2 p-2 border rounded-md">
+                                        <Checkbox
+                                            id={`fee-${fee.id}`}
+                                            checked={selectedFees.has(fee.id!)}
+                                            onCheckedChange={(checked) => {
+                                                setSelectedFees(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (checked) {
+                                                        newSet.add(fee.id!);
+                                                    } else {
+                                                        newSet.delete(fee.id!);
+                                                    }
+                                                    return newSet;
+                                                });
+                                            }}
+                                        />
+                                        <Label htmlFor={`fee-${fee.id}`} className="flex-grow font-normal cursor-pointer">
+                                            <div className="flex justify-between">
+                                                <span>{fee.name}</span>
+                                                <Badge variant="secondary">{fee.currency} {fee.value}</Badge>
+                                            </div>
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                        <Button onClick={handleAddSelectedFees}>Adicionar Taxas Selecionadas</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Form>
     );
 });

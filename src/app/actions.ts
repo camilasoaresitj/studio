@@ -295,13 +295,7 @@ export async function runSendShippingInstructions(input: any) {
 }
 
 export async function runExtractRatesFromText(input: { textInput?: string; fileDataUri?: string, fileName?: string }) {
-    try {
-        const data = await extractRatesFromText(input);
-        return { success: true, data };
-    } catch (error: any) {
-        console.error("Extract Rates Action Failed", error);
-        return { success: false, error: error.message || "Failed to extract rates" };
-    }
+    return await extractRatesFromText(input);
 }
 
 export async function runExtractQuoteDetailsFromText(textInput: string) {
@@ -882,3 +876,5 @@ export async function saveApiKeysAction(data: any) {
     return { success: true, message: "API keys updated. A server restart would be needed in a real app." };
 }
       
+
+    

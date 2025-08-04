@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Extracts structured freight rate data from unstructured text or a media file (PDF, EML).
@@ -35,9 +36,16 @@ const RateSchema = z.object({
 const ExtractRatesFromTextOutputSchema = z.array(RateSchema);
 export type ExtractRatesFromTextOutput = z.infer<typeof ExtractRatesFromTextOutputSchema>;
 
-export async function extractRatesFromText(input: ExtractRatesFromTextInput): Promise<ExtractRatesFromTextOutput> {
-  return extractRatesFromTextFlow(input);
+export async function extractRatesFromText(input: ExtractRatesFromTextInput): Promise<{ success: boolean; data?: ExtractRatesFromTextOutput; error?: string }> {
+  try {
+    const rates = await extractRatesFromTextFlow(input);
+    return { success: true, data: rates };
+  } catch (error: any) {
+    console.error("extractRatesFromText action failed:", error);
+    return { success: false, error: error.message || "Failed to extract rates." };
+  }
 }
+
 
 const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
@@ -114,7 +122,8 @@ const extractRatesFromTextFlow = ai.defineFlow(
             readableStream.push(buffer);
             readableStream.push(null);
             
-            const eml = await new EmlParser(readableStream).parse();
+            const parser = new EmlParser(readableStream);
+            const eml = await parser.parse();
 
             promptInput = { textInput: eml.text || eml.html || 'Could not extract text from EML.' };
         } else if (lowerFileName.endsWith('.xlsx') || lowerFileName.endsWith('.xls') || lowerFileName.endsWith('.csv')) {
@@ -147,3 +156,4 @@ const extractRatesFromTextFlow = ai.defineFlow(
   }
 );
 
+    

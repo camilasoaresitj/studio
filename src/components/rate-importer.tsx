@@ -5,7 +5,6 @@ import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import * as XLSX from 'xlsx';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -76,8 +75,6 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
     if (!file) return;
     
     const reader = new FileReader();
-    const fileExtension = file.name.split('.').pop()?.toLowerCase();
-
     reader.onload = (e) => {
         const result = e.target?.result;
         if (!result) {
@@ -86,37 +83,12 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
         }
 
         form.setValue('textInput', '');
-        form.setValue('fileDataUri', undefined);
-        form.setValue('fileName', undefined);
-        
-        try {
-            if (fileExtension === 'pdf' || fileExtension === 'eml') {
-                form.setValue('fileDataUri', result as string);
-                form.setValue('fileName', file.name);
-                toast({ title: `Arquivo ${fileExtension.toUpperCase()} carregado!`, description: 'Clique em "Extrair" para analisar.' });
-            } else { // Spreadsheets
-                const data = new Uint8Array(result as ArrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" });
-
-                if (jsonData.length === 0) throw new Error('A planilha está vazia.');
-
-                const textData = jsonData.map(row => row.join('\t')).join('\n');
-                form.setValue('textInput', textData);
-                toast({ title: 'Arquivo carregado!', description: 'O conteúdo do arquivo foi carregado. Clique em "Extrair" para analisar.' });
-            }
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Erro ao processar arquivo', description: err.message });
-        }
+        form.setValue('fileDataUri', result as string);
+        form.setValue('fileName', file.name);
+        toast({ title: `Arquivo ${file.name} carregado!`, description: 'Clique em "Extrair" para analisar.' });
     };
     
-    if (fileExtension === 'pdf' || fileExtension === 'eml') {
-        reader.readAsDataURL(file); // Read as Data URL for PDFs and EMLs
-    } else {
-        reader.readAsArrayBuffer(file); // Read as ArrayBuffer for spreadsheets
-    }
+    reader.readAsDataURL(file);
 
     if (fileInputRef.current) {
         fileInputRef.current.value = '';

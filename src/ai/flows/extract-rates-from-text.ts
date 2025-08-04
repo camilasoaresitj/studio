@@ -13,6 +13,7 @@ import { z } from 'zod';
 import EmlParser from 'eml-parser';
 import { Stream } from 'stream';
 import { googleAI } from '@genkit-ai/googleai';
+import { extractTextFromXlsx } from '@/lib/extract-xlsx';
 
 const ExtractRatesFromTextInputSchema = z.object({
   textInput: z.string().optional().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
@@ -77,7 +78,9 @@ const extractRatesFromTextFlow = ai.defineFlow(
     let promptInput: { textInput?: string; media?: { url: string } } = {};
 
     if (input.fileDataUri) {
-        if (input.fileName?.toLowerCase().endsWith('.eml')) {
+        const lowerFileName = input.fileName?.toLowerCase() || '';
+        
+        if (lowerFileName.endsWith('.eml')) {
             const base64 = input.fileDataUri.split(',')[1];
             if (!base64) throw new Error("Invalid Data URI for .eml file.");
             
@@ -88,6 +91,12 @@ const extractRatesFromTextFlow = ai.defineFlow(
             
             const eml = await new EmlParser(readableStream).parse();
             promptInput = { textInput: eml.text || eml.html || 'Could not extract text from EML.' };
+        } else if (lowerFileName.endsWith('.xlsx') || lowerFileName.endsWith('.xls') || lowerFileName.endsWith('.csv')) {
+             const base64 = input.fileDataUri.split(',')[1];
+             if (!base64) throw new Error('Invalid Data URI format for spreadsheet.');
+             const buffer = Buffer.from(base64, 'base64');
+             const textContent = await extractTextFromXlsx(buffer);
+             promptInput = { textInput: textContent };
         } else {
              promptInput = { media: { url: input.fileDataUri } };
         }

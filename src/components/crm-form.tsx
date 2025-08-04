@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { getPartners, Partner } from '@/lib/partners-data';
 import { getStoredQuotes } from '@/lib/initial-data';
-import type { Quote } from './customer-quotes-list';
+import type { Quote } from '@/lib/shipment-data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getShipments } from '@/lib/shipment-data';
 import { subDays } from 'date-fns';

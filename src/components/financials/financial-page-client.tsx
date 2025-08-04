@@ -45,7 +45,7 @@ import { FinancialEntryDialog } from '@/components/financials/financial-entry-di
 import { RenegotiationDialog } from '@/components/financials/renegotiation-dialog';
 import { NfseConsulta } from '@/components/financials/nfse-consulta';
 import { PartnersRegistry } from '@/components/partners-registry';
-import { Partner, getStoredPartners, savePartners } from '@/lib/partners-data';
+import { Partner, getStoredPartners, savePartners } from '@/lib/partners-data-client';
 import { exchangeRateService } from '@/services/exchange-rate-service';
 import { CommissionManagement } from '@/components/financials/commission-management';
 import { ShipmentDetailsSheet } from '../shipment-details-sheet';

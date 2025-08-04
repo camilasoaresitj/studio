@@ -116,6 +116,28 @@ const chargeTypeOptions = [
     'Percentual',
 ];
 
+const parseValidityDate = (validity?: string): Date | undefined => {
+    if (!validity) return undefined;
+    if (validity instanceof Date) return validity;
+    try {
+        const parts = validity.split('/');
+        if (parts.length === 3) {
+            const date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+        }
+        const parsedDate = new Date(validity);
+        if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+        }
+    } catch (e) {
+        return undefined;
+    }
+    return undefined;
+};
+
+
 export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProps) {
   const { toast } = useToast();
   const form = useForm<QuoteCostSheetFormData>({
@@ -123,7 +145,7 @@ export function QuoteCostSheet({ quote, partners, onUpdate }: QuoteCostSheetProp
     defaultValues: {
       charges: quote.charges,
       details: {
-        validity: quote.details.validity ? new Date(quote.details.validity) : undefined,
+        validity: parseValidityDate(quote.details.validity),
         freeTime: quote.details.freeTime,
       },
       shipperId: quote.shipper?.id?.toString(),

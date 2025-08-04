@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Extracts structured freight rate data from unstructured text or a media file (PDF, EML).
@@ -115,8 +114,7 @@ const extractRatesFromTextFlow = ai.defineFlow(
             readableStream.push(buffer);
             readableStream.push(null);
             
-            const parser = new EmlParser(readableStream);
-            const eml = await parser.parse();
+            const eml = await new EmlParser(readableStream).parse();
 
             promptInput = { textInput: eml.text || eml.html || 'Could not extract text from EML.' };
         } else if (lowerFileName.endsWith('.xlsx') || lowerFileName.endsWith('.xls') || lowerFileName.endsWith('.csv')) {
@@ -148,3 +146,4 @@ const extractRatesFromTextFlow = ai.defineFlow(
     return output.rates;
   }
 );
+

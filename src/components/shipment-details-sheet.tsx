@@ -457,6 +457,7 @@ export function ShipmentDetailsSheet({ shipment: initialShipment, partners, open
                                     partners={partners}
                                     onOpenDetails={() => {}}
                                     onInvoiceCharges={() => Promise.resolve({updatedCharges:[]})}
+                                    onUpdate={onUpdate}
                                 />
                             </TabsContent>
                             <TabsContent value="documents">

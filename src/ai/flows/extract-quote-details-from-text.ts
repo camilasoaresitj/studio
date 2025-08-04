@@ -23,10 +23,6 @@ const ExtractQuoteDetailsFromTextOutputSchema = baseFreightQuoteFormSchema.parti
     // Make sure containers are fully structured if present
     oceanShipment: z.object({
         containers: z.array(oceanContainerSchema).optional()
-    }).partial().optional(),
-    lclDetails: z.object({
-        cbm: z.coerce.number().optional(),
-        weight: z.coerce.number().optional()
     }).partial().optional()
 });
 
@@ -44,12 +40,10 @@ const extractQuoteDetailsFromTextPrompt = ai.definePrompt({
 
 **Extraction Rules:**
 - **Modal:** Determine if the request is 'air' or 'ocean'. If it mentions containers like 20ft, 40ft, it's 'ocean'.
-- **Locations:** Identify the 'origin' and 'destination'.
-    - Recognize \`POL\` as Port of Loading (origin) and \`POD\` as Port of Discharge (destination).
-    - Standardize locations to 'City, Country' format (e.g., "Santos, Brazil", "Belawan, Indonesia").
-- **Incoterm:** Find the Incoterm (e.g., FOB, EXW). If not found, you can omit it.
+- **Locations:** Identify the 'origin' and 'destination'. Standardize them to 'City, Country' format (e.g., "Santos, Brazil").
+- **Incoterm:** Find the Incoterm (e.g., FOB, EXW).
 - **Cargo Details:**
-  - If **Ocean FCL**, identify the container types and quantities from terms like \`Vol\`.
+  - If **Ocean FCL**, identify the container types and quantities.
   - **CRITICAL CONTAINER MAPPING:** Standardize container types: \`20ft\` or \`20'\` -> \`20'GP\`, \`40ft\` or \`40'\` -> \`40'GP\`, \`40hc\` -> \`40'HC\`.
   - Populate the \`oceanShipment.containers\` array.
 - **Commodity:** Extract the description of the goods if available.
@@ -73,32 +67,6 @@ We need to ship 1x40'HC container from Shanghai, CN to Santos, BR. Incoterm is F
     "containers": [
       {
         "type": "40'HC",
-        "quantity": 1
-      }
-    ]
-  }
-}
-\`\`\`
----
-**Example 2 Input Text:**
-"Could you please give us your best offer for below details,
-POL: Santos, Brazil
-POD: Belawan, Indonesia
-Vol: 1x20ft
-Commodity: desiccated coconut"
-
-**Expected Example 2 JSON Output:**
-\`\`\`json
-{
-  "modal": "ocean",
-  "origin": "Santos, Brazil",
-  "destination": "Belawan, Indonesia",
-  "commodity": "desiccated coconut",
-  "oceanShipmentType": "FCL",
-  "oceanShipment": {
-    "containers": [
-      {
-        "type": "20'GP",
         "quantity": 1
       }
     ]

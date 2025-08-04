@@ -1,12 +1,15 @@
 
 export function getAuthHeaders() {
     const API_KEY = process.env.CARGOFLOWS_API_KEY;
+    const ORG_TOKEN = process.env.CARGOFLOWS_ORG_TOKEN;
 
-    if (!API_KEY) {
-        throw new Error('A chave da API Cargoes (CARGOFLOWS_API_KEY) não está configurada no ambiente.');
+    if (!API_KEY || !ORG_TOKEN) {
+        throw new Error('As credenciais da API Cargo-flows (CARGOFLOWS_API_KEY e CARGOFLOWS_ORG_TOKEN) não estão configuradas no ambiente.');
     }
+    
     return {
         'x-api-key': API_KEY,
+        'X-DPW-Org-Token': ORG_TOKEN,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
     };

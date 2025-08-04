@@ -14,7 +14,7 @@ import { PartnersRegistry } from '@/components/partners-registry';
 import { ProfitSettings } from '@/components/profit-settings';
 import { ShipRegistry } from '@/components/settings/ship-registry';
 import { getStoredFees, saveFees, type Fee } from '@/lib/fees-data';
-import { getStoredPartners, type Partner, savePartners } from '@/lib/partners-data';
+import { getStoredPartners, type Partner, savePartners } from '@/lib/partners-data-client';
 import { UserManagementTable } from '@/components/settings/user-management-table';
 import { TaskAutomationRegistry } from '@/components/task-automation-registry';
 import { savePartnerAction } from '@/app/actions';

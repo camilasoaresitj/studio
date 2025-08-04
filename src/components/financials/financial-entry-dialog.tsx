@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
 import type { FinancialEntry } from '@/lib/financials-data';
-import { getPartners, Partner } from '@/lib/partners-data';
+import { getStoredPartners, Partner } from '@/lib/partners-data-client';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -63,7 +63,7 @@ export function FinancialEntryDialog({ isOpen, onClose, onSave }: FinancialEntry
 
   useEffect(() => {
     if (isOpen) {
-        setPartners(getPartners().filter(p => p.roles.fornecedor));
+        setPartners(getStoredPartners().filter(p => p.roles.fornecedor));
         form.reset();
     }
   }, [isOpen, form]);

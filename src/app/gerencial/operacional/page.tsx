@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import type { Shipment } from '@/lib/shipment-data';
 import { getStoredShipments, saveShipments } from '@/lib/shipment-data-client';
-import { getStoredPartners, type Partner } from '@/lib/partners-data';
+import { getStoredPartners, type Partner } from '@/lib/partners-data-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ImportantTasks } from '@/components/important-tasks';
 import { RecentShipments } from '@/components/recent-shipments';

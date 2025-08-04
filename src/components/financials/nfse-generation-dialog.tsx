@@ -27,7 +27,7 @@ import { Loader2, FileText, ChevronsUpDown, Check } from 'lucide-react';
 import type { FinancialEntry } from '@/lib/financials-data';
 import type { Shipment, QuoteCharge } from '@/lib/shipment-data';
 import { runGenerateNfseXml } from '@/app/actions';
-import { getPartners } from '@/lib/partners-data';
+import { getStoredPartners } from '@/lib/partners-data-client';
 import type { Partner } from '@/lib/partners-data';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
@@ -75,7 +75,7 @@ export function NfseGenerationDialog({ isOpen, onClose, data }: NfseGenerationDi
 
   useEffect(() => {
     if (isOpen) {
-      setPartners(getPartners().filter(p => p.roles.cliente));
+      setPartners(getStoredPartners().filter(p => p.roles.cliente));
     }
   }, [isOpen]);
 

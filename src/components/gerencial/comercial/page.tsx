@@ -7,7 +7,7 @@ import { RateImporter } from '@/components/rate-importer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRates, saveRates } from '@/lib/rates-data';
 import { getStoredQuotes } from '@/lib/initial-data';
-import { getStoredPartners, type Partner, savePartners } from '@/lib/partners-data';
+import { getStoredPartners, type Partner, savePartners } from '@/lib/partners-data-client';
 import { savePartnerAction } from '@/app/actions';
 import { getStoredFees, type Fee } from '@/lib/fees-data';
 import { Button } from '@/components/ui/button';

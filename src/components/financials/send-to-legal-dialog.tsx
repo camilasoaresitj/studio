@@ -23,7 +23,8 @@ import { Loader2, Send } from 'lucide-react';
 import type { FinancialEntry } from '@/lib/financials-data';
 import type { Shipment } from '@/lib/shipment-data';
 import { runSendToLegal } from '@/app/actions';
-import { getPartners, Partner } from '@/lib/partners-data';
+import { getStoredPartners } from '@/lib/partners-data-client';
+import type { Partner } from '@/lib/partners-data';
 
 interface SendToLegalDialogProps {
   isOpen: boolean;
@@ -53,7 +54,7 @@ export function SendToLegalDialog({ isOpen, onClose, data, onConfirm }: SendToLe
   });
   
   useEffect(() => {
-    const allPartners = getPartners();
+    const allPartners = getStoredPartners();
     const legalPartners = allPartners.filter(p => p.name.toLowerCase().includes('advoca'));
     if(legalPartners.length > 0) {
         setLawyers(legalPartners);

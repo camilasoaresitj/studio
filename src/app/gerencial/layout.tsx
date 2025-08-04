@@ -1,4 +1,3 @@
-
 import { MainHeader } from '@/components/layout/main-header';
 import { MainSidebar, SidebarProvider } from '@/components/layout/main-sidebar';
 
@@ -11,7 +10,7 @@ export default function AppLayout({
     <SidebarProvider>
       <div className="flex min-h-screen">
         <MainSidebar />
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-1 flex-col">
           <MainHeader />
           <main className="flex-1 p-4 md:p-8">{children}</main>
         </div>

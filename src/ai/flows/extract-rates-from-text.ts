@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview Extracts structured freight rate data from unstructured text.
+ * @fileOverview Extracts structured freight rate data from unstructured text or a media file (PDF).
  *
- * - extractRatesFromText - A function that parses text and returns a structured list of rates.
+ * - extractRatesFromText - A function that parses content and returns a structured list of rates.
  * - ExtractRatesFromTextInput - The input type for the function.
  * - ExtractRatesFromTextOutput - The return type for the function.
  */
@@ -12,7 +12,9 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const ExtractRatesFromTextInputSchema = z.object({
-  textInput: z.string().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
+  textInput: z.string().optional().describe('Unstructured text containing freight rate information, like an email or a pasted table.'),
+  fileDataUri: z.string().optional().describe("A media file (like a PDF) as a data URI containing the rates."),
+  fileName: z.string().optional().describe("The name of the uploaded file."),
 });
 export type ExtractRatesFromTextInput = z.infer<typeof ExtractRatesFromTextInputSchema>;
 
@@ -36,9 +38,9 @@ export async function extractRatesFromText(input: ExtractRatesFromTextInput): Pr
 
 const extractRatesFromTextPrompt = ai.definePrompt({
   name: 'extractRatesFromTextPrompt',
-  input: { schema: ExtractRatesFromTextInputSchema },
+  input: { schema: z.object({ textInput: z.string().optional(), media: z.any().optional() }) },
   output: { schema: z.object({ rates: ExtractRatesFromTextOutputSchema }) },
-  prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the text below and return a valid JSON object containing an array of rate objects. The final JSON must have a single key "rates".
+  prompt: `You are a logistics AI assistant. Your task is to extract freight rates from the content below (which can be text or a media file like a PDF) and return a valid JSON object containing an array of rate objects. The final JSON must have a single key "rates".
 
 **CRITICAL RULE FOR MULTI-RATES AND MULTI-PORTS:** You must handle complex rate notations.
 - If a rate applies to multiple ports (e.g., "BR base ports"), create separate, identical rate objects for EACH port. "BR base ports" means: Santos, Itapoá, Navegantes, Paranaguá, Rio Grande.
@@ -50,8 +52,14 @@ const extractRatesFromTextPrompt = ai.definePrompt({
 - **Validity:** If a date range is given (e.g., "valid until 21/07/2025"), extract **ONLY THE END DATE** ("21/07/2025").
 - **Location Standardization:** Normalize location names (e.g., "Rotterdam" -> "Roterdã, NL"; "Shanghai" -> "Xangai, CN").
 
+{{#if textInput}}
 Analyze the following text and extract the rates:
 {{{textInput}}}
+{{/if}}
+{{#if media}}
+Analyze the following media file and extract the rates:
+{{media url=media.url}}
+{{/if}}
 `,
 });
 
@@ -62,7 +70,17 @@ const extractRatesFromTextFlow = ai.defineFlow(
     outputSchema: ExtractRatesFromTextOutputSchema,
   },
   async (input) => {
-    const { output } = await extractRatesFromTextPrompt(input);
+    let promptInput: { textInput?: string; media?: { url: string } } = {};
+
+    if (input.fileDataUri) {
+        promptInput = { media: { url: input.fileDataUri } };
+    } else if (input.textInput) {
+        promptInput = { textInput: input.textInput };
+    } else {
+        throw new Error("Nenhum texto ou arquivo foi fornecido para extração.");
+    }
+    
+    const { output } = await extractRatesFromTextPrompt(promptInput);
     
     if (!output?.rates || output.rates.length === 0) {
       throw new Error("A IA não conseguiu extrair nenhuma tarifa válida do texto. Tente ajustar o texto ou cole um trecho mais claro.");

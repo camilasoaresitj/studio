@@ -21,10 +21,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 
 const formSchema = z.object({
-  textInput: z.string().min(20, {
-    message: 'O texto deve ter pelo menos 20 caracteres.',
-  }),
+  textInput: z.string().optional(),
+  fileDataUri: z.string().optional(),
+  fileName: z.string().optional(),
 });
+
+type FormValues = z.infer<typeof formSchema>;
 
 interface RateImporterProps {
   onRatesImported: (newRates: ExtractRatesFromTextOutput) => void;
@@ -37,18 +39,22 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       textInput: '',
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
+    if (!values.textInput && !values.fileDataUri) {
+        toast({ variant: 'destructive', title: 'Nenhum dado fornecido', description: 'Por favor, cole um texto ou importe um arquivo.' });
+        return;
+    }
     setIsLoading(true);
     setResults([]);
     setError(null);
-    const response = await runExtractRatesFromText(values.textInput);
+    const response = await runExtractRatesFromText(values as any);
     if (response.success && response.data && response.data.length > 0) {
       setResults(response.data);
       onRatesImported(response.data);
@@ -71,89 +77,62 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
     if (!file) return;
     
     const reader = new FileReader();
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
-    if (file.name.toLowerCase().endsWith('.eml')) {
-        reader.onload = (e) => {
-            const emlContent = e.target?.result;
-            if (!emlContent) return;
+    reader.onload = (e) => {
+        const result = e.target?.result;
+        if (!result) {
+            toast({ variant: 'destructive', title: 'Erro ao ler arquivo' });
+            return;
+        }
 
-            new EmlParser(emlContent as any)
-                .getEmailBodyHtml()
-                .then(html => {
-                    const text = html || new EmlParser(emlContent as any).getEmailBody();
-                     if (text) {
-                         form.setValue('textInput', text);
-                         toast({
-                            title: 'E-mail carregado!',
-                            description: 'O corpo do e-mail foi carregado. Clique em "Extrair" para analisar.',
-                         });
-                    } else {
-                        throw new Error("Nenhum conteúdo de texto encontrado no e-mail.");
-                    }
-                })
-                .catch(err => {
-                     toast({
-                        variant: 'destructive',
-                        title: 'Erro ao processar e-mail',
-                        description: err.message,
+        form.setValue('textInput', '');
+        form.setValue('fileDataUri', undefined);
+        form.setValue('fileName', undefined);
+        
+        try {
+            if (fileExtension === 'pdf') {
+                form.setValue('fileDataUri', result as string);
+                form.setValue('fileName', file.name);
+                toast({ title: 'Arquivo PDF carregado!', description: 'Clique em "Extrair" para analisar.' });
+            } else if (fileExtension === 'eml') {
+                new EmlParser(result as ArrayBuffer)
+                    .getEmailBodyHtml()
+                    .then(html => {
+                        const text = html || new EmlParser(result as ArrayBuffer).getEmailBody();
+                        if (text) {
+                            form.setValue('textInput', text);
+                            toast({ title: 'E-mail carregado!', description: 'O corpo do e-mail foi carregado. Clique em "Extrair" para analisar.' });
+                        } else {
+                            throw new Error("Nenhum conteúdo de texto encontrado no e-mail.");
+                        }
+                    })
+                    .catch(err => {
+                        throw err;
                     });
-                })
-        };
-        reader.readAsArrayBuffer(file);
-    } else {
-         reader.onload = (e) => {
-          try {
-            const data = new Uint8Array(e.target?.result as ArrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            
-            const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" });
+            } else { // Spreadsheets
+                const data = new Uint8Array(result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" });
 
-            if (jsonData.length === 0) {
-              form.setValue('textInput', '');
-              toast({
-                variant: 'destructive',
-                title: 'Arquivo Vazio',
-                description: 'A planilha selecionada está vazia ou não pôde ser lida.',
-              });
-              return;
+                if (jsonData.length === 0) throw new Error('A planilha está vazia.');
+
+                const textData = jsonData.map(row => row.join('\t')).join('\n');
+                form.setValue('textInput', textData);
+                toast({ title: 'Arquivo carregado!', description: 'O conteúdo do arquivo foi carregado. Clique em "Extrair" para analisar.' });
             }
-
-            const colWidths: number[] = [];
-            jsonData.forEach(row => {
-              row.forEach((cell, i) => {
-                const cellStr = String(cell ?? '').trim();
-                if (!colWidths[i] || cellStr.length > colWidths[i]) {
-                  colWidths[i] = cellStr.length;
-                }
-              });
-            });
-
-            const textData = jsonData.map(row => 
-              row.map((cell, i) => {
-                const cellStr = String(cell ?? '').trim();
-                return cellStr.padEnd((colWidths[i] || 0) + 2, ' ');
-              }).join('')
-            ).join('\n');
-            
-            form.setValue('textInput', textData);
-            toast({
-              title: 'Arquivo carregado!',
-              description: 'O conteúdo do arquivo foi carregado. Clique em "Extrair" para analisar.',
-            });
-          } catch (err) {
-            console.error("Error reading file:", err);
-            toast({
-              variant: 'destructive',
-              title: 'Erro ao ler arquivo',
-              description: 'Ocorreu um erro ao processar o arquivo. Verifique se o formato é válido (XLSX, XLS, CSV).',
-            });
-          }
-        };
-        reader.readAsArrayBuffer(file);
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: 'Erro ao processar arquivo', description: err.message });
+        }
+    };
+    
+    if (fileExtension === 'pdf') {
+        reader.readAsDataURL(file); // Read as Data URL for PDFs
+    } else {
+        reader.readAsArrayBuffer(file); // Read as ArrayBuffer for spreadsheets and emails
     }
-
 
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -196,7 +175,7 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
                 ref={fileInputRef} 
                 onChange={handleFileChange}
                 className="hidden"
-                accept=".xlsx, .xls, .csv, .eml"
+                accept=".xlsx, .xls, .csv, .eml, .pdf"
               />
               <div className="flex flex-col sm:flex-row-reverse gap-2">
                 <Button type="submit" disabled={isLoading} className="w-full">

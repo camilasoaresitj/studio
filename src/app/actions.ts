@@ -294,9 +294,9 @@ export async function runSendShippingInstructions(input: any) {
   }
 }
 
-export async function runExtractRatesFromText(textInput: string) {
+export async function runExtractRatesFromText(input: { textInput?: string; fileDataUri?: string, fileName?: string }) {
     try {
-        const data = await extractRatesFromText({ textInput });
+        const data = await extractRatesFromText({ textInput: input.textInput || '', ...input });
         return { success: true, data };
     } catch (error: any) {
         console.error("Extract Rates Action Failed", error);

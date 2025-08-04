@@ -1,6 +1,7 @@
 
 import { ai } from './genkit';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const SendQuoteInputSchema = z.object({
     customerName: z.string(),
@@ -26,6 +27,7 @@ export const sendQuotePrompt = ai.definePrompt({
   name: 'send-quote',
   input: { schema: SendQuoteInputSchema },
   output: { schema: SendQuoteOutputSchema },
+  model: googleAI.model('gemini-pro'),
   prompt: `You are an expert logistics communication AI, skilled in creating professional and persuasive messages for sending rate quotes to clients.
 
 **Instructions:**

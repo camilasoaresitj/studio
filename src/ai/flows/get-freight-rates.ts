@@ -33,15 +33,17 @@ const cargoFiveRateTool = ai.defineTool(
     name: 'searchCargoFiveRates',
     description: 'Searches for ocean freight rates on the CargoFive API.',
     inputSchema: z.object({
-        origin: z.string().describe("The UN/LOCODE of the origin port."),
-        destination: z.string().describe("The UN/LOCODE of the destination port."),
-        departureDate: z.string().describe("The departure date in YYYY-MM-DD format."),
+        origin_port: z.string().describe("The UN/LOCODE of the origin port."),
+        destination_port: z.string().describe("The UN/LOCODE of the destination port."),
+        departure_date: z.string().describe("The departure date in YYYY-MM-DD format."),
+        container_type: z.string().describe("The container type, e.g., 20'GP, 40'HC."),
     }),
     outputSchema: z.any() 
   },
-  async ({ origin, destination, departureDate }) => {
+  async (params) => {
     const apiKey = process.env.CARGOFIVE_API_KEY || 'a256c19a3c3d85da2e35846de3205954';
-    const API_URL = `https://api.cargofive.com/v1/rates?origin_port=${origin}&destination_port=${destination}&departure_date=${departureDate}`;
+    // Corrected API endpoint from /rates to /fcl/quotes and using POST
+    const API_URL = `https://api.cargofive.com/v1/fcl/quotes`;
     
     if (!apiKey) {
       throw new Error('CargoFive API key is not configured.');
@@ -50,7 +52,12 @@ const cargoFiveRateTool = ai.defineTool(
     try {
       console.log('Consultando CargoFive com URL:', API_URL);
       const response = await fetch(API_URL, {
-        headers: { 'x-api-key': apiKey }
+        method: 'POST',
+        headers: { 
+            'x-api-key': apiKey,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(params)
       });
 
       if (!response.ok) {
@@ -92,46 +99,42 @@ const getFreightRatesFlow = ai.defineFlow(
             if (input.oceanShipmentType !== 'FCL' || !input.oceanShipment.containers.length) {
                 return [];
             }
-            
+
             const departureDate = input.departureDate ? format(new Date(input.departureDate), 'yyyy-MM-dd') : format(addDays(new Date(), 7), 'yyyy-MM-dd');
             
-            const response = await cargoFiveRateTool({
-                origin: originPort.unlocode,
-                destination: destinationPort.unlocode,
-                departureDate: departureDate,
-            });
+            const allRates: FreightRate[] = [];
 
-            const rates = response?.rates;
-            if (!rates || rates.length === 0) {
-                return [];
-            }
-            
-            // Unroll rates for each container type
-            const finalRates: FreightRate[] = [];
-            rates.forEach((rate: any, index: number) => {
-                input.oceanShipment.containers.forEach(containerInput => {
-                    const containerTypeSimple = containerInput.type.replace("'", ""); // e.g., 20'GP -> 20GP
-                    
-                    if(rate.freight_rates[containerTypeSimple]) {
-                        const costValue = parseFloat(rate.freight_rates[containerTypeSimple].replace(/[^0-9.-]+/g,""));
-                        finalRates.push({
-                            id: `${rate.id}-${containerTypeSimple}` || `rate-${index}-${containerTypeSimple}`,
+            // Iterate over each container type requested by the user
+            for (const container of input.oceanShipment.containers) {
+                 const response = await cargoFiveRateTool({
+                    origin_port: originPort.unlocode,
+                    destination_port: destinationPort.unlocode,
+                    departure_date: departureDate,
+                    container_type: container.type,
+                });
+
+                const rates = response?.quotes;
+                if (rates && rates.length > 0) {
+                     rates.forEach((rate: any, index: number) => {
+                        const costValue = parseFloat(rate.total_amount.replace(/[^0-9.-]+/g, ""));
+                        allRates.push({
+                            id: rate.id || `rate-${index}-${container.type}`,
                             carrier: rate.carrier.name,
                             origin: rate.origin_port.name,
                             destination: rate.destination_port.name,
                             transitTime: `${rate.transit_time} dias`,
                             costValue: costValue,
-                            cost: `USD ${costValue.toFixed(2)}`,
+                            cost: `${rate.currency} ${costValue.toFixed(2)}`,
                             carrierLogo: rate.carrier.logo_url || `https://logo.clearbit.com/${rate.carrier.name.toLowerCase()}.com`,
                             dataAiHint: `${rate.carrier.name.toLowerCase()} logo`,
                             source: 'CargoFive API',
                             freeTime: rate.free_time ? `${rate.free_time.demurrage_days} / ${rate.free_time.detention_days}` : 'N/A'
                         });
-                    }
-                });
-            });
-
-            return finalRates.sort((a, b) => a.costValue - b.costValue);
+                    });
+                }
+            }
+           
+            return allRates.sort((a, b) => a.costValue - b.costValue);
 
         } catch (error: any) {
             console.error('Erro no fluxo de tarifas:', error);

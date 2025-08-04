@@ -74,13 +74,13 @@ export function RateImporter({ onRatesImported }: RateImporterProps) {
 
     if (file.name.toLowerCase().endsWith('.eml')) {
         reader.onload = (e) => {
-            const emlContent = e.target?.result as ArrayBuffer;
+            const emlContent = e.target?.result;
             if (!emlContent) return;
 
-            new EmlParser(new EmlParser(new Uint8Array(emlContent) as any))
+            new EmlParser(emlContent as any)
                 .getEmailBodyHtml()
                 .then(html => {
-                    const text = html || new EmlParser(new Uint8Array(emlContent) as any).getEmailBody();
+                    const text = html || new EmlParser(emlContent as any).getEmailBody();
                      if (text) {
                          form.setValue('textInput', text);
                          toast({

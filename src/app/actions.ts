@@ -549,124 +549,139 @@ export async function runSubmitBLDraft(shipmentId: string, draftData: BLDraftDat
   }
 }
 
-async function createShipment(quoteData: ShipmentCreationData): Promise<Shipment> {
-  const allPartners = getPartners();
-  const allShipments = getShipments();
-  const shipper = allPartners.find(p => p.id?.toString() === quoteData.shipperId);
-  const consignee = allPartners.find(p => p.id?.toString() === quoteData.consigneeId);
-  const agent = allPartners.find(p => p.id?.toString() === quoteData.agentId);
+async function createShipment(quoteData: ShipmentCreationData): Promise<{ success: boolean, data?: Shipment, error?: string}> {
+  try {
+    const allPartners = getPartners();
+    const allShipments = getShipments();
+    const shipper = allPartners.find(p => p.id?.toString() === quoteData.shipperId);
+    const consignee = allPartners.find(p => p.id?.toString() === quoteData.consigneeId);
+    const agent = allPartners.find(p => p.id?.toString() === quoteData.agentId);
 
-  if(!shipper || !consignee) {
-      throw new Error("Shipper or Consignee not found");
-  }
+    if(!shipper || !consignee) {
+        throw new Error("Shipper or Consignee not found");
+    }
 
-  const isImport = quoteData.destination.toUpperCase().includes('BR');
-  const creationDate = new Date();
-  
-    const IMPORT_MILESTONES_DEFAULTS = [
-        'Instruções de Embarque Enviadas ao Agente', 'Carga Pronta', 'Booking Confirmado', 
-        'Coleta da Carga (se aplicável)', 'Container Gate In (Entregue no Porto)', 
-        'Cut Off Documental', 'Confirmação de Embarque', 'HBL Aprovado', 'Documentos Originais Emitidos', 
-        'CE Mercante Lançado', 'Chegada ao Destino', 'Desembaraço Aduaneiro', 'Carga Entregue'
-    ];
-
-    const EXPORT_MILESTONES_DEFAULTS = [
-        'Confirmação de Booking', 'Retirada do Vazio', 'Coleta da Carga (se aplicável)', 
-        'Container Gate In (Entregue no Porto)', 'Cut Off Documental', 'Desembaraço de Exportação', 'Embarque', 
-        'HBL Aprovado', 'Chegada no Destino', 'Confirmação de Entrega'
-    ];
-  
-  const generateInitialMilestones = (isImport: boolean, creationDate: Date): Milestone[] => {
-    const milestoneNames = isImport ? IMPORT_MILESTONES_DEFAULTS : EXPORT_MILESTONES_DEFAULTS;
+    const isImport = quoteData.destination.toUpperCase().includes('BR');
+    const creationDate = new Date();
     
-    let milestones: Milestone[] = milestoneNames.map((name, index) => ({
-        name, 
-        status: 'pending' as const, 
-        predictedDate: addDays(creationDate, index * 3), // Simplified date logic
-        effectiveDate: null, 
-        isTransshipment: false
-    }));
+      const IMPORT_MILESTONES_DEFAULTS = [
+          'Instruções de Embarque Enviadas ao Agente', 'Carga Pronta', 'Booking Confirmado', 
+          'Coleta da Carga (se aplicável)', 'Container Gate In (Entregue no Porto)', 
+          'Cut Off Documental', 'Confirmação de Embarque', 'HBL Aprovado', 'Documentos Originais Emitidos', 
+          'CE Mercante Lançado', 'Chegada ao Destino', 'Desembaraço Aduaneiro', 'Carga Entregue'
+      ];
+
+      const EXPORT_MILESTONES_DEFAULTS = [
+          'Confirmação de Booking', 'Retirada do Vazio', 'Coleta da Carga (se aplicável)', 
+          'Container Gate In (Entregue no Porto)', 'Cut Off Documental', 'Desembaraço de Exportação', 'Embarque', 
+          'HBL Aprovado', 'Chegada no Destino', 'Confirmação de Entrega'
+      ];
     
-    milestones.sort((a, b) => (a.predictedDate?.getTime() ?? 0) - (b.predictedDate?.getTime() ?? 0));
-    return milestones;
-  };
+    const generateInitialMilestones = (isImport: boolean, creationDate: Date): Milestone[] => {
+      const milestoneNames = isImport ? IMPORT_MILESTONES_DEFAULTS : EXPORT_MILESTONES_DEFAULTS;
+      
+      let milestones: Milestone[] = milestoneNames.map((name, index) => ({
+          name, 
+          status: 'pending' as const, 
+          predictedDate: addDays(creationDate, index * 3), // Simplified date logic
+          effectiveDate: null, 
+          isTransshipment: false
+      }));
+      
+      milestones.sort((a, b) => (a.predictedDate?.getTime() ?? 0) - (b.predictedDate?.getTime() ?? 0));
+      return milestones;
+    };
 
-  const milestones = generateInitialMilestones(isImport, creationDate);
-  if (milestones.length > 0 && quoteData.agentId) { milestones[0].status = 'completed'; milestones[0].effectiveDate = new Date(); }
+    const milestones = generateInitialMilestones(isImport, creationDate);
+    const hasInstructionMilestone = milestones.find(m => m.name.toLowerCase().includes('instruções de embarque'));
 
-  const transitTime = parseInt(quoteData.details.transitTime.split('-').pop() || '30', 10);
-  const etdIndex = milestones.findIndex(m => m.name.toLowerCase().includes('embarque'));
-  const etd = milestones[etdIndex]?.predictedDate || addDays(creationDate, 14);
-  const eta = addDays(etd, transitTime);
-  const etaIndex = milestones.findIndex(m => m.name.toLowerCase().includes('chegada'));
-  if (etaIndex > -1) {
-      milestones[etaIndex].predictedDate = eta;
-  }
-  
-  const baseDocuments: DocumentStatus[] = [ { name: 'Negociação NET', status: 'pending' }, { name: 'Draft MBL', status: 'pending' }, { name: 'Draft HBL', status: 'pending' }, { name: 'Original MBL', status: 'pending' }, { name: 'Original HBL', status: 'pending' }, { name: 'Invoice', status: 'pending' }, { name: 'Packing List', status: 'pending' } ];
-  if (!isImport) { baseDocuments.push({ name: 'Extrato DUE', status: 'pending' }); }
-  const uploadedDocuments: DocumentStatus[] = quoteData.uploadedDocs.map(doc => ({ name: doc.name, status: 'uploaded', fileName: doc.file.name, uploadedAt: new Date() }));
-  const documents: DocumentStatus[] = baseDocuments.map(doc => uploadedDocuments.find(ud => ud.name === doc.name) || doc);
-  const shipmentId = `PROC-${quoteData.id.replace('COT-', '')}-${Date.now().toString().slice(-5)}`;
+    if (hasInstructionMilestone && quoteData.agentId) { 
+      hasInstructionMilestone.status = 'completed'; 
+      hasInstructionMilestone.effectiveDate = new Date(); 
+    }
 
-  const newShipment: Shipment = {
-    id: shipmentId, 
-    status: 'Ativo',
-    quoteId: quoteData.id, 
-    modal: quoteData.modal || (quoteData.details.cargo.includes('kg') ? 'air' : 'ocean'),
-    origin: quoteData.origin, 
-    destination: quoteData.destination,
-    collectionAddress: quoteData.collectionAddress, 
-    deliveryAddress: quoteData.deliveryAddress,
-    shipper, consignee, agent,
-    responsibleUser: quoteData.responsibleUser, 
-    terminalRedestinacaoId: quoteData.terminalRedestinacaoId,
-    charges: quoteData.charges,
-    details: quoteData.details, 
-    carrier: quoteData.carrier, 
-    milestones, 
-    documents, 
-    etd, 
-    eta,
-    bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    masterBillNumber: `MSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    invoiceNumber: quoteData.invoiceNumber, 
-    purchaseOrderNumber: quoteData.purchaseOrderNumber,
-    notifyName: quoteData.notifyName, 
-    customer: quoteData.customer, 
-    chatMessages: [{ sender: 'Sistema', message: `Olá! O processo ${shipmentId} foi criado. Use este chat para falar com nossa equipe.`, timestamp: new Date().toISOString(), department: 'Sistema' }],
-    blDraftHistory: { sentAt: null, revisions: [] },
-    // Road specific fields from quoteData if they exist
-    border: quoteData.roadShipment?.border,
-    // Courier specific fields from quoteData if they exist
-    courier: quoteData.modal === 'courier' ? quoteData.carrier : undefined,
-  };
-
-  if (isImport && agent) {
-    const thcCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('thc'));
-    const agentPortalUrl = typeof window !== 'undefined' ? `${window.location.origin}/agent-portal/${shipmentId}` : `/agent-portal/${shipmentId}`;
-    const profitAgreement = agent.profitAgreements?.find(pa => pa.modal === 'FCL' && pa.direction === 'IMPORTACAO');
-    const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
+    const transitTime = parseInt(quoteData.details.transitTime.split('-').pop() || '30', 10);
+    const etdIndex = milestones.findIndex(m => m.name.toLowerCase().includes('embarque'));
+    const etd = milestones[etdIndex]?.predictedDate || addDays(creationDate, 14);
+    const eta = addDays(etd, transitTime);
+    const etaIndex = milestones.findIndex(m => m.name.toLowerCase().includes('chegada'));
+    if (etaIndex > -1) {
+        milestones[etaIndex].predictedDate = eta;
+    }
     
-    await runSendShippingInstructions({
-      shipmentId: newShipment.id, agentName: agent.name, agentEmail: agent.contacts[0]?.email || 'agent@example.com',
-      shipper: shipper, consigneeName: consignee.name, notifyName: quoteData.notifyName,
-      freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
-      freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'AS AGREED',
-      agentProfit: profitAgreement?.amount ? `USD ${profitAgreement.amount.toFixed(2)}` : 'N/A',
-      thcValue: thcCharge?.sale ? `${thcCharge.saleCurrency} ${thcCharge.sale.toFixed(2)}` : 'N/A',
-      commodity: newShipment.commodityDescription || 'General Cargo', equipmentDescription: newShipment.details.cargo || 'N/A',
-      ncm: newShipment.ncms?.[0] || 'N/A', invoiceNumber: newShipment.invoiceNumber || 'N/A', purchaseOrderNumber: newShipment.purchaseOrderNumber || 'N/A',
-      updateLink: agentPortalUrl,
-    });
-  }
+    const baseDocuments: DocumentStatus[] = [ { name: 'Negociação NET', status: 'pending' }, { name: 'Draft MBL', status: 'pending' }, { name: 'Draft HBL', status: 'pending' }, { name: 'Original MBL', status: 'pending' }, { name: 'Original HBL', status: 'pending' }, { name: 'Invoice', status: 'pending' }, { name: 'Packing List', status: 'pending' } ];
+    if (!isImport) { baseDocuments.push({ name: 'Extrato DUE', status: 'pending' }); }
+    const uploadedDocuments: DocumentStatus[] = quoteData.uploadedDocs.map(doc => ({ name: doc.name, status: 'uploaded', fileName: doc.file.name, uploadedAt: new Date() }));
+    const documents: DocumentStatus[] = baseDocuments.map(doc => uploadedDocuments.find(ud => ud.name === doc.name) || doc);
+    const shipmentId = `PROC-${quoteData.id.replace('COT-', '')}-${Date.now().toString().slice(-5)}`;
 
-  
-  allShipments.unshift(newShipment);
-  // This will be handled on the client-side
-  // await saveShipmentsData(allShipments);
-  return newShipment;
+    const newShipment: Shipment = {
+      id: shipmentId, 
+      status: 'Ativo',
+      quoteId: quoteData.id, 
+      modal: quoteData.modal || (quoteData.details.cargo.includes('kg') ? 'air' : 'ocean'),
+      origin: quoteData.origin, 
+      destination: quoteData.destination,
+      collectionAddress: quoteData.collectionAddress, 
+      deliveryAddress: quoteData.deliveryAddress,
+      shipper, consignee, agent,
+      responsibleUser: quoteData.responsibleUser, 
+      terminalRedestinacaoId: quoteData.terminalRedestinacaoId,
+      charges: quoteData.charges,
+      details: quoteData.details, 
+      carrier: quoteData.carrier, 
+      milestones, 
+      documents, 
+      etd, 
+      eta,
+      bookingNumber: `BK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      masterBillNumber: `MSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      houseBillNumber: `HSBL-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      invoiceNumber: quoteData.invoiceNumber, 
+      purchaseOrderNumber: quoteData.purchaseOrderNumber,
+      notifyName: quoteData.notifyName, 
+      customer: quoteData.customer, 
+      chatMessages: [{ sender: 'Sistema', message: `Olá! O processo ${shipmentId} foi criado. Use este chat para falar com nossa equipe.`, timestamp: new Date().toISOString(), department: 'Sistema' }],
+      blDraftHistory: { sentAt: null, revisions: [] },
+      courier: quoteData.modal === 'courier' ? quoteData.carrier : undefined,
+      border: quoteData.roadShipment?.border,
+    };
+
+    if (isImport && agent) {
+        const agentPortalUrl = typeof window !== 'undefined' ? `${window.location.origin}/agent-portal/${shipmentId}` : `/agent-portal/${shipmentId}`;
+        const profitAgreement = agent.profitAgreements?.find(pa => pa.modal === 'FCL' && pa.direction === 'IMPORTACAO');
+        const freightCharge = quoteData.charges.find(c => c.name.toLowerCase().includes('frete'));
+        
+        const siResponse = await sendShippingInstructions({
+            shipmentId: newShipment.id, agentName: agent.name, agentEmail: agent.contacts[0]?.email || 'agent@example.com',
+            shipper: shipper, consigneeName: consignee.name, notifyName: quoteData.notifyName,
+            freightCost: freightCharge?.cost ? `${freightCharge.costCurrency} ${freightCharge.cost.toFixed(2)}` : 'N/A',
+            freightSale: freightCharge?.sale ? `${freightCharge.saleCurrency} ${freightCharge.sale.toFixed(2)}` : 'AS AGREED',
+            agentProfit: profitAgreement?.amount ? `USD ${profitAgreement.amount.toFixed(2)}` : 'N/A',
+            thcValue: 'N/A', // THC is a destination charge, not relevant for origin SI
+            commodity: newShipment.commodityDescription || 'General Cargo', equipmentDescription: newShipment.details.cargo || 'N/A',
+            ncm: newShipment.ncms?.[0] || 'N/A', invoiceNumber: newShipment.invoiceNumber || 'N/A', purchaseOrderNumber: newShipment.purchaseOrderNumber || 'N/A',
+            updateLink: agentPortalUrl,
+        });
+
+        if (siResponse.success && siResponse.data) {
+          const siDoc: DocumentStatus = {
+              name: 'Instruções de Embarque',
+              status: 'approved',
+              fileName: `SI_${newShipment.id}.html`,
+              uploadedAt: new Date(),
+              content: siResponse.data.emailBody,
+          };
+          newShipment.documents.push(siDoc as any);
+        }
+    }
+
+    allShipments.unshift(newShipment);
+    return { success: true, data: newShipment };
+  } catch (error: any) {
+    console.error("Create Shipment failed", error);
+    return { success: false, error: error.message };
+  }
 }
 
 export async function runApproveQuote(
@@ -678,25 +693,21 @@ export async function runApproveQuote(
     poNumber: string, 
     uploadedDocs: UploadedDocument[]
 ): Promise<{ success: boolean, data?: Shipment, error?: string}> {
-    try {
-        const plainQuote = JSON.parse(JSON.stringify(quote));
-        const newShipment = await createShipment({
-            ...plainQuote,
-            shipperId: plainQuote.shipper?.id?.toString(),
-            consigneeId: plainQuote.consignee?.id?.toString(),
-            agentId: plainQuote.agent?.id?.toString(),
-            notifyName,
-            responsibleUser,
-            terminalRedestinacaoId: terminalId,
-            invoiceNumber: invoiceNumber,
-            purchaseOrderNumber: poNumber,
-            uploadedDocs: uploadedDocs,
-            carrier: quote.carrier, // Pass the carrier correctly
-        });
-        return { success: true, data: newShipment };
-    } catch(e: any) {
-        return { success: false, error: e.message };
-    }
+    const plainQuote = JSON.parse(JSON.stringify(quote));
+    const response = await createShipment({
+        ...plainQuote,
+        shipperId: plainQuote.shipper?.id?.toString(),
+        consigneeId: plainQuote.consignee?.id?.toString(),
+        agentId: plainQuote.agent?.id?.toString(),
+        notifyName,
+        responsibleUser,
+        terminalRedestinacaoId: terminalId,
+        invoiceNumber: invoiceNumber,
+        purchaseOrderNumber: poNumber,
+        uploadedDocs: uploadedDocs,
+        carrier: quote.carrier,
+    });
+    return response;
 }
 
 

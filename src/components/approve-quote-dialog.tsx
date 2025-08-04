@@ -112,10 +112,10 @@ export function ApproveQuoteDialog({ quote, partners, onApprovalConfirmed, onPar
     
     const response = await runApproveQuote(quote, notifyPartner.name, selectedTerminalId, responsibleUser, invoiceNumber, poNumber, validDocs);
 
-    if (response.success) {
+    if (response?.success) {
         onApprovalConfirmed(response.data);
     } else {
-        toast({ variant: 'destructive', title: 'Erro ao aprovar cotação', description: response.error });
+        toast({ variant: 'destructive', title: 'Erro ao aprovar cotação', description: response?.error || 'Ocorreu um erro desconhecido.' });
     }
   };
 

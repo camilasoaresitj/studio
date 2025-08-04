@@ -31,7 +31,7 @@ const nextConfig = {
     '@genkit-ai/firebase',
     '@genkit-ai/google-cloud',
   ],
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.ignoreWarnings = [
         /require\.extensions/, 
         /Critical dependency/,
@@ -43,14 +43,21 @@ const nextConfig = {
       ...config.resolve.fallback,
       '@opentelemetry/exporter-jaeger': false,
       '@opentelemetry/winston-transport': false,
-      'html-pdf': false,
       'net': false,
       'tls': false,
       'fs': false,
       'path': false,
       'crypto': false,
-      'child_process': false,
     };
+
+    if (!isServer) {
+        config.resolve.fallback = {
+            ...config.resolve.fallback,
+            'child_process': false,
+            'html-pdf': false,
+        };
+    }
+    
     return config;
   }
 }

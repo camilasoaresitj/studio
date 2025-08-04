@@ -10,6 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const RateDetailsSchema = z.object({
     origin: z.string().describe("The origin of the shipment."),
@@ -45,6 +46,7 @@ const sendQuotePrompt = ai.definePrompt({
   name: 'sendQuotePrompt',
   input: { schema: SendQuoteInputSchema },
   output: { schema: SendQuoteOutputSchema },
+  model: googleAI.model('gemini-pro'),
   prompt: `You are an expert logistics assistant. Your task is to create a professional and friendly communication for a customer, which could be either a freight quote or an invoice notification. The language of the communication must be based on whether the client is an agent or not.
 
 **Language Rules:**

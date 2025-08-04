@@ -113,7 +113,7 @@ export type TransshipmentDetail = {
 };
 
 export type DocumentStatus = {
-    name: 'Draft MBL' | 'Draft HBL' | 'Original MBL' | 'Original HBL' | 'Invoice' | 'Packing List' | 'Extrato DUE' | 'Negociação NET' | 'Outros';
+    name: 'Draft MBL' | 'Draft HBL' | 'Original MBL' | 'Original HBL' | 'Invoice' | 'Packing List' | 'Extrato DUE' | 'Negociação NET' | 'Outros' | 'Instruções de Embarque';
     status: 'pending' | 'uploaded' | 'approved';
     fileName?: string;
     uploadedAt?: Date;
